@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-set -x
 
 ESDK=${EPIPHANY_HOME}
 BSP='zed_E64G4_808_512mb'
