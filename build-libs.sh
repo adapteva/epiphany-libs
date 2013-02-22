@@ -37,6 +37,7 @@ cd ../../../
 cd src/e-hal/Release
 make clean
 make all
+cp -f libe-hal.so ../../../bsps/${BSP}
 #cp -f libe-hal.so ${ESDK}/bsps/${BSP}
 #ln -sTf ../../../../bsps/bsp/libe-hal.so ${ESDK}/tools/host/${ARCH}/lib/libe-hal.so
 #cp -f ../src/epiphany-hal.h ${ESDK}/tools/host/${ARCH}/include
