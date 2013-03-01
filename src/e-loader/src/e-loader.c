@@ -51,7 +51,7 @@ int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
 	pEpiphany = &Epiphany;
 
 	if (pEpiphany) {
-		if (e_open(pEpiphany, NULL))
+		if (e_open(pEpiphany))
 		{
 			fprintf(fd, "\nERROR: Can't establish connection to Epiphany device!\n\n");
 			exit(1);

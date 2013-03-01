@@ -134,7 +134,7 @@ int parseAndSendSrecFile(char *srecFile, Epiphany_t *pEpiphany, bool broadcast) 
 				addrBuf[addrSize] = '\0';
 				addrtHex = strtol(addrBuf, NULL, 16);
 				if (broadcast) {
-					addrtHex = (addrtHex & 0x000FFFFF) | (e_get_id_from_num(corenum) << 20);
+					addrtHex = (addrtHex & 0x000FFFFF) | (e_get_id_from_num(pEpiphany, corenum) << 20);
 				} else {
 					if (addrtHex < (1<<20)) { // make internal to global conversion
 						addrtHex += addressGlobalSpaceOffset;
@@ -160,7 +160,7 @@ int parseAndSendSrecFile(char *srecFile, Epiphany_t *pEpiphany, bool broadcast) 
 //					diag(L_D3) { fprintf(fd, " %02x %c\n", (unsigned int) dataBuf[4], dataBuf[4]); }
 
 					if (broadcast) {
-						CoreID = e_get_id_from_num(corenum);
+						CoreID = e_get_id_from_num(pEpiphany, corenum);
 					} else {
 						CoreID = strtol(dataBuf, NULL, 16);
 					}
@@ -196,7 +196,7 @@ int parseAndSendSrecFile(char *srecFile, Epiphany_t *pEpiphany, bool broadcast) 
 							fprintf(fd, " %s", dataBuf); fflush(stdout);
 						}
 					}
-					corenum = e_get_num_from_id(addrtHex >> 20);
+					corenum = e_get_num_from_id(pEpiphany, addrtHex >> 20);
 					diag(L_D3) { fprintf(fd, " to core no. %d   dev=%p\n", corenum, pEpiphany); }
 					e_write_buf(pEpiphany, corenum, addrtHex, Data2Send, byteCountHex);
 					diag(L_D3) { fprintf(fd, "\n"); }

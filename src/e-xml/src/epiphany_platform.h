@@ -35,23 +35,23 @@
 // Structure describing each chip in the system
 typedef struct
 {
-	char    *version;          // version of the chip
-	unsigned yid;              // chip coordinates (YID pins)
-	unsigned xid;              // chip coordinates (XID pins)
-	unsigned ioreg_row;        // row within chip where I/O registers are located
-	unsigned ioreg_col;        // column within chip where I/O registers are located
-	unsigned num_rows;         // number of rows in the chip
-	unsigned num_cols;         // number of cols in the chip
-	unsigned host_base;        // base address of host (for reset, readback, etc)
-	unsigned core_memory_size; // bytes of internal memory in each core
+	char     *version;          // version of the chip
+	unsigned  yid;              // chip coordinates (YID pins)
+	unsigned  xid;              // chip coordinates (XID pins)
+	unsigned  ioreg_row;        // row within chip where I/O registers are located
+	unsigned  ioreg_col;        // column within chip where I/O registers are located
+	unsigned  num_rows;         // number of rows in the chip
+	unsigned  num_cols;         // number of cols in the chip
+	unsigned  host_base;        // base address of host (for reset, readback, etc)
+	unsigned  core_memory_size; // bytes of internal memory in each core
 } chip_def_t;
 
 // Structure describing each external memory segment available to the chips
 typedef struct
 {
-	char    *name; // name of the memory segment (can be used in linker script)
-	unsigned base; // base address of memory segment
-	unsigned size; // number of bytes in the memory segment
+	char     *name; // name of the memory segment (can be used in linker script)
+	unsigned  base; // base address of memory segment
+	unsigned  size; // number of bytes in the memory segment
 } mem_def_t;
 
 // Structure containing the data parsed from the XML file and
