@@ -25,7 +25,7 @@
 #ifndef __E_LOADER_H__
 #define __E_LOADER_H__
 
-#include "e-hal.h"
+#include "epiphany-hal.h"
 
 typedef enum {
 	L_D1 = 1,

@@ -31,20 +31,65 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "epiphany-hal.h"
+#include "epiphany-hal-defs.h"
+#include "e-hal.h"
 
-bool e_is_on_chip(unsigned coreid);
+bool e_is_on_chip(Epiphany_t *dev, unsigned coreid);
+int  parse_hdf(E_Platform_t *dev, char *hdf);
+int  parse_simple_hdf(E_Platform_t *dev, char *hdf);
 
 #define diag(vN)   if (e_host_verbose >= vN)
 
 static int e_host_verbose = 0;
 static FILE *fd;
 
+char const hdf_env_var_name[] = "EPIPHANY_HW_DEF_FILE";
+
+static E_Platform_t e_platform;
 
 /////////////////////////////////
 // Device communication functions
 //
 // Epiphany access
+int e_init(e_hdf_format_t hdf_type, char *hdf)
+{
+	uid_t UID;
+
+	UID = getuid();
+	if (UID != 0)
+	{
+		warnx("e_init(): Program must be invoked with superuser privilege (sudo).");
+		return EPI_ERR;
+	}
+
+	char *hdf_env = getenv(hdf_env_var_name);
+	if (hdf == NULL)
+	{
+		if (hdf_env == NULL)
+		{
+			warnx("e_init(): No Hardware Definition File (HDF) is specified.");
+			return EPI_ERR;
+		}
+		hdf = hdf_env;
+	}
+	if (parse_hdf(&e_platform, hdf))
+	{
+		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
+		return EPI_ERR;
+	}
+
+	e_platform.initialized = true;
+	return 0;
+}
+
+int e_finish()
+{
+	free(e_platform.chip);
+	free(e_platform.emem);
+
+	return EPI_OK;
+}
+
 int e_open(Epiphany_t *dev)
 {
 	uid_t UID;
@@ -57,11 +102,20 @@ int e_open(Epiphany_t *dev)
 		return EPI_ERR;
 	}
 
+
 	// Set device geometry
-	e_get_coords_from_id(EPI_BASE_CORE_ID, &(dev->row), &(dev->col));
-	dev->rows      = EPI_ROWS;
-	dev->cols      = EPI_COLS;
+	e_get_coords_from_id(dev->base_coreid, &(dev->row), &(dev->col));
+//	dev->rows      = EPI_ROWS;
+//	dev->cols      = EPI_COLS;
 	dev->num_cores = (dev->rows * dev->cols);
+
+	dev->core = (Epiphany_core_t *) malloc(dev->num_cores * sizeof(Epiphany_core_t));
+	if (!dev->core)
+	{
+		warnx("e_open(): Error allocating eCore descriptors.");
+		return EPI_ERR;
+	}
+
 
 	// Open memory device
 	dev->memfd = open("/dev/mem", O_RDWR | O_SYNC);
@@ -74,10 +128,10 @@ int e_open(Epiphany_t *dev)
 	// Map individual cores to virtual memory space
 	for (i=0; i<dev->num_cores; i++)
 	{
-		diag(H_D2) { fprintf(fd, "e_open(): openning core #%d\n", i); }
+		diag(H_D2) { fprintf(fd, "e_open(): opening core #%d\n", i); }
 
-		e_get_coords_from_id(EPI_BASE_CORE_ID, &(dev->row), &(dev->col));
-		dev->core[i].id = e_get_id_from_num(i);
+		e_get_coords_from_id(dev->base_coreid, &(dev->row), &(dev->col));
+		dev->core[i].id = e_get_id_from_num(dev, i);
 		e_get_coords_from_id(dev->core[i].id, &(dev->core[i].row), &(dev->core[i].col));
 
 		// SRAM array
@@ -113,7 +167,7 @@ int e_open(Epiphany_t *dev)
 	}
 
 	// e-sys regs
-	dev->esys.phy_base = ESYS_BASE_REGS;
+//	dev->esys.phy_base = ESYS_BASE_REGS;
 	dev->esys.map_size = 0x1000;
 	dev->esys.map_mask = (dev->esys.map_size - 1);
 
@@ -140,6 +194,8 @@ int e_close(Epiphany_t *dev)
 		munmap(dev->core[i].mems.mapped_base, dev->core[i].mems.map_size);
 		munmap(dev->core[i].regs.mapped_base, dev->core[i].regs.map_size);
 	}
+
+	free(dev->core);
 
 	munmap(dev->esys.mapped_base, dev->esys.map_size);
 
@@ -285,6 +341,12 @@ ssize_t e_write_esys(Epiphany_t *dev, off_t to_addr, int data)
 
 
 
+// TODO TODO TODO: have to integrate this in the platform structure!!!
+#define DRAM_BASE_ADDRESS    0x1e000000
+#define DRAM_SIZE            0x02000000
+#define EPI_EXT_MEM_BASE     0x8e000000
+#define EPI_EXT_MEM_SIZE     0x02000000
+
 
 // eDRAM access
 int e_alloc(DRAM_t *dram, off_t mbase, size_t msize)
@@ -306,14 +368,14 @@ int e_alloc(DRAM_t *dram, off_t mbase, size_t msize)
 	}
 
 	dram->map_size = msize;
-	dram->map_mask = msize - 1;
+	dram->map_mask = dram->map_size - 1;
 
-	dram->phy_base = (DRAM_BASE_ADDRESS + mbase);
+	dram->phy_base = (e_platform.emem_phy_base + mbase);
 	dram->mapped_base = mmap(0, dram->map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
 	                                  dram->memfd, dram->phy_base & ~dram->map_mask);
 	dram->base = dram->mapped_base + (dram->phy_base & dram->map_mask);
 
-	dram->ephy_base = (EPI_EXT_MEM_BASE + mbase);
+	dram->ephy_base = (e_platform.emem_phy_base + mbase);
 	dram->emap_size = msize;
 
 	if (dram->mapped_base == MAP_FAILED)
@@ -422,65 +484,10 @@ int e_reset_core(Epiphany_t *pEpiphany, unsigned corenum)
 
 int e_reset_esys(Epiphany_t *pEpiphany)
 {
-#if 0
-	Epiphany_t Epi;
-	Epiphany_t *dev;
-
-	int data;
-	int *pto;
-
-	uid_t UID;
-
-	dev = &Epi;
-
-	UID = getuid();
-	if (UID != 0)
-	{
-		warnx("e_reset_esys(): Program must be invoked with superuser privilege (sudo).");
-		return EPI_ERR;
-	}
-
-	dev->memfd = open("/dev/mem", O_RDWR | O_SYNC);
-	if (dev->memfd == 0)
-	{
-		warnx("ESYS: /dev/mem file open failure.");
-		return EPI_ERR;
-	}
-
-	// e-sys regs
-	dev->esys.phy_base = ESYS_BASE_REGS;
-	dev->esys.map_size = 0x1000; //MAP_SIZE_REGS;
-	dev->esys.map_mask = (dev->esys.map_size - 1);
-
-	dev->esys.mapped_base = mmap(0, dev->esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-	                          dev->memfd, dev->esys.phy_base & ~dev->esys.map_mask);
-	dev->esys.base = dev->esys.mapped_base + (dev->esys.phy_base & dev->esys.map_mask);
-
-	if ((dev->esys.mapped_base == MAP_FAILED))
-	{
-		warnx("ESYS: mmap failure.");
-		return EPI_ERR;
-	}
-
-	data = 0;
-	pto = (int *) (dev->esys.base + ESYS_RESET);
-	*pto = data;
-
-	munmap(dev->esys.mapped_base, dev->esys.map_size);
-
-	close(dev->memfd);
-#elif 1
 	diag(H_D1) { fprintf(fd, "   Resetting ESYS..."); fflush(stdout); }
 	e_write_esys(pEpiphany, ESYS_RESET, 0);
 	sleep(1);
 	diag(H_D1) { fprintf(fd, " Done.\n"); }
-#else
-	int corenum;
-
-	for (corenum=0; corenum<pEpiphany->num_cores; corenum++) {
-		e_reset_core(pEpiphany, corenum);
-	}
-#endif
 
 	return EPI_OK;
 }
@@ -517,7 +524,7 @@ int e_start(Epiphany_t *pEpiphany, unsigned coreid)
 	int SYNC = 0x1;
 	int *pILAT;
 
-	corenum = e_get_num_from_id(coreid);
+	corenum = e_get_num_from_id(pEpiphany, coreid);
 	pILAT = (int *) ((char *) pEpiphany->core[corenum].regs.base + EPI_ILAT);
 	diag(H_D1) { fprintf(fd, "   SYNC (0x%x) to core %d...", (unsigned) pILAT, corenum); fflush(stdout); }
 	*pILAT = (*pILAT) | SYNC;
@@ -532,41 +539,41 @@ int e_start(Epiphany_t *pEpiphany, unsigned coreid)
 
 ////////////////////
 // Utility functions
-unsigned e_get_num_from_coords(unsigned row, unsigned col)
+unsigned e_get_num_from_coords(Epiphany_t *dev, unsigned row, unsigned col)
 {
 	unsigned corenum;
 
-	corenum = (col & (EPI_COLS-1)) + ((row & (EPI_ROWS-1)) * EPI_COLS);
+	corenum = (col & (dev->cols-1)) + ((row & (dev->rows-1)) * dev->cols);
 
 	return corenum;
 }
 
 
-unsigned e_get_num_from_id(unsigned coreid)
+unsigned e_get_num_from_id(Epiphany_t *dev, unsigned coreid)
 {
 	unsigned corenum;
 
-	corenum = (coreid & (EPI_COLS-1)) + (((coreid >> 6) & (EPI_ROWS-1)) * EPI_COLS);
+	corenum = (coreid & (dev->cols-1)) + (((coreid >> 6) & (dev->rows-1)) * dev->cols);
 
 	return corenum;
 }
 
 
-unsigned e_get_id_from_coords(unsigned row, unsigned col)
+unsigned e_get_id_from_coords(Epiphany_t *dev, unsigned row, unsigned col)
 {
 	unsigned coreid;
 
-	coreid = (EPI_BASE_CORE_ID + (col & (EPI_COLS-1))) + ((row & (EPI_ROWS-1)) << 6);
+	coreid = (dev->base_coreid + (col & (dev->cols-1))) + ((row & (dev->rows-1)) << 6);
 
 	return coreid;
 }
 
 
-unsigned e_get_id_from_num(unsigned corenum)
+unsigned e_get_id_from_num(Epiphany_t *dev, unsigned corenum)
 {
 	int coreid;
 
-	coreid = EPI_BASE_CORE_ID + (corenum & (EPI_COLS-1)) + (((corenum / EPI_COLS) & (EPI_ROWS-1)) << 6);
+	coreid = dev->base_coreid + (corenum & (dev->cols-1)) + (((corenum / dev->cols) & (dev->rows-1)) << 6);
 
 	return coreid;
 }
@@ -582,25 +589,25 @@ void e_get_coords_from_id(unsigned coreid, unsigned *row, unsigned *col)
 }
 
 
-void e_get_coords_from_num(unsigned corenum, unsigned *row, unsigned *col)
+void e_get_coords_from_num(Epiphany_t *dev, unsigned corenum, unsigned *row, unsigned *col)
 {
-	// TODO this gives the *relative* coords in a *16-core* chip!
-	*row = (corenum / EPI_COLS) & (EPI_ROWS-1);
-	*col = (corenum >> 0)       & (EPI_COLS-1);
+	// TODO this gives the *relative* coords in a chip!
+	*row = (corenum / dev->cols) & (dev->rows-1);
+	*col = (corenum >> 0)        & (dev->cols-1);
 
 	return;
 }
 
 
-bool e_is_on_chip(unsigned coreid)
+bool e_is_on_chip(Epiphany_t *dev, unsigned coreid)
 {
 	unsigned erow, ecol;
 	unsigned row, col;
 
-	e_get_coords_from_id(EPI_BASE_CORE_ID, &erow, &ecol);
+	e_get_coords_from_id(dev->base_coreid, &erow, &ecol);
 	e_get_coords_from_id(coreid, &row, &col);
 
-	if ((row >= erow) && (row < (erow + EPI_ROWS)) && (col >= ecol) && (col < (ecol + EPI_COLS)))
+	if ((row >= erow) && (row < (erow + dev->rows)) && (col >= ecol) && (col < (ecol + dev->cols)))
 		return true;
 	else
 		return false;
@@ -647,11 +654,11 @@ ssize_t e_read_abs(unsigned address, void* buf, size_t burst_size)
 		} else {
 			isexternal = false;
 			coreid     = address >> 20;
-			isonchip   = e_is_on_chip(coreid);
+			isonchip   = e_is_on_chip(pEpiphany, coreid);
 			if (isonchip)
 			{
 				e_get_coords_from_id(coreid, &row, &col);
-				corenum = e_get_num_from_coords(row, col);
+				corenum = e_get_num_from_coords(pEpiphany, row, col);
 				ismems  = (address <  pEpiphany->core[corenum].mems.phy_base + pEpiphany->core[corenum].mems.map_size);
 				isregs  = (address >= pEpiphany->core[corenum].regs.phy_base);
 			}
@@ -710,11 +717,11 @@ ssize_t e_write_abs(unsigned address, void *buf, size_t burst_size)
 		} else {
 			isexternal = false;
 			coreid     = address >> 20;
-			isonchip   = e_is_on_chip(coreid);
+			isonchip   = e_is_on_chip(pEpiphany, coreid);
 			if (isonchip)
 			{
 				e_get_coords_from_id(coreid, &row, &col);
-				corenum = e_get_num_from_coords(row, col);
+				corenum = e_get_num_from_coords(pEpiphany, row, col);
 				ismems  = (address <  pEpiphany->core[corenum].mems.phy_base + pEpiphany->core[corenum].mems.map_size);
 				isregs  = (address >= pEpiphany->core[corenum].regs.phy_base);
 			}
@@ -764,8 +771,8 @@ int init_platform(platform_definition_t* platform_arg, unsigned verbose_mode)
 	platform  = platform_arg;
 
 	e_set_host_verbosity(verbose_mode);
-	res = e_alloc(pERAM, 0, DRAM_SIZE);
-	res = e_open(pEpiphany);
+	res = e_alloc(pERAM, 0, DRAM_SIZE); // TODO: change HDF to something meaningful
+	res = e_open(pEpiphany); // TODO: change HDF to something meaningful
 
 	return res;
 }
@@ -830,4 +837,102 @@ int get_description(char** targetIdp)
 	*targetIdp = platform->name;
 
 	return 0;
+}
+
+
+// HDF parser
+
+int parse_hdf(E_Platform_t *dev, char *hdf)
+{
+//	if (file_ext == "hdf")
+		parse_simple_hdf(dev, hdf);
+//	else if (file_ext == "xml")
+//		parse_xml_hdf(dev, hdf);
+
+	return EPI_OK;
+}
+
+int parse_simple_hdf(E_Platform_t *dev, char *hdf)
+{
+	FILE *fp;
+	char etag[255], eval[255];
+	int i;
+
+	fp = fopen(hdf, "r");
+	if (fp == NULL)
+	{
+		warnx("e_open(): Can't open Hardware Definition File (HDF).");
+		return EPI_ERR;
+	}
+
+	while (!feof(fp))
+	{
+		fscanf(fp, "%s %s\n", etag, eval);
+		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
+		{
+			sscanf(etag, "%x", &(dev->version));
+		}
+		else if (!strcmp(hdf_defs[1].name, etag))  // NUM_CHIPS
+		{
+			sscanf(etag, "%x", &(dev->num_chips));
+			dev->chip = (Epiphany_t *) calloc(dev->num_chips, sizeof(Epiphany_t));
+			dev->chip_num = 0;
+		}
+		else if (!strcmp(hdf_defs[2].name, etag))  // NUM_EXT_MEMS
+		{
+			sscanf(etag, "%x", &(dev->num_emems));
+			dev->emem = (DRAM_t *) calloc(dev->num_emems, sizeof(DRAM_t));
+			dev->emem_num = 0;
+		}
+		else if (!strcmp(hdf_defs[3].name, etag))  // EPI_BASE_CORE_ID
+		{
+			sscanf(etag, "%x", &(dev->chip[dev->chip_num].base_coreid));
+		}
+		else if (!strcmp(hdf_defs[4].name, etag))  // DRAM_BASE_ADDRESS
+		{
+			sscanf(etag, "%x", &(dev->emem_phy_base));
+		}
+		else if (!strcmp(hdf_defs[5].name, etag))  // DRAM_SIZE
+		{
+			sscanf(etag, "%x", &(dev->emem_size));
+		}
+		else if (!strcmp(hdf_defs[6].name, etag))  // EPI_EXT_MEM_BASE
+		{
+			sscanf(etag, "%x", &(dev->emem_ephy_base));
+		}
+		else if (!strcmp(hdf_defs[7].name, etag))  // EPI_EXT_MEM_SIZE
+		{
+			sscanf(etag, "%x", &(dev->emem_size));
+		}
+		else if (!strcmp(hdf_defs[8].name, etag))  // EPI_ROWS
+		{
+			sscanf(etag, "%x", &(dev->chip[dev->chip_num].rows));
+		}
+		else if (!strcmp(hdf_defs[9].name, etag))  // EPI_COLS
+		{
+			sscanf(etag, "%x", &(dev->chip[dev->chip_num].cols));
+		}
+		else if (!strcmp(hdf_defs[10].name, etag)) // ESYS_BASE_REGS
+		{
+			sscanf(etag, "%x", &(dev->chip[dev->chip_num].esys.phy_base));
+		}
+		else if (!strcmp(hdf_defs[11].name, etag)) // comment
+		{
+			;
+		}
+		else {
+			return EPI_ERR;
+		}
+
+
+//		int i;
+//		for (i=0; i<_NumVars; i++)
+//		{
+//			if (!strcmp(hdf_defs[i].name, etag)) {}
+//		}
+	}
+
+	fclose(fp);
+
+	return EPI_OK;
 }

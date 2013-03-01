@@ -44,14 +44,14 @@
 #	define EPI_COLS                      4
 #	define ESYS_BASE_REGS       0x808f0000
 #elif System_ID == 2 // Zed E64 Ubuntu
-#	define EPI_BASE_CORE_ID        Core_ID
-#	define DRAM_BASE_ADDRESS    0x1e000000
-#	define DRAM_SIZE            0x02000000
-#	define EPI_EXT_MEM_BASE     0x8e000000
-#	define EPI_EXT_MEM_SIZE     0x02000000
-#	define EPI_ROWS                      8
-#	define EPI_COLS                      8
-#	define ESYS_BASE_REGS       0x808f0000
+//#	define EPI_BASE_CORE_ID        Core_ID
+//#	define DRAM_BASE_ADDRESS    0x1e000000
+//#	define DRAM_SIZE            0x02000000
+//#	define EPI_EXT_MEM_BASE     0x8e000000
+//#	define EPI_EXT_MEM_SIZE     0x02000000
+//#	define EPI_ROWS                      8
+//#	define EPI_COLS                      8
+//#	define ESYS_BASE_REGS       0x808f0000
 #	define __E64G4_BURST_PATCH__
 #elif System_ID == 3 // Zynq E16 Ubuntu
 #	define EPI_BASE_CORE_ID        Core_ID
@@ -65,6 +65,31 @@
 #else
 #	error System type not defined
 #endif
+
+
+
+// HDF parser
+#define _NumVars 12
+typedef struct {
+	char name[64];
+	void *var;
+} e_hdf_vars_t;
+
+// TODO - the following syntax defines ONE chip in a platform. Need to enhance to support multiple chips.
+e_hdf_vars_t hdf_defs[_NumVars] = {
+		{"PLATFORM_VERSION",  0}, // 0
+		{"NUM_CHIPS",         0}, // 1
+		{"NUM_EXT_MEMS",      0}, // 2
+		{"EPI_BASE_CORE_ID",  0}, // 3
+		{"DRAM_BASE_ADDRESS", 0}, // 4
+		{"DRAM_SIZE",         0},
+		{"EPI_EXT_MEM_BASE",  0},
+		{"EPI_EXT_MEM_SIZE",  0}, // 7
+		{"EPI_ROWS",          0}, // 8
+		{"EPI_COLS",          0},
+		{"ESYS_BASE_REGS",    0},
+		{"//",                0}, // 11
+};
 
 #endif // __E_HOST_DEFS_H__
 

@@ -1,5 +1,6 @@
+REV := 4.13.01.04
 ARCH := armv7l
-PARALLELLA_HOME := ~/Projects/temp/esdk.4.13.01.04
+PARALLELLA_HOME := ~/Projects/temp/esdk.${REV}
 ESDK_HOME := /opt/adapteva/esdk
 
 #ESDK := ${PARALLELLA_HOME}
@@ -10,7 +11,7 @@ SRC := e-loader parseSrecFile
 OBJS := e-loader.o parseSrecFile.o
 OBJS_STAT := e-loader.stat.o parseSrecFile.stat.o
 
-INCS := ${ESDK}/tools/host/${ARCH}/include
+INCS := -I ../../e-hal/src -I ${ESDK}/tools/host/${ARCH}/include
 OPTFLAGS := -O0 -g3
 CFLAGS := -Wall -fPIC $(OPTFLAGS) -c
 LDFLAGS := -Wall -shared
@@ -29,19 +30,19 @@ all: libe-loader.so libe-loader.a
 
 e-loader.o: ../src/e-loader.c ../src/e-loader.h
 	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS) -I $(INCS) -o "$@" "$<"
+	$(CC) $(CFLAGS) $(INCS) -o "$@" "$<"
 
 e-loader.stat.o: ../src/e-loader.c ../src/e-loader.h
 	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS_STAT) -I $(INCS) -o "$@" "$<"
+	$(CC) $(CFLAGS_STAT) $(INCS) -o "$@" "$<"
 
 parseSrecFile.o: ../src/parseSrecFile.c ../src/e-loader.h
 	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS) -I $(INCS) -o "$@" "$<"
+	$(CC) $(CFLAGS) $(INCS) -o "$@" "$<"
 
 parseSrecFile.stat.o: ../src/parseSrecFile.c ../src/e-loader.h
 	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS_STAT) -I $(INCS) -o "$@" "$<"
+	$(CC) $(CFLAGS_STAT) $(INCS) -o "$@" "$<"
 
 libe-loader.so: $(OBJS)
 	@echo "--- building $@ from $<"

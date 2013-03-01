@@ -36,6 +36,8 @@ extern "C"
 // Device communication functions
 //
 // Epiphany access
+int     e_init(e_hdf_format_t hdf_type, char *hdf);
+int     e_finish();
 int     e_open(Epiphany_t *dev);
 int     e_close(Epiphany_t *dev);
 ssize_t e_read(Epiphany_t *dev, unsigned corenum, const off_t from_addr, void *buf, size_t count);
@@ -63,6 +65,7 @@ ssize_t e_mwrite_buf(DRAM_t *dram, off_t to_addr, const void *buf, size_t count)
 ssize_t e_read_abs(unsigned address, void* buf, size_t burst_size);
 ssize_t e_write_abs(unsigned address, void *buf, size_t burst_size);
 
+
 /////////////////////////
 // Core control functions
 int e_reset_core(Epiphany_t *pEpiphany, unsigned corenum);
@@ -72,12 +75,12 @@ int e_start(Epiphany_t *pEpiphany, unsigned coreid);
 
 ////////////////////
 // Utility functions
-unsigned e_get_num_from_coords(unsigned row, unsigned col);
-unsigned e_get_num_from_id(unsigned coreid);
-unsigned e_get_id_from_coords(unsigned row, unsigned col);
-unsigned e_get_id_from_num(unsigned corenum);
+unsigned e_get_num_from_coords(Epiphany_t *dev, unsigned row, unsigned col);
+unsigned e_get_num_from_id(Epiphany_t *dev, unsigned coreid);
+unsigned e_get_id_from_coords(Epiphany_t *dev, unsigned row, unsigned col);
+unsigned e_get_id_from_num(Epiphany_t *dev, unsigned corenum);
 void     e_get_coords_from_id(unsigned coreid, unsigned *row, unsigned *col);
-void     e_get_coords_from_num(unsigned corenum, unsigned *row, unsigned *col);
+void     e_get_coords_from_num(Epiphany_t *dev, unsigned corenum, unsigned *row, unsigned *col);
 
 void e_set_host_verbosity(e_hal_diag_t verbose);
 

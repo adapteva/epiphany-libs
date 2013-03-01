@@ -29,7 +29,6 @@
 #include <fcntl.h>
 #include <err.h>
 
-#include "e-hal.h"
 #include "e-loader.h"
 
 #define diag(vN)   if (e_load_verbose >= vN)
@@ -37,8 +36,8 @@
 int e_load_verbose = 0;
 FILE *fd;
 
-unsigned int DiscoveredCoreIDs[EPI_CORES];
-unsigned int DiscoveredCoreIDidx;
+unsigned int *DiscoveredCoreIDs;
+unsigned int  DiscoveredCoreIDidx;
 
 int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
 {
@@ -47,17 +46,18 @@ int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
 	int status;
 	unsigned coreNum;
 	
-	DiscoveredCoreIDidx = 0;
 	status = EPI_OK;
 	
 	pEpiphany = &Epiphany;
 
 	if (pEpiphany) {
-		if (e_open(pEpiphany))
+		if (e_open(pEpiphany, NULL))
 		{
 			fprintf(fd, "\nERROR: Can't establish connection to Epiphany device!\n\n");
 			exit(1);
 		}
+		DiscoveredCoreIDs = (unsigned int *) malloc(pEpiphany->num_cores * sizeof(unsigned int));
+		DiscoveredCoreIDidx = 0;
 
 		if (reset_target) {
 			diag(L_D1) { fprintf(fd, "Send RESET signal to the Epiphany system..."); diag(L_D2) fprintf(fd, "\n"); else fprintf(fd, " "); }
@@ -85,6 +85,7 @@ int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
 			diag(L_D1) { fprintf(fd, "Done loading.\n"); }
 		}
 
+		free(DiscoveredCoreIDs);
 		e_close(pEpiphany);
 		diag(L_D1) { fprintf(fd, "Closed connection.\n"); }
 	} else {

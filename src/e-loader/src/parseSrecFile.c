@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "e-hal.h"
 #include "e-loader.h"
 
 #define diag(vN)   if (e_load_verbose >= vN)
@@ -38,8 +37,8 @@
 
 #define BUFSIZE 1000  // should be sufficient for SREC record
 
-extern unsigned int DiscoveredCoreIDs[EPI_CORES];
-extern unsigned int DiscoveredCoreIDidx;
+extern unsigned int *DiscoveredCoreIDs;
+extern unsigned int  DiscoveredCoreIDidx;
 
 unsigned long addressGlobalSpaceOffset = 0;
 
