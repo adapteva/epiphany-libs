@@ -859,8 +859,8 @@ int parse_hdf(E_Platform_t *dev, char *hdf)
 int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 {
 	FILE *fp;
-	char etag[255], eval[255];
-	int i, line;
+	char line[255], etag[255], eval[255];
+	int i, l;
 
 	fp = fopen(hdf, "r");
 	if (fp == NULL)
@@ -873,9 +873,10 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 
 	while (!feof(fp))
 	{
-		line++;
-		fscanf(fp, "%s %s\n", etag, eval);
-		fprintf(fd, "2%d: %s %s\n", line, etag, eval);
+		l++;
+		fgets(line, strlen(line), fp);
+		sscanf(line, "%s %s", etag, eval);
+		fprintf(fd, "%2d: %s %s\n", l, etag, eval);
 		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
 		{
 			sscanf(etag, "%x", &(dev->version));
