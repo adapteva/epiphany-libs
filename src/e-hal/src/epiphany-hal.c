@@ -865,7 +865,7 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 	fp = fopen(hdf, "r");
 	if (fp == NULL)
 	{
-		warnx("e_open(): Can't open Hardware Definition File (HDF).");
+		warnx("parse_simple_hdf(): Can't open Hardware Definition File (HDF).");
 		return EPI_ERR;
 	}
 
@@ -874,7 +874,8 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 	while (!feof(fp))
 	{
 		l++;
-		fgets(line, strlen(line), fp);
+		fscanf(fp, "%s\n", line);
+//		fgets(line, strlen(line), fp);
 		fprintf(fd, "%2d: %s <<", l, line);
 #if 0
 		sscanf(line, "%s %s", etag, eval);
