@@ -869,7 +869,7 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 		return EPI_ERR;
 	}
 
-	line = 0;
+	l = 0;
 
 	while (!feof(fp))
 	{
