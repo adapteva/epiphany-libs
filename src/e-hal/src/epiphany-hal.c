@@ -877,7 +877,7 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 		fscanf(fp, "%s\n", line);
 //		fgets(line, strlen(line), fp);
 		fprintf(fd, "%2d: %s <<", l, line);
-#if 0
+#if 1
 		sscanf(line, "%s %s", etag, eval);
 		fprintf(fd, "       %s %s\n", etag, eval);
 		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
