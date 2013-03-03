@@ -72,6 +72,8 @@ int e_init(e_hdf_format_t hdf_type, char *hdf)
 		}
 		hdf = hdf_env;
 	}
+
+	diag(H_D2) { fprintf(fd, "e_init(): opening HDF %s\n", hdf); }
 	if (parse_hdf(&e_platform, hdf))
 	{
 		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
@@ -82,6 +84,7 @@ int e_init(e_hdf_format_t hdf_type, char *hdf)
 	return 0;
 }
 
+
 int e_finish()
 {
 	free(e_platform.chip);
@@ -89,6 +92,7 @@ int e_finish()
 
 	return EPI_OK;
 }
+
 
 int e_open(Epiphany_t *dev)
 {
@@ -856,7 +860,7 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 {
 	FILE *fp;
 	char etag[255], eval[255];
-	int i;
+	int i, line;
 
 	fp = fopen(hdf, "r");
 	if (fp == NULL)
@@ -865,9 +869,13 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 		return EPI_ERR;
 	}
 
+	line = 0;
+
 	while (!feof(fp))
 	{
+		line++;
 		fscanf(fp, "%s %s\n", etag, eval);
+		fprintf(fd, "2%d: %s %s\n", line, etag, eval);
 		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
 		{
 			sscanf(etag, "%x", &(dev->version));
