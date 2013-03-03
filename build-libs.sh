@@ -14,26 +14,26 @@ ARCH='armv7l'
 
 # Build and install the XML parser library
 cd src/e-xml/Release
-make clean
+#make clean
 make all
 cd ../../../
 
 # Build and install the Epiphnay HAL library
 cd src/e-hal/Release
-make clean
+#make clean
 make all
 cp -f libe-hal.so ../../../bsps/${BSP}
 cd ../../../
 
 # Build and install the Epiphnay Loader library
 cd src/e-loader/Release
-make clean
+#make clean
 make all
 cd ../../../
 
 # Build and install the Epiphnay GDB RSP Server
 cd src/e-server/Release
-make clean
+#make clean
 make all
 cd ../../../
 
@@ -43,7 +43,7 @@ cd ../../
 
 # build and install the Epiphnay Runtime Library
 cd src/e-lib/Release
-make clean
+#make clean
 make all
 cd ../../../
 
