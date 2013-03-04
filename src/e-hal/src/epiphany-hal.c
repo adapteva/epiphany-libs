@@ -636,6 +636,136 @@ void e_set_host_verbosity(e_hal_diag_t verbose)
 
 
 ////////////////////////////////////
+// HDF parser
+
+int parse_hdf(E_Platform_t *dev, char *hdf)
+{
+	int   ret = EPI_ERR;
+	char *ext;
+
+	if (strlen(hdf) >= 4)
+	{
+		ext = hdf + strlen(hdf) - 4;
+		if (!strcmp(ext, ".hdf"))
+			ret = parse_simple_hdf(dev, hdf);
+		else if (!strcmp(ext, ".xml"))
+			ret = parse_xml_hdf(dev, hdf);
+		else
+			ret = EPI_ERR;
+	} else {
+		ret = EPI_ERR;
+	}
+
+	return ret;
+}
+
+int parse_simple_hdf(E_Platform_t *dev, char *hdf)
+{
+	FILE *fp;
+	char line[255], etag[255], eval[255];
+	int i, l;
+
+	fp = fopen(hdf, "r");
+	if (fp == NULL)
+	{
+		warnx("parse_simple_hdf(): Can't open Hardware Definition File (HDF).");
+		return EPI_ERR;
+	}
+
+	l = 0;
+
+	while (!feof(fp))
+	{
+		l++;
+		fgets(line, sizeof(line), fp);
+		sscanf(line, "%s %s", etag, eval);
+		diag(H_D3) { fprintf(fd, "       %s %s\n", etag, eval); }
+
+		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
+		{
+			sscanf(eval, "%x", &(dev->version));
+			diag(H_D3) { fprintf(fd, "Platform version = %08x\n", dev->version); }
+		}
+		else if (!strcmp(hdf_defs[1].name, etag))  // NUM_CHIPS
+		{
+			sscanf(eval, "%x", &(dev->num_chips));
+			dev->chip = (Epiphany_t *) calloc(dev->num_chips, sizeof(Epiphany_t));
+			dev->chip_num = 0;
+			diag(H_D3) { fprintf(fd, "Number of chips = %d\n", dev->num_chips); }
+		}
+		else if (!strcmp(hdf_defs[2].name, etag))  // NUM_EXT_MEMS
+		{
+			sscanf(eval, "%x", &(dev->num_emems));
+			dev->emem = (DRAM_t *) calloc(dev->num_emems, sizeof(DRAM_t));
+			dev->emem_num = 0;
+			diag(H_D3) { fprintf(fd, "Number of ext. memory segments = %d\n", dev->num_emems); }
+		}
+		else if (!strcmp(hdf_defs[3].name, etag))  // EPI_BASE_CORE_ID
+		{
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].base_coreid));
+			diag(H_D3) { fprintf(fd, "Base core ID of chip = %03x\n", dev->chip[dev->chip_num].base_coreid); }
+		}
+		else if (!strcmp(hdf_defs[4].name, etag))  // DRAM_BASE_ADDRESS
+		{
+			sscanf(eval, "%x", &(dev->emem_phy_base));
+			diag(H_D3) { fprintf(fd, "Base addr. of ext. mem. segent = 0x%08x\n", dev->emem_phy_base); }
+		}
+		else if (!strcmp(hdf_defs[5].name, etag))  // DRAM_SIZE
+		{
+			sscanf(eval, "%x", &(dev->emem_size));
+			diag(H_D3) { fprintf(fd, "Size of ext. mem. segent = %x\n", dev->emem_size); }
+		}
+		else if (!strcmp(hdf_defs[6].name, etag))  // EPI_EXT_MEM_BASE
+		{
+			sscanf(eval, "%x", &(dev->emem_ephy_base));
+			diag(H_D3) { fprintf(fd, "Base addr. of ext. mem. segent (Epi) = 0x%08x\n", dev->emem_ephy_base); }
+		}
+		else if (!strcmp(hdf_defs[7].name, etag))  // EPI_EXT_MEM_SIZE
+		{
+			sscanf(eval, "%x", &(dev->emem_size));
+			diag(H_D3) { fprintf(fd, "Size of ext. mem. segent (Epi) = %x\n", dev->emem_size); }
+		}
+		else if (!strcmp(hdf_defs[8].name, etag))  // EPI_ROWS
+		{
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].rows));
+			diag(H_D3) { fprintf(fd, "Number of rows in a chip = %d\n", dev->chip[dev->chip_num].rows); }
+		}
+		else if (!strcmp(hdf_defs[9].name, etag))  // EPI_COLS
+		{
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].cols));
+			diag(H_D3) { fprintf(fd, "Number of cloumns in a chip = %d\n", dev->chip[dev->chip_num].cols); }
+		}
+		else if (!strcmp(hdf_defs[10].name, etag)) // ESYS_BASE_REGS
+		{
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].esys.phy_base));
+			diag(H_D3) { fprintf(fd, "Base addr. of system registers = 0x%08x\n", dev->chip[dev->chip_num].esys.phy_base); }
+		}
+		else if (!strcmp(hdf_defs[11].name, etag)) // comment
+		{
+			;
+			diag(H_D3) { fprintf(fd, "Comment\n"); }
+		}
+		else {
+			return EPI_ERR;
+		}
+	}
+
+	fclose(fp);
+
+	return EPI_OK;
+}
+
+
+int parse_xml_hdf(E_Platform_t *dev, char *hdf)
+{
+	warnx("e_init(): XML file format is not yet supported. Please use simple HDF format.");
+
+	return EPI_ERR;
+}
+
+
+
+////////////////////////////////////
 // ftdi_target wrapper functionality
 #include <e-xml/src/epiphany_platform.h>
 
@@ -848,139 +978,3 @@ int get_description(char** targetIdp)
 
 	return 0;
 }
-
-
-// HDF parser
-
-int parse_hdf(E_Platform_t *dev, char *hdf)
-{
-	int   ret = EPI_ERR;
-	char *ext;
-
-	if (strlen(hdf) >= 4)
-	{
-		ext = hdf + strlen(hdf) - 4;
-		if (!strcmp(ext, ".hdf"))
-			ret = parse_simple_hdf(dev, hdf);
-		else if (!strcmp(ext, ".xml"))
-			ret = parse_xml_hdf(dev, hdf);
-		else
-			ret = EPI_ERR;
-	} else {
-		ret = EPI_ERR;
-	}
-
-	return ret;
-}
-
-int parse_simple_hdf(E_Platform_t *dev, char *hdf)
-{
-	FILE *fp;
-	char line[255], etag[255], eval[255];
-	int i, l;
-
-	fp = fopen(hdf, "r");
-	if (fp == NULL)
-	{
-		warnx("parse_simple_hdf(): Can't open Hardware Definition File (HDF).");
-		return EPI_ERR;
-	}
-
-	l = 0;
-
-	while (!feof(fp))
-	{
-		l++;
-		fgets(line, sizeof(line), fp);
-		sscanf(line, "%s %s", etag, eval);
-		diag(H_D3) { fprintf(fd, "       %s %s\n", etag, eval); }
-
-		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
-		{
-			sscanf(eval, "%x", &(dev->version));
-			diag(H_D3) { fprintf(fd, "Platform version = %08x\n", dev->version); }
-		}
-		else if (!strcmp(hdf_defs[1].name, etag))  // NUM_CHIPS
-		{
-			sscanf(eval, "%x", &(dev->num_chips));
-			dev->chip = (Epiphany_t *) calloc(dev->num_chips, sizeof(Epiphany_t));
-			dev->chip_num = 0;
-			diag(H_D3) { fprintf(fd, "Number of chips = %d\n", dev->num_chips); }
-		}
-		else if (!strcmp(hdf_defs[2].name, etag))  // NUM_EXT_MEMS
-		{
-			sscanf(eval, "%x", &(dev->num_emems));
-			dev->emem = (DRAM_t *) calloc(dev->num_emems, sizeof(DRAM_t));
-			dev->emem_num = 0;
-			diag(H_D3) { fprintf(fd, "Number of ext. memory segments = %d\n", dev->num_emems); }
-		}
-		else if (!strcmp(hdf_defs[3].name, etag))  // EPI_BASE_CORE_ID
-		{
-			sscanf(eval, "%x", &(dev->chip[dev->chip_num].base_coreid));
-			diag(H_D3) { fprintf(fd, "Base core ID of chip = %03x\n", dev->chip[dev->chip_num].base_coreid); }
-		}
-		else if (!strcmp(hdf_defs[4].name, etag))  // DRAM_BASE_ADDRESS
-		{
-			sscanf(eval, "%x", &(dev->emem_phy_base));
-			diag(H_D3) { fprintf(fd, "Base addr. of ext. mem. segent = 0x%08x\n", dev->emem_phy_base); }
-		}
-		else if (!strcmp(hdf_defs[5].name, etag))  // DRAM_SIZE
-		{
-			sscanf(eval, "%x", &(dev->emem_size));
-			diag(H_D3) { fprintf(fd, "Size of ext. mem. segent = %x\n", dev->emem_size); }
-		}
-		else if (!strcmp(hdf_defs[6].name, etag))  // EPI_EXT_MEM_BASE
-		{
-			sscanf(eval, "%x", &(dev->emem_ephy_base));
-			diag(H_D3) { fprintf(fd, "Base addr. of ext. mem. segent (Epi) = 0x%08x\n", dev->emem_ephy_base); }
-		}
-		else if (!strcmp(hdf_defs[7].name, etag))  // EPI_EXT_MEM_SIZE
-		{
-			sscanf(eval, "%x", &(dev->emem_size));
-			diag(H_D3) { fprintf(fd, "Size of ext. mem. segent (Epi) = %x\n", dev->emem_size); }
-		}
-		else if (!strcmp(hdf_defs[8].name, etag))  // EPI_ROWS
-		{
-			sscanf(eval, "%x", &(dev->chip[dev->chip_num].rows));
-			diag(H_D3) { fprintf(fd, "Number of rows in a chip = %d\n", dev->chip[dev->chip_num].rows); }
-		}
-		else if (!strcmp(hdf_defs[9].name, etag))  // EPI_COLS
-		{
-			sscanf(eval, "%x", &(dev->chip[dev->chip_num].cols));
-			diag(H_D3) { fprintf(fd, "Number of cloumns in a chip = %d\n", dev->chip[dev->chip_num].cols); }
-		}
-		else if (!strcmp(hdf_defs[10].name, etag)) // ESYS_BASE_REGS
-		{
-			sscanf(eval, "%x", &(dev->chip[dev->chip_num].esys.phy_base));
-			diag(H_D3) { fprintf(fd, "Base addr. of system registers = 0x%08x\n", dev->chip[dev->chip_num].esys.phy_base); }
-		}
-		else if (!strcmp(hdf_defs[11].name, etag)) // comment
-		{
-			;
-			diag(H_D3) { fprintf(fd, "Comment\n"); }
-		}
-		else {
-			return EPI_ERR;
-		}
-
-//		int i;
-//		for (i=0; i<_NumVars; i++)
-//		{
-//			if (!strcmp(hdf_defs[i].name, etag)) {}
-//		}
-	}
-
-	fclose(fp);
-
-	return EPI_OK;
-}
-
-
-int parse_xml_hdf(E_Platform_t *dev, char *hdf)
-{
-	warnx("e_init(): XML file format is not yet supported. Please use simple HDF format.");
-
-	return EPI_ERR;
-}
-
-
