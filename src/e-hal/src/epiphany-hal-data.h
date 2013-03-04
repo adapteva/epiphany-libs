@@ -38,6 +38,7 @@ typedef enum BOOL {
 
 
 typedef enum {
+	H_D0 = 0,
 	H_D1 = 1,
 	H_D2 = 2,
 	H_D3 = 3,

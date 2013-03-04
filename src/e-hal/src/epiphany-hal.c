@@ -106,11 +106,16 @@ int e_open(Epiphany_t *dev)
 		return EPI_ERR;
 	}
 
+	if (e_platform.initialized != true)
+	{
+		warnx("e_open(): Platform was not initialized. Use e_init().");
+		return EPI_ERR;
+	}
+
+	*dev = e_platform.chip[e_platform.chip_num]; // TODO: this counts for only one chip!
 
 	// Set device geometry
 	e_get_coords_from_id(dev->base_coreid, &(dev->row), &(dev->col));
-//	dev->rows      = EPI_ROWS;
-//	dev->cols      = EPI_COLS;
 	dev->num_cores = (dev->rows * dev->cols);
 
 	dev->core = (Epiphany_core_t *) malloc(dev->num_cores * sizeof(Epiphany_core_t));
@@ -874,68 +879,77 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 	while (!feof(fp))
 	{
 		l++;
-		fscanf(fp, "%s\n", line);
-//		fgets(line, strlen(line), fp);
-		fprintf(fd, "%2d: %s <<", l, line);
-#if 1
+		fgets(line, sizeof(line), fp);
 		sscanf(line, "%s %s", etag, eval);
-		fprintf(fd, "       %s %s\n", etag, eval);
+		diag(H_D3) { fprintf(fd, "       %s %s\n", etag, eval); }
+
 		if      (!strcmp(hdf_defs[0].name, etag))  // PLATFORM_VERSION
 		{
-			sscanf(etag, "%x", &(dev->version));
+			sscanf(eval, "%x", &(dev->version));
+			diag(H_D3) { fprintf(fd, "Platform version = %08x\n", dev->version); }
 		}
 		else if (!strcmp(hdf_defs[1].name, etag))  // NUM_CHIPS
 		{
-			sscanf(etag, "%x", &(dev->num_chips));
+			sscanf(eval, "%x", &(dev->num_chips));
 			dev->chip = (Epiphany_t *) calloc(dev->num_chips, sizeof(Epiphany_t));
 			dev->chip_num = 0;
+			diag(H_D3) { fprintf(fd, "Number of chips = %d\n", dev->num_chips); }
 		}
 		else if (!strcmp(hdf_defs[2].name, etag))  // NUM_EXT_MEMS
 		{
-			sscanf(etag, "%x", &(dev->num_emems));
+			sscanf(eval, "%x", &(dev->num_emems));
 			dev->emem = (DRAM_t *) calloc(dev->num_emems, sizeof(DRAM_t));
 			dev->emem_num = 0;
+			diag(H_D3) { fprintf(fd, "Number of ext. memory segments = %d\n", dev->num_emems); }
 		}
 		else if (!strcmp(hdf_defs[3].name, etag))  // EPI_BASE_CORE_ID
 		{
-			sscanf(etag, "%x", &(dev->chip[dev->chip_num].base_coreid));
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].base_coreid));
+			diag(H_D3) { fprintf(fd, "Base core ID of chip = %03x\n", dev->chip[dev->chip_num].base_coreid); }
 		}
 		else if (!strcmp(hdf_defs[4].name, etag))  // DRAM_BASE_ADDRESS
 		{
-			sscanf(etag, "%x", &(dev->emem_phy_base));
+			sscanf(eval, "%x", &(dev->emem_phy_base));
+			diag(H_D3) { fprintf(fd, "Base addr. of ext. mem. segent = 0x%08x\n", dev->emem_phy_base); }
 		}
 		else if (!strcmp(hdf_defs[5].name, etag))  // DRAM_SIZE
 		{
-			sscanf(etag, "%x", &(dev->emem_size));
+			sscanf(eval, "%x", &(dev->emem_size));
+			diag(H_D3) { fprintf(fd, "Size of ext. mem. segent = %x\n", dev->emem_size); }
 		}
 		else if (!strcmp(hdf_defs[6].name, etag))  // EPI_EXT_MEM_BASE
 		{
-			sscanf(etag, "%x", &(dev->emem_ephy_base));
+			sscanf(eval, "%x", &(dev->emem_ephy_base));
+			diag(H_D3) { fprintf(fd, "Base addr. of ext. mem. segent (Epi) = 0x%08x\n", dev->emem_ephy_base); }
 		}
 		else if (!strcmp(hdf_defs[7].name, etag))  // EPI_EXT_MEM_SIZE
 		{
-			sscanf(etag, "%x", &(dev->emem_size));
+			sscanf(eval, "%x", &(dev->emem_size));
+			diag(H_D3) { fprintf(fd, "Size of ext. mem. segent (Epi) = %x\n", dev->emem_size); }
 		}
 		else if (!strcmp(hdf_defs[8].name, etag))  // EPI_ROWS
 		{
-			sscanf(etag, "%x", &(dev->chip[dev->chip_num].rows));
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].rows));
+			diag(H_D3) { fprintf(fd, "Number of rows in a chip = %d\n", dev->chip[dev->chip_num].rows); }
 		}
 		else if (!strcmp(hdf_defs[9].name, etag))  // EPI_COLS
 		{
-			sscanf(etag, "%x", &(dev->chip[dev->chip_num].cols));
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].cols));
+			diag(H_D3) { fprintf(fd, "Number of cloumns in a chip = %d\n", dev->chip[dev->chip_num].cols); }
 		}
 		else if (!strcmp(hdf_defs[10].name, etag)) // ESYS_BASE_REGS
 		{
-			sscanf(etag, "%x", &(dev->chip[dev->chip_num].esys.phy_base));
+			sscanf(eval, "%x", &(dev->chip[dev->chip_num].esys.phy_base));
+			diag(H_D3) { fprintf(fd, "Base addr. of system registers = 0x%08x\n", dev->chip[dev->chip_num].esys.phy_base); }
 		}
 		else if (!strcmp(hdf_defs[11].name, etag)) // comment
 		{
 			;
+			diag(H_D3) { fprintf(fd, "Comment\n"); }
 		}
 		else {
 			return EPI_ERR;
 		}
-#endif
 
 //		int i;
 //		for (i=0; i<_NumVars; i++)
