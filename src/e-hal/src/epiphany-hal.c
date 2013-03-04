@@ -37,6 +37,7 @@
 bool e_is_on_chip(Epiphany_t *dev, unsigned coreid);
 int  parse_hdf(E_Platform_t *dev, char *hdf);
 int  parse_simple_hdf(E_Platform_t *dev, char *hdf);
+int  parse_xml_hdf(E_Platform_t *dev, char *hdf);
 
 #define diag(vN)   if (e_host_verbose >= vN)
 
@@ -853,12 +854,23 @@ int get_description(char** targetIdp)
 
 int parse_hdf(E_Platform_t *dev, char *hdf)
 {
-//	if (file_ext == "hdf")
-		parse_simple_hdf(dev, hdf);
-//	else if (file_ext == "xml")
-//		parse_xml_hdf(dev, hdf);
+	int   ret = EPI_ERR;
+	char *ext;
 
-	return EPI_OK;
+	if (strlen(hdf) >= 4)
+	{
+		ext = hdf + strlen(hdf) - 4;
+		if (!strcmp(ext, ".hdf"))
+			ret = parse_simple_hdf(dev, hdf);
+		else if (!strcmp(ext, ".xml"))
+			ret = parse_xml_hdf(dev, hdf);
+		else
+			ret = EPI_ERR;
+	} else {
+		ret = EPI_ERR;
+	}
+
+	return ret;
 }
 
 int parse_simple_hdf(E_Platform_t *dev, char *hdf)
@@ -962,3 +974,13 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 
 	return EPI_OK;
 }
+
+
+int parse_xml_hdf(E_Platform_t *dev, char *hdf)
+{
+	warnx("e_init(): XML file format is not yet supported. Please use simple HDF format.");
+
+	return EPI_ERR;
+}
+
+

@@ -60,10 +60,11 @@ typedef enum {
 } e_return_stat_t;
 
 typedef enum {
-	EPI_HDF_SIMPLE_FILE   = 1,
-	EPI_HDF_XML_FILE      = 2,
-	EPI_HDF_SIMPLE_STRING = 3,
-	EPI_HDF_XML_STRING    = 4,
+	EPI_HDF_ENV_VAR       = 0, // HDF file name given in environment variable EPIPHANY_HW_DEF_FILE
+	EPI_HDF_SIMPLE_FILE   = 1, // read definitions from a simple .hdf file
+	EPI_HDF_XML_FILE      = 2, // read definitions from an .xml file
+	EPI_HDF_SIMPLE_STRING = 3, // read definitions from a simple formatted string
+	EPI_HDF_XML_STRING    = 4, // read definitions from an XML formatted string
 } e_hdf_format_t;
 
 // Core Registers
