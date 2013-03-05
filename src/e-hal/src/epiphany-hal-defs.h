@@ -52,7 +52,7 @@
 //#	define EPI_ROWS                      8
 //#	define EPI_COLS                      8
 //#	define ESYS_BASE_REGS       0x808f0000
-#	define __E64G4_BURST_PATCH__
+//#	define __E64G4_BURST_PATCH__
 #elif System_ID == 3 // Zynq E16 Ubuntu
 #	define EPI_BASE_CORE_ID        Core_ID
 #	define DRAM_BASE_ADDRESS    0x3e000000

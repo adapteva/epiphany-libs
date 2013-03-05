@@ -273,20 +273,44 @@ ssize_t e_write_word(Epiphany_t *dev, unsigned corenum, off_t to_addr, int data)
 ssize_t e_read_buf(Epiphany_t *dev, unsigned corenum, const off_t from_addr, void *buf, size_t count)
 {
 	const void *pfrom;
-
-	pfrom = (dev->core[corenum].mems.base + (from_addr & dev->core[corenum].mems.map_mask));
-#ifdef __E64G4_BURST_PATCH__
+	unsigned int addr_from, addr_to, align;
 	int i;
 
-	//	if ((corenum >= 0) && (corenum <= 63))
+	pfrom = (dev->core[corenum].mems.base + (from_addr & dev->core[corenum].mems.map_mask));
+
+	// The following code is a fix for the E64G4 anomaly of bursting reads from internal memory to host
+	// in rows #1 and #2.
 	if ((corenum >= 8) && (corenum <= 23))
-		for (i=0; i<count; i+=sizeof(char))
-			*(((char *) buf) + i) = *(((char *) pfrom) + i);
+	{
+		addr_from = (unsigned int) pfrom;
+		addr_to   = (unsigned int) buf;
+		align     = (addr_from | addr_to | count) & 0x7;
+
+		switch (align) {
+		case 0x0:
+			for (i=0; i<count; i+=sizeof(int64_t))
+				*((int64_t *) (buf + i)) = *((int64_t *) (pfrom + i));
+			break;
+		case 0x1:
+		case 0x3:
+		case 0x5:
+		case 0x7:
+			for (i=0; i<count; i+=sizeof(int8_t))
+				*((int8_t  *) (buf + i)) = *((int8_t  *) (pfrom + i));
+			break;
+		case 0x2:
+		case 0x6:
+			for (i=0; i<count; i+=sizeof(int16_t))
+				*((int16_t *) (buf + i)) = *((int16_t *) (pfrom + i));
+			break;
+		case 0x4:
+			for (i=0; i<count; i+=sizeof(int32_t))
+				*((int32_t *) (buf + i)) = *((int32_t *) (pfrom + i));
+			break;
+		}
+	}
 	else
 		memcpy(buf, pfrom, count);
-#else // __E64G4_BURST_PATCH__
-	memcpy(buf, pfrom, count);
-#endif // __E64G4_BURST_PATCH__
 
 	return count;
 }
@@ -663,7 +687,7 @@ int parse_simple_hdf(E_Platform_t *dev, char *hdf)
 {
 	FILE *fp;
 	char line[255], etag[255], eval[255];
-	int i, l;
+	int l;
 
 	fp = fopen(hdf, "r");
 	if (fp == NULL)

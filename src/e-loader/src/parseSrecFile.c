@@ -153,11 +153,6 @@ int parseAndSendSrecFile(char *srecFile, Epiphany_t *pEpiphany, bool broadcast) 
 					dataBuf[4] = '\0';
 
 					diag(L_D3) { fprintf(fd, " %x\n", (unsigned int) dataBuf); }
-//					diag(L_D3) { fprintf(fd, " %02x %c\n", (unsigned int) dataBuf[0], dataBuf[0]); }
-//					diag(L_D3) { fprintf(fd, " %02x %c\n", (unsigned int) dataBuf[1], dataBuf[1]); }
-//					diag(L_D3) { fprintf(fd, " %02x %c\n", (unsigned int) dataBuf[2], dataBuf[2]); }
-//					diag(L_D3) { fprintf(fd, " %02x %c\n", (unsigned int) dataBuf[3], dataBuf[3]); }
-//					diag(L_D3) { fprintf(fd, " %02x %c\n", (unsigned int) dataBuf[4], dataBuf[4]); }
 
 					if (broadcast) {
 						CoreID = e_get_id_from_num(pEpiphany, corenum);
