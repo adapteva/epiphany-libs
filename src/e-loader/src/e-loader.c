@@ -39,8 +39,8 @@ FILE *fd;
 unsigned int *DiscoveredCoreIDs;
 unsigned int  DiscoveredCoreIDidx;
 
-//int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
-int e_load(char *srecFile, bool reset_target, bool corenum, bool run_target)
+int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
+//int e_load(char *srecFile, bool reset_target, bool corenum, bool run_target)
 {
 	Epiphany_t Epiphany;
 	Epiphany_t *pEpiphany;
@@ -62,7 +62,7 @@ int e_load(char *srecFile, bool reset_target, bool corenum, bool run_target)
 
 		if (reset_target) {
 			diag(L_D1) { fprintf(fd, "Send RESET signal to the Epiphany system..."); diag(L_D2) fprintf(fd, "\n"); else fprintf(fd, " "); }
-			e_reset(pEpiphany, E_RESET_ESYS);
+			e_reset(pEpiphany);
 			diag(L_D1) { fprintf(fd, "Done.\n"); fflush(stdout); }
 		}
 
