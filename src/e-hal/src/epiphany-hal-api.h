@@ -68,9 +68,9 @@ ssize_t e_write_abs(unsigned address, void *buf, size_t burst_size);
 
 /////////////////////////
 // Core control functions
+int e_reset(Epiphany_t *pEpiphany);
 int e_reset_core(Epiphany_t *pEpiphany, unsigned corenum);
-int e_reset(Epiphany_t *pEpiphany, e_resetid_t resetid);
-int e_start(Epiphany_t *pEpiphany, unsigned coreid);
+int e_start(Epiphany_t *pEpiphany, unsigned corenum);
 
 
 ////////////////////

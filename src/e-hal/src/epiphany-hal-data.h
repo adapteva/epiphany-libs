@@ -60,11 +60,9 @@ typedef enum {
 } e_return_stat_t;
 
 typedef enum {
-	EPI_HDF_ENV_VAR       = 0, // HDF file name given in environment variable EPIPHANY_HW_DEF_FILE
-	EPI_HDF_SIMPLE_FILE   = 1, // read definitions from a simple .hdf file
-	EPI_HDF_XML_FILE      = 2, // read definitions from an .xml file
-	EPI_HDF_SIMPLE_STRING = 3, // read definitions from a simple formatted string
-	EPI_HDF_XML_STRING    = 4, // read definitions from an XML formatted string
+	EPI_HDF_ENV    = 0, // HDF file name given in environment variable EPIPHANY_HW_DEF_FILE
+	EPI_HDF_FILE   = 1, // read definitions from a file
+	EPI_HDF_STRING = 2, // read definitions from a string
 } e_hdf_format_t;
 
 // Core Registers
@@ -85,11 +83,14 @@ typedef enum {
 #define ESYS_TIMEOUT   0x0f18
 
 
+#if 0
 typedef enum {
 	E_RESET_CORES = 0,
 	E_RESET_CHIP  = 1,
 	E_RESET_ESYS  = 3,
+	E_RESET_ALL   = 0xffffffff,
 } e_resetid_t;
+#endif
 
 
 typedef struct {

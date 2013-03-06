@@ -39,7 +39,8 @@ FILE *fd;
 unsigned int *DiscoveredCoreIDs;
 unsigned int  DiscoveredCoreIDidx;
 
-int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
+//int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
+int e_load(char *srecFile, bool reset_target, bool corenum, bool run_target)
 {
 	Epiphany_t Epiphany;
 	Epiphany_t *pEpiphany;
@@ -77,7 +78,7 @@ int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target)
 			if (run_target) {
 				for (coreNum=0; coreNum<DiscoveredCoreIDidx; coreNum++) {
 					diag(L_D1) { fprintf(fd, "Send SYNC signal to core ID 0x%03x...", DiscoveredCoreIDs[coreNum]); diag(L_D2) fprintf(fd, "\n"); else fprintf(fd, " "); }
-					e_start(pEpiphany, DiscoveredCoreIDs[coreNum]);
+					e_start(pEpiphany, e_get_num_from_id(pEpiphany, DiscoveredCoreIDs[coreNum]));
 					diag(L_D1) { fprintf(fd, "Done.\n"); }
 				}
 			}

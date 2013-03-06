@@ -373,15 +373,6 @@ ssize_t e_write_esys(Epiphany_t *dev, off_t to_addr, int data)
 }
 
 
-
-
-// TODO TODO TODO: have to integrate this in the platform structure!!!
-#define DRAM_BASE_ADDRESS    0x1e000000
-#define DRAM_SIZE            0x02000000
-#define EPI_EXT_MEM_BASE     0x8e000000
-#define EPI_EXT_MEM_SIZE     0x02000000
-
-
 // eDRAM access
 int e_alloc(DRAM_t *dram, off_t mbase, size_t msize)
 {
@@ -502,31 +493,31 @@ ssize_t e_mwrite_buf(DRAM_t *dram, off_t to_addr, const void *buf, size_t count)
 
 /////////////////////////
 // Core control functions
-int e_reset_core(Epiphany_t *pEpiphany, unsigned corenum)
+#if 1
+int e_reset(Epiphany_t *pEpiphany)
 {
-	int RESET0 = 0x0;
-	int RESET1 = 0x1;
-
-	diag(H_D1) { fprintf(fd, "   Resetting core %d (0x%03x)...", corenum, pEpiphany->core[corenum].id); }
-	e_write_reg(pEpiphany, corenum, EPI_CORE_RESET, RESET1);
-	e_write_reg(pEpiphany, corenum, EPI_CORE_RESET, RESET0);
-	diag(H_D1) { fprintf(fd, " Done.\n"); }
-
-	return EPI_OK;
-}
-
-
-int e_reset_esys(Epiphany_t *pEpiphany)
-{
-	diag(H_D1) { fprintf(fd, "   Resetting ESYS..."); fflush(stdout); }
+	diag(H_D1) { fprintf(fd, "   Resetting full ESYS..."); fflush(stdout); }
 	e_write_esys(pEpiphany, ESYS_RESET, 0);
 	sleep(1);
-	diag(H_D1) { fprintf(fd, " Done.\n"); }
+	diag(H_D1) { fprintf(fd, " Done.\n"); fflush(stdout); }
 
 	return EPI_OK;
 }
+#elif 0
+int e_reset(Epiphany_t *pEpiphany, unsigned corenum)
+{
+	if (corenum == E_RESET_ALL)
+	{
+		diag(H_D1) { fprintf(fd, "   Resetting full ESYS..."); fflush(stdout); }
+		e_write_esys(pEpiphany, ESYS_RESET, 0);
+		sleep(1);
+		diag(H_D1) { fprintf(fd, " Done.\n"); fflush(stdout); }
+	} else
+		e_reset_core(pEpiphany, corenum);
 
-
+	return EPI_OK;
+}
+#else
 int e_reset(Epiphany_t *pEpiphany, e_resetid_t resetid)
 {
 	int corenum;
@@ -552,13 +543,37 @@ int e_reset(Epiphany_t *pEpiphany, e_resetid_t resetid)
 }
 
 
-int e_start(Epiphany_t *pEpiphany, unsigned coreid)
+int e_reset_esys(Epiphany_t *pEpiphany)
 {
-	int corenum;
+	diag(H_D1) { fprintf(fd, "   Resetting ESYS..."); fflush(stdout); }
+	e_write_esys(pEpiphany, ESYS_RESET, 0);
+	sleep(1);
+	diag(H_D1) { fprintf(fd, " Done.\n"); }
+
+	return EPI_OK;
+}
+#endif
+
+
+int e_reset_core(Epiphany_t *pEpiphany, unsigned corenum)
+{
+	int RESET0 = 0x0;
+	int RESET1 = 0x1;
+
+	diag(H_D1) { fprintf(fd, "   Resetting core %d (0x%03x)...", corenum, pEpiphany->core[corenum].id); }
+	e_write_reg(pEpiphany, corenum, EPI_CORE_RESET, RESET1);
+	e_write_reg(pEpiphany, corenum, EPI_CORE_RESET, RESET0);
+	diag(H_D1) { fprintf(fd, " Done.\n"); }
+
+	return EPI_OK;
+}
+
+
+int e_start(Epiphany_t *pEpiphany, unsigned corenum)
+{
 	int SYNC = 0x1;
 	int *pILAT;
 
-	corenum = e_get_num_from_id(pEpiphany, coreid);
 	pILAT = (int *) ((char *) pEpiphany->core[corenum].regs.base + EPI_ILAT);
 	diag(H_D1) { fprintf(fd, "   SYNC (0x%x) to core %d...", (unsigned) pILAT, corenum); fflush(stdout); }
 	*pILAT = (*pILAT) | SYNC;
@@ -935,8 +950,9 @@ int init_platform(platform_definition_t* platform_arg, unsigned verbose_mode)
 	platform  = platform_arg;
 
 	e_set_host_verbosity(verbose_mode);
-	res = e_alloc(pERAM, 0, DRAM_SIZE); // TODO: change HDF to something meaningful
-	res = e_open(pEpiphany); // TODO: change HDF to something meaningful
+	e_init(EPI_HDF_ENV_VAR, 0);
+	res = e_alloc(pERAM, 0, e_platform.emem_size);
+	res = e_open(pEpiphany);
 
 	return res;
 }
@@ -949,6 +965,7 @@ int close_platform()
 
 	res = e_close(pEpiphany);
 	res = e_free(pERAM);
+	e_finish();
 
 	return res;
 }
@@ -987,7 +1004,8 @@ int hw_reset()
 {
 	int sleepTime = 0;
 
-	e_reset(pEpiphany, E_RESET_ESYS);
+//	e_reset(pEpiphany, E_RESET_ESYS);
+	e_reset(pEpiphany);
 
 	sleep(sleepTime);
 
