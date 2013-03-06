@@ -950,7 +950,7 @@ int init_platform(platform_definition_t* platform_arg, unsigned verbose_mode)
 	platform  = platform_arg;
 
 	e_set_host_verbosity(verbose_mode);
-	e_init(EPI_HDF_ENV_VAR, 0);
+	e_init(EPI_HDF_ENV, 0);
 	res = e_alloc(pERAM, 0, e_platform.emem_size);
 	res = e_open(pEpiphany);
 
