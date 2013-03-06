@@ -64,6 +64,7 @@ int e_init(e_hdf_format_t hdf_type, char *hdf)
 	}
 
 	char *hdf_env = getenv(hdf_env_var_name);
+	diag(H_D2) { fprintf(fd, "e_init(): HDF ENV = %s\n", hdf_env); }
 	if (hdf == NULL)
 	{
 		if (hdf_env == NULL)
