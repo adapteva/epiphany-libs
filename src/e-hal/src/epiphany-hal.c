@@ -500,7 +500,7 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 {
 	if (e_platform.initialized == e_false)
 	{
-		warnx("e_open(): Platform was not initialized. Use e_init().");
+		warnx("e_alloc(): Platform was not initialized. Use e_init().");
 		return E_ERR;
 	}
 
@@ -686,7 +686,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 
 	esys.map_size = 0x1000; // map 4KB page
 	esys.map_mask = (esys.map_size - 1);
-	esys.phy_base = to_addr & (~esys.map_mask);
+	esys.phy_base = (e_platform.regs_base + to_addr) & (~esys.map_mask);
 
 	esys.mapped_base = mmap(0, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.phy_base);
 	esys.base = esys.mapped_base + (esys.phy_base & esys.map_mask);
@@ -699,8 +699,8 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 		return E_ERR;
 	}
 
-	pto = (int *) (esys.base + (to_addr & esys.map_mask));
-	diag(H_D2) { fprintf(fd, "ee_write_esys(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
+	pto = (int *) (esys.base + ((e_platform.regs_base + to_addr) & esys.map_mask));
+	diag(H_D2) { fprintf(fd, "ee_write_esys(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) (e_platform.regs_base + to_addr), (uint) pto); }
 	*pto = data;
 
 	munmap(esys.mapped_base, esys.map_size);
@@ -718,8 +718,20 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 int e_reset_system()
 {
 	diag(H_D1) { fprintf(fd, "e_reset_system(): resetting full ESYS...\n"); }
-	ee_write_esys(e_platform.regs_base + E_SYS_RESET, 0);
+	ee_write_esys(E_SYS_RESET, 0);
 	sleep(1);
+	if (e_platform.chip[0].type == E_E16G301) // TODO: assume one chip
+	{
+		e_epiphany_t dev;
+		int          data;
+		diag(H_D2) { fprintf(fd, "e_reset_system(): found chip version E16G301, programming clock divider.\n"); }
+		e_open(&dev, 2, 3, 1, 1);
+		ee_write_esys(E_SYS_CONFIG, 0x50000000);
+		data = 1;
+		e_write(&dev, 0, 0, E_IO_LINK_CFG, &data, sizeof(int));
+		ee_write_esys(E_SYS_CONFIG, 0x00000000);
+		e_close(&dev);
+	}
 	diag(H_D1) { fprintf(fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
