@@ -75,7 +75,7 @@ using std::setw;
 static pthread_mutex_t rspCmdControlAccess_m = PTHREAD_MUTEX_INITIALIZER;
 
 
-
+// TODO:
 //! @todo We do not handle a user coded BKPT properly (i.e. one that is not
 //!       a breakpoint). Effectively it is ignored, whereas we ought to set up
 //!       the exception registers and redirect through the trap vector.
@@ -108,8 +108,8 @@ GdbServerSC::~GdbServerSC()
 //! Write HALT to debug register
 //! Drive ILAT
 //-----------------------------------------------------------------------------
-void GdbServerSC::rspAttach() {
-
+void GdbServerSC::rspAttach()
+{
 	//try to halt target in case re entrance
 	//if (fResumeOnDetach) {
 	//	targetHalt();
@@ -135,18 +135,20 @@ void GdbServerSC::rspAttach() {
 
 	bool isHalted = targetHalt();
 	if (!isHalted) {
-		rspReportException(0, 0/*all threads*/, TARGET_SIGNAL_HUP);
+		rspReportException(0, 0 /*all threads*/, TARGET_SIGNAL_HUP);
 	}
 
 	// ILAT set
 	writeScrGrp0(ATDSP_SCR_ILAT, ATDSP_EXCEPT_RESET);
 }
 
+
 //-----------------------------------------------------------------------------
 //! disconnect/ detach from hardware
 //! Leave emulation mode,
 //!
-void GdbServerSC::rspDetach() {
+void GdbServerSC::rspDetach()
+{
 	//emulation disable
 	//fTargetControl->writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_EMUL_MODE_OUT);
 
@@ -160,9 +162,7 @@ void GdbServerSC::rspDetach() {
 	//	targetResume();
 	//}
 
-
 	ReleaseGdbCmdSelectedCoreId();
-
 }
 //-----------------------------------------------------------------------------
 
@@ -185,10 +185,9 @@ void GdbServerSC::rspDetach() {
 #include <pthread.h>
 
 extern bool haltOnAttach;
-void
-GdbServerSC::rspServer(TargetControl *TargetControl)
-{
 
+void GdbServerSC::rspServer(TargetControl *TargetControl)
+{
 	fTargetControl=TargetControl;
 	assert(fTargetControl);
 
@@ -267,11 +266,7 @@ GdbServerSC::rspServer(TargetControl *TargetControl)
 
 //! @param[in] pkt  The received RSP packet
 //-----------------------------------------------------------------------------
-
-
-
-void
-GdbServerSC::rspClientRequest()
+void GdbServerSC::rspClientRequest()
 {
 	if (!rsp->getPkt(pkt))
 	{
@@ -488,8 +483,7 @@ GdbServerSC::rspClientRequest()
 //! The only signal we ever see in this implementation is TRAP/ABORT.
 //! TODO no thread support -- always report as S packet
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspReportException(unsigned stoppedPC, unsigned threadID, unsigned exCause)
+void GdbServerSC::rspReportException(unsigned stoppedPC, unsigned threadID, unsigned exCause)
 {
 	if (debug_level > D_STOP_RESUME_INFO) cerr << "[" << hex << fTargetControl->GetAttachedCoreId() << "]: stopped at PC " << hex << stoppedPC << "  EX 0x" << exCause << dec << endl << flush;
 
@@ -531,8 +525,7 @@ GdbServerSC::rspReportException(unsigned stoppedPC, unsigned threadID, unsigned 
 
 //! @param[in] except  The GDB signal to use
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspContinue(uint32_t except)
+void GdbServerSC::rspContinue(uint32_t except)
 {
 	uint32_t addr; // Address to continue from, if any
 
@@ -567,8 +560,7 @@ GdbServerSC::rspContinue(uint32_t except)
 //! @todo Currently does nothing. Will use the underlying generic continue
 //!       function.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspContinue()
+void GdbServerSC::rspContinue()
 {
 	if (debug_level > D_TRAP_AND_RSP_CON) cerr << "RSP continue with signal '" << pkt->data << "' received" << endl << flush;
 
@@ -600,7 +592,8 @@ GdbServerSC::rspContinue()
 //! have sleep con for request .. get other thread to communicate with target
 //
 //-----------------------------------------------------------------------------
-void GdbServerSC::NanoSleepThread(unsigned long timeout) {
+void GdbServerSC::NanoSleepThread(unsigned long timeout)
+{
 	struct timespec sleepTime;
 	struct timespec remainingSleepTime;
 
@@ -610,13 +603,13 @@ void GdbServerSC::NanoSleepThread(unsigned long timeout) {
 
 }
 
+
 //-----------------------------------------------------------------------------
 //! Resume target, writing ATDSP_DEBUG_RUN to core debug register
 //
 //-----------------------------------------------------------------------------
-
-void GdbServerSC::targetResume() {
-
+void GdbServerSC::targetResume()
+{
 	//write to CORE_DEBUGCMD
 	fTargetControl->writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_RUN);
 
@@ -627,6 +620,7 @@ void GdbServerSC::targetResume() {
 	if (debug_level > D_STOP_RESUME_INFO) cerr << "[" << hex << fTargetControl->GetAttachedCoreId() << "]: ... resumed" << endl << flush;
 }
 
+
 //-----------------------------------------------------------------------------
 //! Generic processing of a continue request
 
@@ -636,32 +630,28 @@ void GdbServerSC::targetResume() {
 //! @param[in] addr    Address from which to step
 //! @param[in] except  The exception to use (if any). Currently ignored
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
+void GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 {
-
 	if ((!fIsTargetRunning && debug_level > 1) || (debug_level > 200)) {
 		cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << "GdbServerSC::rspContinue PC 0x" << hex << addr << dec << endl << flush;
 	}
 
-
 	uint32_t prevPc =0;
 
 	if (!fIsTargetRunning) {
-		cerr << "********* fIsTargetRunning = false **************" << endl << flush;
+		//cerr << "********* fIsTargetRunning = false **************" << endl << flush;
 		//check if core in debug state
 		if (!isTargetInDebugState()) {
-			cerr << "********* isTargetInDebugState = false **************" << endl << flush;
+			//cerr << "********* isTargetInDebugState = false **************" << endl << flush;
 
 			//cerr << "Internal Error(DGB server): Core is not in HALT state while the GDB is asking the cont" << endl << flush;
 			//pkt->packStr("E01");
 			//rsp->putPkt(pkt);
 			//exit(2);
 
-
 			fIsTargetRunning = true;
 		} else {
-			cerr << "********* isTargetInDebugState = true **************" << endl << flush;
+			//cerr << "********* isTargetInDebugState = true **************" << endl << flush;
 
 			//set PC
 			writePc(addr);
@@ -677,7 +667,7 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 	timeout_limit = 3;
 
 	while (true) {
-		cerr << "********* while true **************" << endl << flush;
+		//cerr << "********* while true **************" << endl << flush;
 
 		NanoSleepThread(300000000);
 
@@ -685,7 +675,7 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 
 		//give up control and check for CTRL-C
 		if (timeout_me > timeout_limit) {
-			cerr << "********* timeout me > limit **************" << endl << flush;
+			//cerr << "********* timeout me > limit **************" << endl << flush;
 			//cerr << " PC << " << hex << readPc() << dec << endl << flush;
 			assert(fIsTargetRunning);
 			break;
@@ -694,7 +684,7 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 		//check the value of debug register
 
 		if (isTargetInDebugState()) {
-			cerr << "********* isTargetInDebugState = true **************" << endl << flush;
+			//cerr << "********* isTargetInDebugState = true **************" << endl << flush;
 
 			// If it's a breakpoint, then we need to back up one instruction, so
 			// on restart we execute the actual instruction.
@@ -709,7 +699,7 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 			sc_uint_16 valueOfStoppedInstr = val_;
 
 			if (valueOfStoppedInstr == ATDSP_BKPT_INSTR) {
-				cerr << "********* valueOfStoppedInstr = ATDSP_BKPT_INSTR **************" << endl << flush;
+				//cerr << "********* valueOfStoppedInstr = ATDSP_BKPT_INSTR **************" << endl << flush;
 
 				if (NULL != mpHash->lookup(BP_MEMORY, prevPc)) {
 					writePc(prevPc);
@@ -725,11 +715,11 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 
 
 			} else { // check if stopped for trap (stdio handling)
-				cerr << "********* valueOfStoppedInstr =\\= ATDSP_BKPT_INSTR **************" << endl << flush;
+				//cerr << "********* valueOfStoppedInstr =\\= ATDSP_BKPT_INSTR **************" << endl << flush;
 
 				bool stoppedAtTrap = (getfield(valueOfStoppedInstr,9,0) == ATDSP_TRAP_INSTR);
 				if (!stoppedAtTrap) {
-					cerr << "********* stoppedAtTrap = false **************" << endl << flush;
+					//cerr << "********* stoppedAtTrap = false **************" << endl << flush;
 					//try to go back an look for trap // bug in the design !!!!!!!!!!!!!!
 					if (debug_level > D_TRAP_AND_RSP_CON) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << "missed trap ... looking backward for trap " << hex << c_pc << dec << endl << flush;
 
@@ -755,14 +745,14 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 				}
 
 				if (stoppedAtTrap) {
-					cerr << "********* stoppedAtTrap = true **************" << endl << flush;
+					//cerr << "********* stoppedAtTrap = true **************" << endl << flush;
 
 					fIsTargetRunning = false;
 
 					sc_uint_6 trapNumber = getfield(valueOfStoppedInstr,15,10);
 					redirectSdioOnTrap(trapNumber);
 				} else {
-					cerr << "********* stoppedAtTrap = false **************" << endl << flush;
+					//cerr << "********* stoppedAtTrap = false **************" << endl << flush;
 					if (debug_level > D_STOP_RESUME_DETAIL) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << " no trap found, return control to gdb" << endl << flush;
 					// report to gdb the target has been stopped
 					rspReportException(readPc() /* PC no trap found */, 0 /* all threads */, TARGET_SIGNAL_TRAP);
@@ -774,6 +764,7 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 	} // while (true)
 } // rspContinue()
 
+
 //-----------------------------------------------------------------------------
 //! Generic processing of a suspend request .. CTRL-C command in gdb
 //! Stop target
@@ -781,8 +772,8 @@ GdbServerSC::rspContinue(uint32_t addr, uint32_t except)
 //! report to GDB by TRAP
 //! switch to not running stage, same as c or s command
 //-----------------------------------------------------------------------------
-void GdbServerSC::rspSuspend() {
-
+void GdbServerSC::rspSuspend()
+{
 	unsigned exCause = TARGET_SIGNAL_TRAP;
 	uint32_t reportedPc;
 
@@ -842,6 +833,7 @@ void GdbServerSC::rspSuspend() {
 	rspReportException(reportedPc, 0 /*all threads*/, exCause);
 }
 
+
 //-----------------------------------------------------------------------------
 //! Reply to F packet
 /*
@@ -854,7 +846,8 @@ void GdbServerSC::rspSuspend() {
  * assuming 4 is the protocol-specific representation of EINTR.
  */
 //-----------------------------------------------------------------------------
-void GdbServerSC::rspFileIOreply() {
+void GdbServerSC::rspFileIOreply()
+{
 
 	long int result_io=-1;
 	long int host_respond_error_code;
@@ -904,12 +897,13 @@ extern FILE *tty_out;
 pthread_mutex_t targeTTYAccess_m = PTHREAD_MUTEX_INITIALIZER;
 extern bool with_tty_support;
 
-void GdbServerSC::redirectSdioOnTrap(sc_uint_6 trapNumber) {
+#define MAX_FILE_NAME_LENGTH (256*4)
+
+
+void GdbServerSC::redirectSdioOnTrap(sc_uint_6 trapNumber)
+{
 	//cout << "---- stop on PC 0x " << hex << prevPc << dec << endl << flush;
 	//cout << "---- got trap 0x" << hex << valueOfStoppedInstr << dec << endl << flush;
-
-
-#define MAX_FILE_NAME_LENGTH (256*4)
 
 	sc_uint_32 r0, r1, r2, r3;
 	char *buf;
@@ -954,7 +948,7 @@ void GdbServerSC::redirectSdioOnTrap(sc_uint_6 trapNumber) {
 		r0=readGpr(0);//filepath
 		r1=readGpr(1);//flags
 
-		if (debug_level > D_TRAP_AND_RSP_CON) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << " Trap 2 open, file name located @" << hex << r0 << dec  << " (mode)" << r1 << endl << flush;
+		if (debug_level > D_TRAP_AND_RSP_CON) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << " Trap 2 open, file name located @" << hex << r0 << dec << " (mode)" << r1 << endl << flush;
 
 		for (k = 0; k < MAX_FILE_NAME_LENGTH-1; k++) {
 			uint8_t val_;
@@ -1153,10 +1147,8 @@ void GdbServerSC::redirectSdioOnTrap(sc_uint_6 trapNumber) {
 
 //! Each byte is packed as a pair of hex digits.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspReadAllRegs()
+void GdbServerSC::rspReadAllRegs()
 {
-
 	struct timeval start_t;
 	StartOfBaudMeasurement(start_t);
 	//cerr << "MTIME--- READ all regs START ----" << endl << flush;
@@ -1253,8 +1245,7 @@ GdbServerSC::rspReadAllRegs()
 //!       warning message, but there is no other check that the right amount
 //!       of data is present. The result is always "OK".
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspWriteAllRegs()
+void GdbServerSC::rspWriteAllRegs()
 {
 	// The GPRs
 	for (int r=0; r<ATDSP_NUM_GPRS; r++)
@@ -1297,13 +1288,11 @@ GdbServerSC::rspWriteAllRegs()
 //!       stream the accesses, since the ATDSP only supports word read/write
 //!       at present.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspReadMem()
+void GdbServerSC::rspReadMem()
 {
-
-	unsigned int    addr; // Where to read the memory
-	int             len;  // Number of bytes to read
-	int             off;  // Offset into the memory
+	unsigned int addr; // Where to read the memory
+	int          len;  // Number of bytes to read
+	int          off;  // Offset into the memory
 
 	if (2 != sscanf(pkt->data, "m%x,%x:", &addr, &len))
 	{
@@ -1374,8 +1363,7 @@ GdbServerSC::rspReadMem()
 
 //! @note Not believed to be used by the GDB client at present.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspWriteMem()
+void GdbServerSC::rspWriteMem()
 {
 	uint32_t addr; // Where to write the memory
 	int      len;  // Number of bytes to write
@@ -1431,8 +1419,7 @@ GdbServerSC::rspWriteMem()
 
 //! @note Not believed to be used by the GDB client at present.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspReadReg()
+void GdbServerSC::rspReadReg()
 {
 	int regNum;
 
@@ -1485,8 +1472,7 @@ GdbServerSC::rspReadReg()
 
 //! Each byte is packed as a pair of hex digits.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspWriteReg()
+void GdbServerSC::rspWriteReg()
 {
 	int  regNum;
 	char valstr[9]; // Allow for EOS on the string
@@ -1533,8 +1519,7 @@ GdbServerSC::rspWriteReg()
 //-----------------------------------------------------------------------------
 //! Handle a RSP query request
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspQuery()
+void GdbServerSC::rspQuery()
 {
 	//cerr << "rspQuery " << pkt->data << endl << flush;
 
@@ -1694,8 +1679,7 @@ GdbServerSC::rspQuery()
 
 //! The actual command follows the "qRcmd," in ASCII encoded to hex
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspCommand()
+void GdbServerSC::rspCommand()
 {
 	char cmd[RSP_PKT_MAX];
 
@@ -1706,7 +1690,6 @@ GdbServerSC::rspCommand()
 
 
 	if (strcmp("swreset", cmd) == 0) {
-
 
 		cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << "The debugger sent reset request" << endl << flush;
 
@@ -1772,8 +1755,7 @@ GdbServerSC::rspCommand()
 //-----------------------------------------------------------------------------
 //! Handle a RSP set request
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspSet()
+void GdbServerSC::rspSet()
 {
 	if (0 == strncmp("QPassSignals:", pkt->data, strlen("QPassSignals:")))
 	{
@@ -1849,8 +1831,7 @@ GdbServerSC::rspRestart()
 //! @param[in] except  The exception to use. Only TARGET_SIGNAL_NONE should be set
 //!                    this way.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspStep(uint32_t   except)
+void GdbServerSC::rspStep(uint32_t except)
 {
 	uint32_t addr; // The address to step from, if any
 
@@ -1883,8 +1864,7 @@ GdbServerSC::rspStep(uint32_t   except)
 
 //! @todo Currently null. Will use the underlying generic step function.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspStep()
+void GdbServerSC::rspStep()
 {
 	cerr << "WARNING: RSP step with signal '" << pkt->data << "' received, the server will ignore the step" << endl << flush;
 
@@ -1893,7 +1873,9 @@ GdbServerSC::rspStep()
 
 } // rspStep()
 
-bool Is32BitsInstr(sc_uint_32 iab_instr) {
+
+bool Is32BitsInstr(sc_uint_32 iab_instr)
+{
 
 	bool de_extended_instr = (getfield(iab_instr,3,0) == sc_uint_4(0xf));
 
@@ -1909,16 +1891,18 @@ bool Is32BitsInstr(sc_uint_32 iab_instr) {
 	bool res = (de_extended_instr || // extension
 	            de_loadstore_long || // long load/store
 	            de_regi_long      || // long imm reg
-	            de_branch_long_sel   // long branch
-	);
-	return res;
+	            de_branch_long_sel); // long branch
 
+	return res;
 }
+
+
 //---------------------------------------------------------------------------
 //! Force the debug mode by writing to debug register
 //
 //-----------------------------------------------------------------------------
-bool GdbServerSC::targetHalt() {
+bool GdbServerSC::targetHalt()
+{
 	fTargetControl->writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_HALT);
 	if (debug_level > D_STOP_RESUME_INFO) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << " writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_HALT) " << hex << CORE_DEBUGCMD << " <-- " << ATDSP_DEBUG_HALT << dec << endl << flush;
 
@@ -1943,17 +1927,21 @@ bool GdbServerSC::targetHalt() {
 //! Put Breakpoint instruction
 //
 //-----------------------------------------------------------------------------
-void GdbServerSC::putBreakPointInstruction(unsigned long bkpt_addr) {
+void GdbServerSC::putBreakPointInstruction(unsigned long bkpt_addr)
+{
 	fTargetControl->writeMem16(bkpt_addr, ATDSP_BKPT_INSTR);
 
 	if (debug_level > D_STOP_RESUME_DETAIL) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << " put break point " << hex << bkpt_addr << " " << ATDSP_BKPT_INSTR << dec << endl << flush;
 
 }
+
+
 //---------------------------------------------------------------------------
 //! Check if hit on Breakpoint instruction
 //
 //-----------------------------------------------------------------------------
-bool GdbServerSC::isHitInBreakPointInstruction(unsigned long bkpt_addr) {
+bool GdbServerSC::isHitInBreakPointInstruction(unsigned long bkpt_addr)
+{
 	uint16_t val;
 	fTargetControl->readMem16(bkpt_addr, val);
 	//bool st = fTargetControl->readMem16(bkpt_addr, val);
@@ -1961,9 +1949,11 @@ bool GdbServerSC::isHitInBreakPointInstruction(unsigned long bkpt_addr) {
 
 }
 
+
 //-----------------------------------------------------------------------------
 //! Check is core has been stopped at debug state
-bool GdbServerSC::isTargetInDebugState() {
+bool GdbServerSC::isTargetInDebugState()
+{
 
 	uint32_t val;
 	fTargetControl->readMem32(CORE_DEBUG, val);
@@ -1977,11 +1967,10 @@ bool GdbServerSC::isTargetInDebugState() {
 }
 
 
-
 //-----------------------------------------------------------------------------
 //! Check is core has been stopped at exception state
-bool GdbServerSC::isTargetExceptionState(unsigned& exCause) {
-
+bool GdbServerSC::isTargetExceptionState(unsigned& exCause)
+{
 
 	bool ret = false;
 
@@ -2012,9 +2001,8 @@ bool GdbServerSC::isTargetExceptionState(unsigned& exCause) {
 
 //-----------------------------------------------------------------------------
 //! Check is core has been stopped at idle state
-bool GdbServerSC::isTargetInIldeState() {
-
-
+bool GdbServerSC::isTargetInIldeState()
+{
 	bool ret = false;
 
 	//check if idle state
@@ -2023,9 +2011,7 @@ bool GdbServerSC::isTargetInIldeState() {
 		cerr << "EXception " << hex << getfield(coreStatus,18,16) << endl << flush;
 	}
 
-
 	//cerr << " CORE status" << hex << coreStatus << endl << flush;
-
 
 	if ((coreStatus & CORE_IDLE_BIT) == CORE_IDLE_VAL) {
 
@@ -2038,14 +2024,15 @@ bool GdbServerSC::isTargetInIldeState() {
 
 	return ret;
 }
+
+
 //-----------------------------------------------------------------------------
 //! Put bkpt instructions to IVT
 
 // The single step mode can be broken when interrupt is fired. (ISR call)
 // The instructions in IVT should be saved and replaced by BKPT
-void
-GdbServerSC::saveIVT() {
-
+void GdbServerSC::saveIVT()
+{
 	fTargetControl->ReadBurst(0, fIVTSaveBuff, sizeof(fIVTSaveBuff));
 
 	//for (unsigned i=1; i<ATDSP_NUM_ENTRIES_IN_IVT-1; i++) { //skip reset ISR
@@ -2061,16 +2048,16 @@ GdbServerSC::saveIVT() {
 	//		putBreakPointInstruction(bkpt_addr);
 	//	}
 	//}
-
 }
+
 
 //-----------------------------------------------------------------------------
 //! Restore bkpt instructions to IVT
 
 // The single step mode can be broken when interrupt is fired, (ISR call)
 // The BKPT instructions in IVT should be restored by real instructions
-void
-GdbServerSC::restoreIVT() {
+void GdbServerSC::restoreIVT()
+{
 
 	fTargetControl-> WriteBurst(0, fIVTSaveBuff, sizeof(fIVTSaveBuff));
 	//remove "hidden" bk
@@ -2082,6 +2069,7 @@ GdbServerSC::restoreIVT() {
 	//	}
 	//}
 }
+
 
 //-----------------------------------------------------------------------------
 //! Generic processing of a step request
@@ -2097,8 +2085,7 @@ GdbServerSC::restoreIVT() {
 //! @param[in] addr    Address from which to step
 //! @param[in] except  The exception to use (if any)
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspStep(uint32_t addr, uint32_t except)
+void GdbServerSC::rspStep(uint32_t addr, uint32_t except)
 {
 	if (debug_level > D_STOP_RESUME_DETAIL) cerr << "[" << hex << GetAttachedTargetCoreId() << "]:" << dec << "GdbServerSC::rspStep PC 0x" << hex << addr << dec << endl << flush;
 
@@ -2368,8 +2355,7 @@ GdbServerSC::rspStep(uint32_t addr, uint32_t except)
 
 //! These are commands associated with executing the code on the target
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspVpkt()
+void GdbServerSC::rspVpkt()
 {
 	if (0 == strncmp("vAttach;", pkt->data, strlen("vAttach;")))
 	{
@@ -2470,8 +2456,7 @@ GdbServerSC::rspVpkt()
 //!       more efficient implementation would stream the accesses, thereby
 //!       saving one cycle/word.
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspWriteMemBin()
+void GdbServerSC::rspWriteMemBin()
 {
 	uint32_t addr; // Where to write the memory
 	int      len;  // Number of bytes to write
@@ -2484,7 +2469,6 @@ GdbServerSC::rspWriteMemBin()
 		rsp->putPkt(pkt);
 		return;
 	}
-
 
 	// Find the start of the data and "unescape" it. Bindat must be unsigned, or
 	// all sorts of horrible sign extensions will happen when val is computed
@@ -2524,8 +2508,7 @@ GdbServerSC::rspWriteMemBin()
 
 //! @todo This doesn't work with icache/immu yet
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::rspRemoveMatchpoint()
+void GdbServerSC::rspRemoveMatchpoint()
 {
 	MpType     type;  // What sort of matchpoint
 	uint32_t   addr;  // Address specified
@@ -2603,8 +2586,7 @@ GdbServerSC::rspRemoveMatchpoint()
 
 //! @todo This doesn't work with icache/immu yet
 //---------------------------------------------------------------------------*/
-void
-GdbServerSC::rspInsertMatchpoint()
+void GdbServerSC::rspInsertMatchpoint()
 {
 	MpType   type; // What sort of matchpoint
 	uint32_t addr; // Address specified
@@ -2682,15 +2664,16 @@ GdbServerSC::rspInsertMatchpoint()
 //! This is achieved by writing 1 (RESET exception) and 0 to mes_rest register
 
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::targetSWReset()
+void GdbServerSC::targetSWReset()
 {
-	for(unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++) {
+	for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
+	{
 		fTargetControl->writeMem32(MESH_SWRESET, 1);
 	}
 
 	fTargetControl->writeMem32(MESH_SWRESET, 0);
 } // reset(). E_CORE_RESET
+
 
 //-----------------------------------------------------------------------------
 //! HW specific (board) reset
@@ -2698,8 +2681,7 @@ GdbServerSC::targetSWReset()
 //! The Platform driver is responsible for the actual implementation
 
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::targetHWReset()
+void GdbServerSC::targetHWReset()
 {
 	fTargetControl->PlatformReset();
 } // hw_reset, ESYS_RESET
@@ -2712,8 +2694,7 @@ GdbServerSC::targetHWReset()
 
 //! @return  The value of the Status
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readCoreId()
+uint32_t GdbServerSC::readCoreId()
 {
 	uint32_t val;
 
@@ -2723,6 +2704,7 @@ GdbServerSC::readCoreId()
 	return val;
 } // readCoreStatus()
 
+
 //-----------------------------------------------------------------------------
 //! Read the value of the Core Status (a SCR)
 
@@ -2730,8 +2712,7 @@ GdbServerSC::readCoreId()
 
 //! @return  The value of the Status
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readCoreStatus()
+uint32_t GdbServerSC::readCoreStatus()
 {
 	uint32_t val;
 
@@ -2749,8 +2730,7 @@ GdbServerSC::readCoreStatus()
 
 //! @return  The value of the PC
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readPc()
+uint32_t GdbServerSC::readPc()
 {
 	uint32_t val;
 
@@ -2774,8 +2754,7 @@ GdbServerSC::readPc()
 
 //! @return  The value of the link register
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readLr()
+uint32_t GdbServerSC::readLr()
 {
 	uint32_t val;
 
@@ -2799,8 +2778,7 @@ GdbServerSC::readLr()
 
 //! @return  The value of the frame pointer register
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readFp()
+uint32_t GdbServerSC::readFp()
 {
 	uint32_t val;
 
@@ -2824,8 +2802,7 @@ GdbServerSC::readFp()
 
 //! @return  The value of the frame pointer register
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readSp()
+uint32_t GdbServerSC::readSp()
 {
 	uint32_t val;
 
@@ -2849,8 +2826,7 @@ GdbServerSC::readSp()
 
 //! @param[in]  The address to write into the PC
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writePc(uint32_t addr)
+void GdbServerSC::writePc(uint32_t addr)
 {
 	//cout << "WR PC 0x" << hex << addr << dec << endl << flush;
 	//if (fIsMultiCoreSupported && (addr >= CHIP_BASE && addr < CHIP_BASE+NCORES*CORE_SPACE)) {
@@ -2870,8 +2846,7 @@ GdbServerSC::writePc(uint32_t addr)
 
 //! @param[in]  The address to write into the Link register
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writeLr(uint32_t addr)
+void GdbServerSC::writeLr(uint32_t addr)
 {
 	//cout << "Warning writing to link register: " << hex << addr << dec << endl << flush;
 
@@ -2887,8 +2862,7 @@ GdbServerSC::writeLr(uint32_t addr)
 
 //! @param[in]  The address to write into the Frame pointer register
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writeFp(uint32_t addr)
+void GdbServerSC::writeFp(uint32_t addr)
 {
 	//cout << "Warning writing to frame pointer register: " << hex << addr << dec << endl << flush;
 
@@ -2904,16 +2878,13 @@ GdbServerSC::writeFp(uint32_t addr)
 
 //! @param[in]  The address to write into the Stack pointer register
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writeSp(uint32_t addr)
+void GdbServerSC::writeSp(uint32_t addr)
 {
 	//cout << "Warning writing to stack pointer register: " << hex << addr << dec << endl << flush;
 
 	fTargetControl->writeMem32(CORE_R0 + ATDSP_SP_REGNUM * ATDSP_INST32LEN, addr);
 
 } // writeSp()
-
-
 
 
 //-----------------------------------------------------------------------------
@@ -2925,8 +2896,7 @@ GdbServerSC::writeSp(uint32_t addr)
 //! @param[in]  regNum  The GPR to read
 //! @return  The value of the GPR
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readGpr(unsigned int regNum)
+uint32_t GdbServerSC::readGpr(unsigned int regNum)
 {
 	uint32_t r;
 	if ((int) regNum == ATDSP_LR_REGNUM) {
@@ -2939,6 +2909,7 @@ GdbServerSC::readGpr(unsigned int regNum)
 		fTargetControl->readMem32(CORE_R0 + regNum * ATDSP_INST32LEN, r);
 		//bool retSt = fTargetControl->readMem32(CORE_R0 + regNum * ATDSP_INST32LEN, r);
 	}
+
 	return r;
 } // readGpr()
 
@@ -2952,8 +2923,7 @@ GdbServerSC::readGpr(unsigned int regNum)
 //! @param[in]  regNum  The GPR to write
 //! @param[in]  value   The value to be written
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writeGpr(unsigned int regNum, uint32_t value)
+void GdbServerSC::writeGpr(unsigned int regNum, uint32_t value)
 {
 	if ((int) regNum == ATDSP_LR_REGNUM) {
 		writeLr(value);
@@ -2980,8 +2950,7 @@ GdbServerSC::writeGpr(unsigned int regNum, uint32_t value)
 
 //! @return  The value of the SCR
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readScrGrp0(unsigned int regNum)
+uint32_t GdbServerSC::readScrGrp0(unsigned int regNum)
 {
 
 	assert((int) regNum < ATDSP_NUM_SCRS_0);
@@ -3007,8 +2976,7 @@ GdbServerSC::readScrGrp0(unsigned int regNum)
 
 //! @return  The value of the SCR
 //-----------------------------------------------------------------------------
-uint32_t
-GdbServerSC::readScrDMA(unsigned int regNum)
+uint32_t GdbServerSC::readScrDMA(unsigned int regNum)
 {
 	assert((int) regNum < ATDSP_NUM_SCRS_1);
 
@@ -3021,7 +2989,6 @@ GdbServerSC::readScrDMA(unsigned int regNum)
 } // readScrDMA()
 
 
-
 //-----------------------------------------------------------------------------
 //! Write the value of an ATDSP Special Core Register, group 0
 
@@ -3031,8 +2998,7 @@ GdbServerSC::readScrDMA(unsigned int regNum)
 //! @param[in]  regNum  The SCR to write
 //! @param[in]  value   The value to be written
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writeScrGrp0(unsigned int regNum, uint32_t value)
+void GdbServerSC::writeScrGrp0(unsigned int regNum, uint32_t value)
 {
 	assert((int) regNum < ATDSP_NUM_SCRS_0);
 
@@ -3053,14 +3019,12 @@ GdbServerSC::writeScrGrp0(unsigned int regNum, uint32_t value)
 //! @param[in]  regNum  The SCR to write
 //! @param[in]  value   The value to be written
 //-----------------------------------------------------------------------------
-void
-GdbServerSC::writeScrDMA(unsigned int regNum, uint32_t value)
+void GdbServerSC::writeScrDMA(unsigned int regNum, uint32_t value)
 {
 	assert((int) regNum < ATDSP_NUM_SCRS_1);
 
 	fTargetControl->writeMem32(DMA0_CONFIG + regNum * ATDSP_INST32LEN, value);
 } // writeScrDMA()
-
 
 
 //-----------------------------------------------------------------------------
@@ -3098,6 +3062,7 @@ void GdbServerSC::rspQThreadExtraInfo()
 	return;
 }
 
+
 //-----------------------------------------------------------------------------
 //! Handle a RSP Set thread for subsequent operations (`m', `M', `g', `G', et.al.).
 //! c depends on the operation to be performed: it should be `c' for step and continue operations, `g' for other operations.
@@ -3114,7 +3079,6 @@ void GdbServerSC::rspQThreadExtraInfo()
 //-----------------------------------------------------------------------------
 void GdbServerSC::rspThreadSubOperation()
 {
-
 	int threadID;
 
 	int scanfRet = sscanf(pkt->data+2, "%x", &threadID);
@@ -3139,25 +3103,31 @@ void GdbServerSC::rspThreadSubOperation()
 }
 
 
+
+// These functions replace the intrinsic SystemC bitfield operators.
 inline sc_uint_8 getfield(sc_uint_8 x, int _lt, int _rt)
 {
 	return (x & ((1 << (_lt+1))-1)) >> _rt;
 }
+
 
 inline sc_uint_16 getfield(sc_uint_16 x, int _lt, int _rt)
 {
 	return (x & ((1 << (_lt+1))-1)) >> _rt;
 }
 
+
 inline sc_uint_32 getfield(sc_uint_32 x, int _lt, int _rt)
 {
 	return (x & ((1 << (_lt+1))-1)) >> _rt;
 }
 
+
 inline sc_uint_64 getfield(sc_uint_64 x, int _lt, int _rt)
 {
 	return (x & ((1 << (_lt+1))-1)) >> _rt;
 }
+
 
 inline void setfield(sc_uint_32 &x, int _lt, int _rt, sc_uint_32 val)
 {

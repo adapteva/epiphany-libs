@@ -25,15 +25,20 @@
 #ifndef __E_HAL_DATA_H__
 #define __E_HAL_DATA_H__
 
+#include "epiphany-hal-data-local.h"
 
 #ifdef __cplusplus
 extern "C"
 {
+typedef enum {
+	e_false = false,
+	e_true  = true,
+} e_bool_t;
 #else
-typedef enum BOOL {
-	false = 0,
-	true  = 1,
-} bool;
+typedef enum {
+	e_false = 0,
+	e_true  = 1,
+} e_bool_t;
 #endif
 
 
@@ -46,106 +51,101 @@ typedef enum {
 } e_hal_diag_t;
 
 
-#define LOC_BASE_MEMS            0x0000
-#define MAP_SIZE_MEMS            0x8000
-#define MAP_MASK_MEMS (MAP_SIZE_MEMS-1)
-#define LOC_BASE_REGS           0xF0000
-#define MAP_SIZE_REGS            0x1000
-#define MAP_MASK_REGS (MAP_SIZE_REGS-1)
-
 typedef enum {
-	EPI_OK   =  0,
-	EPI_ERR  = -1,
-	EPI_WARN = -2,
+	E_OK   =  0,
+	E_ERR  = -1,
+	E_WARN = -2,
 } e_return_stat_t;
 
+
+// eCore registers
 typedef enum {
-	EPI_HDF_ENV    = 0, // HDF file name given in environment variable EPIPHANY_HW_DEF_FILE
-	EPI_HDF_FILE   = 1, // read definitions from a file
-	EPI_HDF_STRING = 2, // read definitions from a string
-} e_hdf_format_t;
+	E_CORE_REG_BASE = 0xf0000,
+	E_CONFIG        = E_CORE_REG_BASE + 0x0400,
+	E_STATUS        = E_CORE_REG_BASE + 0x0404,
+	E_PC            = E_CORE_REG_BASE + 0x0408,
+	E_IRET          = E_CORE_REG_BASE + 0x0420,
+	E_IMASK         = E_CORE_REG_BASE + 0x0424,
+	E_ILAT          = E_CORE_REG_BASE + 0x0428,
+	E_ILATST        = E_CORE_REG_BASE + 0x042C,
+	E_ILATCL        = E_CORE_REG_BASE + 0x0430,
+	E_IPEND         = E_CORE_REG_BASE + 0x0434,
+	E_CTIMER0       = E_CORE_REG_BASE + 0x0438,
+	E_CTIMER1       = E_CORE_REG_BASE + 0x043C,
+	E_FSTATUS       = E_CORE_REG_BASE + 0x0440,
+	E_HWSTATUS      = E_CORE_REG_BASE + 0x0444,
+	E_DEBUGCMD      = E_CORE_REG_BASE + 0x0448,
+	E_DMA0CONFIG    = E_CORE_REG_BASE + 0x0500,
+	E_DMA0STRIDE    = E_CORE_REG_BASE + 0x0504,
+	E_DMA0COUNT     = E_CORE_REG_BASE + 0x0508,
+	E_DMA0SRCADDR   = E_CORE_REG_BASE + 0x050C,
+	E_DMA0DSTADDR   = E_CORE_REG_BASE + 0x0510,
+	E_DMA0AUTODMA0  = E_CORE_REG_BASE + 0x0514,
+	E_DMA0AUTODMA1  = E_CORE_REG_BASE + 0x0518,
+	E_DMA0STATUS    = E_CORE_REG_BASE + 0x051C,
+	E_DMA1CONFIG    = E_CORE_REG_BASE + 0x0520,
+	E_DMA1STRIDE    = E_CORE_REG_BASE + 0x0524,
+	E_DMA1COUNT     = E_CORE_REG_BASE + 0x0528,
+	E_DMA1SRCADDR   = E_CORE_REG_BASE + 0x052C,
+	E_DMA1DSTADDR   = E_CORE_REG_BASE + 0x0530,
+	E_DMA1AUTODMA0  = E_CORE_REG_BASE + 0x0534,
+	E_DMA1AUTODMA1  = E_CORE_REG_BASE + 0x0538,
+	E_DMA1STATUS    = E_CORE_REG_BASE + 0x053C,
+	E_COREID        = E_CORE_REG_BASE + 0x0704,
+	E_CORE_RESET    = E_CORE_REG_BASE + 0x070c,
+} e_core_regs_t;
 
-// Core Registers
-#define EPI_ILAT       0x0428
-#define EPI_CONFIG     0x0400
-#define EPI_STATUS     0x0404
-#define EPI_PC         0x0408
-#define EPI_COREID     0x0704
-#define EPI_CORE_RESET 0x070c
 
-// Epiphany System Registers
-#define ESYS_CONFIG    0x0f00
-#define ESYS_RESET     0x0f04
-#define ESYS_VERSION   0x0f08
-#define ESYS_FILTERL   0x0f0c
-#define ESYS_FILTERH   0x0f10
-#define ESYS_FILTERC   0x0f14
-#define ESYS_TIMEOUT   0x0f18
-
-
-#if 0
+// Chip registers
 typedef enum {
-	E_RESET_CORES = 0,
-	E_RESET_CHIP  = 1,
-	E_RESET_ESYS  = 3,
-	E_RESET_ALL   = 0xffffffff,
-} e_resetid_t;
-#endif
+	E_CHIP_REG_BASE = 0xf0000,
+	E_IO_LINK_CFG   = E_CHIP_REG_BASE + 0x0300,
+	E_IO_TX_CFG     = E_CHIP_REG_BASE + 0x0304,
+	E_IO_RX_CFG     = E_CHIP_REG_BASE + 0x0308,
+	E_IO_FLAG_CFG   = E_CHIP_REG_BASE + 0x030c,
+	E_IO_RESET      = E_CHIP_REG_BASE + 0x0324,
+} e_chip_regs_t;
 
 
+// Epiphany system registers
+typedef enum {
+	E_SYS_REG_BASE  = 0x00000000,
+	E_SYS_CONFIG    = E_SYS_REG_BASE + 0x0000,
+	E_SYS_RESET     = E_SYS_REG_BASE + 0x0004,
+	E_SYS_VERSION   = E_SYS_REG_BASE + 0x0008,
+	E_SYS_FILTERL   = E_SYS_REG_BASE + 0x000c,
+	E_SYS_FILTERH   = E_SYS_REG_BASE + 0x0010,
+	E_SYS_FILTERC   = E_SYS_REG_BASE + 0x0014,
+} e_sys_regs_t;
+
+
+// Core group data structures
 typedef struct {
-	off_t            phy_base;    // physical global base address of memory region
-	size_t           map_size;    // size of mapped region
-	off_t            map_mask;    // for mmap
-	void            *mapped_base; // for mmap
-	void            *base;        // application space base address of memory region
-} Epiphany_mmap_t;
-
-typedef struct {
-	unsigned int     id;          // core ID
-	unsigned int     row;         // core absolute row number
-	unsigned int     col;         // core absolute col number
-	Epiphany_mmap_t  mems;        // core's SRAM data structure
-	Epiphany_mmap_t  regs;        // core's e-regs data structure
-} Epiphany_core_t;
-
-typedef struct {
-	unsigned         version;     // version number of Epiphany chip
+	e_objytpe_t      objtype;     // object type identifier
+	e_chiptype_t     type;        // Epiphany chip part number
+	unsigned int     num_cores;   // number of cores group
+	unsigned int     base_coreid; // group base core ID
+	unsigned int     row;         // group absolute row number
+	unsigned int     col;         // group absolute col number
+	unsigned int     rows;        // number of rows group
+	unsigned int     cols;        // number of cols group
+	e_core_t       **core;        // e-cores data structures array
 	int              memfd;       // for mmap
-	unsigned int     num_cores;   // number of cores in chip
-	unsigned int     base_coreid; // chip base core ID
-	unsigned int     row;         // chip absolute row number
-	unsigned int     col;         // chip absolute col number
-	unsigned int     rows;        // number of rows in chip
-	unsigned int     cols;        // number of cols in chip
-	Epiphany_core_t *core;        // e-cores data structures array
-	Epiphany_mmap_t  esys;        // e-system registers data structure
-} Epiphany_t;
+} e_epiphany_t;
+
 
 typedef struct {
-	off_t            phy_base;    // physical global base address of eDRAM buffer as seen by host side
+	e_objytpe_t      objtype;     // object type identifier
+	off_t            phy_base;    // physical global base address of external memory buffer as seen by host side
 	size_t           map_size;    // size of eDRAM allocated buffer for host side
-	off_t            ephy_base;   // physical global base address of eDRAM buffer as seen by device side
+	off_t            ephy_base;   // physical global base address of external memory buffer as seen by device side
 	size_t           emap_size;   // size of eDRAM allocated buffer for device side
 	off_t            map_mask;    // for mmap
 	void            *mapped_base; // for mmap
-	void            *base;        // application space base address of eDRAM buffer
+	void            *base;        // application space base address of external memory buffer
 	int              memfd;       // for mmap
-} DRAM_t;
+} e_mem_t;
 
-typedef struct {
-	unsigned         version;     // version number of this structure
-	int              initialized; // platform initialized?
-	int              num_chips;   // number of Epiphany chips in platform
-	int              chip_num;    // number of "current" chip
-	Epiphany_t      *chip;        // array of Epiphany chip objects
-	int              num_emems;   // number of ext. memory segments in platform
-	int              emem_num;    // number of "current" ext. memory segment
-	DRAM_t          *emem;        // array of external memory segments
-	off_t            emem_phy_base;  // physical global base address of eDRAM space as seen by host side
-	off_t            emem_ephy_base; // physical global base address of eDRAM space as seen by device side
-	size_t           emem_size;    // size of platform eDRAM segment
-} E_Platform_t;
 
 #ifdef __cplusplus
 }

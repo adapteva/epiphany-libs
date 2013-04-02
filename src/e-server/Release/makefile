@@ -40,14 +40,11 @@ endif
 # All Target
 all: e-server
 
-dependents:
-	-cd /home/ysapir/Projects/newtools/maxwell_tools/e-xml/Release && $(MAKE) clean all
-
 # Tool invocations
-e-server: $(OBJS) $(USER_OBJS) /home/ysapir/Projects/newtools/maxwell_tools/e-xml/Release/libe-xml.so
+e-server: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L../../e-xml/Release -o "e-server" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -L"/home/ysapir/Projects/newtools/maxwell_tools/e-xml/Release" -L../../e-xml/Release -o "e-server" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -58,6 +55,5 @@ clean:
 
 .PHONY: all clean dependents
 .SECONDARY:
-/home/ysapir/Projects/newtools/maxwell_tools/e-xml/Release/libe-xml.so:
 
 -include ../makefile.targets

@@ -28,5 +28,6 @@
 #include <sys/types.h>
 #include "epiphany-hal-data.h"
 #include "epiphany-hal-api.h"
+#include "e-loader.h"
 
 #endif // __EPIPHANY_HAL_H__

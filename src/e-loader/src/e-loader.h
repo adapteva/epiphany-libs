@@ -25,7 +25,7 @@
 #ifndef __E_LOADER_H__
 #define __E_LOADER_H__
 
-#include "epiphany-hal.h"
+#include "e-hal.h"
 
 typedef enum {
 	L_D0 = 0,
@@ -35,8 +35,8 @@ typedef enum {
 	L_D4 = 40,
 } e_loader_diag_t;
 
-int e_load(char *srecFile, bool reset_target, bool broadcast, bool run_target);
-int parseAndSendSrecFile(char *srecFile, Epiphany_t *p, bool broadcast);
+int e_load(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bool_t start);
+int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start);
 
 void e_set_loader_verbosity(e_loader_diag_t verbose);
 

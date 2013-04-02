@@ -28,7 +28,6 @@
 #include "debugVerbose.h"
 #include <string>
 #include <e-xml/src/epiphany_platform.h>
-#include <e-hal/src/epiphany-hal-defs.h>
 #include <e-hal/src/epiphany-hal-data.h>
 
 enum
@@ -44,8 +43,8 @@ enum
 
 using namespace std;
 
-Epiphany_t Epiphany, *pEpiphany;
-DRAM_t     pDRAM;
+e_epiphany_t Epiphany, *pEpiphany;
+//DRAM_t     *pDRAM;
 
 int (*init_platform)(platform_definition_t *platform, unsigned verbose);
 int (*close_platform)();
@@ -53,23 +52,16 @@ int (*write_to)(unsigned address, void *buf, size_t busrt_size);
 int (*read_from)(unsigned address, void *data, size_t busrt_size);
 int (*hw_reset)();
 
-///int (*init_platform)(platform_definition_t *platform, unsigned verbose);
-///int (*close_platform)();
-///int (*write_to)(unsigned address, void *buf, size_t busrt_size);
-///int (*read_from)(unsigned address, void *data, size_t busrt_size);
 int (*get_description)(char **);
 int (*get_memory_map)(unsigned long *);
 int (*get_number_supported_cores)(unsigned long *);
 int (*set_chip_x_y)(unsigned x, unsigned y);
-///int (*hw_reset)();
-///int (*use_spi)();
-///int (*use_link)();
 
-int     (*e_open)(Epiphany_t *dev);
-int     (*e_close)(Epiphany_t *dev);
-ssize_t (*e_read)(Epiphany_t *dev, int corenum, const off_t from_addr, void *buf, size_t count);
-ssize_t (*e_write)(Epiphany_t *dev, int corenum, off_t to_addr, const void *buf, size_t count);
-int     (*e_reset)(Epiphany_t *pEpiphany, e_resetid_t resetid);
+int     (*e_open)(e_epiphany_t *dev);
+int     (*e_close)(e_epiphany_t *dev);
+ssize_t (*e_read)(e_epiphany_t *dev, int corenum, const off_t from_addr, void *buf, size_t count);
+ssize_t (*e_write)(e_epiphany_t *dev, int corenum, off_t to_addr, const void *buf, size_t count);
+int     (*e_reset)(e_epiphany_t *pEpiphany);
 void    (*e_set_host_verbosity)(int verbose);
 
 
@@ -86,7 +78,7 @@ void    (*e_set_host_verbosity)(int verbose);
 
 using namespace std;
 
-/* common data base for ALL threads */
+/* common database for ALL threads */
 static void *handle = 0;
 map<unsigned, pair<unsigned long, unsigned long> > memory_map;
 map<unsigned, pair<unsigned long, unsigned long> > register_map;
@@ -96,7 +88,7 @@ extern int debug_level;
 #define CORE_SPACE 0x00100000
 
 
-inline unsigned IS_ADDRESS_INTERNAL(unsigned addr)
+inline unsigned IsAddressLocal(unsigned addr)
 {
 	return addr < CORE_SPACE;
 }
@@ -143,12 +135,12 @@ bool TargetControlHardware::SetAttachedCoreId(unsigned coreId)
 }
 
 
-// Convert an internal address to a global one.
+// Convert a local address to a global one.
 unsigned long TargetControlHardware::ConvertAddress(unsigned long address)
 {
 	assert(handle);
 
-	if (IS_ADDRESS_INTERNAL(address))
+	if (IsAddressLocal(address))
 	{
 		return (fAttachedCoreId << 20) + address;
 	}
@@ -554,28 +546,28 @@ int InitHWPlatform(platform_definition_t *platform)
 	dlerror(); /* Clear any existing error */
 
 #if 1
-	*(void **) (&init_platform) = dlsym(handle, "init_platform");
+	*(void **) (&init_platform) = dlsym(handle, "esrv_init_platform");
 	if ((error = dlerror()) != NULL)
 	{
 		cerr << "init_platform: " << error << endl;
 		exit(EXIT_FAILURE);
 	}
 
-	*(void **) (&close_platform) = dlsym(handle, "close_platform");
+	*(void **) (&close_platform) = dlsym(handle, "esrv_close_platform");
 	if ((error = dlerror()) != NULL)
 	{
 		cerr << "close_platform: " << error << endl;
 		exit(EXIT_FAILURE);
 	}
 
-	*(void **) (&write_to) = dlsym(handle, "write_to");
+	*(void **) (&write_to) = dlsym(handle, "esrv_write_to");
 	if ((error = dlerror()) != NULL)
 	{
 		cerr << "write_to_platform: " << error << endl;
 		exit(EXIT_FAILURE);
 	}
 
-	*(void **) (&read_from) = dlsym(handle, "read_from");
+	*(void **) (&read_from) = dlsym(handle, "esrv_read_from");
 	if ((error = dlerror()) != NULL)
 	{
 		cerr << "read_from_platform: " << error << endl;
@@ -611,14 +603,14 @@ int InitHWPlatform(platform_definition_t *platform)
 		exit(EXIT_FAILURE);
 	}
 
-	*(void **) (&get_description) = dlsym(handle, "get_description");
+	*(void **) (&get_description) = dlsym(handle, "esrv_get_description");
 	if ((error = dlerror()) != NULL)
 	{
 		cerr << "platform_id: " << error << endl;
 		exit(EXIT_FAILURE);
 	}
 
-	*(void **) (&hw_reset) = dlsym(handle, "hw_reset");
+	*(void **) (&hw_reset) = dlsym(handle, "esrv_hw_reset");
 	if ((error = dlerror()) != NULL)
 	{
 		cerr << "platform_id: " << error << endl;

@@ -4,9 +4,7 @@ Epiphany SDK Build and Install Package
 This directory contains the source modules for building and installing
 the Epiphany SDK components, excluding the GNU compilers and utilities.
 
-The files in this package reflect the current state of the work on the
-software support for the Parallella system prototype ZedBoards with E64G4
-Epiphany chips.
+
 
 
 =======================================

@@ -39,20 +39,20 @@
 								<option defaultValue="gnu.c.optimization.level.none" id="gnu.c.compiler.exe.debug.option.optimization.level.79096728" name="Optimization Level" superClass="gnu.c.compiler.exe.debug.option.optimization.level" valueType="enumerated"/>
 								<option id="gnu.c.compiler.exe.debug.option.debugging.level.1175613177" name="Debug Level" superClass="gnu.c.compiler.exe.debug.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.1698135256" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-hal.zed/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-loader/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-xml/src}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1735355258" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.42354962" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug"/>
 							<tool command="g++" id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.249890766" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
 								<option id="gnu.cpp.link.option.paths.1736565503" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany/Debug}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml/Debug}&quot;"/>
-									<listOptionValue builtIn="false" value="../../epiphany-xml/Debug"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-xml/Debug}&quot;"/>
+									<listOptionValue builtIn="false" value="../../e-xml/Debug"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.1242356436" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="epiphany-xml"/>
+									<listOptionValue builtIn="false" value="e-xml"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="dl"/>
 								</option>
@@ -68,16 +68,6 @@
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.789554993" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
-						</toolChain>
-					</folderInfo>
-					<folderInfo id="cdt.managedbuild.config.gnu.exe.debug.1619545487.15073916" name="/" resourcePath="Debug-nosvn">
-						<toolChain id="cdt.managedbuild.toolchain.gnu.exe.debug.630708624" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.exe.debug" unusedChildren="">
-							<tool id="cdt.managedbuild.tool.gnu.archiver.base.1457890405" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base.449010044"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.250518664" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1783266936"/>
-							<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.884543483" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.57706164"/>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1780445488" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug.42354962"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.648633195" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.249890766"/>
-							<tool id="cdt.managedbuild.tool.gnu.assembler.exe.debug.1031913182" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.exe.debug.1509945798"/>
 						</toolChain>
 					</folderInfo>
 					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.1619545487.1036670083" name="targetCntrlVerilator.h" rcbsApplicability="disable" resourcePath="excluded_modules/targetCntrlVerilator.h" toolsToInvoke=""/>
@@ -121,7 +111,7 @@
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.exe.release.1800655888" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.exe.release"/>
 							<builder buildPath="${workspace_loc:/verilator/Release}" id="cdt.managedbuild.target.gnu.builder.exe.release.1200092913" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" superClass="cdt.managedbuild.target.gnu.builder.exe.release"/>
 							<tool id="cdt.managedbuild.tool.gnu.archiver.base.463503634" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.342891327" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release">
+							<tool command="g++" commandLinePattern="${COMMAND} ${FLAGS} ${OUTPUT_FLAG} ${OUTPUT_PREFIX}${OUTPUT} ${INPUTS}" id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.342891327" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release">
 								<option id="gnu.cpp.compiler.exe.release.option.optimization.level.1558606890" name="Optimization Level" superClass="gnu.cpp.compiler.exe.release.option.optimization.level" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.release.option.debugging.level.715894467" name="Debug Level" superClass="gnu.cpp.compiler.exe.release.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.include.paths.279205419" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
@@ -135,8 +125,9 @@
 								<option defaultValue="gnu.c.optimization.level.most" id="gnu.c.compiler.exe.release.option.optimization.level.1579520498" name="Optimization Level" superClass="gnu.c.compiler.exe.release.option.optimization.level" valueType="enumerated"/>
 								<option id="gnu.c.compiler.exe.release.option.debugging.level.1967853447" name="Debug Level" superClass="gnu.c.compiler.exe.release.option.debugging.level" value="gnu.c.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.941696301" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-hal.zed/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-loader/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-xml/src}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.914514983" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -145,12 +136,11 @@
 								<option id="gnu.cpp.link.option.libs.48483877" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="dl"/>
-									<listOptionValue builtIn="false" value="epiphany-xml"/>
+									<listOptionValue builtIn="false" value="e-xml"/>
 								</option>
 								<option id="gnu.cpp.link.option.paths.244493362" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany/Release}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml/Release}&quot;"/>
-									<listOptionValue builtIn="false" value="../../epiphany-xml/Release"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-xml/Release}&quot;"/>
+									<listOptionValue builtIn="false" value="../../e-xml/Release"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1695607768" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>

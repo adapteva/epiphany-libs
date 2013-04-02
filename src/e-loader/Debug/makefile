@@ -1,59 +1,44 @@
-REV := 4.13.01.04
-ARCH := armv7l
-PARALLELLA_HOME := ~/Projects/temp/esdk.${REV}
-ESDK_HOME := /opt/adapteva/esdk
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
 
-#ESDK := ${PARALLELLA_HOME}
-ESDK ?= ${ESDK_HOME}
-ESDK_BIN := ${ESDK}/tools/e-gnu/bin
+-include ../makefile.init
 
-SRC := e-loader parseSrecFile
-OBJS := e-loader.o parseSrecFile.o
-OBJS_STAT := e-loader.stat.o parseSrecFile.stat.o
+RM := rm -rf
 
-INCS := -I ../../e-hal/src -I ${ESDK}/tools/host/${ARCH}/include
-OPTFLAGS := -O0 -g3
-CFLAGS := -Wall -fPIC $(OPTFLAGS) -c
-LDFLAGS := -Wall -shared
-CFLAGS_STAT := -Wall $(OPTFLAGS) -c
-ARFLAGS := rcs
+# All of the sources participating in the build are defined here
+-include sources.mk
+-include src/subdir.mk
+-include subdir.mk
+-include objects.mk
 
-#BIN_PATH := ~/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_GNU_Linux/bin/arm-none-linux-gnueabi-
-BIN_PATH ?=
-CC := ${BIN_PATH}gcc
-AR := ${BIN_PATH}ar
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(strip $(C_DEPS)),)
+-include $(C_DEPS)
+endif
+endif
 
-.PHONY : clean
-.PHONY : all
+-include ../makefile.defs
 
-all: libe-loader.so libe-loader.a
+# Add inputs and outputs from these tool invocations to the build variables 
 
-e-loader.o: ../src/e-loader.c ../src/e-loader.h
-	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS) $(INCS) -o "$@" "$<"
+# All Target
+all: libe-loader.so
 
-e-loader.stat.o: ../src/e-loader.c ../src/e-loader.h
-	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS_STAT) $(INCS) -o "$@" "$<"
+# Tool invocations
+libe-loader.so: $(OBJS) $(USER_OBJS)
+	@echo 'Building target: $@'
+	@echo 'Invoking: Cross GCC Linker'
+	gcc -shared -o "libe-loader.so" $(OBJS) $(USER_OBJS) $(LIBS)
+	@echo 'Finished building target: $@'
+	@echo ' '
 
-parseSrecFile.o: ../src/parseSrecFile.c ../src/e-loader.h
-	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS) $(INCS) -o "$@" "$<"
-
-parseSrecFile.stat.o: ../src/parseSrecFile.c ../src/e-loader.h
-	@echo "--- building $@ from $<"
-	$(CC) $(CFLAGS_STAT) $(INCS) -o "$@" "$<"
-
-libe-loader.so: $(OBJS)
-	@echo "--- building $@ from $<"
-	$(CC) $(LDFLAGS) -o "$@" $(OBJS)
-#	ln -sf $@ $@.1
-#	ln -sf $@.1 $@.1.0
-
-libe-loader.a: $(OBJS_STAT)
-	@echo "--- building $@ from $<"
-	$(AR) $(ARFLAGS) "$@" $(OBJS_STAT)
-
+# Other Targets
 clean:
-	rm -rf libe-loader.so* libe-loader.a $(OBJS) $(OBJS_STAT)
+	-$(RM) $(OBJS)$(C_DEPS)$(LIBRARIES) libe-loader.so
+	-@echo ' '
 
+.PHONY: all clean dependents
+.SECONDARY:
+
+-include ../makefile.targets

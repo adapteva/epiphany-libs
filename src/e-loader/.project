@@ -3,7 +3,6 @@
 	<name>e-loader</name>
 	<comment></comment>
 	<projects>
-		<project>e-hal.zed</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

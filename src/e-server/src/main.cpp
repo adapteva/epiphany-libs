@@ -23,6 +23,7 @@
 
 
 const char *copyrigth = "Copyright (C) 2010, 2011, 2012 Adapteva Inc.\n";
+bool haltOnAttach = true;
 static char const * revision= "$Rev: 1362 $";
 
 #include <stdio.h>
@@ -43,14 +44,13 @@ using namespace std;
 
 unsigned int PORT_BASE_NUM;
 
-char const hdf_env_var_name[] = "EPIPHANY_HW_DEF_FILE";
+char const hdf_env_var_name[] = "EPIPHANY_HDF";
 char TTY_[1024];
 
 
 // accesses by all threads
 int  debug_level = 0;
 bool show_memory_map= false;
-bool haltOnAttach = true;
 FILE *tty_out = 0;
 bool with_tty_support = false;
 bool dont_check_hw_address = false;
@@ -60,29 +60,41 @@ void *CreateGdbServer(void *ptr);
 string plafrom_args;
 bool skip_platform_reset = false;
 
+
 void usage()
 {
-	cerr << "\033[4mUsage:\033[0m" << endl << endl;
-	cerr << "e-server -hdf <hdf-file> [-p <base-port-number>] [-show-memory-map]" << endl;
-	cerr << "         [-Wpl,<options>] [-Xpl <arg>] [-version]" << endl << endl;
-	cerr << "\033[4mProgram options:\033[0m" << endl << endl;
-	cerr << "  \033[1m-hdf\033[0m <hdf-file>\n\t\tSpecify a platform definition file. This parameter is mandatory if no" << endl;
-	cerr << "                EPIPHANY_HW_DEF_FILE environment variable is set" << endl;
-	cerr << "  \033[1m-p\033[0m\n\t\tBase port number. Default is 51000" << endl;
-	cerr << "  \033[1m-show-memory-map\033[0m\n\t\tPrint out the supported memory map" << endl;
-	cerr << "  \033[1m-Wpl,\033[0m <options>\n\t\tPass comma-separated <options> on to the platform driver" << endl;
-	cerr << "  \033[1m-Xpl\033[0m <arg>\n\t\tPass <arg> on to the platform driver" << endl;
-	cerr << "  \033[1m-version\033[0m\n\t\tDisplay the version number and copyrights" << endl;
+	cerr << "\033[4mUsage:\033[0m" << endl;
+	cerr << endl;
+	cerr << "e-server -hdf <hdf-file> [-p <base-port-number>] [--show-memory-map]" << endl;
+	cerr << "         [-Wpl,<options>] [-Xpl <arg>] [--version]" << endl;
+	cerr << endl;
+	cerr << "\033[4mProgram options:\033[0m" << endl;
+	cerr << endl;
+	cerr << "  \033[1m-hdf\033[0m <hdf-file>" << endl;
+	cerr << "\t\tSpecify a platform definition file. This parameter is mandatory if no" << endl;
+	cerr << "                EPIPHANY_HDF environment variable is set" << endl;
+	cerr << "  \033[1m-p\033[0m" << endl;
+	cerr << "\t\tBase port number. Default is 51000" << endl;
+	cerr << "  \033[1m--show-memory-map\033[0m" << endl;
+	cerr << "\t\tPrint out the supported memory map" << endl;
+	cerr << "  \033[1m-Wpl,\033[0m <options>" << endl;
+	cerr << "\t\tPass comma-separated <options> on to the platform driver" << endl;
+	cerr << "  \033[1m-Xpl\033[0m <arg>" << endl;
+	cerr << "\t\tPass <arg> on to the platform driver" << endl;
+	cerr << "  \033[1m--version\033[0m" << endl;
+	cerr << "\t\tDisplay the version number and copyrights" << endl;
 }
 
 void usage_hidden()
 {
-	cerr << "\nDebug options: [-d <debug-level>] [-tty <terminal>] [-dont-halt-on-attach]\n" << endl;
+	cerr << endl;
+	cerr << "Debug options: [-d <debug-level>] [--tty <terminal>] [--dont-halt-on-attach]\n" << endl;
 	cerr << "  -d <debug-level>\n\t\tRun the e-server in debug mode. Default is 0 (silent)" << endl;
-	cerr << "  -tty <terminal>\n\t\tRedirect the e_printf to terminal with tty name" << endl;
-	cerr << "  -dont-halt-on-attach\n\t\tWhen starting an e-gdb session, the debugger initiates an attachment\n\t\tprocedure when executing the 'target remote:' command. By default,\n\t\tthis procedure includes a reset sequence sent to the attached core.\n\t\tUse this option to disable the intrusive attachment and perform a non\n\t\t-intrusive one that does not change the core's state. This allows to\n\t\tconnect and monitor a core that is currently running a program." << endl;
-	cerr << "  -dont-check-hw-address\n\t\tThe e-server filters out transactions if the address is invalid (not\n\t\tincluded in the device supported memeory map). Use this option to\n\t\tdisable this protection" << endl;
-	cerr << "\nTarget validation/check additional options:" << endl << endl;
+	cerr << "  --tty <terminal>\n\t\tRedirect the e_printf to terminal with tty name" << endl;
+	cerr << "  --dont-halt-on-attach\n\t\tWhen starting an e-gdb session, the debugger initiates an attachment\n\t\tprocedure when executing the 'target remote:' command. By default,\n\t\tthis procedure includes a reset sequence sent to the attached core.\n\t\tUse this option to disable the intrusive attachment and perform a non\n\t\t-intrusive one that does not change the core's state. This allows to\n\t\tconnect and monitor a core that is currently running a program." << endl;
+	cerr << "  --dont-check-hw-address\n\t\tThe e-server filters out transactions if the address is invalid (not\n\t\tincluded in the device supported memeory map). Use this option to\n\t\tdisable this protection" << endl;
+	cerr << "\nTarget validation/check additional options:" << endl;
+	cerr << endl;
 	cerr << "  -skip-platform-reset\n\t\tDon't make the hardware reset during initialization" << endl;
 }
 
@@ -99,22 +111,13 @@ void copyright()
 
 extern int InitHWPlatform(platform_definition_t *platform);
 
-// char DEFAULT_XML_REL_PATH[] = "/bsps/emek3/emek3.xml";
 
 int main(int argc, char *argv[])
 {
 	//int iret = 0;
 	int mainRetStatus = 0;
 
-	//char *epiphany_home = getenv("EPIPHANY_HOME");
-	//string xml_default;
-	//if (epiphany_home)
-	//{
-	//	xml_default = string(epiphany_home) + string(DEFAULT_XML_REL_PATH);
-	//}
-
-
-	char *hdf_file = getenv(hdf_env_var_name); // xml_default.c_str();
+	char *hdf_file = getenv(hdf_env_var_name);
 
 	PORT_BASE_NUM = 51000;
 
@@ -124,7 +127,7 @@ int main(int argc, char *argv[])
 	// parse command line options
 	for (int n = 1; n < argc; n++)
 	{
-		if (!strcmp(argv[n], "-version"))
+		if (!strcmp(argv[n], "--version"))
 		{
 			copyright();
 			cerr << "\n\033[4mPlease report bugs to:\033[0m \033[1m<support-sdk@adapteva.com>\033[0m" << endl;
@@ -144,12 +147,12 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-		if (!strcmp(argv[n], "-dont-check-hw-address"))
+		if (!strcmp(argv[n], "--dont-check-hw-address"))
 		{
 			dont_check_hw_address = true;
 		}
 
-		if (!strcmp(argv[n], "-dont-halt-on-attach"))
+		if (!strcmp(argv[n], "--dont-halt-on-attach"))
 		{
 			haltOnAttach = false;
 		}
@@ -210,7 +213,7 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		if (!strcmp(argv[n], "-tty"))
+		if (!strcmp(argv[n], "--tty"))
 		{
 			n += 1;
 			if (n< argc)
@@ -238,7 +241,7 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		if (!strcmp(argv[n], "-show-memory-map"))
+		if (!strcmp(argv[n], "--show-memory-map"))
 		{
 			show_memory_map = true;
 		}

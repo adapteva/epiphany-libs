@@ -3,6 +3,7 @@
 	<name>e-hal.zed</name>
 	<comment></comment>
 	<projects>
+		<project>e-loader</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
@@ -31,7 +32,7 @@
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildLocation</key>
-					<value>${workspace_loc:/e-hal/Debug}</value>
+					<value>${workspace_loc:/e-hal/Release}</value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.cleanBuildTarget</key>

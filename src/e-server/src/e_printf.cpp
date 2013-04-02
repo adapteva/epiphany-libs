@@ -21,7 +21,7 @@
   <http://www.gnu.org/licenses/>.
 */
 
-/* NOT IN USE, created as patch for overcome external memory problem */
+/* NOT IN USE, created as patch to overcome external memory problem */
 #include <string.h>
 #include <stdio.h>
 
