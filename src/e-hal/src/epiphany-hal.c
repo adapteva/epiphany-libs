@@ -806,7 +806,7 @@ unsigned e_get_num_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
 	unsigned corenum;
 
 	corenum = col + row * dev->cols;
-	diag(H_D2) { fprintf(fd, "e_get_num_from_coords(): dev.row=%d, dev.col=%d, row=%d, col=%d, corenum=%d\n", dev->row, dev->col, row, col, corenum); }
+	diag(H_D2) { fprintf(fd, "e_get_num_from_coords(): dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, corenum=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
 
 	return corenum;
 }
@@ -820,7 +820,7 @@ unsigned ee_get_num_from_id(e_epiphany_t *dev, unsigned coreid)
 	row = (coreid >> 6) & 0x3f;
 	col = (coreid >> 0) & 0x3f;
 	corenum = (col - dev->col) + (row - dev->row) * dev->cols;
-	diag(H_D2) { fprintf(fd, "ee_get_num_from_id(): CoreID=0x%03x, dev.row=%d, dev.col=%d, row=%d, col=%d, corenum=%d\n", coreid, dev->row, dev->col, row, col, corenum); }
+	diag(H_D2) { fprintf(fd, "ee_get_num_from_id(): CoreID=0x%03x, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, corenum=%d\n", coreid, dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
 
 	return corenum;
 }
@@ -832,7 +832,7 @@ unsigned ee_get_id_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
 	unsigned coreid;
 
 	coreid = (dev->col + col) + ((dev->row + row) << 6);
-	diag(H_D2) { fprintf(fd, "ee_get_id_from_coords(): dev.row=%d, dev.col=%d, row=%d, col=%d, CoreID=0x%03x\n", dev->row, dev->col, row, col, coreid); }
+	diag(H_D2) { fprintf(fd, "ee_get_id_from_coords(): dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, CoreID=0x%03x\n", dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
 
 	return coreid;
 }
@@ -846,7 +846,7 @@ unsigned ee_get_id_from_num(e_epiphany_t *dev, unsigned corenum)
 	row = corenum / dev->cols;
 	col = corenum % dev->cols;
 	coreid = (dev->col + col) + ((dev->row + row) << 6);
-	diag(H_D2) { fprintf(fd, "ee_get_id_from_num(): corenum=%d, dev.row=%d, dev.col=%d, row=%d, col=%d, CoreID=0x%03x\n", corenum, dev->row, dev->col, row, col, coreid); }
+	diag(H_D2) { fprintf(fd, "ee_get_id_from_num(): corenum=%d, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, CoreID=0x%03x\n", corenum, dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
 
 	return coreid;
 }
@@ -857,7 +857,7 @@ void ee_get_coords_from_id(e_epiphany_t *dev, unsigned coreid, unsigned *row, un
 {
 	*row = ((coreid >> 6) & 0x3f) - dev->row;
 	*col = ((coreid >> 0) & 0x3f) - dev->col;
-	diag(H_D2) { fprintf(fd, "ee_get_coords_from_id(): CoreID=0x%03x, dev.row=%d, dev.col=%d, row=%d, col=%d\n", coreid, dev->row, dev->col, *row, *col); }
+	diag(H_D2) { fprintf(fd, "ee_get_coords_from_id(): CoreID=0x%03x, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d\n", coreid, dev->row, dev->col, dev->rows, dev->col, *row, *col); }
 
 	return;
 }
@@ -867,7 +867,7 @@ void e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *row, u
 {
 	*row = corenum / dev->cols;
 	*col = corenum % dev->cols;
-	diag(H_D2) { fprintf(fd, "e_get_coords_from_num(): corenum=%d, dev.row=%d, dev.col=%d, row=%d, col=%d\n", corenum, dev->row, dev->col, *row, *col); }
+	diag(H_D2) { fprintf(fd, "e_get_coords_from_num(): corenum=%d, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d\n", corenum, dev->row, dev->col, dev->col, dev->rows, *row, *col); }
 
 	return;
 }
