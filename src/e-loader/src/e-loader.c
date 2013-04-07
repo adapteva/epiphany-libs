@@ -63,6 +63,8 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 
 	if (dev && pemem)
 	{
+		// TODO: this is barely scalable. Really need to test ext. mem size to load
+		// and possibly split the ext. mem accesses into 1MB chuncks.
 		if (e_alloc(pemem, 0, EMEM_SIZE))
 		{
 			fprintf(fd, "\nERROR: Can't allocate external memory buffer!\n\n");
@@ -93,6 +95,7 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 			diag(L_D1) { fprintf(fd, "e_load_group(): done loading.\n"); }
 		}
 
+		e_free(pemem);
 		diag(L_D1) { fprintf(fd, "e_load_group(): closed connection.\n"); }
 	}
 	else

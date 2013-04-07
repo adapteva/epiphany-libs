@@ -413,9 +413,9 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 	int i;
 
 	pfrom = (dev->core[row][col].mems.base + (from_addr & dev->core[row][col].mems.map_mask));
-	diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
+	diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, size); }
 
-	if ((dev->type ==  E_E64G401) && ((row >= 1) && (row <= 2)))
+	if ((dev->type == E_E64G401) && ((row >= 1) && (row <= 2)))
 	{
 		// The following code is a fix for the E64G401 anomaly of bursting reads from
 		// internal memory to host in rows #1 and #2.
@@ -459,7 +459,7 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	void *pto;
 
 	pto = (dev->core[row][col].mems.base + (to_addr & dev->core[row][col].mems.map_mask));
-	diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
+	diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, size); }
 	memcpy(pto, buf, size);
 
 	return size;
@@ -604,7 +604,7 @@ ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t siz
 	const void *pfrom;
 
 	pfrom = (mbuf->base + (from_addr & mbuf->map_mask));
-	diag(H_D2) { fprintf(fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
+	diag(H_D2) { fprintf(fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, size); }
 	memcpy(buf, pfrom, size);
 
 	return size;
@@ -617,7 +617,7 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 	void *pto;
 
 	pto = (mbuf->base + (to_addr & mbuf->map_mask));
-	diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
+	diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, size); }
 	memcpy(pto, buf, size);
 
 	return size;
@@ -1115,7 +1115,7 @@ typedef struct {
 
 #define NUM_CHIP_VERSIONS 2
 e_chip_db_t chip_params_table[NUM_CHIP_VERSIONS] = {
-		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x0a3f0000, 0x0c2f0000, 0x080f0000},
+		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x083f0000, 0x0c2f0000, 0x080f0000},
 		{E_EPI_CHIP, E_E64G401, "E64G401", 4, 8, 8, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
 };
 
@@ -1127,7 +1127,8 @@ int ee_set_chip_params(e_chip_t *dev)
 	for (chip_ver = (NUM_CHIP_VERSIONS-1); chip_ver > -1; chip_ver--)
 		if (!strcmp(dev->version, chip_params_table[chip_ver].version))
 		{
-			strcpy(dev->version, chip_params_table[chip_ver].version);
+			diag(H_D2) { fprintf(fd, "ee_set_chip_params(): found chip version \"%s\"\n", dev->version); }
+			dev->type = chip_params_table[chip_ver].type;
 			dev->arch = chip_params_table[chip_ver].arch;
 			dev->rows = chip_params_table[chip_ver].rows;
 			dev->cols = chip_params_table[chip_ver].cols;

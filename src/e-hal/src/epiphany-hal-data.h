@@ -60,7 +60,7 @@ typedef enum {
 
 // eCore registers
 typedef enum {
-	E_CORE_REG_BASE = 0xf0000,
+	E_CORE_REG_BASE = 0xf0000, // TODO: review this - I think it is not necessary and can be set to 0.
 	E_CONFIG        = E_CORE_REG_BASE + 0x0400,
 	E_STATUS        = E_CORE_REG_BASE + 0x0404,
 	E_PC            = E_CORE_REG_BASE + 0x0408,
