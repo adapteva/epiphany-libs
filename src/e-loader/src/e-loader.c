@@ -35,7 +35,7 @@
 
 int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 
-int e_load_verbose = 0;
+e_load_verbose e_load_verbose = 0;
 FILE *fd;
 
 // TODO: replace with platform data
@@ -111,13 +111,16 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 
 
 
-void e_set_loader_verbosity(e_loader_diag_t verbose)
+e_loader_diag_t e_set_loader_verbosity(e_loader_diag_t verbose)
 {
+	e_loader_diag_t old_load_verbose;
+
+	old_load_verbose = e_load_verbose;
 	fd = stderr;
 	e_load_verbose = verbose;
 	diag(L_D1) { fprintf(fd, "e_set_loader_verbosity(): setting loader verbosity to %d.\n", verbose); }
 	e_set_host_verbosity(verbose);
 
-	return;
+	return old_load_verbose;
 }
 

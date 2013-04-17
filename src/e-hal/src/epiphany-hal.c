@@ -190,14 +190,16 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 	// Set device geometry
 	// TODO: check if coordinates and size are legal.
+	diag(H_D2) { fprintf(fd, "e_open(): platform.(row,col)=(%d,%d)\n", e_platform.row, e_platform.col); }
 	dev->row         = row + e_platform.row;
 	dev->col         = col + e_platform.col;
 	dev->rows        = rows;
 	dev->cols        = cols;
 	dev->num_cores   = dev->rows * dev->cols;
+	diag(H_D2) { fprintf(fd, "e_open(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), num_cores=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, dev->num_cores); }
 	dev->base_coreid = ee_get_id_from_coords(dev, 0, 0);
 
-	diag(H_D2) { fprintf(fd, "e_open(): group.(row,col),id = (%d,%d),0x%03x\n", dev->row, dev->col, dev->base_coreid); }
+	diag(H_D2) { fprintf(fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
 	diag(H_D2) { fprintf(fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
 	// Open memory device
@@ -307,9 +309,9 @@ int e_close(e_epiphany_t *dev)
 // Read a memory block from a core in a group
 ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf, size_t size)
 {
-	ssize_t     rcount;
+	ssize_t       rcount;
 	e_epiphany_t *edev;
-	e_mem_t     *mdev;
+	e_mem_t      *mdev;
 
 	switch (*((e_objytpe_t *) dev))
 	{
@@ -806,7 +808,7 @@ unsigned e_get_num_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
 	unsigned corenum;
 
 	corenum = col + row * dev->cols;
-	diag(H_D2) { fprintf(fd, "e_get_num_from_coords(): dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, corenum=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
+	diag(H_D2) { fprintf(fd, "e_get_num_from_coords(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), corenum=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
 
 	return corenum;
 }
@@ -820,7 +822,7 @@ unsigned ee_get_num_from_id(e_epiphany_t *dev, unsigned coreid)
 	row = (coreid >> 6) & 0x3f;
 	col = (coreid >> 0) & 0x3f;
 	corenum = (col - dev->col) + (row - dev->row) * dev->cols;
-	diag(H_D2) { fprintf(fd, "ee_get_num_from_id(): CoreID=0x%03x, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, corenum=%d\n", coreid, dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
+	diag(H_D2) { fprintf(fd, "ee_get_num_from_id(): CoreID=0x%03x, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), corenum=%d\n", coreid, dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
 
 	return corenum;
 }
@@ -832,7 +834,7 @@ unsigned ee_get_id_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
 	unsigned coreid;
 
 	coreid = (dev->col + col) + ((dev->row + row) << 6);
-	diag(H_D2) { fprintf(fd, "ee_get_id_from_coords(): dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, CoreID=0x%03x\n", dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
+	diag(H_D2) { fprintf(fd, "ee_get_id_from_coords(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), CoreID=0x%03x\n", dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
 
 	return coreid;
 }
@@ -846,7 +848,7 @@ unsigned ee_get_id_from_num(e_epiphany_t *dev, unsigned corenum)
 	row = corenum / dev->cols;
 	col = corenum % dev->cols;
 	coreid = (dev->col + col) + ((dev->row + row) << 6);
-	diag(H_D2) { fprintf(fd, "ee_get_id_from_num(): corenum=%d, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d, CoreID=0x%03x\n", corenum, dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
+	diag(H_D2) { fprintf(fd, "ee_get_id_from_num(): corenum=%d, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), CoreID=0x%03x\n", corenum, dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
 
 	return coreid;
 }
@@ -857,7 +859,7 @@ void ee_get_coords_from_id(e_epiphany_t *dev, unsigned coreid, unsigned *row, un
 {
 	*row = ((coreid >> 6) & 0x3f) - dev->row;
 	*col = ((coreid >> 0) & 0x3f) - dev->col;
-	diag(H_D2) { fprintf(fd, "ee_get_coords_from_id(): CoreID=0x%03x, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d\n", coreid, dev->row, dev->col, dev->rows, dev->col, *row, *col); }
+	diag(H_D2) { fprintf(fd, "ee_get_coords_from_id(): CoreID=0x%03x, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d)\n", coreid, dev->row, dev->col, dev->rows, dev->col, *row, *col); }
 
 	return;
 }
@@ -867,7 +869,7 @@ void e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *row, u
 {
 	*row = corenum / dev->cols;
 	*col = corenum % dev->cols;
-	diag(H_D2) { fprintf(fd, "e_get_coords_from_num(): corenum=%d, dev.row=%d, dev.col=%d, dev.rows=%d, dev.cols=%d, row=%d, col=%d\n", corenum, dev->row, dev->col, dev->col, dev->rows, *row, *col); }
+	diag(H_D2) { fprintf(fd, "e_get_coords_from_num(): corenum=%d, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d)\n", corenum, dev->row, dev->col, dev->col, dev->rows, *row, *col); }
 
 	return;
 }
@@ -913,12 +915,15 @@ e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr)
 }
 
 
-void e_set_host_verbosity(e_hal_diag_t verbose)
+e_hal_diag_t e_set_host_verbosity(e_hal_diag_t verbose)
 {
+	e_hal_diag_t old_host_verbose;
+
+	old_host_verbose = e_host_verbose;
 	fd = stderr;
 	e_host_verbose = verbose;
 
-	return;
+	return old_host_verbose;
 }
 
 

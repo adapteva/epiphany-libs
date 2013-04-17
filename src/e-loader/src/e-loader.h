@@ -43,7 +43,7 @@ typedef enum {
 int e_load(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bool_t start);
 int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start);
 
-void e_set_loader_verbosity(e_loader_diag_t verbose);
+e_loader_diag_t e_set_loader_verbosity(e_loader_diag_t verbose);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<platform version="1" name="zed_E16G3_512mb" lib="libepiphany-hal.so" libinitargs="">
+<platform version="1" name="zed_E16G3_512mb" lib="libe-hal.so" libinitargs="">
 	<chips>
 		<chip version="3" id="(32,8)" rows="4" cols="4" host_base="0x1e000000" core_memory_size="0x8000">
 			<ioregs col="2" row="2"/>

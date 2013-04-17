@@ -69,7 +69,7 @@ void     e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *ro
 e_bool_t e_is_addr_on_chip(void *addr);
 e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr);
 //
-void     e_set_host_verbosity(e_hal_diag_t verbose);
+e_hal_diag_t e_set_host_verbosity(e_hal_diag_t verbose);
 
 #ifdef __cplusplus
 }
