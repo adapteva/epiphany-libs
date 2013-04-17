@@ -35,7 +35,7 @@
 
 int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 
-e_load_verbose e_load_verbose = 0;
+e_loader_diag_t e_load_verbose = 0;
 FILE *fd;
 
 // TODO: replace with platform data
