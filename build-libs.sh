@@ -17,8 +17,8 @@ echo '==============================='
 echo '============ E-XML ============'
 echo '==============================='
 cd src/e-xml/Release
-#make clean
-#make all
+make clean
+make all
 cd ../../../
 
 # Build and install the Epiphnay Loader library
@@ -45,8 +45,8 @@ echo '=================================='
 echo '============ E-SERVER ============'
 echo '=================================='
 cd src/e-server/Release
-#make clean
-#make all
+make clean
+make all
 cd ../../../
 
 # Install the Epiphnay GNU Tools wrappers
@@ -61,7 +61,7 @@ echo '==============================='
 echo '============ E-LIB ============'
 echo '==============================='
 cd src/e-lib/Release
-#make clean
-#make all
+make clean
+make all
 cd ../../../
 
