@@ -69,11 +69,23 @@ typedef enum {
 } e_chiptype_t;
 
 
+typedef enum {
+	E_EMEK3        = 0,
+	E_EMEK4        = 1,
+	E_ZEDBOARDE16  = 2,
+	E_ZEDBOARDE64  = 3,
+	E_PARALLELLA16 = 4,
+	E_PARALLELLA64 = 5,
+} e_platformtype_t;
+
+
 typedef struct {
 	e_objytpe_t      objtype;     // object type identifier
 	off_t            phy_base;    // physical global base address of memory region
+	off_t            page_base;   // physical base address of memory page
+	off_t            page_offset; // offset of memory region base to memory page base
 	size_t           map_size;    // size of mapped region
-	off_t            map_mask;    // for mmap
+//	off_t            map_mask;    // for mmap
 	void            *mapped_base; // for mmap
 	void            *base;        // application space base address of memory region
 } e_mmap_t;

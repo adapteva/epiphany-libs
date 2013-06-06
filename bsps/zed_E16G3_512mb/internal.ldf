@@ -92,7 +92,7 @@ SECTIONS
 	ivt_message             20  : {*.o(ivt_entry_message)}            > IVT_RAM
 	ivt_dma0                24  : {*.o(ivt_entry_dma0)}               > IVT_RAM
 	ivt_dma1                28  : {*.o(ivt_entry_dma1)}               > IVT_RAM
-	ivt_swi                 32  : {*.o(ivt_entry_swi)}                > IVT_RAM
+	ivt_swi                 36  : {*.o(ivt_entry_swi)}                > IVT_RAM
 
 	/* place the ISR handlers after IVT */
 	.reserved_crt0  ORIGIN(IVT_RAM) + LENGTH(IVT_RAM) : {*.o(RESERVED_CRT0) *.o(reserved_crt0)} > INTERNAL_RAM

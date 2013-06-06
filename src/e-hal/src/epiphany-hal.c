@@ -42,6 +42,8 @@ int  ee_parse_hdf(e_platform_t *dev, char *hdf);
 int  ee_parse_simple_hdf(e_platform_t *dev, char *hdf);
 int  ee_parse_xml_hdf(e_platform_t *dev, char *hdf);
 void ee_trim(char *a);
+long ee_rndu_page(long size);
+long ee_rndl_page(long size);
 
 #define diag(vN)   if (e_host_verbose >= vN)
 
@@ -202,6 +204,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	diag(H_D2) { fprintf(fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
 	diag(H_D2) { fprintf(fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
+
 	// Open memory device
 	dev->memfd = open("/dev/mem", O_RDWR | O_SYNC);
 	if (dev->memfd == 0)
@@ -239,31 +242,45 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 			diag(H_D2) { fprintf(fd, "e_open(): core (%d,%d), CoreID = 0x%03x\n", curr_core->row, curr_core->col, curr_core->id); }
 
+			//    |-------------|     req'd map
+			// +--0-+--1-+--2-+--3-+  O/S pages
+			// |--x-------------|  gen'd map; x = offset
+
 			// SRAM array
-			curr_core->mems.phy_base = (curr_core->id << 20 | e_platform.chip[0].sram_base); // TODO: assumes first chip
-			curr_core->mems.map_size = e_platform.chip[0].sram_size; // TODO: this assumes a single chip!
-			curr_core->mems.map_mask = curr_core->mems.map_size - 1; // TODO: this assumes a power-of-2 size
+			curr_core->mems.phy_base = (curr_core->id << 20 | e_platform.chip[0].sram_base); // TODO: assumes first chip + a single chip type
+			curr_core->mems.page_base = ee_rndl_page(curr_core->mems.phy_base);
+			curr_core->mems.page_offset = curr_core->mems.phy_base - curr_core->mems.page_base;
+			curr_core->mems.map_size = e_platform.chip[0].sram_size + curr_core->mems.page_offset;
+//			curr_core->mems.map_mask = curr_core->mems.map_size - 1; // TODO: this assumes a power-of-2 size
 
-			curr_core->mems.mapped_base = mmap(0, curr_core->mems.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-			                                      dev->memfd, curr_core->mems.phy_base & ~curr_core->mems.map_mask);
-			curr_core->mems.base = curr_core->mems.mapped_base + (curr_core->mems.phy_base & curr_core->mems.map_mask);
+			curr_core->mems.mapped_base = mmap(NULL, curr_core->mems.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->mems.page_base);
+			curr_core->mems.base = curr_core->mems.mapped_base + curr_core->mems.page_offset;
 
-			diag(H_D2) { fprintf(fd, "e_open(): mems.phy_base = 0x%08x, mems.base = 0x%08x, mems.size = 0x%08x, mems.mask = 0x%08x\n", (uint) curr_core->mems.phy_base, (uint) curr_core->mems.base, (uint) curr_core->mems.map_size, (uint) curr_core->mems.map_mask); }
+//			diag(H_D2) { fprintf(fd, "e_open(): mems.phy_base = 0x%08x, mems.base = 0x%08x, mems.size = 0x%08x, mems.mask = 0x%08x\n", (uint) curr_core->mems.phy_base, (uint) curr_core->mems.base, (uint) curr_core->mems.map_size, (uint) curr_core->mems.map_mask); }
+			diag(H_D2) { fprintf(fd, "e_open(): mems.phy_base = 0x%08x, mems.base = 0x%08x, mems.size = 0x%08x\n", (uint) curr_core->mems.phy_base, (uint) curr_core->mems.base, (uint) curr_core->mems.map_size); }
 
 			// e-core regs
-			curr_core->regs.phy_base = (curr_core->id << 20 | e_platform.chip[0].regs_base); // TODO: assumes first chip
-			curr_core->regs.map_size = e_platform.chip[0].regs_size; // TODO: this assumes a single chip!
-			curr_core->regs.map_mask = curr_core->regs.map_size - 1; // TODO: this assumes a power-of-2 size
+			curr_core->regs.phy_base = (curr_core->id << 20 | e_platform.chip[0].regs_base); // TODO: assumes first chip + a single chip type
+			curr_core->regs.page_base = ee_rndl_page(curr_core->regs.phy_base);
+			curr_core->regs.page_offset = curr_core->regs.phy_base - curr_core->regs.page_base;
+			curr_core->regs.map_size = e_platform.chip[0].regs_size + curr_core->regs.page_offset;
+//			curr_core->regs.map_mask = curr_core->regs.map_size - 1; // TODO: this assumes a power-of-2 size
 
-			curr_core->regs.mapped_base = mmap(0, curr_core->regs.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-			                                      dev->memfd, curr_core->regs.phy_base & ~curr_core->regs.map_mask);
-			curr_core->regs.base = curr_core->regs.mapped_base + (curr_core->regs.phy_base & curr_core->regs.map_mask);
+			curr_core->regs.mapped_base = mmap(NULL, curr_core->regs.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->regs.page_base);
+			curr_core->regs.base = curr_core->regs.mapped_base + curr_core->regs.page_offset;
 
-			diag(H_D2) { fprintf(fd, "e_open(): regs.phy_base = 0x%08x, regs.base = 0x%08x, regs.size = 0x%08x, regs.mask = 0x%08x\n", (uint) curr_core->regs.phy_base, (uint) curr_core->regs.base, (uint) curr_core->regs.map_size, (uint) curr_core->regs.map_mask); }
+//			diag(H_D2) { fprintf(fd, "e_open(): regs.phy_base = 0x%08x, regs.base = 0x%08x, regs.size = 0x%08x, regs.mask = 0x%08x\n", (uint) curr_core->regs.phy_base, (uint) curr_core->regs.base, (uint) curr_core->regs.map_size, (uint) curr_core->regs.map_mask); }
+			diag(H_D2) { fprintf(fd, "e_open(): regs.phy_base = 0x%08x, regs.base = 0x%08x, regs.size = 0x%08x\n", (uint) curr_core->regs.phy_base, (uint) curr_core->regs.base, (uint) curr_core->regs.map_size); }
 
-			if ((curr_core->mems.mapped_base == MAP_FAILED) || (curr_core->regs.mapped_base == MAP_FAILED))
+			if (curr_core->mems.mapped_base == MAP_FAILED)
 			{
-				warnx("e_open(): ECORE[%d,%d] MEM or REG mmap failure.", curr_core->row, curr_core->col);
+				warnx("e_open(): ECORE[%d,%d] MEM mmap failure.", curr_core->row, curr_core->col);
+				return E_ERR;
+			}
+
+			if (curr_core->regs.mapped_base == MAP_FAILED)
+			{
+				warnx("e_open(): ECORE[%d,%d] REG mmap failure.", curr_core->row, curr_core->col);
 				return E_ERR;
 			}
 		}
@@ -385,8 +402,16 @@ int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from
 {
 	volatile int *pfrom;
 	int           data;
+	ssize_t       size;
 
-	pfrom = (int *) (dev->core[row][col].mems.base + (from_addr & dev->core[row][col].mems.map_mask));
+	size = sizeof(int);
+	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
+	{
+		warnx("ee_read_word(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pfrom = (int *) (dev->core[row][col].mems.base + from_addr);
 	diag(H_D2) { fprintf(fd, "ee_read_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
@@ -397,9 +422,17 @@ int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from
 // Write a word to SRAM of a core in a group
 ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	int *pto;
+	int     *pto;
+	ssize_t  size;
 
-	pto = (int *) (dev->core[row][col].mems.base + (to_addr & dev->core[row][col].mems.map_mask));
+	size = sizeof(int);
+	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
+	{
+		warnx("ee_write_word(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pto = (int *) (dev->core[row][col].mems.base + to_addr);
 	diag(H_D2) { fprintf(fd, "ee_write_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
 	*pto = data;
 
@@ -410,11 +443,17 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 // Read a memory block from SRAM of a core in a group
 ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
-	const void *pfrom;
-	unsigned int addr_from, addr_to, align;
-	int i;
+	const void   *pfrom;
+	unsigned int  addr_from, addr_to, align;
+	int           i;
 
-	pfrom = (dev->core[row][col].mems.base + (from_addr & dev->core[row][col].mems.map_mask));
+	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
+	{
+		warnx("ee_read_buf(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pfrom = dev->core[row][col].mems.base + from_addr;
 	diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, size); }
 
 	if ((dev->type == E_E64G401) && ((row >= 1) && (row <= 2)))
@@ -460,7 +499,13 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 {
 	void *pto;
 
-	pto = (dev->core[row][col].mems.base + (to_addr & dev->core[row][col].mems.map_mask));
+	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
+	{
+		warnx("ee_write_buf(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pto = dev->core[row][col].mems.base + to_addr;
 	diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, size); }
 	memcpy(pto, buf, size);
 
@@ -473,8 +518,16 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 {
 	volatile int *pfrom;
 	int           data;
+	ssize_t       size;
 
-	pfrom = (int *) (dev->core[row][col].regs.base + (from_addr & dev->core[row][col].regs.map_mask));
+	size = sizeof(int);
+	if (((from_addr + size) > dev->core[row][col].regs.map_size) || (from_addr < 0))
+	{
+		warnx("ee_read_reg(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pfrom = (int *) (dev->core[row][col].regs.base + from_addr);
 	diag(H_D2) { fprintf(fd, "ee_read_reg(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
@@ -485,9 +538,17 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 // Write to a core register of a core in a group
 ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	int *pto;
+	int     *pto;
+	ssize_t  size;
 
-	pto = (int *) (dev->core[row][col].regs.base + (to_addr & dev->core[row][col].regs.map_mask));
+	size = sizeof(int);
+	if (((to_addr + size) > dev->core[row][col].regs.map_size) || (to_addr < 0))
+	{
+		warnx("ee_write_reg(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pto = (int *) (dev->core[row][col].regs.base + to_addr);
 	diag(H_D2) { fprintf(fd, "ee_write_reg(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
 	*pto = data;
 
@@ -517,18 +578,20 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 
 	diag(H_D2) { fprintf(fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) base); }
 
-	mbuf->map_size = size;
-	mbuf->map_mask = mbuf->map_size - 1; // TODO: this assumes a power-of-2 size
-
 	mbuf->phy_base = (e_platform.emem[0].phy_base + base); // TODO: this takes only the 1st segment into account
-	mbuf->mapped_base = mmap(0, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-	                            mbuf->memfd, mbuf->phy_base & ~mbuf->map_mask);
-	mbuf->base = mbuf->mapped_base + (mbuf->phy_base & mbuf->map_mask);
+	mbuf->page_base = ee_rndl_page(mbuf->phy_base);
+	mbuf->page_offset = mbuf->phy_base - mbuf->page_base;
+	mbuf->map_size = size + mbuf->page_offset;
+//	mbuf->map_mask = mbuf->map_size - 1; // TODO: this assumes a power-of-2 size
+
+	mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
+	mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 
 	mbuf->ephy_base = (e_platform.emem[0].ephy_base + base); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
-	diag(H_D2) { fprintf(fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x, mbuf.mask = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->base, (uint) mbuf->map_size, (uint) mbuf->map_mask); }
+//	diag(H_D2) { fprintf(fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x, mbuf.mask = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->base, (uint) mbuf->map_size, (uint) mbuf->map_mask); }
+	diag(H_D2) { fprintf(fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
 
 	if (mbuf->mapped_base == MAP_FAILED)
 	{
@@ -578,8 +641,16 @@ int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 {
 	volatile int *pfrom;
 	int           data;
+	ssize_t       size;
 
-	pfrom = (int *) (mbuf->base + (from_addr & mbuf->map_mask));
+	size = sizeof(int);
+	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
+	{
+		warnx("ee_mread_word(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pfrom = (int *) (mbuf->base + from_addr);
 	diag(H_D2) { fprintf(fd, "ee_mread_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
@@ -590,9 +661,17 @@ int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 // Write a word to an external memory buffer
 ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data)
 {
-	int *pto;
+	int     *pto;
+	ssize_t  size;
 
-	pto = (int *) (mbuf->base + (to_addr & mbuf->map_mask));
+	size = sizeof(int);
+	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
+	{
+		warnx("ee_mwrite_word(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pto = (int *) (mbuf->base + to_addr);
 	diag(H_D2) { fprintf(fd, "ee_mwrite_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
 	*pto = data;
 
@@ -605,7 +684,13 @@ ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t siz
 {
 	const void *pfrom;
 
-	pfrom = (mbuf->base + (from_addr & mbuf->map_mask));
+	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
+	{
+		warnx("ee_mread_buf(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pfrom = mbuf->base + from_addr;
 	diag(H_D2) { fprintf(fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, size); }
 	memcpy(buf, pfrom, size);
 
@@ -618,7 +703,13 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 {
 	void *pto;
 
-	pto = (mbuf->base + (to_addr & mbuf->map_mask));
+	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
+	{
+		warnx("ee_mwrite_buf(): Buffer range is out of bounds.");
+		return E_ERR;
+	}
+
+	pto = mbuf->base + to_addr;
 	diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, size); }
 	memcpy(pto, buf, size);
 
@@ -645,14 +736,17 @@ int ee_read_esys(off_t from_addr)
 		return E_ERR;
 	}
 
-	esys.map_size = 0x1000; // map 4KB page
-	esys.map_mask = (esys.map_size - 1);
-	esys.phy_base = from_addr & (~esys.map_mask);
+	esys.phy_base = (e_platform.regs_base + from_addr);
+	esys.page_base = ee_rndl_page(esys.phy_base);
+	esys.page_offset = esys.phy_base - esys.page_base;
+	esys.map_size = sizeof(int) + esys.page_offset;
+//	esys.map_mask = (esys.map_size - 1);
 
-	esys.mapped_base = mmap(0, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.phy_base);
-	esys.base = esys.mapped_base + (esys.phy_base & esys.map_mask);
+	esys.mapped_base = mmap(NULL, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.page_base);
+	esys.base = esys.mapped_base + esys.page_offset;
 
-	diag(H_D2) { fprintf(fd, "ee_read_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x, esys.mask = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size, (uint) esys.map_mask); }
+//	diag(H_D2) { fprintf(fd, "ee_read_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x, esys.mask = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size, (uint) esys.map_mask); }
+	diag(H_D2) { fprintf(fd, "ee_read_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size); }
 
 	if (esys.mapped_base == MAP_FAILED)
 	{
@@ -660,7 +754,7 @@ int ee_read_esys(off_t from_addr)
 		return E_ERR;
 	}
 
-	pfrom = (int *) (esys.base + (from_addr & esys.map_mask));
+	pfrom = (int *) (esys.base);
 	diag(H_D2) { fprintf(fd, "ee_read_esys(): reading from from_addr=0x%08x, pto=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
@@ -686,14 +780,17 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 		return E_ERR;
 	}
 
-	esys.map_size = 0x1000; // map 4KB page
-	esys.map_mask = (esys.map_size - 1);
-	esys.phy_base = (e_platform.regs_base + to_addr) & (~esys.map_mask);
+	esys.phy_base = (e_platform.regs_base + to_addr);
+	esys.page_base = ee_rndl_page(esys.phy_base);
+	esys.page_offset = esys.phy_base - esys.page_base;
+	esys.map_size = sizeof(int) + esys.page_offset;
+//	esys.map_mask = (esys.map_size - 1);
 
-	esys.mapped_base = mmap(0, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.phy_base);
-	esys.base = esys.mapped_base + (esys.phy_base & esys.map_mask);
+	esys.mapped_base = mmap(NULL, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.page_base);
+	esys.base = esys.mapped_base + esys.page_offset;
 
-	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x, esys.mask = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size, (uint) esys.map_mask); }
+//	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x, esys.mask = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size, (uint) esys.map_mask); }
+	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size); }
 
 	if (esys.mapped_base == MAP_FAILED)
 	{
@@ -701,7 +798,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 		return E_ERR;
 	}
 
-	pto = (int *) (esys.base + ((e_platform.regs_base + to_addr) & esys.map_mask));
+	pto = (int *) (esys.base);
 	diag(H_D2) { fprintf(fd, "ee_write_esys(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) (e_platform.regs_base + to_addr), (uint) pto); }
 	*pto = data;
 
@@ -722,11 +819,12 @@ int e_reset_system()
 	diag(H_D1) { fprintf(fd, "e_reset_system(): resetting full ESYS...\n"); }
 	ee_write_esys(E_SYS_RESET, 0);
 	sleep(1);
+
 	if (e_platform.chip[0].type == E_E16G301) // TODO: assume one chip
 	{
 		e_epiphany_t dev;
 		int          data;
-		diag(H_D2) { fprintf(fd, "e_reset_system(): found chip version E16G301, programming clock divider.\n"); }
+		diag(H_D2) { fprintf(fd, "e_reset_system(): found chip version E16G301, programming link clock divider.\n"); }
 		e_open(&dev, 2, 3, 1, 1);
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
@@ -734,7 +832,17 @@ int e_reset_system()
 		ee_write_esys(E_SYS_CONFIG, 0x00000000);
 		e_close(&dev);
 	}
+
 	diag(H_D1) { fprintf(fd, "e_reset_system(): done.\n"); }
+
+	return E_OK;
+}
+
+
+// Reset the Epiphany chip
+int e_reset_chip()
+{
+	diag(H_D1) { fprintf(fd, "e_reset_chip(): This operation is not implemented!\n"); }
 
 	return E_OK;
 }
@@ -1162,3 +1270,34 @@ void ee_trim(char *a)
     *a = '\0';
     while (isspace(*--a)) *a = '\0';
 }
+
+
+long ee_rndu_page(long size)
+{
+	long page_size;
+	long rsize;
+
+	// Get OS memory page size
+	page_size = sysconf(_SC_PAGE_SIZE);
+
+	// Find upper integral number of pages
+	rsize = ((size + (page_size - 1)) / page_size) * page_size;
+
+	return rsize;
+}
+
+
+long ee_rndl_page(long size)
+{
+	long page_size;
+	long rsize;
+
+	// Get OS memory page size
+	page_size = sysconf(_SC_PAGE_SIZE);
+
+	// Find lower integral number of pages
+	rsize = (size / page_size) * page_size;
+
+	return rsize;
+}
+

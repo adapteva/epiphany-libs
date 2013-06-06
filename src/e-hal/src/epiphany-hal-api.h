@@ -53,7 +53,9 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 
 ///////////////////////////
 // System control functions
+#define e_reset e_reset_system
 int     e_reset_system();
+int     e_reset_chip();
 int     e_reset_core(e_epiphany_t *dev, unsigned row, unsigned col);
 int     e_start(e_epiphany_t *dev, unsigned row, unsigned col);
 int     e_signal(e_epiphany_t *dev, unsigned row, unsigned col);

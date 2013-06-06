@@ -137,10 +137,12 @@ typedef struct {
 typedef struct {
 	e_objytpe_t      objtype;     // object type identifier
 	off_t            phy_base;    // physical global base address of external memory buffer as seen by host side
+	off_t            page_base;   // physical base address of memory page
+	off_t            page_offset; // offset of memory region base to memory page base
 	size_t           map_size;    // size of eDRAM allocated buffer for host side
 	off_t            ephy_base;   // physical global base address of external memory buffer as seen by device side
 	size_t           emap_size;   // size of eDRAM allocated buffer for device side
-	off_t            map_mask;    // for mmap
+//	off_t            map_mask;    // for mmap
 	void            *mapped_base; // for mmap
 	void            *base;        // application space base address of external memory buffer
 	int              memfd;       // for mmap

@@ -51,8 +51,8 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.so.debug.1465336492" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.so.debug">
 								<option defaultValue="true" id="gnu.c.link.so.debug.option.shared.2052388339" name="Shared (-shared)" superClass="gnu.c.link.so.debug.option.shared" valueType="boolean"/>
-								<option id="gnu.c.link.option.libs.152525105" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs"/>
-								<option id="gnu.c.link.option.paths.1218445890" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths"/>
+								<option id="gnu.c.link.option.libs.152525105" name="Libraries (-l)" superClass="gnu.c.link.option.libs"/>
+								<option id="gnu.c.link.option.paths.1218445890" name="Library search path (-L)" superClass="gnu.c.link.option.paths"/>
 								<option id="gnu.c.link.option.userobjs.148062106" name="Other objects" superClass="gnu.c.link.option.userobjs" valueType="userObjs">
 									<listOptionValue builtIn="false" value="../../e-loader/Debug/src/e-process-SREC.o"/>
 									<listOptionValue builtIn="false" value="../../e-loader/Debug/src/e-loader.o"/>
@@ -68,16 +68,6 @@
 							<tool id="cdt.managedbuild.tool.gnu.assembler.so.debug.664760057" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.so.debug">
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1096302113" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
-						</toolChain>
-					</folderInfo>
-					<folderInfo id="cdt.managedbuild.config.gnu.so.debug.903520580.433600703" name="/" resourcePath="excluded-modules">
-						<toolChain id="cdt.managedbuild.toolchain.gnu.so.debug.756536838" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.so.debug" unusedChildren="">
-							<tool id="cdt.managedbuild.tool.gnu.archiver.base.1485712164" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base.1455874611"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.so.debug.320553635" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.so.debug.1384521651"/>
-							<tool id="cdt.managedbuild.tool.gnu.c.compiler.so.debug.179616885" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.so.debug.926240931"/>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.so.debug.76300781" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.so.debug.1465336492"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.so.debug.1523120651" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.so.debug.1509059192"/>
-							<tool id="cdt.managedbuild.tool.gnu.assembler.so.debug.82271848" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.so.debug.664760057"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
@@ -135,8 +125,8 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.so.release.1327969619" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.so.release">
 								<option defaultValue="true" id="gnu.c.link.so.release.option.shared.1011672890" name="Shared (-shared)" superClass="gnu.c.link.so.release.option.shared" valueType="boolean"/>
-								<option id="gnu.c.link.option.libs.1729668330" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs"/>
-								<option id="gnu.c.link.option.paths.813112435" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths"/>
+								<option id="gnu.c.link.option.libs.1729668330" name="Libraries (-l)" superClass="gnu.c.link.option.libs"/>
+								<option id="gnu.c.link.option.paths.813112435" name="Library search path (-L)" superClass="gnu.c.link.option.paths"/>
 								<option id="gnu.c.link.option.userobjs.1138047704" name="Other objects" superClass="gnu.c.link.option.userobjs" valueType="userObjs">
 									<listOptionValue builtIn="false" value="../../e-loader/Release/src/e-loader.o"/>
 									<listOptionValue builtIn="false" value="../../e-loader/Release/src/e-process-SREC.o"/>
@@ -152,16 +142,6 @@
 							<tool id="cdt.managedbuild.tool.gnu.assembler.so.release.420096120" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.so.release">
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1203878241" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
-						</toolChain>
-					</folderInfo>
-					<folderInfo id="cdt.managedbuild.config.gnu.so.release.1289371936.403750959" name="/" resourcePath="excluded-modules">
-						<toolChain id="cdt.managedbuild.toolchain.gnu.so.release.906122174" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.so.release" unusedChildren="">
-							<tool id="cdt.managedbuild.tool.gnu.archiver.base.652985758" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base.623994499"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.so.release.279753338" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.so.release.1653321159"/>
-							<tool id="cdt.managedbuild.tool.gnu.c.compiler.so.release.1383177544" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.so.release.485973389"/>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.so.release.1622521940" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.so.release.1327969619"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.so.release.1148044352" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.so.release.575227891"/>
-							<tool id="cdt.managedbuild.tool.gnu.assembler.so.release.807278863" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.so.release.420096120"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
@@ -188,4 +168,5 @@
 		<resource resourceType="PROJECT" workspacePath="/e-hal.zed"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

@@ -32,5 +32,6 @@ unsigned e_irq_disable(e_irq_type_t irq)
 
 	previous = e_sysreg_read(E_IMASK);
 	e_sysreg_write(E_IMASK, previous | (1<<(irq-SIG_RESET)));
+
 	return previous;
 }

@@ -34,7 +34,7 @@
 
 #define TRUE 1
 #define FALSE 0
-typedef unsigned bool;
+typedef unsigned e_bool_t;
 
 
 

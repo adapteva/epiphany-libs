@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <errno.h>
+#include <e_common.h>
 
 /*
   These defs can be or'd together to form a value suitable for
@@ -68,10 +69,10 @@ typedef struct
 	unsigned long outer_stride;
 	void         *src_addr;
 	void         *dst_addr;
-} e_tcb_t;
+} ALIGN(8) e_tcb_t;
 
 int e_dma_start(e_dma_id_t chan, e_tcb_t *usr_tcb);
 int e_dma_busy(e_dma_id_t chan);
-int e_dma_copy(e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align);
+int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align);
 
 #endif /* _EPIPHANY_DMA_H_ */

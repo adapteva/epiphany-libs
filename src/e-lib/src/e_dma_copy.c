@@ -26,7 +26,7 @@
 #include "e_dma.h"
 
 
-e_tcb_t _tcb SECTION(".data_bank0");
+//e_tcb_t _tcb SECTION(".data_bank0");
 
 unsigned dma_configs[8] =
 {
@@ -40,7 +40,7 @@ unsigned dma_configs[8] =
 	(E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE)
 };
 
-int e_dma_copy(e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align)
+int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align, e_bool_t blocking, e_bool_t interrupt)
 {
 	unsigned index;
 	unsigned shift;
@@ -71,13 +71,13 @@ int e_dma_copy(e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_
 	shift = config >> 5;
 	stride = 0x10001 << shift;
 
-	_tcb.config = config;
-	_tcb.inner_stride = stride;
-	_tcb.count = 0x10000 | (bytes >> shift);
-	_tcb.outer_stride = stride;
-	_tcb.src_addr = src;
-	_tcb.dst_addr = dst;
+	_tcb->config = config;
+	_tcb->inner_stride = stride;
+	_tcb->count = 0x10000 | (bytes >> shift);
+	_tcb->outer_stride = stride;
+	_tcb->src_addr = src;
+	_tcb->dst_addr = dst;
 
-	return e_dma_start(chan, &_tcb);
+	return e_dma_start(chan, _tcb);
 }
 
