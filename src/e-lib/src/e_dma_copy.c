@@ -40,7 +40,8 @@ unsigned dma_configs[8] =
 	(E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE)
 };
 
-int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align, e_bool_t blocking, e_bool_t interrupt)
+//int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align, e_bool_t blocking, e_bool_t interrupt)
+int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align)
 {
 	unsigned index;
 	unsigned shift;

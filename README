@@ -1,6 +1,18 @@
 Epiphany SDK Build and Install Package
 --------------------------------------
 
+=======================================
+NOTE
+
+This repository is the development repo. containing the latest code
+changes. It may not build, and if it does, it may not work correctly.
+
+To download the latest release repo, see:
+
+https://github.com/Adapteva/epiphany-libs/tree/e-hal.4.13.03.30
+=======================================
+
+
 This directory contains the source modules for building and installing
 the Epiphany SDK components, excluding the GNU compilers and utilities.
 

@@ -523,6 +523,7 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	size = sizeof(int);
 	if (((from_addr + size) > dev->core[row][col].regs.map_size) || (from_addr < 0))
 	{
+		diag(H_D2) { fprintf(fd, "ee_read_reg(): from_addr=0x%08x, size=0x%08x, map_size=0x%08x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
 		warnx("ee_read_reg(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -790,7 +791,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 	esys.base = esys.mapped_base + esys.page_offset;
 
 //	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x, esys.mask = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size, (uint) esys.map_mask); }
-	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size); }
+	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.page_base = 0x%08x, esys.page_offset = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.page_base, (uint) esys.page_offset, (uint) esys.base, (uint) esys.map_size); }
 
 	if (esys.mapped_base == MAP_FAILED)
 	{
@@ -1272,10 +1273,10 @@ void ee_trim(char *a)
 }
 
 
-long ee_rndu_page(long size)
+unsigned long ee_rndu_page(unsigned long size)
 {
-	long page_size;
-	long rsize;
+	unsigned long page_size;
+	unsigned long rsize;
 
 	// Get OS memory page size
 	page_size = sysconf(_SC_PAGE_SIZE);
@@ -1287,10 +1288,10 @@ long ee_rndu_page(long size)
 }
 
 
-long ee_rndl_page(long size)
+unsigned long ee_rndl_page(unsigned long size)
 {
-	long page_size;
-	long rsize;
+	unsigned long page_size;
+	unsigned long rsize;
 
 	// Get OS memory page size
 	page_size = sysconf(_SC_PAGE_SIZE);
