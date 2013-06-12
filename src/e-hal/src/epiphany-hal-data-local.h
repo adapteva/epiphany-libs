@@ -85,7 +85,6 @@ typedef struct {
 	off_t            page_base;   // physical base address of memory page
 	off_t            page_offset; // offset of memory region base to memory page base
 	size_t           map_size;    // size of mapped region
-//	off_t            map_mask;    // for mmap
 	void            *mapped_base; // for mmap
 	void            *base;        // application space base address of memory region
 } e_mmap_t;

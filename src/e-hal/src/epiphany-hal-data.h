@@ -60,7 +60,7 @@ typedef enum {
 
 // eCore registers
 typedef enum {
-	E_CORE_REG_BASE = 0xf0000, // TODO: review this - I think it is not necessary and can be set to 0.
+	E_CORE_REG_BASE = 0xf0000,
 	E_CONFIG        = E_CORE_REG_BASE + 0x0400,
 	E_STATUS        = E_CORE_REG_BASE + 0x0404,
 	E_PC            = E_CORE_REG_BASE + 0x0408,
@@ -142,7 +142,6 @@ typedef struct {
 	size_t           map_size;    // size of eDRAM allocated buffer for host side
 	off_t            ephy_base;   // physical global base address of external memory buffer as seen by device side
 	size_t           emap_size;   // size of eDRAM allocated buffer for device side
-//	off_t            map_mask;    // for mmap
 	void            *mapped_base; // for mmap
 	void            *base;        // application space base address of external memory buffer
 	int              memfd;       // for mmap

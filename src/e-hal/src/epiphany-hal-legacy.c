@@ -98,6 +98,7 @@ ssize_t ee_read_abs(unsigned address, void *buf, size_t burst_size)
 			diag(H_D1) { fprintf(fd, "ee_read_abs(): isexternal -> rcount = %d\n", (int) rcount); }
 		} else if (isonchip)
 		{
+			address = address & 0x000fffff;
 			if (ismems) {
 				rcount = ee_read_buf(pEpiphany, row, col, address, buf, burst_size);
 				diag(H_D1) { fprintf(fd, "ee_read_abs(): isonchip/ismems -> rcount = %d\n", (int) rcount); }
@@ -171,6 +172,7 @@ ssize_t ee_write_abs(unsigned address, void *buf, size_t burst_size)
 			diag(H_D1) { fprintf(fd, "ee_write_abs(): isexternal -> rcount = %d\n", (int) rcount); }
 		} else if (isonchip)
 		{
+			address = address & 0x000fffff;
 			if (ismems) {
 				rcount = ee_write_buf(pEpiphany, row, col, address, buf, burst_size);
 				diag(H_D1) { fprintf(fd, "ee_write_abs(): isonchip/ismems -> rcount = %d\n", (int) rcount); }
