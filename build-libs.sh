@@ -3,7 +3,8 @@
 set -e
 
 ESDK=${EPIPHANY_HOME}
-BSP='zed_E64G4_512mb'
+#BSP='zed_E64G4_512mb'
+BSP='zed_E16G3_512mb'
 ARCH='armv7l'
 
 #if [ ! -d "${ESDK}/tools/e-gnu/epiphany-elf/lib" ]; then
@@ -13,7 +14,7 @@ ARCH='armv7l'
 
 
 function build-xml() {
-	# Build and install the XML parser library
+	# Build the XML parser library
 	echo '==============================='
 	echo '============ E-XML ============'
 	echo '==============================='
@@ -25,7 +26,7 @@ function build-xml() {
 
 
 function build-loader() {
-	# Build and install the Epiphnay Loader library
+	# Build the Epiphnay Loader library
 	echo '=================================='
 	echo '============ E-LOADER ============'
 	echo '=================================='
@@ -37,7 +38,7 @@ function build-loader() {
 
 
 function build-hal() {
-	# Build and install the Epiphnay HAL library
+	# Build the Epiphnay HAL library
 	echo '==============================='
 	echo '============ E-HAL ============'
 	echo '==============================='
@@ -50,7 +51,7 @@ function build-hal() {
 
 
 function build-server() {
-	# Build and install the Epiphnay GDB RSP Server
+	# Build the Epiphnay GDB RSP Server
 	echo '=================================='
 	echo '============ E-SERVER ============'
 	echo '=================================='
@@ -72,10 +73,15 @@ function build-utils() {
 
 
 function build-lib() {
-	# build and install the Epiphnay Runtime Library
+	# build the Epiphnay Runtime Library
 	echo '==============================='
 	echo '============ E-LIB ============'
 	echo '==============================='
+	if [ ! -d "${ESDK}/tools/e-gnu/bin" ]; then
+		echo "In order to build the E-LIB the e-gcc compiler is required. Please"
+		echo "install the Epiphany GNU tools suite first at ${ESDK}/tools/e-gnu!"
+		exit
+	fi
 	cd src/e-lib/Release
 	make clean
 	make all
