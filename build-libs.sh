@@ -7,11 +7,6 @@ ESDK=${EPIPHANY_HOME}
 BSP='zed_E16G3_512mb'
 ARCH='armv7l'
 
-#if [ ! -d "${ESDK}/tools/e-gnu/epiphany-elf/lib" ]; then
-#	echo "Please install the Epiphany GNU tools suite first at ${ESDK}/tools/e-gnu!"
-#	exit
-#fi
-
 
 function build-xml() {
 	# Build the XML parser library
