@@ -34,8 +34,8 @@ extern "C"
 
 
 typedef enum {
-	E_SYNC   = 0,
-	E_SW_INT = 9,
+	E_SYNC    = 0,
+	E_USR_INT = 9,
 } e_signal_t;
 
 
@@ -46,21 +46,15 @@ typedef enum {
 } e_memtype_t;
 
 
-// Core Regions
-//#define LOC_BASE_MEMS       0x00000
-//#define LOC_BASE_REGS       0xf0000
-//#define MAP_SIZE_REGS       0x01000
-
-
 typedef enum {
 	E_NULL         = 0,
-	E_EPI_PLATFORM    ,
-	E_EPI_CHIP        ,
-	E_EPI_GROUP       ,
-	E_EPI_CORE        ,
-	E_EXT_MEM         ,
-	E_MAPPING         ,
-} e_objytpe_t;
+	E_EPI_PLATFORM = 1,
+	E_EPI_CHIP     = 2,
+	E_EPI_GROUP    = 3,
+	E_EPI_CORE     = 4,
+	E_EXT_MEM      = 5,
+	E_MAPPING      = 6,
+} e_objtype_t;
 
 
 typedef enum {
@@ -80,7 +74,7 @@ typedef enum {
 
 
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	off_t            phy_base;    // physical global base address of memory region
 	off_t            page_base;   // physical base address of memory page
 	off_t            page_offset; // offset of memory region base to memory page base
@@ -91,7 +85,7 @@ typedef struct {
 
 
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	unsigned int     id;          // core ID
 	unsigned int     row;         // core absolute row number
 	unsigned int     col;         // core absolute col number
@@ -102,7 +96,7 @@ typedef struct {
 
 // Platform data structures
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	e_chiptype_t     type;        // Epiphany chip part number
 	char             version[32]; // version number of Epiphany chip
 	unsigned int     arch;        // architecture generation
@@ -124,7 +118,7 @@ typedef struct {
 
 
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	off_t            phy_base;    // physical global base address of external memory segment as seen by host side
 	off_t            ephy_base;   // physical global base address of external memory segment as seen by device side
 	size_t           size;        // size of eDRAM allocated buffer for host side
@@ -133,8 +127,9 @@ typedef struct {
 
 
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	char             version[32]; // version number of this structure
+	unsigned int     hal_ver;     // version number of the E-HAL
 	int              initialized; // platform initialized?
 
 	unsigned int     regs_base;   // base address of platform registers
@@ -149,6 +144,31 @@ typedef struct {
 	int              num_emems;   // number of external memory segments in platform
 	e_memseg_t      *emem;        // array of external memory segments
 } e_platform_t;
+
+
+
+// Definitions for device workgroup communication object
+typedef unsigned int e_coreid_t;
+
+#define SIZEOF_IVT (0x28)
+
+typedef struct {
+	e_objtype_t  objtype;           // 0x28
+	e_chiptype_t chiptype;          // 0x2c
+	e_coreid_t   group_id;          // 0x30
+	unsigned     group_row;         // 0x34
+	unsigned     group_col;         // 0x38
+	unsigned     group_rows;        // 0x3c
+	unsigned     group_cols;        // 0x40
+	unsigned     core_row;          // 0x44
+	unsigned     core_col;          // 0x48
+	unsigned     alignment_padding; // 0x4c
+} e_group_config_t;
+
+typedef struct {
+	e_objtype_t objtype;            // 0x50
+	unsigned    base;               // 0x54
+} e_emem_config_t;
 
 
 #ifdef __cplusplus

@@ -60,15 +60,15 @@ ssize_t ee_read_abs(unsigned address, void *buf, size_t burst_size)
 	unsigned row, col, i;
 
 	diag(H_D1) { fprintf(fd, "ee_read_abs(): address = 0x%08x\n", address); }
-	isglobal = ((address & 0xfff00000) != 0) ? e_true : e_false;
+	isglobal = ((address & 0xfff00000) != 0) ? E_TRUE : E_FALSE;
 	if (isglobal)
 	{
 		if (((address >= pERAM->phy_base)  && (address < (pERAM->phy_base + pERAM->map_size))) ||
 		    ((address >= pERAM->ephy_base) && (address < (pERAM->ephy_base + pERAM->emap_size))))
 		{
-			isexternal = e_true;
+			isexternal = E_TRUE;
 		} else {
-			isexternal = e_false;
+			isexternal = E_FALSE;
 			coreid     = address >> 20;
 			isonchip   = e_is_addr_on_chip((void *) address);
 			if (isonchip)
@@ -134,15 +134,15 @@ ssize_t ee_write_abs(unsigned address, void *buf, size_t burst_size)
 	unsigned row, col, i;
 
 	diag(H_D1) { fprintf(fd, "ee_write_abs(): address = 0x%08x\n", address); }
-	isglobal = ((address & 0xfff00000) != 0) ? e_true : e_false;
+	isglobal = ((address & 0xfff00000) != 0) ? E_TRUE : E_FALSE;
 	if (isglobal)
 	{
 		if (((address >= pERAM->phy_base)  && (address < (pERAM->phy_base + pERAM->map_size))) ||
 		    ((address >= pERAM->ephy_base) && (address < (pERAM->ephy_base + pERAM->emap_size))))
 		{
-			isexternal = e_true;
+			isexternal = E_TRUE;
 		} else {
-			isexternal = e_false;
+			isexternal = E_FALSE;
 			coreid     = address >> 20;
 			isonchip   = e_is_addr_on_chip((void *) address);
 			if (isonchip)

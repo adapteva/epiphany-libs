@@ -38,7 +38,7 @@ __FIRST_CORE_COL_     = 8;
 __CORE_ROW_ = DEFINED(__CORE_ROW_) ? __CORE_ROW_ : __FIRST_CORE_ROW_;
 __CORE_COL_ = DEFINED(__CORE_COL_) ? __CORE_COL_ : __FIRST_CORE_COL_;
 /* generic don't touch */
-/* used to calculated the slice address in the external memory */
+/* used to calculate the slice address in the external memory */
 __CORE_NUM_ = (__CORE_ROW_ - __FIRST_CORE_ROW_) * __NUM_COLS_IN_CHIP_ + (__CORE_COL_ - __FIRST_CORE_COL_);
 
 __SHARED_DRAM_ = 0x8e000000;
@@ -49,13 +49,16 @@ MEMORY
 	EXTERNAL_DRAM_1 (WXAI)   : ORIGIN = 0x8f000000, LENGTH = 0x01000000 /* .heap                                */
 
 	/* run time lib and crt0 */
-	IVT_RAM (WXAI) : ORIGIN = 0, LENGTH = 0x32
+	IVT_RAM (WXAI) : ORIGIN = 0, LENGTH = 0x28
 
 	/* user program, continuous placement */
-	INTERNAL_RAM (WXAI)      : ORIGIN = LENGTH(IVT_RAM), LENGTH = 32K - LENGTH(IVT_RAM)
+	WORKGROUP_RAM (WXAI)     : ORIGIN = LENGTH(IVT_RAM), LENGTH = 0x30
+
+	/* user program, continuous placement */
+	INTERNAL_RAM (WXAI)      : ORIGIN = LENGTH(IVT_RAM) + LENGTH(WORKGROUP_RAM), LENGTH = 32K - LENGTH(IVT_RAM) - LENGTH(WORKGROUP_RAM)
 
 	/* user program, per bank usage */
-	BANK0_SRAM (WXAI)        : ORIGIN = LENGTH(IVT_RAM), LENGTH = 8K - LENGTH(IVT_RAM)
+	BANK0_SRAM (WXAI)        : ORIGIN = LENGTH(IVT_RAM) + LENGTH(WORKGROUP_RAM), LENGTH = 8K  - LENGTH(IVT_RAM) - LENGTH(WORKGROUP_RAM)
 	BANK1_SRAM (WXAI)        : ORIGIN = 0x2000, LENGTH = 8K
 	BANK2_SRAM (WXAI)        : ORIGIN = 0x4000, LENGTH = 8K
 	BANK3_SRAM (WXAI)        : ORIGIN = 0x6000, LENGTH = 8K
@@ -84,18 +87,22 @@ MEMORY
 
 SECTIONS
 {
-	ivt_reset               0   : {*.o(IVT_RESET)}                    > IVT_RAM
-	ivt_software_exception  4   : {*.o(ivt_entry_software_exception)} > IVT_RAM
-	ivt_page_miss           8   : {*.o(ivt_entry_page_miss)}          > IVT_RAM
-	ivt_timer0              12  : {*.o(ivt_entry_timer0)}             > IVT_RAM
-	ivt_timer1              16  : {*.o(ivt_entry_timer1)}             > IVT_RAM
-	ivt_message             20  : {*.o(ivt_entry_message)}            > IVT_RAM
-	ivt_dma0                24  : {*.o(ivt_entry_dma0)}               > IVT_RAM
-	ivt_dma1                28  : {*.o(ivt_entry_dma1)}               > IVT_RAM
-	ivt_swi                 36  : {*.o(ivt_entry_swi)}                > IVT_RAM
+	ivt_reset               0x00 : {*.o(IVT_RESET)}                    > IVT_RAM
+	ivt_software_exception  0x04 : {*.o(ivt_entry_software_exception)} > IVT_RAM
+	ivt_page_miss           0x08 : {*.o(ivt_entry_page_miss)}          > IVT_RAM
+	ivt_timer0              0x0c : {*.o(ivt_entry_timer0)}             > IVT_RAM
+	ivt_timer1              0x10 : {*.o(ivt_entry_timer1)}             > IVT_RAM
+	ivt_message             0x14 : {*.o(ivt_entry_message)}            > IVT_RAM
+	ivt_dma0                0x18 : {*.o(ivt_entry_dma0)}               > IVT_RAM
+	ivt_dma1                0x1c : {*.o(ivt_entry_dma1)}               > IVT_RAM
+	ivt_wand                0x20 : {*.o(ivt_entry_wand)}               > IVT_RAM
+	ivt_uirq                0x24 : {*.o(ivt_entry_uirq)}               > IVT_RAM
+	
+	workgroup_config        0x28 : {*.o(workgroup_cfg)}                > WORKGROUP_RAM /* 28 2c 30 34 38 3c 40 44 48 (4c) */
+	external_mem_config     0x50 : {*.o(ext_mem_cfg)}                  > WORKGROUP_RAM /* 50 54 */
 
-	/* place the ISR handlers after IVT */
-	.reserved_crt0  ORIGIN(IVT_RAM) + LENGTH(IVT_RAM) : {*.o(RESERVED_CRT0) *.o(reserved_crt0)} > INTERNAL_RAM
+	/* place the ISR handlers after workgroup-configuration */
+	.reserved_crt0  ORIGIN(IVT_RAM) + LENGTH(IVT_RAM) + LENGTH(WORKGROUP_RAM) : {*.o(RESERVED_CRT0) *.o(reserved_crt0)} > INTERNAL_RAM
 
 	. = ADDR(.reserved_crt0) + SIZEOF(.reserved_crt0);
 	.data_bank0 . : {*.o(.data_bank0)} > BANK0_SRAM
@@ -166,7 +173,7 @@ SECTIONS
       *(.rela.plt)
     }
 
-  .init :
+  .init  ADDR(.data_bank0) + SIZEOF(.data_bank0) :
   {
     KEEP (*(.init))
   } > INTERNAL_RAM =0

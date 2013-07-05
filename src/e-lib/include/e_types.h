@@ -26,16 +26,26 @@
 #define _E_TYPES_H_
 
 
-/**
- * @file e_types.h
- * @brief E_types
- *
- */
+#ifdef __cplusplus
+extern "C"
+{
+typedef enum {
+	E_FALSE = false,
+	E_TRUE  = true,
+} e_bool_t;
+#else
+typedef enum {
+	E_FALSE = 0,
+	E_TRUE  = 1,
+} e_bool_t;
+#endif
 
-#define TRUE 1
-#define FALSE 0
-typedef unsigned e_bool_t;
 
+typedef enum {
+	E_OK   =  0,
+	E_ERR  = -1,
+	E_WARN = -2,
+} e_return_stat_t;
 
 
 #endif /* _E_TYPES_H_ */

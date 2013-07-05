@@ -22,62 +22,47 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#include <signal.h>
-#include <machine/epiphany_config.h>
 #include "e_coreid.h"
 
-#define INTERNAL_CORE_MASK (((E_ROWS_IN_CHIP - 1) << 6) | (E_COLS_IN_CHIP - 1))
-#define CHIP_MIN_COL(coreid) (coreid & (~INTERNAL_CORE_MASK & 0x3f))
-#define CHIP_MAX_COL(coreid) ((coreid | INTERNAL_CORE_MASK) & 0x3f)
-
-/*
- This function calculates the coreid of the neighboring core, where neighbor
- can be the next core to north, east, south, or west. It will always calculate
- the id of another core on the same chip, wrapping on a row, column, or chip
- boundary as specified by the wrap argument.
- The return value is the difference between the neighboring coreid and the current
- one.
-*/
-int e_neighbor_id(e_coreid_t *coreid, e_coreid_wrap_t dir, e_coreid_wrap_t wrap)
+void e_neighbor_id(e_coreid_wrap_t dir, e_coreid_wrap_t wrap, unsigned *nrow, unsigned *ncol)
 {
-	unsigned   row, col;
-	e_coreid_t next;
-	int        diff;
-	unsigned   chip_mask;
+	unsigned row_mask, col_mask;
+	unsigned row, col;
 
 	/* Indexed by [wrap][dir] */
-	static const int core_adjust_table[3][2] =
+	static const unsigned row_adjust[3][2] =
 	{
-		{ 1,   -1 }, /* CHIP_WRAP */
-		{ 1,   -1 }, /* ROW_WRAP  */
-		{ 64, -64 }  /* COL_WRAP  */
+		{ 0,  0 }, /* GROUP_WRAP */
+		{ 0,  0 }, /* ROW_WRAP  */
+		{-1,  1 }  /* COL_WRAP  */
 	};
 
-	chip_mask = *coreid & ~INTERNAL_CORE_MASK;
-	next = ((*coreid + core_adjust_table[wrap][dir]) & INTERNAL_CORE_MASK) | chip_mask;
-	if (wrap == E_CHIP_WRAP)
+	static const unsigned col_adjust[3][2] =
 	{
-		e_coords_from_coreid(next, &row, &col);
-		if (dir == E_NEXT_CORE)
-		{ /* if we wrapped back to the first column, we need to advance to the next row. */
-			/* if (col == e_get_chip_min_col(next)) */
-			if (col == CHIP_MIN_COL(next))
-			{
-				next = ((next + 0x40) & INTERNAL_CORE_MASK) | chip_mask;
-			}
-		}
-		else /* dir == E_PREV_CORE */
-		{ /* if we wrapped to the last column, we need to advance to the previous row. */
-			/* if (col == e_get_chip_max_col(next)) */
-			if (col == CHIP_MAX_COL(next))
-			{
-				next = ((next - 0x40) & INTERNAL_CORE_MASK) | chip_mask;
-			}
-		}
-	}
+		{-1,  1 }, /* GROUP_WRAP */
+		{-1,  1 }, /* ROW_WRAP  */
+		{ 0,  0 }  /* COL_WRAP  */
+	};
 
-	diff = next - *coreid;
-	*coreid = next;
+	/* This only works for Power-Of-Two group dimensions */
+	row_mask = e_group_config.group_rows - 1;
+	col_mask = e_group_config.group_cols - 1;
 
-	return diff;
+
+	/* Calculate the next core coordinates */
+	row = e_group_config.core_row + row_adjust[wrap][dir];
+	col = e_group_config.core_col + col_adjust[wrap][dir];
+
+	if (wrap == E_GROUP_WRAP)
+		/* when the new col is negative, it is wrapped around due to the unsignedness
+		 * of the variable. I any case, an edge core's column gets greater than group
+		 * size
+		 */
+		if (col >= e_group_config.group_cols)
+			row = row + (2 * dir - 1);
+
+	*nrow = row & row_mask;
+	*ncol = col & col_mask;
+
+	return;
 }

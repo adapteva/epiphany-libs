@@ -26,59 +26,53 @@
 #include "e_dma.h"
 
 
-//e_tcb_t _tcb SECTION(".data_bank0");
+e_dma_desc_t _dma_copy_descriptor_ SECTION(".data_bank0");
 
-unsigned dma_configs[8] =
+unsigned dma_data_size[8] =
 {
-	(E_DMA_DOUBLE | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_SHORT  | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_LONG   | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_SHORT  | E_DMA_MASTER | E_DMA_ENABLE),
-	(E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE)
+	E_DMA_DWORD,
+	E_DMA_BYTE,
+	E_DMA_HWORD,
+	E_DMA_BYTE,
+	E_DMA_WORD,
+	E_DMA_BYTE,
+	E_DMA_HWORD,
+	E_DMA_BYTE,
 };
 
-//int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align, e_bool_t blocking, e_bool_t interrupt)
-int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align)
-{
-	unsigned index;
-	unsigned shift;
-	unsigned stride;
-	unsigned config;
+#define local_mask (0xfff00000)
 
-	switch (align)
-	{
-	default:
-		return -1;
-	case E_ALIGN_BYTE:
-		config = E_DMA_BYTE   | E_DMA_MASTER | E_DMA_ENABLE;
-		break;
-	case E_ALIGN_SHORT:
-		config = E_DMA_SHORT  | E_DMA_MASTER | E_DMA_ENABLE;
-		break;
-	case E_ALIGN_LONG:
-		config = E_DMA_LONG   | E_DMA_MASTER | E_DMA_ENABLE;
-		break;
-	case E_ALIGN_DOUBLE:
-		config = E_DMA_DOUBLE | E_DMA_MASTER | E_DMA_ENABLE;
-		break;
-	case E_ALIGN_AUTO:
-		index = (((unsigned) dst) | ((unsigned) src) | ((unsigned) bytes)) & 7;
-		config = dma_configs[index];
-		break;
-	}
-	shift = config >> 5;
+
+int e_dma_copy(void *dst, void *src, size_t n)
+{
+	e_dma_id_t chan;
+	unsigned   index;
+	unsigned   shift;
+	unsigned   stride;
+	unsigned   config;
+	int        ret_val;
+
+	chan  = E_DMA_1;
+
+	index = (((unsigned) dst) | ((unsigned) src) | ((unsigned) n)) & 7;
+
+	config = E_DMA_MASTER | E_DMA_ENABLE | dma_data_size[index];
+	if ((((unsigned) dst) & local_mask) == 0)
+		config = config | E_DMA_MSGMODE;
+	shift = dma_data_size[index] >> 5;
 	stride = 0x10001 << shift;
 
-	_tcb->config = config;
-	_tcb->inner_stride = stride;
-	_tcb->count = 0x10000 | (bytes >> shift);
-	_tcb->outer_stride = stride;
-	_tcb->src_addr = src;
-	_tcb->dst_addr = dst;
+	_dma_copy_descriptor_.config       = config;
+	_dma_copy_descriptor_.inner_stride = stride;
+	_dma_copy_descriptor_.count        = 0x10000 | (n >> shift);
+	_dma_copy_descriptor_.outer_stride = stride;
+	_dma_copy_descriptor_.src_addr     = src;
+	_dma_copy_descriptor_.dst_addr     = dst;
 
-	return e_dma_start(chan, _tcb);
+	ret_val = e_dma_start(&_dma_copy_descriptor_, chan);
+
+	while (e_dma_busy(chan));
+
+	return ret_val;
 }
 

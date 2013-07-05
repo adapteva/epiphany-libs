@@ -67,44 +67,10 @@ typedef enum
 */
 #define E_CTIMER_MAX (~0)
 
-/** @fn ctimer_get();
-    @brief Returns the value from the ctimer's count register.
-    @param timer Select one of the core's timers.
-    @return Returns the current count value
-*/
-unsigned int e_ctimer_get(e_ctimer_id_t timer);
+unsigned e_ctimer_get(e_ctimer_id_t timer);
+unsigned e_ctimer_set(e_ctimer_id_t timer, unsigned int val);
+unsigned e_ctimer_start(e_ctimer_id_t timer, e_ctimer_config_t config);
+unsigned e_ctimer_stop(e_ctimer_id_t timer);
+void e_sleep(unsigned int clicks);
 
-/** @fn void e_ctimer_set();
-    @brief  Setup a ctimer for operation.
-    @param  timer Which timer to use
-    @param  config Configuration value written to timer config bits.
-    @param  val Starting count for timer
-    @return Returns 0 on success.
-*/
-unsigned int e_ctimer_set(e_ctimer_id_t timer, e_ctimer_config_t config, unsigned int val);
-
-/** @fn ctimer_start();
-    @brief Causes the ctimer to begin counting down.
-    @param timer Select one of the core's timers.
-    @param config Specifies what event the timer will count.
-		@return Returns 0 on success.
-*/
-unsigned int e_ctimer_start(e_ctimer_id_t timer, e_ctimer_config_t config);
-
-/** @fn ctimer_stop();
-    @brief Causes the ctimer to stop counting.
-    @param timer Select one of the core's timers.
-    @return Returns the previous timer configuration
-*/
-e_ctimer_config_t e_ctimer_stop(e_ctimer_id_t timer);
-
-/*  @fn ctimer_sleep();
-    @brief Wait for a specified number of clock cycles before returning.
-    @param timer Select one of the core's timers.
-    @param clicks Specifies the number of clock cycles to wait before returning.
-    @return Returns the current count value
-*/
-/*
-void e_ctimer_sleep(e_ctimer_id_t timer, unsigned int clicks);
-*/
 #endif /* CTIMER_H_ */

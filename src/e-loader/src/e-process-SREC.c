@@ -57,9 +57,9 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 	int status = E_OK;
 
 
-	insection = e_false;
-	islocal   = e_false;
-	isonchip  = e_false;
+	insection = E_FALSE;
+	islocal   = E_FALSE;
+	isonchip  = E_FALSE;
 
 	diag(L_D1) { fprintf(fd, "ee_process_SREC(): loading core (%d,%d).\n", row, col); }
 
@@ -96,20 +96,20 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 			{
 				sSel = S0;
 				addrSize = 4;
-				if (insection == e_true)
+				if (insection == E_TRUE)
 				{
 					fprintf(fd, "Error: S0 record found inside a section in SREC file line ");
 					fprintf(fd, "%d: \"%s\"\n", lineN, buf);
 					status = E_WARN;
 					continue; // TODO: bail out with error code
 				} else {
-					insection = e_true;
+					insection = E_TRUE;
 				}
 			} else if (buf[1] == '3')
 			{
 				sSel = S3;
 				addrSize = 8;
-				if (insection == e_false)
+				if (insection == E_FALSE)
 				{
 					fprintf(fd, "Error: S3 record found outside of a section in SREC file line ");
 					fprintf(fd, "%d: \"%s\"\n", lineN, buf);
@@ -120,14 +120,14 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 			{
 				sSel = S7;
 				addrSize = 8;
-				if (insection == e_false)
+				if (insection == E_FALSE)
 				{
 					fprintf(fd, "Error: S7 record found outside of a section in SREC file line ");
 					fprintf(fd, "%d: \"%s\"\n", lineN, buf);
 					status = E_WARN;
 					continue; // TODO: bail out with error code
 				} else {
-					insection = e_false;
+					insection = E_FALSE;
 				}
 			} else
 			{
@@ -168,12 +168,12 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 			if (addrHex & 0xfff00000)
 			{
 				// This is a global address. Check if address is on an eCore.
-				islocal  = e_false;
+				islocal  = E_FALSE;
 				isonchip = e_is_addr_on_chip((void *) addrHex);
 			} else {
 				// This is a local address.
-				islocal  = e_true;
-				isonchip = e_true;
+				islocal  = E_TRUE;
+				isonchip = E_TRUE;
 			}
 			diag(L_D3) { fprintf(fd, "ee_process_SREC(): address: 0x%08x\n", (uint) addrHex); }
 

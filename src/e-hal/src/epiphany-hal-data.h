@@ -31,13 +31,13 @@
 extern "C"
 {
 typedef enum {
-	e_false = false,
-	e_true  = true,
+	E_FALSE = false,
+	E_TRUE  = true,
 } e_bool_t;
 #else
 typedef enum {
-	e_false = 0,
-	e_true  = 1,
+	E_FALSE = 0,
+	E_TRUE  = 1,
 } e_bool_t;
 #endif
 
@@ -61,9 +61,80 @@ typedef enum {
 // eCore registers
 typedef enum {
 	E_CORE_REG_BASE = 0xf0000,
+	// General Purpose Registers
+	E_REG_R0        = E_CORE_REG_BASE + 0x0000,
+	E_REG_R1        = E_CORE_REG_BASE + 0x0004,
+	E_REG_R2        = E_CORE_REG_BASE + 0x0008,
+	E_REG_R3        = E_CORE_REG_BASE + 0x000c,
+	E_REG_R4        = E_CORE_REG_BASE + 0x0010,
+	E_REG_R5        = E_CORE_REG_BASE + 0x0014,
+	E_REG_R6        = E_CORE_REG_BASE + 0x0018,
+	E_REG_R7        = E_CORE_REG_BASE + 0x001c,
+	E_REG_R8        = E_CORE_REG_BASE + 0x0020,
+	E_REG_R9        = E_CORE_REG_BASE + 0x0024,
+	E_REG_R10       = E_CORE_REG_BASE + 0x0028,
+	E_REG_R11       = E_CORE_REG_BASE + 0x002c,
+	E_REG_R12       = E_CORE_REG_BASE + 0x0030,
+	E_REG_R13       = E_CORE_REG_BASE + 0x0034,
+	E_REG_R14       = E_CORE_REG_BASE + 0x0038,
+	E_REG_R15       = E_CORE_REG_BASE + 0x003c,
+	E_REG_R16       = E_CORE_REG_BASE + 0x0040,
+	E_REG_R17       = E_CORE_REG_BASE + 0x0044,
+	E_REG_R18       = E_CORE_REG_BASE + 0x0048,
+	E_REG_R19       = E_CORE_REG_BASE + 0x004c,
+	E_REG_R20       = E_CORE_REG_BASE + 0x0050,
+	E_REG_R21       = E_CORE_REG_BASE + 0x0054,
+	E_REG_R22       = E_CORE_REG_BASE + 0x0058,
+	E_REG_R23       = E_CORE_REG_BASE + 0x005c,
+	E_REG_R24       = E_CORE_REG_BASE + 0x0060,
+	E_REG_R25       = E_CORE_REG_BASE + 0x0064,
+	E_REG_R26       = E_CORE_REG_BASE + 0x0068,
+	E_REG_R27       = E_CORE_REG_BASE + 0x006c,
+	E_REG_R28       = E_CORE_REG_BASE + 0x0070,
+	E_REG_R29       = E_CORE_REG_BASE + 0x0074,
+	E_REG_R30       = E_CORE_REG_BASE + 0x0078,
+	E_REG_R31       = E_CORE_REG_BASE + 0x007c,
+	E_REG_R32       = E_CORE_REG_BASE + 0x0080,
+	E_REG_R33       = E_CORE_REG_BASE + 0x0084,
+	E_REG_R34       = E_CORE_REG_BASE + 0x0088,
+	E_REG_R35       = E_CORE_REG_BASE + 0x008c,
+	E_REG_R36       = E_CORE_REG_BASE + 0x0090,
+	E_REG_R37       = E_CORE_REG_BASE + 0x0094,
+	E_REG_R38       = E_CORE_REG_BASE + 0x0098,
+	E_REG_R39       = E_CORE_REG_BASE + 0x009c,
+	E_REG_R40       = E_CORE_REG_BASE + 0x00a0,
+	E_REG_R41       = E_CORE_REG_BASE + 0x00a4,
+	E_REG_R42       = E_CORE_REG_BASE + 0x00a8,
+	E_REG_R43       = E_CORE_REG_BASE + 0x00ac,
+	E_REG_R44       = E_CORE_REG_BASE + 0x00b0,
+	E_REG_R45       = E_CORE_REG_BASE + 0x00b4,
+	E_REG_R46       = E_CORE_REG_BASE + 0x00b8,
+	E_REG_R47       = E_CORE_REG_BASE + 0x00bc,
+	E_REG_R48       = E_CORE_REG_BASE + 0x00c0,
+	E_REG_R49       = E_CORE_REG_BASE + 0x00c4,
+	E_REG_R50       = E_CORE_REG_BASE + 0x00c8,
+	E_REG_R51       = E_CORE_REG_BASE + 0x00cc,
+	E_REG_R52       = E_CORE_REG_BASE + 0x00d0,
+	E_REG_R53       = E_CORE_REG_BASE + 0x00d4,
+	E_REG_R54       = E_CORE_REG_BASE + 0x00d8,
+	E_REG_R55       = E_CORE_REG_BASE + 0x00dc,
+	E_REG_R56       = E_CORE_REG_BASE + 0x00e0,
+	E_REG_R57       = E_CORE_REG_BASE + 0x00e4,
+	E_REG_R58       = E_CORE_REG_BASE + 0x00e8,
+	E_REG_R59       = E_CORE_REG_BASE + 0x00ec,
+	E_REG_R60       = E_CORE_REG_BASE + 0x00f0,
+	E_REG_R61       = E_CORE_REG_BASE + 0x00f4,
+	E_REG_R62       = E_CORE_REG_BASE + 0x00f8,
+	E_REG_R63       = E_CORE_REG_BASE + 0x00fc,
+	// Core Registers
 	E_CONFIG        = E_CORE_REG_BASE + 0x0400,
 	E_STATUS        = E_CORE_REG_BASE + 0x0404,
 	E_PC            = E_CORE_REG_BASE + 0x0408,
+	E_DEBUGSTATUS   = E_CORE_REG_BASE + 0x040c,
+	E_IAB           = E_CORE_REG_BASE + 0x0410,
+	E_LC            = E_CORE_REG_BASE + 0x0414,
+	E_LS            = E_CORE_REG_BASE + 0x0418,
+	E_LE            = E_CORE_REG_BASE + 0x041c,
 	E_IRET          = E_CORE_REG_BASE + 0x0420,
 	E_IMASK         = E_CORE_REG_BASE + 0x0424,
 	E_ILAT          = E_CORE_REG_BASE + 0x0428,
@@ -75,6 +146,7 @@ typedef enum {
 	E_FSTATUS       = E_CORE_REG_BASE + 0x0440,
 	E_HWSTATUS      = E_CORE_REG_BASE + 0x0444,
 	E_DEBUGCMD      = E_CORE_REG_BASE + 0x0448,
+	// DMA Registers
 	E_DMA0CONFIG    = E_CORE_REG_BASE + 0x0500,
 	E_DMA0STRIDE    = E_CORE_REG_BASE + 0x0504,
 	E_DMA0COUNT     = E_CORE_REG_BASE + 0x0508,
@@ -91,6 +163,10 @@ typedef enum {
 	E_DMA1AUTODMA0  = E_CORE_REG_BASE + 0x0534,
 	E_DMA1AUTODMA1  = E_CORE_REG_BASE + 0x0538,
 	E_DMA1STATUS    = E_CORE_REG_BASE + 0x053C,
+	// Memory Protection Registers
+	E_MEM_PROTECT   = E_CORE_REG_BASE + 0x0608,
+	// Node Registers
+	E_MESH_CONFIG   = E_CORE_REG_BASE + 0x0700,
 	E_COREID        = E_CORE_REG_BASE + 0x0704,
 	E_CORE_RESET    = E_CORE_REG_BASE + 0x070c,
 } e_core_regs_t;
@@ -103,6 +179,7 @@ typedef enum {
 	E_IO_TX_CFG     = E_CHIP_REG_BASE + 0x0304,
 	E_IO_RX_CFG     = E_CHIP_REG_BASE + 0x0308,
 	E_IO_FLAG_CFG   = E_CHIP_REG_BASE + 0x030c,
+	E_IO_DFT_MON    = E_CHIP_REG_BASE + 0x0318,
 	E_IO_RESET      = E_CHIP_REG_BASE + 0x0324,
 } e_chip_regs_t;
 
@@ -121,7 +198,7 @@ typedef enum {
 
 // Core group data structures
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	e_chiptype_t     type;        // Epiphany chip part number
 	unsigned int     num_cores;   // number of cores group
 	unsigned int     base_coreid; // group base core ID
@@ -135,7 +212,7 @@ typedef struct {
 
 
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	off_t            phy_base;    // physical global base address of external memory buffer as seen by host side
 	off_t            page_base;   // physical base address of memory page
 	off_t            page_offset; // offset of memory region base to memory page base
@@ -143,7 +220,7 @@ typedef struct {
 	off_t            ephy_base;   // physical global base address of external memory buffer as seen by device side
 	size_t           emap_size;   // size of eDRAM allocated buffer for device side
 	void            *mapped_base; // for mmap
-	void            *base;        // application space base address of external memory buffer
+	void            *base;        // application (virtual) space base address of external memory buffer
 	int              memfd;       // for mmap
 } e_mem_t;
 

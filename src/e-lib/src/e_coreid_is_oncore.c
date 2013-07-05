@@ -22,11 +22,22 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#include <machine/epiphany_config.h>
 #include "e_coreid.h"
 
 /* Is address on this core? */
-int e_is_oncore(const void *ptr)
+e_bool_t e_is_on_core(const void *ptr)
 {
-	return (e_coreid_from_address(ptr) == e_get_coreid()) ? 1 : 0;
+	unsigned coreid;
+	e_bool_t res;
+
+	coreid = (((unsigned) ptr) & 0xfff00000) >> 20;
+
+	if (coreid == e_get_coreid())
+		res = E_TRUE;
+	else if (coreid == 0)
+		res = E_TRUE;
+	else
+		res = E_FALSE;
+
+	return res;
 }

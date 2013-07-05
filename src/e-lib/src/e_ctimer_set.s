@@ -22,6 +22,8 @@
   <http://www.gnu.org/licenses/>.
 */
 
+//unsigned int e_ctimer_set(e_ctimer_id_t timer, unsigned val);
+
 .file    "e_ctimer_set.s";
 
 
@@ -41,25 +43,9 @@ _e_ctimer_set:
 .balign 4;
 _ctimer0_set:
 
-        movfs r3, config;                    // get the current config setting
+        mov   r0, r1;                        // set the return value
     //----
-        mov   r0, %low(0xffffff0f);          // load mask for the config register
-    //----
-        movt  r0, %high(0xffffff0f);         // load mask for the config register
-    //----
-        lsl   r1, r1, 0x4;                   // the ctimer0 control bits start at bit4
-    //----
-        and   r3, r3, r0;                    // apply the mask to clear TIMERMODE bits from previous config setting
-    //----
-        movts config, r3;                    // turn the ctimer0 off
-    //----
-        orr   r3, r3, r1;                    // add the desired TIMERMODE to config
-    //----
-        movts ctimer0, r2;                   // set the ctimer counter to the desired value
-    //----
-        movts config, r3;                    // start the ctimer counter
-    //----
-        movfs r0, ctimer0;                   // read the ctimer value
+        movts ctimer0, r1;                   // set the ctimer counter to the desired value
     //----
         rts;                                 // return with the current value of the ctimer
 
@@ -67,25 +53,9 @@ _ctimer0_set:
 .balign 4;
 _ctimer1_set:
 
-        movfs r3, config;                    // get the current config setting
+        mov   r0, r1;                        // set the return value
     //----
-        mov   r0, %low(0xfffff0ff);          // load mask for the config register
-    //----
-        movt  r0, %high(0xfffff0ff);         // load mask for the config register
-    //----
-        lsl   r1, r1, 0x8;                   // the ctimer1 control bits start at bit8
-    //----
-        and   r3, r3, r0;                    // apply the mask to clear TIMERMODE bits from previous config setting
-    //----
-        movts config, r3;                    // turn the ctimer1 off
-    //----
-        orr   r3, r3, r1;                    // add the desired TIMERMODE to config
-    //----
-        movts ctimer1, r2;                   // set the ctimer counter to the desired value
-    //----
-        movts config, r3;                    // start the ctimer counter
-    //----
-        movfs r0, ctimer1;                   // read the ctimer value
+        movts ctimer1, r1;                   // set the ctimer counter to the desired value
     //----
         rts;                                 // return with the current value of the ctimer
 

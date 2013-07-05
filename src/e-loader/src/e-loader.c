@@ -34,6 +34,7 @@
 #define diag(vN)   if (e_load_verbose >= vN)
 
 int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
+int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 
 e_loader_diag_t e_load_verbose = 0;
 FILE *fd;
@@ -81,7 +82,8 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 					{
 						fprintf(fd, "ERROR: Can't parse SREC file.\n");
 						return E_ERR;
-					}
+					} else
+						ee_set_core_config(dev, pemem, irow, icol);
 
 			for (irow=row; irow<(row+rows); irow++)
 				for (icol=col; icol<(col + cols); icol++)
@@ -109,6 +111,35 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 	return status;
 }
 
+
+int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
+{
+	e_group_config_t *pgrpcfg  = (void *) SIZEOF_IVT;
+	e_emem_config_t  *pememcfg = (void *) SIZEOF_IVT + sizeof(e_group_config_t);
+
+	e_group_config_t e_group_config;
+	e_emem_config_t  e_emem_config;
+
+	e_group_config.objtype     = E_EPI_GROUP;
+	e_group_config.chiptype    = pEpiphany->type;
+	e_group_config.group_id    = pEpiphany->base_coreid;
+	e_group_config.group_row   = pEpiphany->row;
+	e_group_config.group_col   = pEpiphany->col;
+	e_group_config.group_rows  = pEpiphany->rows;
+	e_group_config.group_cols  = pEpiphany->cols;
+	e_group_config.core_row    = row;
+	e_group_config.core_col    = col;
+
+	e_group_config.alignment_padding = 0xdeadbeef;
+
+	e_emem_config.objtype   = E_EXT_MEM;
+	e_emem_config.base      = pEMEM->ephy_base;
+
+	e_write(pEpiphany, row, col, (off_t) pgrpcfg,  &e_group_config, sizeof(e_group_config_t));
+	e_write(pEpiphany, row, col, (off_t) pememcfg, &e_emem_config,  sizeof(e_emem_config_t));
+
+	return 0;
+}
 
 
 e_loader_diag_t e_set_loader_verbosity(e_loader_diag_t verbose)

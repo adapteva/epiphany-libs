@@ -22,40 +22,34 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#include "e_ic.h"
 #include "e_regs.h"
 #include "e_dma.h"
 
-int e_dma_start(e_dma_id_t chan, e_tcb_t *tcb)
+int e_dma_start(volatile e_dma_desc_t *descriptor, e_dma_id_t chan)
 {
-	unsigned      start;
-	e_irq_state_t irq_state;
-	int           ret_val = -1;
+	unsigned start;
+	int      ret_val = -1;
 
 	if ((chan | 1) != 1)
 	{
 		return -1;
 	}
 
-	irq_state = e_gid();
-
 	/* wait for the DMA engine to be idle */
 	while (e_dma_busy(chan));
 
-	start = ((volatile int)(tcb) << 16) | E_DMA_STARTUP;
+	start = ((volatile int)(descriptor) << 16) | E_DMA_STARTUP;
 	switch (chan)
 	{
-	case 0:
-		e_sysreg_write(E_DMA0CONFIG, start);
+	case E_DMA_0:
+		e_reg_write(E_DMA0CONFIG, start);
 		ret_val = 0;
 		break;
-	case 1:
-		e_sysreg_write(E_DMA1CONFIG, start);
+	case E_DMA_1:
+		e_reg_write(E_DMA1CONFIG, start);
 		ret_val = 0;
 		break;
 	}
 
-	e_gie_restore(irq_state);
 	return ret_val;
 }
-

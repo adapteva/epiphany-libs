@@ -31,6 +31,7 @@
 #include <e_dma.h>
 #include <e_ctimers.h>
 #include <e_ic.h>
+#include <e_mem.h>
 #include <e_mutex.h>
 #include <e_coreid.h>
 

@@ -22,14 +22,13 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#include <machine/epiphany_config.h>
 #include "e_coreid.h"
 
 
-e_coreid_t e_get_coreid()
+inline e_coreid_t e_get_coreid()
 {
 	register unsigned coreid_in_reg asm("r0");
-	__asm__ __volatile__ ("MOVFS %0, coreid" : : "r" (coreid_in_reg));
+	__asm__ __volatile__ ("MOVFS %0, COREID" : : "r" (coreid_in_reg));
 
 	return (coreid_in_reg);
 }

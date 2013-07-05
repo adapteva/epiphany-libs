@@ -36,10 +36,10 @@
 								<option id="gnu.c.compiler.option.debugging.level.10465204" name="Debug Level" superClass="gnu.c.compiler.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.476052427" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="../include"/>
-									<listOptionValue builtIn="false" value="/opt/adapteva/esdk/tools/gnu/epiphany-elf/include"/>
 								</option>
 								<option id="gnu.c.compiler.option.misc.other.1136154" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0" valueType="string"/>
 								<option id="com.adapteva.cdt.epiphany.project.option1.667155302" name="Set the prevailing mode of the floating point unit." superClass="com.adapteva.cdt.epiphany.project.option1" value="com.adapteva.cdt.epiphany.project.enumeratedOptionValue4" valueType="enumerated"/>
+								<option id="gnu.c.compiler.option.optimization.flags.469572536" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" value="-falign-loops=8" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2085364566" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.atdsp.base.372896602" name="Epiphany linker" superClass="cdt.managedbuild.tool.gnu.c.linker.atdsp.base"/>
@@ -87,11 +87,10 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.archiver.atdsp.base.1103509399" name="Epiphany archiver" superClass="cdt.managedbuild.tool.gnu.archiver.atdsp.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.atdsp.base.959479610" name="Epiphany compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.atdsp.base">
-								<option defaultValue="gnu.c.optimization.level.most" id="gnu.c.compiler.option.optimization.level.460242365" name="Optimization Level" superClass="gnu.c.compiler.option.optimization.level" value="gnu.c.optimization.level.more" valueType="enumerated"/>
+								<option defaultValue="gnu.c.optimization.level.most" id="gnu.c.compiler.option.optimization.level.460242365" name="Optimization Level" superClass="gnu.c.compiler.option.optimization.level" value="gnu.c.optimization.level.most" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.debugging.level.1467821036" name="Debug Level" superClass="gnu.c.compiler.option.debugging.level" value="gnu.c.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.668785422" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="../include"/>
-									<listOptionValue builtIn="false" value="/opt/adapteva/esdk/tools/gnu/epiphany-elf/include"/>
 								</option>
 								<option id="gnu.c.compiler.option.misc.other.1807296860" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0" valueType="string"/>
 								<option id="atdsp.com.cdt.atdsp.project.option2.1569398133" name="Set floating-point expression contraction" superClass="atdsp.com.cdt.atdsp.project.option2" value="com.adapteva.cdt.epiphany.project.enumeratedOptionValue1" valueType="enumerated"/>

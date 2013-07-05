@@ -25,51 +25,9 @@
 #ifndef MUTEX_H_
 #define MUTEX_H_
 
-
 #include "e_types.h"
 
-
-/**
- * @file e_lock.h
- * @brief The manage multi-core lock
- *
- * @section DESCRIPTION
- * The e_mLock functions manage multi-core atomic lock/unlock operations. The lock resource in remote/local core can accessed by coordinates and lock number.\n
- * The \a C_MAX_SUPPORTED_LOCKS defines the number supported locks for each core in the system. The lock call is blocking.
- *
- * @section EXAMPLE
- *	e_mutex_t mymutex;
- *
- *	if (e_mutex_init(&mymutex, NULL))
- *	{
- *		return -1;
- *	}
- *
- *	if (e_mutex_lock(&mymutex))
- *	{
- *		return -1;
- *	}
- *	// operation requiring mutual exclusion goes here
- *	if (e_mutex_unlock(&mymutex))
- *	{
- *		return -1;
- *	}
- *
- *	// Try to get a mutex repeatedly until we've tried too many times
- *	while (e_e_mutex_trylock(&mymutex) && --timeout>0)
- *	{
- *		sleep(1);
- *	}
- *
- *	if (e_mutex_unlock(&mymutex))
- *	{
- *		return -1;
- *	}
- *	if (e_mutex_destory(&mymutex))
- *	{
- *		return -1;
- *	}
- */
+typedef char e_barrier_t;
 
 typedef struct
 {
@@ -82,47 +40,17 @@ typedef struct
 } e_mutexattr_t;
 
 //-- for user to initialize a mutex structure
-#define MUTEX_NULL     {0}
-#define MUTEXATTR_NULL {0}
+#define MUTEX_NULL     (0)
+#define MUTEXATTR_NULL (0)
 #define MUTEXATTR_DEFAULT MUTEXATTR_NULL
 
 
-/** @fn int e_mutex_lock(e_mutex_t *mutex);
-    @brief  Lock a mutex (keep trying until mutex acquired)
-    @param  mutex Global pointer to a mutex of type e_mutex_t.
-    @return The function returns zero when successful.
-*/
+void e_mutex_init(unsigned row, unsigned col, e_mutex_t *mutex, e_mutexattr_t *attr);
+void e_mutex_lock(unsigned row, unsigned col, e_mutex_t *mutex);
+unsigned e_mutex_trylock(unsigned row, unsigned col, e_mutex_t *mutex);
+void e_mutex_unlock(unsigned row, unsigned col, e_mutex_t *mutex);
+void e_barrier_init(volatile e_barrier_t bar_array[], e_barrier_t *tgt_bar_array[]);
+void e_barrier(volatile e_barrier_t *bar_array, e_barrier_t *tgt_bar_array[]);
 
-int e_mutex_lock(e_mutex_t *mutex);
-
-/** @fn int e_mutex_unlock(e_mutex_t *mutex);
-    @brief  Unlock a mutex
-    @param  mutex Global pointer to a mutex of type e_mutex_t.
-    @return The function returns zero when successful.
-*/
-int e_mutex_unlock(e_mutex_t *mutex);
-
-
-/** @fn int e_e_mutex_trylock(e_mutex_t *mutex);
-    @brief  Attempt to lock a mutex (return after one failed attempt)
-    @param  mutex Global pointer to a mutex of type e_mutex_t.
-    @return The function returns zero when successful, EBUSY if the mutex was locked.
-*/
-int e_mutex_trylock(e_mutex_t *mutex);
-
-/** @fn int mutex_init(e_mutex_t *mutex, e_mutexattr_t *attr);
-    @brief  Initialize a mutex structure
-    @param  mutex Global pointer to a mutex of type e_mutex_t.
-    @param  attr Pointer to mutex attributes - NULL for default.
-    @return The function returns zero when successful.
-*/
-int e_mutex_init(e_mutex_t *mutex, e_mutexattr_t *attr);
-
-/** @fn int int mutex_destroy(e_mutex_t *mutex);
-    @brief  Destroy (de-initialize) a mutex structure
-    @param  mutex Global pointer to a mutex of type e_mutex_t.
-    @return The function returns zero when successful.
-*/
-int e_mutex_destroy(e_mutex_t *mutex);
 
 #endif /* MUTEX_H_ */

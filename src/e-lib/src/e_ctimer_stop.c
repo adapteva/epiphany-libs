@@ -22,19 +22,25 @@
   <http://www.gnu.org/licenses/>.
 */
 
+#include "e_ctimers.h"
 #include "e_regs.h"
 
-unsigned e_ctimer_stop(unsigned timerid)
+unsigned e_ctimer_stop(e_ctimer_id_t timer)
 {
+// TODO convert to assembly to eliminate 2 function calls.
 	unsigned shift;
 	unsigned mask;
 	unsigned config;
+	unsigned count;
 
-	shift = (timerid) ? 8:4;
+	shift = (timer) ? 8:4;
 	mask = 0xf << shift;
-	config = e_sysreg_read(E_CONFIG);
+	config = e_reg_read(E_CONFIG);
 	// stop the timer
-	e_sysreg_write(E_CONFIG, config & ~mask);
-	return (config >> shift) & 0xf;
+	e_reg_write(E_CONFIG, config & (~mask));
+
+	count = e_reg_read(timer ? E_CTIMER1 : E_CTIMER0);
+
+	return count;
 }
 

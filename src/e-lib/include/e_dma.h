@@ -25,8 +25,7 @@
 #ifndef _EPIPHANY_DMA_H_
 #define _EPIPHANY_DMA_H_
 
-#include <stdlib.h>
-#include <errno.h>
+#include <stddef.h>
 #include <e_common.h>
 
 /*
@@ -41,10 +40,11 @@ typedef enum
 	E_DMA_STARTUP = (1<<3),
 	E_DMA_IRQEN   = (1<<4),
 	E_DMA_BYTE    = (0<<5),
-	E_DMA_SHORT   = (1<<5),
-	E_DMA_LONG    = (2<<5),
-	E_DMA_DOUBLE  = (3<<5)
-} e_dma_tcb_cfg_t;
+	E_DMA_HWORD   = (1<<5),
+	E_DMA_WORD    = (2<<5),
+	E_DMA_DWORD   = (3<<5),
+	E_DMA_MSGMODE = (1<<10),
+} e_dma_config_t;
 
 typedef enum
 {
@@ -52,27 +52,26 @@ typedef enum
 	E_DMA_1 = 1
 } e_dma_id_t;
 
-typedef enum
-{
-	E_ALIGN_BYTE,
-	E_ALIGN_SHORT,
-	E_ALIGN_LONG,
-	E_ALIGN_DOUBLE,
-	E_ALIGN_AUTO,
-} e_dma_align_t;
-
 typedef struct
 {
-	unsigned long config;
-	unsigned long inner_stride;
-	unsigned long count;
-	unsigned long outer_stride;
+	unsigned int  config;
+	unsigned int  inner_stride;
+	unsigned int  count;
+	unsigned int  outer_stride;
 	void         *src_addr;
 	void         *dst_addr;
-} ALIGN(8) e_tcb_t;
+} ALIGN(8) e_dma_desc_t;
 
-int e_dma_start(e_dma_id_t chan, e_tcb_t *usr_tcb);
-int e_dma_busy(e_dma_id_t chan);
-int e_dma_copy(e_tcb_t *_tcb, e_dma_id_t chan, void *dst, void *src, size_t bytes, e_dma_align_t align);
+int  e_dma_start(volatile e_dma_desc_t *descriptor, e_dma_id_t chan);
+int  e_dma_busy(e_dma_id_t chan);
+void e_dma_wait(e_dma_id_t chan);
+int  e_dma_copy(void *dst, void *src, size_t n);
+void e_set_dma_desc(e_dma_id_t chan,
+		unsigned config,     e_dma_desc_t *n_desc,
+		unsigned strd_i_src, unsigned strd_i_dst,
+		unsigned count_i,    unsigned count_o,
+		unsigned strd_o_src, unsigned strd_o_dst,
+		void     *addr_src,  void *addr_dst,
+		e_dma_desc_t *desc);
 
 #endif /* _EPIPHANY_DMA_H_ */

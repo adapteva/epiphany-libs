@@ -35,17 +35,18 @@
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
 
-typedef unsigned int uint;
+typedef unsigned int  uint;
+typedef unsigned long ulong;
 
 
 int  ee_parse_hdf(e_platform_t *dev, char *hdf);
 int  ee_parse_simple_hdf(e_platform_t *dev, char *hdf);
 int  ee_parse_xml_hdf(e_platform_t *dev, char *hdf);
-void ee_trim(char *a);
-long ee_rndu_page(long size);
-long ee_rndl_page(long size);
+void ee_trim_str(char *a);
+unsigned long ee_rndu_page(unsigned long size);
+unsigned long ee_rndl_page(unsigned long size);
 
-#define diag(vN)   if (e_host_verbose >= vN)
+#define diag(vN) if (e_host_verbose >= vN)
 
 //static int e_host_verbose = 0;
 //static FILE *fd;
@@ -54,6 +55,7 @@ FILE *fd             __attribute__ ((visibility ("hidden")));
 
 char *OBJTYPE[64] = {"NULL", "EPI_PLATFORM", "EPI_CHIP", "EPI_GROUP", "EPI_CORE", "EXT_MEM"};
 
+char const esdk_path[] = "EPIPHANY_HOME";
 char const hdf_env_var_name[] = "EPIPHANY_HDF";
 
 //static e_platform_t e_platform = { E_EPI_PLATFORM };
@@ -68,11 +70,12 @@ e_platform_t e_platform = { E_EPI_PLATFORM };
 int e_init(char *hdf)
 {
 	uid_t UID;
-	char *hdf_env;
+	char *hdf_env, *esdk_env, hdf_dfl[1024];
 	int i;
 
 	e_platform.objtype     = E_EPI_PLATFORM;
-	e_platform.initialized = e_false;
+	e_platform.hal_ver     = 0x040d0614;
+	e_platform.initialized = E_FALSE;
 	e_platform.num_chips   = 0;
 	e_platform.num_emems   = 0;
 
@@ -86,14 +89,20 @@ int e_init(char *hdf)
 	// Parse HDF, get platform configuration
 	if (hdf == NULL)
 	{
+		// Try getting HDF from EPIPHANY_HDF environment variable
 		hdf_env = getenv(hdf_env_var_name);
 		diag(H_D2) { fprintf(fd, "e_init(): HDF ENV = %s\n", hdf_env); }
-		if (hdf_env == NULL)
+		if (hdf_env != NULL)
+			hdf = hdf_env;
+		else
 		{
-			warnx("e_init(): No Hardware Definition File (HDF) is specified.");
-			return E_ERR;
+			// Try opening .../bsps/current/platform.hdf
+			warnx("e_init(): No Hardware Definition File (HDF) is specified. Trying \"platform.hdf\".");
+			esdk_env = getenv(esdk_path);
+			strcpy(hdf_dfl, esdk_env);
+			strcat(hdf_dfl, "/bsps/current/platform.hdf");
+			hdf = hdf_dfl;
 		}
-		hdf = hdf_env;
 	}
 
 	diag(H_D2) { fprintf(fd, "e_init(): opening HDF %s\n", hdf); }
@@ -134,7 +143,7 @@ int e_init(char *hdf)
 	diag(H_D2) { fprintf(fd, "e_init(): platform.(row,col)   = (%d,%d)\n", e_platform.row, e_platform.col); }
 	diag(H_D2) { fprintf(fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
 
-	e_platform.initialized = e_true;
+	e_platform.initialized = E_TRUE;
 
 	return E_OK;
 }
@@ -143,13 +152,13 @@ int e_init(char *hdf)
 // Finalize connection with the Epiphany platform; Free allocated resources.
 int e_finalize()
 {
-	if (e_platform.initialized == e_false)
+	if (e_platform.initialized == E_FALSE)
 	{
 		warnx("e_finalize(): Platform was not initiated.");
 		return E_ERR;
 	}
 
-	e_platform.initialized = e_false;
+	e_platform.initialized = E_FALSE;
 
 	free(e_platform.chip);
 	free(e_platform.emem);
@@ -160,7 +169,7 @@ int e_finalize()
 
 int e_get_platform_info(e_platform_t *platform)
 {
-	if (e_platform.initialized == e_false)
+	if (e_platform.initialized == E_FALSE)
 	{
 		warnx("e_get_platform_info(): Platform was not initialized. Use e_init().");
 		return E_ERR;
@@ -182,13 +191,14 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	int irow, icol;
 	e_core_t *curr_core;
 
-	if (e_platform.initialized == e_false)
+	if (e_platform.initialized == E_FALSE)
 	{
 		warnx("e_open(): Platform was not initialized. Use e_init().");
 		return E_ERR;
 	}
 
 	dev->objtype = E_EPI_GROUP;
+	dev->type    = e_platform.chip[0].type; // TODO: assumes one chip type in platform
 
 	// Set device geometry
 	// TODO: check if coordinates and size are legal.
@@ -326,7 +336,7 @@ ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf
 	e_epiphany_t *edev;
 	e_mem_t      *mdev;
 
-	switch (*((e_objytpe_t *) dev))
+	switch (*((e_objtype_t *) dev))
 	{
 	case E_EPI_GROUP:
 		diag(H_D2) { fprintf(fd, "e_read(): detected EPI_GROUP object.\n"); }
@@ -363,7 +373,7 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 	e_epiphany_t *edev;
 	e_mem_t      *mdev;
 
-	switch (*((e_objytpe_t *) dev))
+	switch (*((e_objtype_t *) dev))
 	{
 	case E_EPI_GROUP:
 		diag(H_D2) { fprintf(fd, "e_write(): detected EPI_GROUP object.\n"); }
@@ -447,7 +457,7 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_read_buf(): writing to from_addr=0x%08x, size=%d, map_size=%d\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, size=%d, map_size=%d\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_read_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -573,7 +583,7 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 // Allocate a buffer in external memory
 int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 {
-	if (e_platform.initialized == e_false)
+	if (e_platform.initialized == E_FALSE)
 	{
 		warnx("e_alloc(): Platform was not initialized. Use e_init().");
 		return E_ERR;
@@ -889,7 +899,7 @@ int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 // Signal a software interrupt to an e-core in a group
 int e_signal(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	int  SWI = (1 << E_SW_INT);
+	int  SWI = (1 << E_USR_INT);
 
 	diag(H_D1) { fprintf(fd, "e_signal(): SWI (0x%x) to core (%d,%d)...\n", E_ILATST, row, col); }
 	ee_write_reg(dev, row, col, E_ILATST, SWI);
@@ -1015,10 +1025,10 @@ e_bool_t e_is_addr_on_chip(void *addr)
 		curr_chip = &(e_platform.chip[i]);
 		if ((row >= curr_chip->row) && (row < (curr_chip->row + curr_chip->rows)) &&
 		    (col >= curr_chip->col) && (col < (curr_chip->col + curr_chip->cols)))
-			return e_true;
+			return E_TRUE;
 	}
 
-	return e_false;
+	return E_FALSE;
 }
 
 
@@ -1033,9 +1043,9 @@ e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr)
 
 	if ((row >= 0) && (row < dev->rows) &&
 	    (col >= 0) && (col < dev->cols))
-		return e_true;
+		return E_TRUE;
 
-	return e_false;
+	return E_FALSE;
 }
 
 
@@ -1103,7 +1113,7 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 	{
 		l++;
 		fgets(line, sizeof(line), fp);
-		ee_trim(line);
+		ee_trim_str(line);
 		if (!strcmp(line, ""))
 			continue;
 		sscanf(line, "%s %s", etag, eval);
@@ -1226,7 +1236,7 @@ int ee_parse_xml_hdf(e_platform_t *dev, char *hdf)
 
 // Platform data structures
 typedef struct {
-	e_objytpe_t      objtype;     // object type identifier
+	e_objtype_t      objtype;     // object type identifier
 	e_chiptype_t     type;        // Epiphany chip part number
 	char             version[32]; // version name of Epiphany chip
 	unsigned int     arch;        // architecture generation
@@ -1244,33 +1254,33 @@ typedef struct {
 
 #define NUM_CHIP_VERSIONS 2
 e_chip_db_t chip_params_table[NUM_CHIP_VERSIONS] = {
-//       objtype     type      version   arch r c  sram_base sram_size regs_base regs_size io_n     io_e        io_s        io_w
+//       objtype     type       version  arch r  c sram_base sram_size regs_base regs_size io_n     io_e        io_s        io_w
 		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x083f0000, 0x0c2f0000, 0x080f0000},
 		{E_EPI_CHIP, E_E64G401, "E64G401", 4, 8, 8, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
 };
 
 
-int ee_set_chip_params(e_chip_t *dev)
+int ee_set_chip_params(e_chip_t *chip)
 {
 	int chip_ver;
 
 	for (chip_ver = (NUM_CHIP_VERSIONS-1); chip_ver > -1; chip_ver--)
-		if (!strcmp(dev->version, chip_params_table[chip_ver].version))
+		if (!strcmp(chip->version, chip_params_table[chip_ver].version))
 		{
-			diag(H_D2) { fprintf(fd, "ee_set_chip_params(): found chip version \"%s\"\n", dev->version); }
-			dev->type = chip_params_table[chip_ver].type;
-			dev->arch = chip_params_table[chip_ver].arch;
-			dev->rows = chip_params_table[chip_ver].rows;
-			dev->cols = chip_params_table[chip_ver].cols;
-			dev->num_cores = dev->rows * dev->cols;
-			dev->sram_base = chip_params_table[chip_ver].sram_base;
-			dev->sram_size = chip_params_table[chip_ver].sram_size;
-			dev->regs_base = chip_params_table[chip_ver].regs_base;
-			dev->regs_size = chip_params_table[chip_ver].regs_size;
-			dev->ioregs_n = chip_params_table[chip_ver].ioregs_n;
-			dev->ioregs_e = chip_params_table[chip_ver].ioregs_e;
-			dev->ioregs_s = chip_params_table[chip_ver].ioregs_s;
-			dev->ioregs_w = chip_params_table[chip_ver].ioregs_w;
+			diag(H_D2) { fprintf(fd, "ee_set_chip_params(): found chip version \"%s\"\n", chip->version); }
+			chip->type      = chip_params_table[chip_ver].type;
+			chip->arch      = chip_params_table[chip_ver].arch;
+			chip->rows      = chip_params_table[chip_ver].rows;
+			chip->cols      = chip_params_table[chip_ver].cols;
+			chip->num_cores = chip->rows * chip->cols;
+			chip->sram_base = chip_params_table[chip_ver].sram_base;
+			chip->sram_size = chip_params_table[chip_ver].sram_size;
+			chip->regs_base = chip_params_table[chip_ver].regs_base;
+			chip->regs_size = chip_params_table[chip_ver].regs_size;
+			chip->ioregs_n  = chip_params_table[chip_ver].ioregs_n;
+			chip->ioregs_e  = chip_params_table[chip_ver].ioregs_e;
+			chip->ioregs_s  = chip_params_table[chip_ver].ioregs_s;
+			chip->ioregs_w  = chip_params_table[chip_ver].ioregs_w;
 
 			break;
 		}
@@ -1279,7 +1289,7 @@ int ee_set_chip_params(e_chip_t *dev)
 }
 
 
-void ee_trim(char *a)
+void ee_trim_str(char *a)
 {
     char *b = a;
     while (isspace(*b))   ++b;
