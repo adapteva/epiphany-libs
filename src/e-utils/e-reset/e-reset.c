@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	e_bool_t testme;
 
 	pEpiphany = &Epiphany;
-	e_set_host_verbosity(H_D2);
+	e_set_host_verbosity(H_D0);
 
 	e_init(NULL);
 

@@ -61,16 +61,12 @@ int main(int argc, char *argv[])
 	Epiphany_t *dev, Epiphany;
 	unsigned int hw_rev;
 
-
-	fprintf(stderr, "Page size = %d (0x%x)\n", getpagesize(), (unsigned int) sysconf(_SC_PAGESIZE));
-
-
 	dev = &Epiphany;
 
 	e_open(dev);
 
 	hw_rev = e_read_esys(dev, ESYS_VERSION);
-	fprintf(stderr, "Epiphany Hardware Revision: %02x.%02x.%02x.%02x\n", (hw_rev>>24)&0xff, (hw_rev>>16)&0xff, (hw_rev>>8)&0xff, (hw_rev>>0)&0xff);
+	printf("Epiphany Hardware Revision: %02x.%02x.%02x.%02x\n", (hw_rev>>24)&0xff, (hw_rev>>16)&0xff, (hw_rev>>8)&0xff, (hw_rev>>0)&0xff);
 
 	e_close(dev);
 
