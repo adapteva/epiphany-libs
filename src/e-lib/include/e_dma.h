@@ -49,25 +49,26 @@ typedef enum
 typedef enum
 {
 	E_DMA_0 = 0,
-	E_DMA_1 = 1
+	E_DMA_1 = 1,
 } e_dma_id_t;
 
 typedef struct
 {
-	unsigned int  config;
-	unsigned int  inner_stride;
-	unsigned int  count;
-	unsigned int  outer_stride;
-	void         *src_addr;
-	void         *dst_addr;
+	unsigned config;
+	unsigned inner_stride;
+	unsigned count;
+	unsigned outer_stride;
+	void    *src_addr;
+	void    *dst_addr;
 } ALIGN(8) e_dma_desc_t;
+
 
 int  e_dma_start(volatile e_dma_desc_t *descriptor, e_dma_id_t chan);
 int  e_dma_busy(e_dma_id_t chan);
 void e_dma_wait(e_dma_id_t chan);
 int  e_dma_copy(void *dst, void *src, size_t n);
 void e_set_dma_desc(e_dma_id_t chan,
-		unsigned config,     e_dma_desc_t *n_desc,
+		unsigned config,     e_dma_desc_t *next_desc,
 		unsigned strd_i_src, unsigned strd_i_dst,
 		unsigned count_i,    unsigned count_o,
 		unsigned strd_o_src, unsigned strd_o_dst,

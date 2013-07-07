@@ -28,16 +28,8 @@
 #include "e_types.h"
 
 typedef char e_barrier_t;
-
-typedef struct
-{
-	unsigned int m;
-} e_mutex_t;
-
-typedef struct
-{
-	unsigned int a;
-} e_mutexattr_t;
+typedef int  e_mutex_t;
+typedef int  e_mutexattr_t;
 
 //-- for user to initialize a mutex structure
 #define MUTEX_NULL     (0)
