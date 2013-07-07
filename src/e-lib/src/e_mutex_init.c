@@ -32,7 +32,7 @@ void e_mutex_init(unsigned row, unsigned col, e_mutex_t *mutex, e_mutexattr_t *a
 
 	gmutex = (e_mutex_t *) e_get_global_address(row, col, mutex);
 
-	gmutex->m = 0x0;
+	*gmutex = 0x0;
 
 	return;
 }

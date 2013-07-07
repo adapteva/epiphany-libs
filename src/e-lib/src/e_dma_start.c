@@ -32,7 +32,7 @@ int e_dma_start(volatile e_dma_desc_t *descriptor, e_dma_id_t chan)
 
 	if ((chan | 1) != 1)
 	{
-		return -1;
+		return E_ERR;
 	}
 
 	/* wait for the DMA engine to be idle */
@@ -43,13 +43,13 @@ int e_dma_start(volatile e_dma_desc_t *descriptor, e_dma_id_t chan)
 	{
 	case E_DMA_0:
 		e_reg_write(E_DMA0CONFIG, start);
-		ret_val = 0;
+		ret_val = E_OK;
 		break;
 	case E_DMA_1:
 		e_reg_write(E_DMA1CONFIG, start);
-		ret_val = 0;
+		ret_val = E_OK;
 		break;
 	}
 
-	return ret_val;
+	return E_ERR;
 }
