@@ -40,8 +40,8 @@
  */
 typedef enum
 {
-	E_CTIMER_0 = 0,
-	E_CTIMER_1 = 1
+	E_CTIMER_ID0 = 0,
+	E_CTIMER_ID1 = 1
 } e_ctimer_id_t;
 
 /** @enum e_ctimer_config_t
