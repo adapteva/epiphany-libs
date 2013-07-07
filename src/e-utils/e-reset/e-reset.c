@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
 	if ((argc > 1) && (!strcmp(argv[1], "-t")))
 	{
-		testme = e_true;
+		testme = E_TRUE;
 
 		e_get_platform_info(&e_pl);
 		if (e_open(pEpiphany, 0, 0, e_pl.rows, e_pl.cols))
@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	} else {
-		testme = e_false;
+		testme = E_FALSE;
 	}
 
 	if (testme)

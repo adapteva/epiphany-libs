@@ -16,8 +16,8 @@ int main(int argc, char *argv[])
 	int iarg, iiarg;
 
 	e_get_platform_info(&plat);
-	ireset = e_false;
-	istart = e_false;
+	ireset = E_FALSE;
+	istart = E_FALSE;
 	row  = plat.row;
 	col  = plat.col;
 	rows = cols  = 1;
@@ -31,11 +31,11 @@ int main(int argc, char *argv[])
 			return 0;
 		} else if (!strcmp(argv[iiarg], "-r") || !strcmp(argv[iiarg], "--reset"))
 		{
-			ireset = e_true;
+			ireset = E_TRUE;
 			iarg++;
 		} else if (!strcmp(argv[iiarg], "-s") || !strcmp(argv[iiarg], "--start"))
 		{
-			istart = e_true;
+			istart = E_TRUE;
 			iarg++;
 		}
 		iiarg++;

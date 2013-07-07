@@ -74,7 +74,7 @@ int e_init(char *hdf)
 	int i;
 
 	e_platform.objtype     = E_EPI_PLATFORM;
-	e_platform.hal_ver     = 0x040d0614;
+	e_platform.hal_ver     = 0x050d0705; // TODO: update ver
 	e_platform.initialized = E_FALSE;
 	e_platform.num_chips   = 0;
 	e_platform.num_emems   = 0;
