@@ -37,7 +37,7 @@ void e_sleep(unsigned int clicks)
 	e_ctimer_start(timer, E_CTIMER_CLK);
 
 	// Wait until ctimer is idle
-	while (e_ctimer_get(timer)) {};
+	while (e_ctimer_get(timer)) { };
 
 	return;
 }
