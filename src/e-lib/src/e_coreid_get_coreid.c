@@ -25,7 +25,7 @@
 #include "e_coreid.h"
 
 
-inline e_coreid_t e_get_coreid()
+e_coreid_t e_get_coreid()
 {
 	register unsigned coreid_in_reg asm("r0");
 	__asm__ __volatile__ ("MOVFS %0, COREID" : : "r" (coreid_in_reg));
