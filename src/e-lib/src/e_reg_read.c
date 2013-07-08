@@ -32,10 +32,10 @@ unsigned e_reg_read(e_reg_id_t reg_id)
 
 	switch (reg_id)
 	{
-	case E_CONFIG:
+	case E_REG_CONFIG:
 		__asm__ __volatile__ ("MOVFS %0, CONFIG" : "=r" (reg_val) : );
 		return reg_val;
-	case E_STATUS:
+	case E_REG_STATUS:
 		__asm__ __volatile__ ("MOVFS %0, STATUS" : "=r" (reg_val) : );
 		return reg_val;
 	default:

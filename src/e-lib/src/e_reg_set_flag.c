@@ -37,17 +37,17 @@ void e_set_flag(e_bool_t state)
 	else
 		chipid = coreid & 0xe38;
 
-	config = e_reg_read(E_CONFIG);
+	config = e_reg_read(E_REG_CONFIG);
 	config = (config & 0xffff0fff) | 0x00001000;
-	e_reg_write(E_CONFIG, config);
+	e_reg_write(E_REG_CONFIG, config);
 
-	gdst  = (unsigned *) (((chipid + 0x002) << 20) + E_IO_FLAG_CFG);
+	gdst  = (unsigned *) (((chipid + 0x002) << 20) + E_REG_IO_FLAG_CFG);
 	*gdst = 0x03ffffff;
-	gdst  = (unsigned *) (((chipid + 0x002) << 20) + E_IO_DFT_MON);
+	gdst  = (unsigned *) (((chipid + 0x002) << 20) + E_REG_IO_LINK_DEBUG);
 	*gdst = (unsigned) state;
 
 	config = config & 0xffff0fff;
-	e_reg_write(E_CONFIG, config);
+	e_reg_write(E_REG_CONFIG, config);
 
 	return;
 }

@@ -31,9 +31,9 @@ void e_dma_wait(e_dma_id_t chan)
 
 	do {
 			if (chan == E_DMA_0)
-				dma_busy = e_reg_read(E_DMA0STATUS) & 0xf;
+				dma_busy = e_reg_read(E_REG_DMA0STATUS) & 0xf;
 			else
-				dma_busy = e_reg_read(E_DMA1STATUS) & 0xf;
+				dma_busy = e_reg_read(E_REG_DMA1STATUS) & 0xf;
 	} while (dma_busy);
 
 	return;

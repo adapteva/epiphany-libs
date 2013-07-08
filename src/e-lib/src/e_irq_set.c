@@ -33,7 +33,7 @@ void e_irq_set(unsigned row, unsigned col, e_irq_type_t irq)
 //	if ((row == E_SELF) || (col == E_SELF))
 //		ilatst = (unsigned *) E_ILATST;
 //	else
-	ilatst = (unsigned *) e_get_global_address(row, col, (void *) E_ILATST);
+	ilatst = (unsigned *) e_get_global_address(row, col, (void *) E_REG_ILATST);
 
 	*ilatst = 1 << (irq - E_SYNC);
 

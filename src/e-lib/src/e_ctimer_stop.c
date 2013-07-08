@@ -35,11 +35,11 @@ unsigned e_ctimer_stop(e_ctimer_id_t timer)
 
 	shift = (timer) ? 8:4;
 	mask = 0xf << shift;
-	config = e_reg_read(E_CONFIG);
+	config = e_reg_read(E_REG_CONFIG);
 	// stop the timer
-	e_reg_write(E_CONFIG, config & (~mask));
+	e_reg_write(E_REG_CONFIG, config & (~mask));
 
-	count = e_reg_read(timer ? E_CTIMER1 : E_CTIMER0);
+	count = e_reg_read(timer ? E_REG_CTIMER1 : E_REG_CTIMER0);
 
 	return count;
 }

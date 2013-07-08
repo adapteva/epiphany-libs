@@ -29,7 +29,7 @@ void e_sleep(unsigned int clicks)
 {
 	e_ctimer_id_t timer;
 
-	timer = E_CTIMER_ID1;
+	timer = E_CTIMER_1;
 
 	// Program ctimer and start counting
 	e_ctimer_stop(timer);

@@ -32,10 +32,10 @@ void e_reg_write(e_reg_id_t reg_id, unsigned val)
 
 	switch (reg_id)
 	{
-	case E_CONFIG:
+	case E_REG_CONFIG:
 		__asm__ __volatile__ ("MOVTS CONFIG, %0" : : "r" (reg_val));
 		break;
-	case E_STATUS:
+	case E_REG_STATUS:
 		__asm__ __volatile__ ("MOVTS STATUS, %0" : : "r" (reg_val));
 		break;
 	default:

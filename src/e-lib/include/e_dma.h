@@ -34,16 +34,20 @@
 */
 typedef enum
 {
-	E_DMA_ENABLE  = (1<<0),
-	E_DMA_MASTER  = (1<<1),
-	E_DMA_CHAIN   = (1<<2),
-	E_DMA_STARTUP = (1<<3),
-	E_DMA_IRQEN   = (1<<4),
-	E_DMA_BYTE    = (0<<5),
-	E_DMA_HWORD   = (1<<5),
-	E_DMA_WORD    = (2<<5),
-	E_DMA_DWORD   = (3<<5),
-	E_DMA_MSGMODE = (1<<10),
+	E_DMA_ENABLE        = (1<<0),
+	E_DMA_MASTER        = (1<<1),
+	E_DMA_CHAIN         = (1<<2),
+	E_DMA_STARTUP       = (1<<3),
+	E_DMA_IRQEN         = (1<<4),
+	E_DMA_BYTE          = (0<<5),
+	E_DMA_HWORD         = (1<<5),
+	E_DMA_WORD          = (2<<5),
+	E_DMA_DWORD         = (3<<5),
+	E_DMA_MSGMODE       = (1<<10),
+	E_DMA_SHIFT_SRC_IN  = (1<<12),
+	E_DMA_SHIFT_DST_IN  = (1<<13),
+	E_DMA_SHIFT_SRC_OUT = (1<<14),
+	E_DMA_SHIFT_DST_OUT = (1<<15),
 } e_dma_config_t;
 
 typedef enum
@@ -63,7 +67,7 @@ typedef struct
 } ALIGN(8) e_dma_desc_t;
 
 
-int  e_dma_start(volatile e_dma_desc_t *descriptor, e_dma_id_t chan);
+int  e_dma_start(e_dma_desc_t *descriptor, e_dma_id_t chan);
 int  e_dma_busy(e_dma_id_t chan);
 void e_dma_wait(e_dma_id_t chan);
 int  e_dma_copy(void *dst, void *src, size_t n);
