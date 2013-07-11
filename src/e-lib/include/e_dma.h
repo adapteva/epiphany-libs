@@ -71,7 +71,7 @@ int  e_dma_start(e_dma_desc_t *descriptor, e_dma_id_t chan);
 int  e_dma_busy(e_dma_id_t chan);
 void e_dma_wait(e_dma_id_t chan);
 int  e_dma_copy(void *dst, void *src, size_t n);
-void e_set_dma_desc(e_dma_id_t chan,
+void e_dma_set_desc(e_dma_id_t chan,
 		unsigned config,     e_dma_desc_t *next_desc,
 		unsigned strd_i_src, unsigned strd_i_dst,
 		unsigned count_i,    unsigned count_o,

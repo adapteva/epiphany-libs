@@ -71,6 +71,6 @@ unsigned e_ctimer_get(e_ctimer_id_t timer);
 unsigned e_ctimer_set(e_ctimer_id_t timer, unsigned int val);
 unsigned e_ctimer_start(e_ctimer_id_t timer, e_ctimer_config_t config);
 unsigned e_ctimer_stop(e_ctimer_id_t timer);
-void e_sleep(unsigned int clicks);
+void e_wait(e_ctimer_id_t timer, unsigned int clicks);
 
 #endif /* CTIMER_H_ */

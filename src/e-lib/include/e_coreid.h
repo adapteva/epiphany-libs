@@ -36,21 +36,21 @@ typedef enum
 {
 /* e_neighbor_id() wrap constants */
 	E_GROUP_WRAP =  0,
-	E_ROW_WRAP  =  1,
-	E_COL_WRAP  =  2,
+	E_ROW_WRAP   =  1,
+	E_COL_WRAP   =  2,
 /* e_neighbor_id() dir constants */
-	E_PREV_CORE =  0,
-	E_NEXT_CORE =  1,
+	E_PREV_CORE  =  0,
+	E_NEXT_CORE  =  1,
 } e_coreid_wrap_t;
 
 typedef enum {
 	E_NULL         = 0,
-	E_EPI_PLATFORM    ,
-	E_EPI_CHIP        ,
-	E_EPI_GROUP       ,
-	E_EPI_CORE        ,
-	E_EXT_MEM         ,
-	E_MAPPING         ,
+	E_EPI_PLATFORM = 1,
+	E_EPI_CHIP     = 2,
+	E_EPI_GROUP    = 3,
+	E_EPI_CORE     = 4,
+	E_EXT_MEM      = 5,
+	E_MAPPING      = 6,
 } e_objtype_t;
 
 typedef enum {
@@ -80,11 +80,11 @@ extern const e_group_config_t e_group_config;
 extern const e_emem_config_t  e_emem_config;
 
 
-e_coreid_t e_get_coreid();
-
-e_coreid_t e_coreid_from_coords(unsigned row, unsigned col);
+e_coreid_t e_get_coreid(void);
 
 void *e_get_global_address(unsigned row, unsigned col, const void *ptr);
+
+e_coreid_t e_coreid_from_coords(unsigned row, unsigned col);
 
 void e_coords_from_coreid(e_coreid_t coreid, unsigned *row, unsigned *col);
 

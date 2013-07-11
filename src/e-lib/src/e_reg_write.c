@@ -25,7 +25,7 @@
 #include "e_regs.h"
 #include "e_coreid.h"
 
-void e_reg_write(e_reg_id_t reg_id, unsigned val)
+void e_reg_write(e_core_reg_id_t reg_id, unsigned val)
 {
 	volatile register unsigned reg_val = val;
 	unsigned *addr;

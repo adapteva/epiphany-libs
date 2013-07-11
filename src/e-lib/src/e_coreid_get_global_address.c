@@ -38,7 +38,8 @@ void *e_get_global_address(unsigned row, unsigned col, const void *ptr)
 		coreid = (row * 0x40 + col) + e_group_config.group_id;
 
 	/* Get the 20 ls bits of the pointer and add coreid. */
-	uptr = ((unsigned) ptr) & 0x000fffff;
+//	uptr = ((unsigned) ptr) & 0x000fffff; // not needed because of the 1st condition above
+	uptr = (unsigned) ptr;
 	uptr = (coreid << 20) | uptr;
 
 	return (void *) uptr;

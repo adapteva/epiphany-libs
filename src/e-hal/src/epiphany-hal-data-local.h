@@ -34,8 +34,8 @@ extern "C"
 
 
 typedef enum {
-	E_SYNC    = 0,
-	E_USR_INT = 9,
+	E_SYNC     = 0,
+	E_USER_INT = 9,
 } e_signal_t;
 
 

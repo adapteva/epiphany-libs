@@ -25,7 +25,7 @@
 #include "e_dma.h"
 
 
-void e_set_dma_desc(
+void e_dma_set_desc(
 		e_dma_id_t chan,
 		unsigned config,     e_dma_desc_t *next_desc,
 		unsigned strd_i_src, unsigned strd_i_dst,

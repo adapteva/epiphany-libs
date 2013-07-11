@@ -14,7 +14,7 @@ function build-xml() {
 	echo '============ E-XML ============'
 	echo '==============================='
 	cd src/e-xml/Release
-	make clean
+#	make clean
 	make all
 	cd ../../../
 }
@@ -26,7 +26,7 @@ function build-loader() {
 	echo '============ E-LOADER ============'
 	echo '=================================='
 	cd src/e-loader/Release
-	make clean
+#	make clean
 	make all
 	cd ../../../
 }
@@ -38,7 +38,7 @@ function build-hal() {
 	echo '============ E-HAL ============'
 	echo '==============================='
 	cd src/e-hal/Release
-	make clean
+#	make clean
 	make all
 	cp -f libe-hal.so ../../../bsps/${BSP}
 	cd ../../../
@@ -51,7 +51,7 @@ function build-server() {
 	echo '============ E-SERVER ============'
 	echo '=================================='
 	cd src/e-server/Release
-	make clean
+#	make clean
 	make all
 	cd ../../../
 }
@@ -63,6 +63,21 @@ function build-utils() {
 	echo '============ E-UTILS ============'
 	echo '================================='
 	cd src/e-utils
+	cd e-reset
+	./build.sh
+	cd ../
+	cd e-loader/Debug
+	make all
+	cd ../../
+	cd e-read/Debug
+	make all
+	cd ../../
+	cd e-write/Debug
+	make all
+	cd ../../
+	cd e-hw-rev
+	gcc e-hw-rev.c -o e-hw-rev
+	cd ../
 	cd ../../
 }
 
@@ -78,7 +93,7 @@ function build-lib() {
 		exit
 	fi
 	cd src/e-lib/Release
-	make clean
+#	make clean
 	make all
 	cd ../../../
 }

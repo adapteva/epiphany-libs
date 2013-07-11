@@ -58,6 +58,7 @@ int     e_reset_system();
 int     e_reset_chip();
 int     e_reset_core(e_epiphany_t *dev, unsigned row, unsigned col);
 int     e_start(e_epiphany_t *dev, unsigned row, unsigned col);
+int     e_start_group(e_epiphany_t *dev);
 int     e_signal(e_epiphany_t *dev, unsigned row, unsigned col);
 int     e_halt(e_epiphany_t *dev, unsigned row, unsigned col);
 int     e_resume(e_epiphany_t *dev, unsigned row, unsigned col);

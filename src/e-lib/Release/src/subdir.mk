@@ -11,11 +11,11 @@ C_SRCS += \
 ../src/e_coreid_get_global_address.c \
 ../src/e_coreid_is_oncore.c \
 ../src/e_coreid_neighbor_id.c \
-../src/e_ctimer_sleep.c \
 ../src/e_ctimer_stop.c \
+../src/e_ctimer_wait.c \
 ../src/e_dma_busy.c \
 ../src/e_dma_copy.c \
-../src/e_dma_set_dma_desc.c \
+../src/e_dma_set_desc.c \
 ../src/e_dma_start.c \
 ../src/e_dma_wait.c \
 ../src/e_irq_attach.c \
@@ -32,7 +32,6 @@ C_SRCS += \
 ../src/e_mutex_trylock.c \
 ../src/e_mutex_unlock.c \
 ../src/e_reg_read.c \
-../src/e_reg_set_flag.c \
 ../src/e_reg_write.c 
 
 S_SRCS += \
@@ -50,12 +49,12 @@ OBJS += \
 ./src/e_coreid_neighbor_id.o \
 ./src/e_ctimer_get.o \
 ./src/e_ctimer_set.o \
-./src/e_ctimer_sleep.o \
 ./src/e_ctimer_start.o \
 ./src/e_ctimer_stop.o \
+./src/e_ctimer_wait.o \
 ./src/e_dma_busy.o \
 ./src/e_dma_copy.o \
-./src/e_dma_set_dma_desc.o \
+./src/e_dma_set_desc.o \
 ./src/e_dma_start.o \
 ./src/e_dma_wait.o \
 ./src/e_irq_attach.o \
@@ -72,7 +71,6 @@ OBJS += \
 ./src/e_mutex_trylock.o \
 ./src/e_mutex_unlock.o \
 ./src/e_reg_read.o \
-./src/e_reg_set_flag.o \
 ./src/e_reg_write.o 
 
 C_DEPS += \
@@ -83,11 +81,11 @@ C_DEPS += \
 ./src/e_coreid_get_global_address.d \
 ./src/e_coreid_is_oncore.d \
 ./src/e_coreid_neighbor_id.d \
-./src/e_ctimer_sleep.d \
 ./src/e_ctimer_stop.d \
+./src/e_ctimer_wait.d \
 ./src/e_dma_busy.d \
 ./src/e_dma_copy.d \
-./src/e_dma_set_dma_desc.d \
+./src/e_dma_set_desc.d \
 ./src/e_dma_start.d \
 ./src/e_dma_wait.d \
 ./src/e_irq_attach.d \
@@ -104,7 +102,6 @@ C_DEPS += \
 ./src/e_mutex_trylock.d \
 ./src/e_mutex_unlock.d \
 ./src/e_reg_read.d \
-./src/e_reg_set_flag.d \
 ./src/e_reg_write.d 
 
 

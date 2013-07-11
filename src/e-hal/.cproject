@@ -43,8 +43,6 @@
 									<listOptionValue builtIn="false" value="../../"/>
 									<listOptionValue builtIn="false" value="../../e-hal/src"/>
 									<listOptionValue builtIn="false" value="../../e-loader/src"/>
-									<listOptionValue builtIn="false" value="/opt/adapteva/esdk/tools/host/armv7l/include"/>
-									<listOptionValue builtIn="false" value="/opt/adapteva/esdk/tools/host/include"/>
 								</option>
 								<option id="gnu.c.compiler.option.misc.other.152246066" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.808112755" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
@@ -115,8 +113,6 @@
 									<listOptionValue builtIn="false" value="../../"/>
 									<listOptionValue builtIn="false" value="../../e-hal/src"/>
 									<listOptionValue builtIn="false" value="../../e-loader/src"/>
-									<listOptionValue builtIn="false" value="/opt/adapteva/esdk/tools/host/armv7l/include"/>
-									<listOptionValue builtIn="false" value="/opt/adapteva/esdk/tools/host/include"/>
 								</option>
 								<option id="gnu.c.compiler.option.misc.pic.264168603" name="Position Independent Code (-fPIC)" superClass="gnu.c.compiler.option.misc.pic" value="true" valueType="boolean"/>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.640736504" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols"/>

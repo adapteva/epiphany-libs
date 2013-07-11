@@ -532,8 +532,8 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	ssize_t       size;
 
 	addr = from_addr;
-	if (addr >= E_CORE_REG_BASE)
-		addr = addr - E_CORE_REG_BASE;
+	if (addr >= E_CORE_GP_REG_BASE)
+		addr = addr - E_CORE_GP_REG_BASE;
 
 	size = sizeof(int);
 	if (((addr + size) > dev->core[row][col].regs.map_size) || (addr < 0))
@@ -559,8 +559,8 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	int     *pto;
 	ssize_t  size;
 
-	if (to_addr >= E_CORE_REG_BASE)
-		to_addr = to_addr - E_CORE_REG_BASE;
+	if (to_addr >= E_CORE_GP_REG_BASE)
+		to_addr = to_addr - E_CORE_GP_REG_BASE;
 
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].regs.map_size) || (to_addr < 0))
@@ -848,7 +848,7 @@ int e_reset_system()
 		e_open(&dev, 2, 3, 1, 1);
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
-		e_write(&dev, 0, 0, E_IO_LINK_CFG, &data, sizeof(int));
+		e_write(&dev, 0, 0, E_REG_IO_LINK_MODE_CFG, &data, sizeof(int));
 		ee_write_esys(E_SYS_CONFIG, 0x00000000);
 		e_close(&dev);
 	}
@@ -875,34 +875,63 @@ int e_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	int RESET1 = 0x1;
 
 	diag(H_D1) { fprintf(fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	ee_write_reg(dev, row, col, E_CORE_RESET, RESET1);
-	ee_write_reg(dev, row, col, E_CORE_RESET, RESET0);
+	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
+	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
 	diag(H_D1) { fprintf(fd, "e_reset_core(): done.\n"); }
 
 	return E_OK;
 }
 
 
-// Start a program loaded to an e-core in a group
+// Start a program loaded on an e-core in a group
 int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	int  SYNC = (1 << E_SYNC);
+	e_return_stat_t retval;
 
-	diag(H_D1) { fprintf(fd, "e_start(): SYNC (0x%x) to core (%d,%d)...\n", E_ILATST, row, col); }
-	ee_write_reg(dev, row, col, E_ILATST, SYNC);
+	retval = E_OK;
+
+	int SYNC = (1 << E_SYNC);
+
+	diag(H_D1) { fprintf(fd, "e_start(): SYNC (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
+	if (ee_write_reg(dev, row, col, E_REG_ILATST, SYNC) == E_ERR)
+		retval = E_ERR;
 	diag(H_D1) { fprintf(fd, "e_start(): done.\n"); }
 
-	return E_OK;
+	return retval;
+}
+
+
+// Start all programs loaded on a workgroup
+int e_start_group(e_epiphany_t *dev)
+{
+	int             irow, icol;
+	e_return_stat_t retval;
+
+	retval = E_OK;
+
+	int SYNC = (1 << E_SYNC);
+
+	diag(H_D1) { fprintf(fd, "e_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
+	for (irow=0; irow<dev->rows; irow++)
+		for (icol=0; icol<dev->cols; icol++)
+			{
+				diag(H_D1) { fprintf(fd, "e_start_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
+				if (ee_write_reg(dev, irow, icol, E_REG_ILATST, SYNC) == E_ERR)
+					retval = E_ERR;
+			}
+	diag(H_D1) { fprintf(fd, "e_start_group(): done.\n"); }
+
+	return retval;
 }
 
 
 // Signal a software interrupt to an e-core in a group
 int e_signal(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	int  SWI = (1 << E_USR_INT);
+	int SWI = (1 << E_USER_INT);
 
-	diag(H_D1) { fprintf(fd, "e_signal(): SWI (0x%x) to core (%d,%d)...\n", E_ILATST, row, col); }
-	ee_write_reg(dev, row, col, E_ILATST, SWI);
+	diag(H_D1) { fprintf(fd, "e_signal(): SWI (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
+	ee_write_reg(dev, row, col, E_REG_ILATST, SWI);
 	diag(H_D1) { fprintf(fd, "e_signal(): done.\n"); }
 
 	return E_OK;
@@ -915,7 +944,7 @@ int e_halt(e_epiphany_t *dev, unsigned row, unsigned col)
 	int cmd;
 
 	cmd = 0x1;
-	e_write(dev, row, col, E_DEBUGCMD, &cmd, sizeof(int));
+	e_write(dev, row, col, E_REG_DEBUGCMD, &cmd, sizeof(int));
 
 	return E_OK;
 }
@@ -927,7 +956,7 @@ int e_resume(e_epiphany_t *dev, unsigned row, unsigned col)
 	int cmd;
 
 	cmd = 0x0;
-	e_write(dev, row, col, E_DEBUGCMD, &cmd, sizeof(int));
+	e_write(dev, row, col, E_REG_DEBUGCMD, &cmd, sizeof(int));
 
 	return E_OK;
 }

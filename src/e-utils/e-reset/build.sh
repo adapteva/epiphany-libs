@@ -2,8 +2,10 @@
 
 set -e
 
-EINCS="${EPIPHANY_HOME}/tools/host/include"
-ELIBS="${EPIPHANY_HOME}/tools/host/lib"
+EINCS="../../e-hal/src"
+ELIBS="../../e-hal/Release"
+EINCS="-I ${EINCS} -I ${EPIPHANY_HOME}/tools/host/include"
+ELIBS="-L ${ELIBS} -L ${EPIPHANY_HOME}/tools/host/lib"
 
-gcc -L ${ELIBS} -I ${EINCS} e-reset.c -o e-reset.e -le-hal
+gcc ${ELIBS} ${EINCS} e-reset.c -o e-reset.e -le-hal
 

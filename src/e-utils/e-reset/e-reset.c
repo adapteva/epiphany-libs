@@ -37,11 +37,11 @@ int main(int argc, char *argv[])
 			for (icol=0; icol<Epiphany.cols; icol++)
 			{
 				cfg = 1;
-				e_write(pEpiphany, irow, icol, E_CONFIG, &cfg, sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_COREID, &cid,  sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_CONFIG, &cfg,  sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_STATUS, &stat, sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_PC,     &pc,   sizeof(unsigned));
+				e_write(pEpiphany, irow, icol, E_REG_CONFIG, &cfg, sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_COREID, &cid,  sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_CONFIG, &cfg,  sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_STATUS, &stat, sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_PC,     &pc,   sizeof(unsigned));
 
 				fprintf(stderr, "CoreID = 0x%03x  CONFIG = 0x%08x  STATUS = 0x%08x  PC = 0x%08x\n", cid, cfg, stat, pc);
 			}
@@ -58,10 +58,10 @@ int main(int argc, char *argv[])
 		for (irow=0; irow<Epiphany.rows; irow++)
 			for (icol=0; icol<Epiphany.cols; icol++)
 			{
-				e_read(pEpiphany, irow, icol, E_COREID, &cid,  sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_CONFIG, &cfg,  sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_STATUS, &stat, sizeof(unsigned));
-				e_read(pEpiphany, irow, icol, E_PC,     &pc,   sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_COREID, &cid,  sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_CONFIG, &cfg,  sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_STATUS, &stat, sizeof(unsigned));
+				e_read(pEpiphany, irow, icol, E_REG_PC,     &pc,   sizeof(unsigned));
 
 				fprintf(stderr, "CoreID = 0x%03x  CONFIG = 0x%08x  STATUS = 0x%08x  PC = 0x%08x\n", cid, cfg, stat, pc);
 			}

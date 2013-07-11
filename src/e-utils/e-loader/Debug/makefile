@@ -29,7 +29,9 @@ all: e-loader
 e-loader: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L/home/ysapir/Projects/newtools/maxwell_tools/e-hal/Release -L/home/ysapir/Projects/newtools/maxwell_tools/e-loader/Release -L../../../esdk/epiphany-libs/src/e-hal/Release -L../../../esdk/epiphany-libs/src/e-loader/Release -o "e-loader" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L../../../e-hal/Release \
+	    -L../../../e-loader/Release \
+		-o "e-loader" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

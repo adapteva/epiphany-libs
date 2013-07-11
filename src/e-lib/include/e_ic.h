@@ -38,7 +38,7 @@ typedef enum {
 	E_MESSAGE_INT  = 5,
 	E_DMA0_INT     = 6,
 	E_DMA1_INT     = 7,
-	E_USR_INT      = 9,
+	E_USER_INT     = 9,
 } e_irq_type_t;
 
 

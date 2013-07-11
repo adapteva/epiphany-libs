@@ -144,7 +144,7 @@ typedef enum {
 	E_REG_MESH_CONFIG      = E_CORE_SP_REG_BASE + 0x0700,
 	E_REG_COREID           = E_CORE_SP_REG_BASE + 0x0704,
 	E_REG_CORE_RESET       = E_CORE_SP_REG_BASE + 0x070c,
-} e_reg_id_t;
+} e_core_reg_id_t;
 
 // Chip registers
 typedef enum {
@@ -161,7 +161,7 @@ typedef enum {
 } e_chip_reg_id_t;
 
 
-unsigned e_reg_read(e_reg_id_t reg_id);
-void e_reg_write(e_reg_id_t reg_id, unsigned val);
+unsigned e_reg_read(e_core_reg_id_t reg_id);
+void e_reg_write(e_core_reg_id_t reg_id, unsigned val);
 
 #endif /* E_REGS_H_ */
