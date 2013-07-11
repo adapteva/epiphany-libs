@@ -169,9 +169,9 @@ SECTIONS
 	.data_bank3   : {*.o(.data_bank3)} > BANK3_SRAM
 	.text_bank3   : {*.o(.text_bank3)} > BANK3_SRAM
 
-	.code_dram    : {*.o(code_dram),   *.o(.code_dram)  } > EXTERNAL_DRAM_0
-	.shared_dram  : {*.o(shared_dram), *.o(.shared_dram)} > EXTERNAL_DRAM_1
-	.heap_dram   ORIGIN(EXTERNAL_DRAM_1) + LENGTH(EXTERNAL_DRAM_1) - __HEAP_SIZE_FOR_CORE_ * __NUM_ROWS_IN_CHIP_ * __NUM_COLS_IN_CHIP_ : {*.o(heap_dram), *.o(.heap_dram)} > EXTERNAL_DRAM_1
+	.code_dram    : {*.o(code_dram)   *.o(.code_dram)  } > EXTERNAL_DRAM_0
+	.shared_dram  : {*.o(shared_dram) *.o(.shared_dram)} > EXTERNAL_DRAM_1
+	.heap_dram   ORIGIN(EXTERNAL_DRAM_1) + LENGTH(EXTERNAL_DRAM_1) - __HEAP_SIZE_FOR_CORE_ * __NUM_ROWS_IN_CHIP_ * __NUM_COLS_IN_CHIP_ : {*.o(heap_dram) *.o(.heap_dram)} > EXTERNAL_DRAM_1
 
 	/* the newlib  (libc and libm) library is mapped to the dedicated section */
 	/* create offset with location counter                                    */

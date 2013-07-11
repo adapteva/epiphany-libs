@@ -29,7 +29,9 @@ all: e-write
 e-write: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L/opt/adapteva/esdk/tools/host/lib -o "e-write" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L../../../e-hal/Release \
+	    -L../../../e-loader/Release \
+	    -o "e-write" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

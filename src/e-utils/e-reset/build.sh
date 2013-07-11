@@ -2,10 +2,16 @@
 
 set -e
 
-EINCS="../../e-hal/src"
-ELIBS="../../e-hal/Release"
-EINCS="-I ${EINCS} -I ${EPIPHANY_HOME}/tools/host/include"
-ELIBS="-L ${ELIBS} -L ${EPIPHANY_HOME}/tools/host/lib"
+echo "Building target: e-reset"
 
-gcc ${ELIBS} ${EINCS} e-reset.c -o e-reset.e -le-hal
+EINCS="-I ../../e-hal/src"
+EINCS="${EINCS} -I ../../e-loader/src"
+EINCS="${EINCS} -I ${EPIPHANY_HOME}/tools/host/include"
+
+ELIBS="-L ../../e-hal/Release"
+ELIBS="${ELIBS} -L ${EPIPHANY_HOME}/tools/host/lib"
+
+echo "Invoking: GCC C Compiler"
+gcc ${ELIBS} ${EINCS} e-reset.c -o e-reset -le-hal
+echo "Finished building target: e-reset"
 

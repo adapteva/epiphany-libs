@@ -31,7 +31,7 @@ e-loader: $(OBJS) $(USER_OBJS)
 	@echo 'Invoking: GCC C Linker'
 	gcc -L../../../e-hal/Release \
 	    -L../../../e-loader/Release \
-		-o "e-loader" $(OBJS) $(USER_OBJS) $(LIBS)
+	    -o "e-loader" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

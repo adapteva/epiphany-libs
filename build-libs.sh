@@ -3,9 +3,7 @@
 set -e
 
 ESDK=${EPIPHANY_HOME}
-#BSP='zed_E64G4_512mb'
-BSP='zed_E16G3_512mb'
-ARCH='armv7l'
+BSPS="zed_E16G3_512mb zed_E64G4_512mb"
 
 
 function build-xml() {
@@ -40,7 +38,9 @@ function build-hal() {
 	cd src/e-hal/Release
 #	make clean
 	make all
-	cp -f libe-hal.so ../../../bsps/${BSP}
+	for bsp in ${BSPS}; do
+		cp -f libe-hal.so ../../../bsps/${bsp}
+	done
 	cd ../../../
 }
 
@@ -76,7 +76,7 @@ function build-utils() {
 	make all
 	cd ../../
 	cd e-hw-rev
-	gcc e-hw-rev.c -o e-hw-rev
+	./build.sh
 	cd ../
 	cd ../../
 }
@@ -125,13 +125,12 @@ function usage() {
 	exit
 }
 
-
-if [ $# == 0 ]; then
+if [[ $# == 0 ]]; then
 	usage
 fi
 
 
-while [ $# > 0 ]; do
+while [[ $# > 0 ]]; do
 	if   [[ "$1" == "1" || "$1" == "e-xml"    ]]; then
 		build-xml
 		
@@ -150,7 +149,7 @@ while [ $# > 0 ]; do
 	elif [[ "$1" == "6" || "$1" == "e-lib"    ]]; then
 		build-lib
 		
-	elif [ "$1" == "-a" ]; then
+	elif [[ "$1" == "-a" ]]; then
 		build-xml
 		build-loader
 		build-hal
@@ -159,10 +158,11 @@ while [ $# > 0 ]; do
 		build-lib
 		exit
 
-	elif [ "$1" == "-h" ]; then
+	elif [[ "$1" == "-h" ]]; then
 		usage
 	fi
 
 	shift
 done
+
 
