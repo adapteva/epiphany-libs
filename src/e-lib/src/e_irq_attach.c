@@ -4,7 +4,8 @@
   This file is part of the Epiphany Software Development Kit.
 
   Copyright (C) 2013 Adapteva, Inc.
-  Contributed by Oleg Raikhman, Jim Thomas, Yaniv Sapir <support@adapteva.com>
+  See AUTHORS for list of contributors.
+  Support e-mail: <support@adapteva.com>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License (LGPL)
@@ -22,8 +23,6 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#include <machine/epiphany_config.h>
-#include <signal.h>
 #include <e_ic.h>
 
 #define B_OPCODE 0x000000e8 // OpCode of the B<*> instruction
@@ -50,6 +49,8 @@ void e_irq_attach(e_irq_type_t irq, sighandler_t handler)
 }
 
 #else
+#include <machine/epiphany_config.h>
+#include <signal.h>
 
 void e_irq_attach(e_irq_type_t irq, sighandler_t handler)
 {
