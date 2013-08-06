@@ -863,15 +863,58 @@ int e_reset_chip()
 
 
 // Reset an e-core
-int e_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 {
 	int RESET0 = 0x0;
 	int RESET1 = 0x1;
+	int CONFIG = 0x01000000;
+
+	diag(H_D1) { fprintf(fd, "e_reset_core(): halting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
+	e_halt(dev, row, col);
+
+	diag(H_D1) { fprintf(fd, "e_reset_core(): pausing DMAs.\n"); }
+	e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+
+	usleep(100000);
 
 	diag(H_D1) { fprintf(fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
 	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
 	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
 	diag(H_D1) { fprintf(fd, "e_reset_core(): done.\n"); }
+
+	return E_OK;
+}
+
+
+// Reset a workgroup
+int e_reset_group(e_epiphany_t *dev)
+{
+	int RESET0 = 0x0;
+	int RESET1 = 0x1;
+	int CONFIG = 0x01000000;
+	int row, col;
+
+	diag(H_D1) { fprintf(fd, "e_reset_group(): halting core...\n"); }
+	for (row=0; row<dev->rows; row++)
+		for (col=0; col<dev->cols; col++)
+			e_halt(dev, row, col);
+	diag(H_D1) { fprintf(fd, "e_reset_group(): pausing DMAs.\n"); }
+
+	for (row=0; row<dev->rows; row++)
+		for (col=0; col<dev->cols; col++)
+			e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+
+	usleep(100000);
+
+	diag(H_D1) { fprintf(fd, "e_reset_group(): resetting cores...\n"); }
+	for (row=0; row<dev->rows; row++)
+		for (col=0; col<dev->cols; col++)
+		{
+			ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
+			ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
+		}
+
+	diag(H_D1) { fprintf(fd, "e_reset_group(): done.\n"); }
 
 	return E_OK;
 }

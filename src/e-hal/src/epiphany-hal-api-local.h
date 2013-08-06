@@ -59,6 +59,7 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 
 /////////////////////////
 // Core control functions
+int      ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col);
 
 
 ////////////////////
