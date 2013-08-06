@@ -65,12 +65,13 @@ typedef enum {
 
 
 typedef enum {
-	E_EMEK3        = 0,
-	E_EMEK4        = 1,
-	E_ZEDBOARDE16  = 2,
-	E_ZEDBOARDE64  = 3,
-	E_PARALLELLA16 = 4,
-	E_PARALLELLA64 = 5,
+	E_GENERIC        = 0,
+	E_EMEK301        = 1,
+	E_EMEK401        = 2,
+	E_ZEDBOARD1601   = 3,
+	E_ZEDBOARD6401   = 4,
+	E_PARALLELLA1601 = 5,
+	E_PARALLELLA6401 = 6,
 } e_platformtype_t;
 
 
@@ -129,7 +130,8 @@ typedef struct {
 
 typedef struct {
 	e_objtype_t      objtype;     // object type identifier
-	char             version[32]; // version number of this structure
+	e_platformtype_t type;        // platform part number
+	char             version[32]; // version number of platform
 	unsigned int     hal_ver;     // version number of the E-HAL
 	int              initialized; // platform initialized?
 
