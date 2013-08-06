@@ -27,11 +27,11 @@
 #include "e_coreid.h"
 #include "e_mem.h"
 
-void *e_write(void *remote, const void *src, unsigned row, unsigned col, void *dst, size_t n)
+void *e_write(const void *remote, const void *src, unsigned row, unsigned col, void *dst, size_t n)
 {
 	void *gdst;
 
-	if (*((e_objtype_t *) remote) == E_EPI_CORE)
+	if (*((e_objtype_t *) remote) == E_EPI_GROUP)
 		gdst = e_get_global_address(row, col, dst);
 	else
 		gdst = (void *) (e_emem_config.base + (unsigned) dst);
