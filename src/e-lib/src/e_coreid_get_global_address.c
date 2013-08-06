@@ -32,7 +32,10 @@ void *e_get_global_address(unsigned row, unsigned col, const void *ptr)
 
 	/* If the address is global, return the pointer unchanged */
 	if (((unsigned) ptr) & 0xfff00000)
-		return ptr;
+	{
+		uptr = (unsigned) ptr;
+		return (void *) uptr;
+	}
 	else if ((row == E_SELF) || (col == E_SELF))
 		coreid = e_get_coreid();
 	else
