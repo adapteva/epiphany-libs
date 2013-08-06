@@ -40,13 +40,6 @@ typedef unsigned int  uint;
 typedef unsigned long ulong;
 
 
-int  ee_parse_hdf(e_platform_t *dev, char *hdf);
-int  ee_parse_simple_hdf(e_platform_t *dev, char *hdf);
-int  ee_parse_xml_hdf(e_platform_t *dev, char *hdf);
-void ee_trim_str(char *a);
-unsigned long ee_rndu_page(unsigned long size);
-unsigned long ee_rndl_page(unsigned long size);
-
 #define diag(vN) if (e_host_verbose >= vN)
 
 //static int e_host_verbose = 0;
@@ -414,7 +407,7 @@ int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from
 	size = sizeof(int);
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_read_word(): writing to from_addr=0x%08x, size=%d, map_size=%d\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(fd, "ee_read_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_read_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -436,7 +429,7 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_write_word(): writing to to_addr=0x%08x, size=%d, map_size=%d\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(fd, "ee_write_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_write_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -458,13 +451,13 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, size=%d, map_size=%d\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_read_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = dev->core[row][col].mems.base + from_addr;
-	diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, size); }
+	diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (int) size); }
 
 	if ((dev->type == E_E64G401) && ((row >= 1) && (row <= 2)))
 	{
@@ -511,13 +504,13 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, size=%d, map_size=%d\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_write_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = dev->core[row][col].mems.base + to_addr;
-	diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, size); }
+	diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
 	memcpy(pto, buf, size);
 
 	return size;
@@ -566,7 +559,7 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].regs.map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_write_reg(): writing to to_addr=0x%08x, size=%d, map_size=%d\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
+		diag(H_D2) { fprintf(fd, "ee_write_reg(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
 		warnx("ee_write_reg(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -667,7 +660,7 @@ int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 	size = sizeof(int);
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mread_word(): writing to from_addr=0x%08x, size=%d, map_size=%d\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(fd, "ee_mread_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mread_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -689,7 +682,7 @@ ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data)
 	size = sizeof(int);
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mwrite_word(): writing to to_addr=0x%08x, size=%d, map_size=%d\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(fd, "ee_mwrite_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mwrite_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -709,7 +702,7 @@ ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t siz
 
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mread_buf(): writing to from_addr=0x%08x, size=%d, map_size=%d\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(fd, "ee_mread_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mread_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -729,7 +722,7 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, size=%d, map_size=%d\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mwrite_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
@@ -845,7 +838,7 @@ int e_reset_system()
 	{
 		e_epiphany_t dev;
 		int          data;
-		diag(H_D2) { fprintf(fd, "e_reset_system(): found chip version E16G301, programming link clock divider.\n"); }
+		diag(H_D2) { fprintf(fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
 		e_open(&dev, 2, 3, 1, 1);
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
@@ -1142,7 +1135,7 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 	while (!feof(fp))
 	{
 		l++;
-		fgets(line, sizeof(line), fp);
+		dummy = fgets(line, sizeof(line), fp);
 		ee_trim_str(line);
 		if (!strcmp(line, ""))
 			continue;

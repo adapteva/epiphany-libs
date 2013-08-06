@@ -67,7 +67,14 @@ unsigned ee_get_num_from_id(e_epiphany_t *dev, unsigned coreid);
 unsigned ee_get_id_from_coords(e_epiphany_t *dev, unsigned row, unsigned col);
 unsigned ee_get_id_from_num(e_epiphany_t *dev, unsigned corenum);
 void     ee_get_coords_from_id(e_epiphany_t *dev, unsigned coreid, unsigned *row, unsigned *col);
+int      ee_set_platform_params(e_platform_t *platform);
 int      ee_set_chip_params(e_chip_t *dev);
+int      ee_parse_hdf(e_platform_t *dev, char *hdf);
+int      ee_parse_simple_hdf(e_platform_t *dev, char *hdf);
+int      ee_parse_xml_hdf(e_platform_t *dev, char *hdf);
+void     ee_trim_str(char *a);
+unsigned long ee_rndu_page(unsigned long size);
+unsigned long ee_rndl_page(unsigned long size);
 
 #ifdef __cplusplus
 }
