@@ -120,7 +120,7 @@ function usage() {
 	echo ""
 	echo "   Example: The following command will build e-hal, e-xml and e-lib:"
 	echo ""
-	echo "   $ ./build-libs.sh 3 1 e-lib"
+	echo "   $ ./build-libs.sh 1 3 e-lib"
 	
 	exit
 }
