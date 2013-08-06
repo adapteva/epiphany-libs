@@ -1287,26 +1287,32 @@ int ee_set_chip_params(e_chip_t *chip)
 {
 	int chip_ver;
 
-	for (chip_ver = (NUM_CHIP_VERSIONS-1); chip_ver > -1; chip_ver--)
+	for (chip_ver = 0; chip_ver < NUM_CHIP_VERSIONS; chip_ver++)
 		if (!strcmp(chip->version, chip_params_table[chip_ver].version))
 		{
 			diag(H_D2) { fprintf(fd, "ee_set_chip_params(): found chip version \"%s\"\n", chip->version); }
-			chip->type      = chip_params_table[chip_ver].type;
-			chip->arch      = chip_params_table[chip_ver].arch;
-			chip->rows      = chip_params_table[chip_ver].rows;
-			chip->cols      = chip_params_table[chip_ver].cols;
-			chip->num_cores = chip->rows * chip->cols;
-			chip->sram_base = chip_params_table[chip_ver].sram_base;
-			chip->sram_size = chip_params_table[chip_ver].sram_size;
-			chip->regs_base = chip_params_table[chip_ver].regs_base;
-			chip->regs_size = chip_params_table[chip_ver].regs_size;
-			chip->ioregs_n  = chip_params_table[chip_ver].ioregs_n;
-			chip->ioregs_e  = chip_params_table[chip_ver].ioregs_e;
-			chip->ioregs_s  = chip_params_table[chip_ver].ioregs_s;
-			chip->ioregs_w  = chip_params_table[chip_ver].ioregs_w;
-
 			break;
 		}
+
+	if (chip_ver == NUM_CHIP_VERSIONS)
+	{
+		diag(H_D2) { fprintf(fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, chip_params_table[0].version); }
+		chip_ver = 0;
+	}
+
+	chip->type      = chip_params_table[chip_ver].type;
+	chip->arch      = chip_params_table[chip_ver].arch;
+	chip->rows      = chip_params_table[chip_ver].rows;
+	chip->cols      = chip_params_table[chip_ver].cols;
+	chip->num_cores = chip->rows * chip->cols;
+	chip->sram_base = chip_params_table[chip_ver].sram_base;
+	chip->sram_size = chip_params_table[chip_ver].sram_size;
+	chip->regs_base = chip_params_table[chip_ver].regs_base;
+	chip->regs_size = chip_params_table[chip_ver].regs_size;
+	chip->ioregs_n  = chip_params_table[chip_ver].ioregs_n;
+	chip->ioregs_e  = chip_params_table[chip_ver].ioregs_e;
+	chip->ioregs_s  = chip_params_table[chip_ver].ioregs_s;
+	chip->ioregs_w  = chip_params_table[chip_ver].ioregs_w;
 
 	return E_OK;
 }
