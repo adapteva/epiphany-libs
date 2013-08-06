@@ -3,7 +3,7 @@
 set -e
 
 ESDK=${EPIPHANY_HOME}
-BSPS="zed_E16G3_512mb zed_E64G4_512mb"
+BSPS="zed_E16G3_512mb zed_E64G4_512mb parallella_E16G3_1GB"
 
 
 function build-xml() {
