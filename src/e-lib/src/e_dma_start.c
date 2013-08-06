@@ -30,7 +30,9 @@
 int e_dma_start(e_dma_desc_t *descriptor, e_dma_id_t chan)
 {
 	unsigned start;
-	int      ret_val = -1;
+	e_return_stat_t ret_val;
+
+	ret_val = E_ERR;
 
 	if ((chan | 1) != 1)
 	{
@@ -41,6 +43,7 @@ int e_dma_start(e_dma_desc_t *descriptor, e_dma_id_t chan)
 	while (e_dma_busy(chan));
 
 	start = ((int)(descriptor) << 16) | E_DMA_STARTUP;
+
 	switch (chan)
 	{
 	case E_DMA_0:
@@ -53,5 +56,5 @@ int e_dma_start(e_dma_desc_t *descriptor, e_dma_id_t chan)
 		break;
 	}
 
-	return E_ERR;
+	return ret_val;
 }

@@ -63,6 +63,7 @@ int e_dma_copy(void *dst, void *src, size_t n)
 	shift = dma_data_size[index] >> 5;
 	stride = 0x10001 << shift;
 
+	// TODO: add e_dma_wait()!!!
 	_dma_copy_descriptor_.config       = config;
 	_dma_copy_descriptor_.inner_stride = stride;
 	_dma_copy_descriptor_.count        = 0x10000 | (n >> shift);
