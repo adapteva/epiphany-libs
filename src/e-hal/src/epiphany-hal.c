@@ -106,6 +106,12 @@ int e_init(char *hdf)
 		return E_ERR;
 	}
 
+	// Populate the missing platform parameters according to platform version.
+	for (i=0; i<e_platform.num_chips; i++)
+	{
+		ee_set_platform_params(&e_platform);
+	}
+
 	// Populate the missing chip parameters according to chip version.
 	for (i=0; i<e_platform.num_chips; i++)
 	{
@@ -1157,10 +1163,10 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 	FILE       *fp;
 	int         chip_num;
 	int         emem_num;
-	e_chip_t   *curr_chip;
-	e_memseg_t *curr_emem;
+	e_chip_t   *curr_chip = NULL;
+	e_memseg_t *curr_emem = NULL;
 
-	char line[255], etag[255], eval[255];
+	char line[255], etag[255], eval[255], *dummy;
 	int l;
 
 	fp = fopen(hdf, "r");
@@ -1301,6 +1307,48 @@ int ee_parse_xml_hdf(e_platform_t *dev, char *hdf)
 
 
 // Platform data structures
+typedef struct {
+	e_objtype_t      objtype;     // object type identifier
+	e_platformtype_t type;        // Epiphany platform part number
+	char             version[32]; // version name of Epiphany chip
+} e_platform_db_t;
+
+#define NUM_PLATFORM_VERSIONS 7
+e_platform_db_t platform_params_table[NUM_PLATFORM_VERSIONS] = {
+//       objtype         type              version
+		{E_EPI_PLATFORM, E_GENERIC,        "GENERIC"},
+		{E_EPI_PLATFORM, E_EMEK301,        "EMEK301"},
+		{E_EPI_PLATFORM, E_EMEK401,        "EMEK401"},
+		{E_EPI_PLATFORM, E_ZEDBOARD1601,   "ZEDBOARD1601"},
+		{E_EPI_PLATFORM, E_ZEDBOARD6401,   "ZEDBOARD6401"},
+		{E_EPI_PLATFORM, E_PARALLELLA1601, "PARALLELLA1601"},
+		{E_EPI_PLATFORM, E_PARALLELLA6401, "PARALLELLA6401"},
+};
+
+
+int ee_set_platform_params(e_platform_t *platform)
+{
+	int platform_ver;
+
+	for (platform_ver = 0; platform_ver < NUM_PLATFORM_VERSIONS; platform_ver++)
+		if (!strcmp(platform->version, platform_params_table[platform_ver].version))
+		{
+			diag(H_D2) { fprintf(fd, "ee_set_platform_params(): found platform version \"%s\"\n", platform->version); }
+			break;
+		}
+
+	if (platform_ver == NUM_PLATFORM_VERSIONS)
+	{
+		diag(H_D2) { fprintf(fd, "ee_set_platform_params(): platform version \"%s\" not found, setting to \"%s\" type\n", platform->version, platform_params_table[0].version); }
+		platform_ver = 0;
+	}
+
+	platform->type = platform_params_table[platform_ver].type;
+
+	return E_OK;
+}
+
+
 typedef struct {
 	e_objtype_t      objtype;     // object type identifier
 	e_chiptype_t     type;        // Epiphany chip part number
