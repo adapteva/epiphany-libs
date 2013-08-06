@@ -7,8 +7,10 @@ NOTE
 This repository is the development repo. containing the latest code
 changes. It may not build, and if it does, it may not work correctly.
 
-To download the latest release repo, see:
+The latest release repo is located at:
+https://github.com/adapteva/epiphany-libs/tree/esdk.5.13.07.10
 
+To download the latest release repo:
 https://github.com/adapteva/epiphany-libs/archive/esdk.5.13.07.10.tar.gz
 =======================================
 
