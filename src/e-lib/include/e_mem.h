@@ -26,7 +26,7 @@
 #ifndef E_MEM_H_
 #define E_MEM_H_
 
-void *e_read(void *remote, void *dst, unsigned row, unsigned col, const void *src, size_t n);
-void *e_write(void *remote, const void *src, unsigned row, unsigned col, void *dst, size_t n);
+void *e_read(const void *remote, void *dst, unsigned row, unsigned col, const void *src, size_t n);
+void *e_write(const void *remote, const void *src, unsigned row, unsigned col, void *dst, size_t n);
 
 #endif /* E_MEM_H_ */
