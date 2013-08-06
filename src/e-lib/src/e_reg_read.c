@@ -31,6 +31,7 @@ unsigned e_reg_read(e_core_reg_id_t reg_id)
 	volatile register unsigned reg_val;
 	unsigned *addr;
 
+	// TODO: function affects integer flags. Add special API for STATUS
 	switch (reg_id)
 	{
 	case E_REG_CONFIG:

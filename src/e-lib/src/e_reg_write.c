@@ -31,6 +31,7 @@ void e_reg_write(e_core_reg_id_t reg_id, unsigned val)
 	volatile register unsigned reg_val = val;
 	unsigned *addr;
 
+	// TODO: function affects integer flags. Add special API for STATUS
 	switch (reg_id)
 	{
 	case E_REG_CONFIG:
