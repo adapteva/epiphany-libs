@@ -73,10 +73,11 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 
 	rewind(srecStream);
 	unsigned lineN = 0;
+	char *dummy;
 
 	while(!feof(srecStream) && !ferror(srecStream))
 	{
-		fgets(buf, BUFSIZE, srecStream);
+		dummy = fgets(buf, BUFSIZE, srecStream);
 
 		if (!feof(srecStream) && !ferror(srecStream))
 		{
