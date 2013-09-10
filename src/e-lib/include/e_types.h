@@ -27,7 +27,7 @@
 #define _E_TYPES_H_
 
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 typedef enum {
 	E_FALSE = false,
 	E_TRUE  = true,
