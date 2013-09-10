@@ -27,9 +27,7 @@
 #define _E_TYPES_H_
 
 
-#ifdef __cplusplus
-extern "C"
-{
+#ifndef __cplusplus
 typedef enum {
 	E_FALSE = false,
 	E_TRUE  = true,

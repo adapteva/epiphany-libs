@@ -619,7 +619,6 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 		return E_ERR;
 	}
 
-
 	return E_OK;
 }
 

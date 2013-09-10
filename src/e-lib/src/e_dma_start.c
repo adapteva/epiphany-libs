@@ -29,7 +29,7 @@
 
 int e_dma_start(e_dma_desc_t *descriptor, e_dma_id_t chan)
 {
-	unsigned start;
+	unsigned        start;
 	e_return_stat_t ret_val;
 
 	ret_val = E_ERR;

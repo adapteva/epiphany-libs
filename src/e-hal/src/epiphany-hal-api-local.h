@@ -36,25 +36,25 @@ extern "C"
 /////////////////////////////////
 // Device communication functions
 //
-int     ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr);
-ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data);
-ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size);
-ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size);
-int     ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr);
-ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data);
-int     ee_read_esys(off_t from_addr);
-ssize_t ee_write_esys(off_t to_addr, int data);
+int      ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr);
+ssize_t  ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data);
+ssize_t  ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size);
+ssize_t  ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size);
+int      ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr);
+ssize_t  ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data);
+int      ee_read_esys(off_t from_addr);
+ssize_t  ee_write_esys(off_t to_addr, int data);
 //
 // For legacy code support
-ssize_t ee_read_abs(unsigned address, void *buf, size_t size);
-ssize_t ee_write_abs(unsigned address, void *buf, size_t size);
+ssize_t  ee_read_abs(unsigned address, void *buf, size_t size);
+ssize_t  ee_write_abs(unsigned address, void *buf, size_t size);
 //
-ssize_t ee_mread(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size);
-ssize_t ee_mwrite(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size);
-int     ee_mread_word(e_mem_t *mbuf, const off_t from_addr);
-ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data);
-ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size);
-ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size);
+ssize_t  ee_mread(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size);
+ssize_t  ee_mwrite(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size);
+int      ee_mread_word(e_mem_t *mbuf, const off_t from_addr);
+ssize_t  ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data);
+ssize_t  ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size);
+ssize_t  ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size);
 
 
 /////////////////////////
