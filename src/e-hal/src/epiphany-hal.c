@@ -837,7 +837,7 @@ int e_reset_system()
 {
 	diag(H_D1) { fprintf(fd, "e_reset_system(): resetting full ESYS...\n"); }
 	ee_write_esys(E_SYS_RESET, 0);
-	sleep(1);
+	usleep(200000);
 
 	// Perform post-reset, platform specific operations
 //	if (e_platform.chip[0].type == E_E16G301) // TODO: assume one chip
