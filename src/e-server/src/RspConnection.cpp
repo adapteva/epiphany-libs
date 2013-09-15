@@ -82,6 +82,7 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <poll.h>
+#include <unistd.h>
 
 #include <assert.h>
 

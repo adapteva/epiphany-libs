@@ -59,6 +59,7 @@
 #include "Utils.h"
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "debugVerbose.h"
 

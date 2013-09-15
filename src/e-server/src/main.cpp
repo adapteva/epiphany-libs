@@ -32,6 +32,7 @@ static char const * revision= "$Rev: 1362 $";
 #include <pthread.h>
 
 #include <string.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <string>
