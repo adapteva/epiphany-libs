@@ -8,9 +8,9 @@
 				<externalSettings>
 					<externalSetting>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/e-hal"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/e-hal.zed"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/e-hal"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/e-hal/Debug"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/e-hal.zed/Debug"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/e-hal/Debug"/>
 						<entry flags="RESOLVED" kind="libraryFile" name="e-hal"/>
 					</externalSetting>
 				</externalSettings>
@@ -80,9 +80,9 @@
 				<externalSettings>
 					<externalSetting>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/e-hal"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/e-hal.zed"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/e-hal"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/e-hal/Release"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/e-hal.zed/Release"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/e-hal/Release"/>
 						<entry flags="RESOLVED" kind="libraryFile" name="e-hal"/>
 					</externalSetting>
 				</externalSettings>
@@ -161,7 +161,7 @@
 		</scannerConfigBuildInfo>
 	</storageModule>
 	<storageModule moduleId="refreshScope" versionNumber="1">
-		<resource resourceType="PROJECT" workspacePath="/e-hal.zed"/>
+		<resource resourceType="PROJECT" workspacePath="/e-hal"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>

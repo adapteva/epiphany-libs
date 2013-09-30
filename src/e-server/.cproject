@@ -27,8 +27,6 @@
 								<option id="gnu.cpp.compiler.exe.debug.option.debugging.level.1342788652" name="Debug Level" superClass="gnu.cpp.compiler.exe.debug.option.debugging.level" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1457851785" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def"/>
 								<option id="gnu.cpp.compiler.option.include.paths.759071682" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml}&quot;"/>
 									<listOptionValue builtIn="false" value="../../"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.warnings.allwarn.522265816" name="All warnings (-Wall)" superClass="gnu.cpp.compiler.option.warnings.allwarn" value="true" valueType="boolean"/>
@@ -39,9 +37,9 @@
 								<option defaultValue="gnu.c.optimization.level.none" id="gnu.c.compiler.exe.debug.option.optimization.level.79096728" name="Optimization Level" superClass="gnu.c.compiler.exe.debug.option.optimization.level" valueType="enumerated"/>
 								<option id="gnu.c.compiler.exe.debug.option.debugging.level.1175613177" name="Debug Level" superClass="gnu.c.compiler.exe.debug.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.1698135256" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-hal.zed/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-loader/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-xml/src}&quot;"/>
+									<listOptionValue builtIn="false" value="../../e-hal/src"/>
+									<listOptionValue builtIn="false" value="../../e-loader/src"/>
+									<listOptionValue builtIn="false" value="../../e-xml/src"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1735355258" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -52,9 +50,9 @@
 									<listOptionValue builtIn="false" value="../../e-xml/Debug"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.1242356436" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="e-xml"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="dl"/>
+									<listOptionValue builtIn="false" value="e-xml"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.2138654179" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
@@ -62,10 +60,7 @@
 								</inputType>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.assembler.exe.debug.1509945798" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.exe.debug">
-								<option id="gnu.both.asm.option.include.paths.1201492354" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml}&quot;"/>
-								</option>
+								<option id="gnu.both.asm.option.include.paths.1201492354" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath"/>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.789554993" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
@@ -77,17 +72,7 @@
 					</sourceEntries>
 				</configuration>
 			</storageModule>
-			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
-				<externalSettings containerId="epiphany-xml;cdt.managedbuild.config.gnu.so.debug.483365112" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier">
-					<externalSetting>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/epiphany"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/epiphany_xml"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/epiphany/Debug"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/epiphany_xml/Debug"/>
-						<entry flags="RESOLVED" kind="libraryFile" name="epiphany-xml"/>
-					</externalSetting>
-				</externalSettings>
-			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
 			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 			<storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
 			<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
@@ -115,8 +100,6 @@
 								<option id="gnu.cpp.compiler.exe.release.option.optimization.level.1558606890" name="Optimization Level" superClass="gnu.cpp.compiler.exe.release.option.optimization.level" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.release.option.debugging.level.715894467" name="Debug Level" superClass="gnu.cpp.compiler.exe.release.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.include.paths.279205419" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml}&quot;"/>
 									<listOptionValue builtIn="false" value="../../"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1156253804" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
@@ -125,9 +108,9 @@
 								<option defaultValue="gnu.c.optimization.level.most" id="gnu.c.compiler.exe.release.option.optimization.level.1579520498" name="Optimization Level" superClass="gnu.c.compiler.exe.release.option.optimization.level" valueType="enumerated"/>
 								<option id="gnu.c.compiler.exe.release.option.debugging.level.1967853447" name="Debug Level" superClass="gnu.c.compiler.exe.release.option.debugging.level" value="gnu.c.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.941696301" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-hal.zed/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-loader/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/e-xml/src}&quot;"/>
+									<listOptionValue builtIn="false" value="../../e-hal/src"/>
+									<listOptionValue builtIn="false" value="../../e-loader/src"/>
+									<listOptionValue builtIn="false" value="../../e-xml/src"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.914514983" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -148,10 +131,7 @@
 								</inputType>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.assembler.exe.release.2026775164" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.exe.release">
-								<option id="gnu.both.asm.option.include.paths.535506394" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/epiphany_xml}&quot;"/>
-								</option>
+								<option id="gnu.both.asm.option.include.paths.535506394" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath"/>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1548579591" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
@@ -162,17 +142,7 @@
 					</sourceEntries>
 				</configuration>
 			</storageModule>
-			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
-				<externalSettings containerId="epiphany-xml;cdt.managedbuild.config.gnu.so.release.1858375746" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier">
-					<externalSetting>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/epiphany"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/epiphany_xml"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/epiphany/Release"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/epiphany_xml/Release"/>
-						<entry flags="RESOLVED" kind="libraryFile" name="epiphany-xml"/>
-					</externalSetting>
-				</externalSettings>
-			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
 			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 			<storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
 			<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>

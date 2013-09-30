@@ -82,6 +82,7 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 					if (ee_process_SREC(executable, dev, pemem, irow, icol) == E_ERR)
 					{
 						fprintf(fd, "ERROR: Can't parse SREC file.\n");
+						e_free(pemem);
 						return E_ERR;
 					} else
 						ee_set_core_config(dev, pemem, irow, icol);

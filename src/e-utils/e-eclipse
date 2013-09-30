@@ -1,0 +1,2 @@
+#!/bin/sh -f
+$EPIPHANY_HOME/tools/e-eclipse/eclipse  -vmargs -Xms254m -Xmx2048m
