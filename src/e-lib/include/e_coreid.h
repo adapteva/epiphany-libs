@@ -31,7 +31,7 @@
 
 typedef unsigned int e_coreid_t;
 
-#define E_SELF (-1)
+#define E_SELF (~0)
 
 typedef enum
 {

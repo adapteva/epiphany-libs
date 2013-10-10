@@ -29,12 +29,14 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <err.h>
+#include <elf.h>
 
 #include "e-loader.h"
 
 #define diag(vN)   if (e_load_verbose >= vN)
 
-int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
+e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
+e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 
 e_loader_diag_t e_load_verbose = 0;
@@ -55,18 +57,26 @@ int e_load(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bo
 
 int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start)
 {
-	e_mem_t emem, *pemem;
-	int    irow, icol;
-	int    status;
+	e_mem_t  emem, *pemem;
+	int      irow, icol;
+	int      status;
+	FILE     *fp;
+	char     hdr[5];
+	char     elfHdr[4] = {EI_MAG0, EI_MAG1, EI_MAG2, EI_MAG3};
+	char     srecHdr[2] = {'S', '0'};
+	e_bool_t iself, issrec;
+	e_return_stat_t retval;
 
 	status = E_OK;
+	iself  = E_FALSE;
+	issrec = E_FALSE;
 
 	pemem = &emem;
 
 	if (dev && pemem)
 	{
 		// TODO: this is barely scalable. Really need to test ext. mem size to load
-		// and possibly split the ext. mem accesses into 1MB chuncks.
+		// and possibly split the ext. mem accesses into 1MB chunks.
 		if (e_alloc(pemem, 0, EMEM_SIZE))
 		{
 			fprintf(fd, "\nERROR: Can't allocate external memory buffer!\n\n");
@@ -75,26 +85,52 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 
 		if (executable[0] != '\0')
 		{
-			diag(L_D1) { fprintf(fd, "e_load_group(): loading SREC file %s ...\n", executable); }
+			fp = fopen(executable, "rb");
+			fseek(fp, 0, SEEK_SET);
+			fread(hdr, 4, 1, fp);
+			fclose(fp);
+
+			if (!strncmp(hdr, elfHdr, 4))
+			{
+				iself = E_TRUE;
+				diag(L_D1) { fprintf(fd, "e_load_group(): loading ELF file %s ...\n", executable); }
+			}
+			else if (!strncmp(hdr, srecHdr, 2))
+			{
+				issrec = E_TRUE;
+				diag(L_D1) { fprintf(fd, "e_load_group(): loading SREC file %s ...\n", executable); }
+			}
+			else
+			{
+				fprintf(fd, "ERROR: Can't load executable file.\n");
+				e_free(pemem);
+				return E_ERR;
+			}
 
 			for (irow=row; irow<(row+rows); irow++)
 				for (icol=col; icol<(col+cols); icol++)
-					if (ee_process_SREC(executable, dev, pemem, irow, icol) == E_ERR)
+				{
+					if (iself)
+						retval = ee_process_ELF(executable, dev, pemem, irow, icol);
+					else
+						retval = ee_process_SREC(executable, dev, pemem, irow, icol);
+					if (retval == E_ERR)
 					{
-						fprintf(fd, "ERROR: Can't parse SREC file.\n");
+						fprintf(fd, "ERROR: Can't load executable file.\n");
 						e_free(pemem);
 						return E_ERR;
 					} else
 						ee_set_core_config(dev, pemem, irow, icol);
+				}
 
-			for (irow=row; irow<(row+rows); irow++)
-				for (icol=col; icol<(col + cols); icol++)
-					if (start)
-					{
-						diag(L_D1) { fprintf(fd, "e_load_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
-						e_start(dev, irow, icol);
-						diag(L_D1) { fprintf(fd, "e_load_group(): done.\n"); }
-					}
+			if (start)
+				for (irow=row; irow<(row+rows); irow++)
+					for (icol=col; icol<(col + cols); icol++)
+						{
+							diag(L_D1) { fprintf(fd, "e_load_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
+							e_start(dev, irow, icol);
+							diag(L_D1) { fprintf(fd, "e_load_group(): done.\n"); }
+						}
 
 			diag(L_D1) { fprintf(fd, "e_load_group(): done loading.\n"); }
 		}

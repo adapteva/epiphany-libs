@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <elf.h>
 
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
@@ -46,16 +47,93 @@ extern int e_load_verbose;
 extern FILE *fd;
 
 
-int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
+e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
+{
+	FILE       *elfStream;
+	Elf32_Ehdr hdr;
+	Elf32_Phdr *phdr;
+	e_bool_t   islocal, isonchip;
+	int        ihdr;
+	void       *pto;
+	unsigned   globrow, globcol;
+	unsigned   CoreID;
+	int        status = E_OK;
+
+
+	islocal   = E_FALSE;
+	isonchip  = E_FALSE;
+
+	elfStream = fopen(executable, "rb");
+
+	fread(&hdr, sizeof(hdr), 1, elfStream);
+	phdr = alloca(sizeof(*phdr) * hdr.e_phnum);
+	fseek(elfStream, hdr.e_phoff, SEEK_SET);
+	fread(phdr, sizeof(*phdr), hdr.e_phnum, elfStream);
+
+	for (ihdr=0; ihdr<hdr.e_phnum; ihdr++)
+	{
+		if (phdr[ihdr].p_vaddr & 0xfff00000)
+		{
+			// This is a global address. Check if address is on an eCore.
+			islocal  = E_FALSE;
+			isonchip = e_is_addr_on_chip((void *) phdr[ihdr].p_vaddr);
+		} else {
+			// This is a local address.
+			islocal  = E_TRUE;
+			isonchip = E_TRUE;
+		}
+
+		diag(L_D3) { fprintf(fd, "ee_process_ELF(): copying the data (%d bytes)", phdr[ihdr].p_filesz); }
+
+		if (islocal)
+		{
+			// If this is a local address
+			diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", row, col); }
+			pto = pEpiphany->core[row][col].mems.base + phdr[ihdr].p_vaddr; // TODO: should this be p_paddr instead of p_vaddr?
+		}
+		else if (isonchip)
+		{
+			// If global address, check if address is of an eCore.
+			CoreID = phdr[ihdr].p_vaddr >> 20;
+			ee_get_coords_from_id(pEpiphany, CoreID, &globrow, &globcol);
+			diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", globrow, globcol); }
+			pto = pEpiphany->core[globrow][globcol].mems.base + (phdr[ihdr].p_vaddr & ~(0xfff00000)); // TODO: should this be p_paddr instead of p_vaddr?
+		}
+		else
+		{
+			// If it is not on an eCore, it is on external memory.
+			diag(L_D3) { fprintf(fd, " to external memory.\n"); }
+			pto = phdr[ihdr].p_vaddr;
+			if ((phdr[ihdr].p_vaddr >= pEMEM->ephy_base) && (phdr[ihdr].p_vaddr < (pEMEM->ephy_base + pEMEM->emap_size)))
+			{
+				diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
+				pto = pto - (pEMEM->ephy_base - pEMEM->phy_base);
+				diag(L_D3) { fprintf(fd, "to physical (0x%08x)...\n", (uint) phdr[ihdr].p_vaddr); }
+			}
+			diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
+			pto = pto - pEMEM->phy_base + pEMEM->base;
+			diag(L_D3) { fprintf(fd, "to offset (0x%08x)...\n", (uint) pto); }
+		}
+		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
+		fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
+	}
+
+	fclose(elfStream);
+
+	return status;
+}
+
+
+e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
 {
 	typedef enum {S0, S3, S7} SrecSel;
-	FILE *srecStream;
-	int i;
-	char buf[BUFSIZE], *pbuf;
+	FILE      *srecStream;
+	int      i;
+	char     buf[BUFSIZE], *pbuf;
 	e_bool_t insection;
 	e_bool_t islocal, isonchip;
 	unsigned CoreID;
-	int status = E_OK;
+	int      status = E_OK;
 
 
 	insection = E_FALSE;
@@ -244,7 +322,7 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 					CoreID = addrHex >> 20;
 					ee_get_coords_from_id(pEpiphany, CoreID, &globrow, &globcol);
 					diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", globrow, globcol); }
-					ee_write_buf(pEpiphany, globrow, globcol, addrHex, Data2Send, byteCount);
+					ee_write_buf(pEpiphany, globrow, globcol, addrHex & ~(0xfff00000), Data2Send, byteCount);
 				}
 				else
 				{
@@ -288,4 +366,3 @@ int ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, i
 
 	return status;
 }
-

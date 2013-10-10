@@ -3,4 +3,8 @@ The eLoader package was authored by:
 - Yaniv Sapir
 - Oleg Raikhman
 
+The ELF loader incorporates ideas and concepts from:
+
+- Michael Zucchi (aka NotZed, notzed)
+
 For support, email <support@adapteva.com>
