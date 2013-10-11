@@ -61,8 +61,8 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 	int      irow, icol;
 	int      status;
 	FILE     *fp;
-	char     hdr[5];
-	char     elfHdr[4] = {EI_MAG0, EI_MAG1, EI_MAG2, EI_MAG3};
+	char     hdr[5] = {'\0', '\0', '\0', '\0', '\0'};
+	char     elfHdr[4] = {ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3};
 	char     srecHdr[2] = {'S', '0'};
 	e_bool_t iself, issrec;
 	e_return_stat_t retval;
@@ -85,10 +85,16 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 
 		if (executable[0] != '\0')
 		{
-			fp = fopen(executable, "rb");
-			fseek(fp, 0, SEEK_SET);
-			fread(hdr, 4, 1, fp);
-			fclose(fp);
+			if (fp = fopen(executable, "rb"))
+			{
+				fseek(fp, 0, SEEK_SET);
+				fread(hdr, 1, 4, fp);
+				fclose(fp);
+			} else {
+				fprintf(fd, "ERROR: Can't open executable file \"%s\".\n", executable);
+				e_free(pemem);
+				return E_ERR;
+			}
 
 			if (!strncmp(hdr, elfHdr, 4))
 			{
@@ -102,7 +108,8 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 			}
 			else
 			{
-				fprintf(fd, "ERROR: Can't load executable file.\n");
+				diag(L_D1) { fprintf(fd, "e_load_group(): Executable header %02x %02x %02x %02x\n", hdr[0], hdr[1], hdr[2], hdr[3]); }
+				fprintf(fd, "ERROR: Can't load executable file: unidentified format.\n");
 				e_free(pemem);
 				return E_ERR;
 			}
@@ -114,9 +121,10 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 						retval = ee_process_ELF(executable, dev, pemem, irow, icol);
 					else
 						retval = ee_process_SREC(executable, dev, pemem, irow, icol);
+
 					if (retval == E_ERR)
 					{
-						fprintf(fd, "ERROR: Can't load executable file.\n");
+						fprintf(fd, "ERROR: Can't load executable file \"%s\".\n", executable);
 						e_free(pemem);
 						return E_ERR;
 					} else

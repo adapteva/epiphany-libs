@@ -47,9 +47,9 @@ extern e_platform_t e_platform;
 #include <e-xml/src/epiphany_platform.h>
 
 static e_epiphany_t Epiphany, *pEpiphany;
-static e_mem_t     ERAM,     *pERAM;
+static e_mem_t      ERAM,     *pERAM;
 
-platform_definition_t* platform;
+platform_definition_t *platform;
 
 
 // Absolute global memory access TODO: needs review!!!
@@ -202,7 +202,7 @@ ssize_t ee_write_abs(unsigned address, void *buf, size_t burst_size)
 // TODO: replace with platform data
 #define EMEM_SIZE (0x02000000)
 
-int esrv_init_platform(platform_definition_t* platform_arg, unsigned verbose_mode)
+int esrv_init_platform(platform_definition_t *platform_arg, unsigned verbose_mode)
 {
 	int res;
 

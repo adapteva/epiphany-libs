@@ -103,7 +103,7 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 		{
 			// If it is not on an eCore, it is on external memory.
 			diag(L_D3) { fprintf(fd, " to external memory.\n"); }
-			pto = phdr[ihdr].p_vaddr;
+			pto = (void *) phdr[ihdr].p_vaddr;
 			if ((phdr[ihdr].p_vaddr >= pEMEM->ephy_base) && (phdr[ihdr].p_vaddr < (pEMEM->ephy_base + pEMEM->emap_size)))
 			{
 				diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
@@ -111,7 +111,7 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 				diag(L_D3) { fprintf(fd, "to physical (0x%08x)...\n", (uint) phdr[ihdr].p_vaddr); }
 			}
 			diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
-			pto = pto - pEMEM->phy_base + pEMEM->base;
+			pto = pto - (uint) pEMEM->phy_base + (uint) pEMEM->base;
 			diag(L_D3) { fprintf(fd, "to offset (0x%08x)...\n", (uint) pto); }
 		}
 		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
