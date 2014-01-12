@@ -92,19 +92,28 @@
 #include "debugVerbose.h"
 
 
-using std::cerr;
-using std::cout;
-using std::dec;
-using std::endl;
-using std::flush;
-using std::hex;
-using std::setfill;
-using std::setw;
+using
+  std::cerr;
+using
+  std::cout;
+using
+  std::dec;
+using
+  std::endl;
+using
+  std::flush;
+using
+  std::hex;
+using
+  std::setfill;
+using
+  std::setw;
 
 //#ifdef RSP_TRACE
 //using sc_core::sc_time_stamp;
 //#endif
-extern int debug_level;
+extern int
+  debug_level;
 #include <fcntl.h>
 
 //-----------------------------------------------------------------------------
@@ -114,11 +123,11 @@ extern int debug_level;
 
 //! @param[in] _portNum     The port number to connect to
 //-----------------------------------------------------------------------------
-RspConnection::RspConnection(int _portNum)
+RspConnection::RspConnection (int _portNum)
 {
-	rspInit(_portNum, DEFAULT_RSP_SERVICE);
+  rspInit (_portNum, DEFAULT_RSP_SERVICE);
 
-} // RspConnection()
+}				// RspConnection()
 
 
 //-----------------------------------------------------------------------------
@@ -129,11 +138,11 @@ RspConnection::RspConnection(int _portNum)
 //! @param[in] _serviceName  The service name to use. Defaults to
 //!                          DEFAULT_RSP_SERVER
 //-----------------------------------------------------------------------------
-RspConnection::RspConnection(const char *_serviceName)
+RspConnection::RspConnection (const char *_serviceName)
 {
-	rspInit(0, _serviceName);
+  rspInit (0, _serviceName);
 
-} // RspConnection()
+}				// RspConnection()
 
 
 //-----------------------------------------------------------------------------
@@ -141,11 +150,11 @@ RspConnection::RspConnection(const char *_serviceName)
 
 //! Close the connection if it is still open
 //-----------------------------------------------------------------------------
-RspConnection::~RspConnection()
+RspConnection::~RspConnection ()
 {
-	this->rspClose(); // Don't confuse with any other close()
+  this->rspClose ();		// Don't confuse with any other close()
 
-} // ~RspConnection()
+}				// ~RspConnection()
 
 
 //-----------------------------------------------------------------------------
@@ -164,13 +173,13 @@ RspConnection::~RspConnection()
 //! @param[in] _serviceName   The service name to use (if PortNum == 0).
 //-----------------------------------------------------------------------------
 void
-RspConnection::rspInit(int _portNum, const char *_serviceName)
+RspConnection::rspInit (int _portNum, const char *_serviceName)
 {
-	portNum     = _portNum;
-	serviceName = _serviceName;
-	clientFd    = -1;
+  portNum = _portNum;
+  serviceName = _serviceName;
+  clientFd = -1;
 
-} // init()
+}				// init()
 
 
 //-----------------------------------------------------------------------------
@@ -194,109 +203,117 @@ RspConnection::rspInit(int _portNum, const char *_serviceName)
 //!          if the error was so serious the program must be aborted.
 //-----------------------------------------------------------------------------
 pthread_mutex_t prettyPrint_m = PTHREAD_MUTEX_INITIALIZER;
-bool
-RspConnection::rspConnect()
+bool RspConnection::rspConnect ()
 {
-	// 0 is used as the RSP port number to indicate that we should use the
-	// service name instead.
-//	if (0 == portNum)
-//	{
-//		struct servent *service = getservbyname(serviceName, "tcp");
+  // 0 is used as the RSP port number to indicate that we should use the
+  // service name instead.
+//      if (0 == portNum)
+//      {
+//              struct servent *service = getservbyname(serviceName, "tcp");
 //
-//		if (NULL == service)
-//		{
-//			cerr << "ERROR: RSP unable to find service \"" << serviceName
-//			     << "\": " << strerror(errno) << endl;
-//			return false;
-//		}
+//              if (NULL == service)
+//              {
+//                      cerr << "ERROR: RSP unable to find service \"" << serviceName
+//                           << "\": " << strerror(errno) << endl;
+//                      return false;
+//              }
 //
-//		portNum = ntohs(service->s_port);
-//	}
-	assert(0 != portNum);
+//              portNum = ntohs(service->s_port);
+//      }
+  assert (0 != portNum);
 
-	//cerr << "port " << portNum << endl;
+  //cerr << "port " << portNum << endl;
 
-	// Open a socket on which we'll listen for clients
-	int tmpFd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (tmpFd < 0)
-	{
-		cerr << "ERROR: Cannot open RSP socket for port " << portNum << endl;
-		return false;
-	}
+  // Open a socket on which we'll listen for clients
+  int
+    tmpFd = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (tmpFd < 0)
+    {
+      cerr << "ERROR: Cannot open RSP socket for port " << portNum << endl;
+      return false;
+    }
 
-	// Allow rapid reuse of the port on this socket
-	int optval = 1;
-	setsockopt(tmpFd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval, sizeof(optval));
+  // Allow rapid reuse of the port on this socket
+  int
+    optval = 1;
+  setsockopt (tmpFd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval,
+	      sizeof (optval));
 
-	// Bind the port to the socket
-	struct sockaddr_in sockAddr;
-	sockAddr.sin_family      = PF_INET;
-	sockAddr.sin_port        = htons(portNum);
-	sockAddr.sin_addr.s_addr = INADDR_ANY;
+  // Bind the port to the socket
+  struct sockaddr_in
+    sockAddr;
+  sockAddr.sin_family = PF_INET;
+  sockAddr.sin_port = htons (portNum);
+  sockAddr.sin_addr.s_addr = INADDR_ANY;
 
-	if (bind(tmpFd, (struct sockaddr *) &sockAddr, sizeof(sockAddr)))
-	{
-		cerr << "ERROR: Cannot bind to RSP socket for port " << portNum << endl;
-		return false;
-	}
+  if (bind (tmpFd, (struct sockaddr *) &sockAddr, sizeof (sockAddr)))
+    {
+      cerr << "ERROR: Cannot bind to RSP socket for port " << portNum << endl;
+      return false;
+    }
 
-	//cerr << "bind done " << portNum << endl;
-	// Listen for (at most one) client
-	if (listen(tmpFd, 1))
-	{
-		cerr << "ERROR: Cannot listen on RSP socket for port " << portNum << endl;
-		return false;
-	}
+  //cerr << "bind done " << portNum << endl;
+  // Listen for (at most one) client
+  if (listen (tmpFd, 1))
+    {
+      cerr << "ERROR: Cannot listen on RSP socket for port " << portNum <<
+	endl;
+      return false;
+    }
 
-	pthread_mutex_lock(&prettyPrint_m);
-	cerr << "Listening for RSP on port " << dec << portNum << endl << flush;
-	pthread_mutex_unlock(&prettyPrint_m);
+  pthread_mutex_lock (&prettyPrint_m);
+  cerr << "Listening for RSP on port " << dec << portNum << endl << flush;
+  pthread_mutex_unlock (&prettyPrint_m);
 
-	// Accept a client which connects
-	socklen_t len = sizeof(sockAddr); // Size of the socket address
-	clientFd = accept(tmpFd, (struct sockaddr *)&sockAddr, &len);
+  // Accept a client which connects
+  socklen_t
+    len = sizeof (sockAddr);	// Size of the socket address
+  clientFd = accept (tmpFd, (struct sockaddr *) &sockAddr, &len);
 
-	if (-1 == clientFd)
-	{
-		cerr << "Warning: Failed to accept RSP client" << endl;
-		return true; // OK to retry
-	}
+  if (-1 == clientFd)
+    {
+      cerr << "Warning: Failed to accept RSP client" << endl;
+      return true;		// OK to retry
+    }
 
-	// Enable TCP keep alive process
-	optval = 1;
-	setsockopt(clientFd, SOL_SOCKET, SO_KEEPALIVE, (char *) &optval, sizeof(optval));
+  // Enable TCP keep alive process
+  optval = 1;
+  setsockopt (clientFd, SOL_SOCKET, SO_KEEPALIVE, (char *) &optval,
+	      sizeof (optval));
 
-	// Don't delay small packets, for better interactive response (disable
-	// Nagel's algorithm)
-	optval = 1;
-	setsockopt(clientFd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval, sizeof(optval));
+  // Don't delay small packets, for better interactive response (disable
+  // Nagel's algorithm)
+  optval = 1;
+  setsockopt (clientFd, IPPROTO_TCP, TCP_NODELAY, (char *) &optval,
+	      sizeof (optval));
 
-	// Socket is no longer needed
-	close(tmpFd); // No longer need this
-	signal(SIGPIPE, SIG_IGN); // So we don't exit if client dies
+  // Socket is no longer needed
+  close (tmpFd);		// No longer need this
+  signal (SIGPIPE, SIG_IGN);	// So we don't exit if client dies
 
-	pthread_mutex_lock(&prettyPrint_m);
-	cerr << "Remote debugging from host " << inet_ntoa(sockAddr.sin_addr) << endl;
-	pthread_mutex_unlock(&prettyPrint_m);
+  pthread_mutex_lock (&prettyPrint_m);
+  cerr << "Remote debugging from host " << inet_ntoa (sockAddr.
+						      sin_addr) << endl;
+  pthread_mutex_unlock (&prettyPrint_m);
 
-	return true;
+  return true;
 
-} // rspConnect()
+}				// rspConnect()
 
 
 //-----------------------------------------------------------------------------
 //! Close a client connection if it is open
 //-----------------------------------------------------------------------------
 void
-RspConnection::rspClose()
+RspConnection::rspClose ()
 {
-	if (isConnected())
-	{
-		cerr << "Closing connection" << endl;
-		close(clientFd);
-		clientFd = -1;
-	}
-} // rspClose()
+  if (isConnected ())
+    {
+      cerr << "Closing connection" << endl;
+      close (clientFd);
+      clientFd = -1;
+    }
+}				// rspClose()
 
 
 //-----------------------------------------------------------------------------
@@ -304,12 +321,11 @@ RspConnection::rspClose()
 
 //! @return  TRUE if we are connected, FALSE otherwise
 //-----------------------------------------------------------------------------
-bool
-RspConnection::isConnected()
+bool RspConnection::isConnected ()
 {
-	return -1 != clientFd;
+  return -1 != clientFd;
 
-} // isConnected()
+}				// isConnected()
 
 
 //-----------------------------------------------------------------------------
@@ -336,140 +352,146 @@ RspConnection::isConnected()
 //#include <pthread.h>
 //pthread_mutex_t gdbReadPacket_m = PTHREAD_MUTEX_INITIALIZER;
 
-bool
-RspConnection::getPkt(RspPacket *pkt)
+bool RspConnection::getPkt (RspPacket * pkt)
 {
-	// Keep getting packets, until one is found with a valid checksum
-	while (true)
+  // Keep getting packets, until one is found with a valid checksum
+  while (true)
+    {
+      int
+	bufSize = pkt->getBufSize ();
+      unsigned char
+	checksum;		// The checksum we have computed
+      int
+	count;			// Index into the buffer
+      int
+	ch;			// Current character
+
+
+      // Wait around for the start character ('$'). Ignore all other
+      // characters
+      ch = getRspChar ();
+
+      // once read char from GDB --- lock the read -- TODO should be protected by timeout in case of gdb fails
+      //pthread_mutex_lock(&gdbReadPacket_m);
+
+      while (ch != '$')
 	{
-		int           bufSize = pkt->getBufSize();
-		unsigned char checksum;   // The checksum we have computed
-		int           count;      // Index into the buffer
-		int           ch;         // Current character
-
-
-		// Wait around for the start character ('$'). Ignore all other
-		// characters
-		ch = getRspChar();
-
-		// once read char from GDB --- lock the read -- TODO should be protected by timeout in case of gdb fails
-		//pthread_mutex_lock(&gdbReadPacket_m);
-
-		while (ch != '$')
-		{
-			if (-1 == ch)
-			{
-				// pthread_mutex_unlock(&gdbReadPacket_m);
-				return false; // Connection failed
-			}
-			else
-			{
-				ch = getRspChar();
-			}
-		}
-
-		// Read until a '#' or end of buffer is found
-		checksum = 0;
-		count    = 0;
-		while (count < bufSize - 1)
-		{
-			ch = getRspChar();
-
-			if (-1 == ch)
-			{
-				//pthread_mutex_unlock(&gdbReadPacket_m);
-				return false; // Connection failed
-			}
-
-			// If we hit a start of line char begin all over again
-			if ('$' == ch)
-			{
-				checksum = 0;
-				count    = 0;
-
-				continue;
-			}
-
-			// Break out if we get the end of line char
-			if ('#' == ch)
-			{
-				break;
-			}
-
-			// Update the checksum and add the char to the buffer
-			checksum         = checksum + (unsigned char)ch;
-			pkt->data[count] = (char)ch;
-			count++;
-		}
-
-		// Mark the end of the buffer with EOS - it's convenient for non-binary
-		// data to be valid strings.
-		pkt->data[count] = 0;
-		pkt->setLen(count);
-
-		// If we have a valid end of packet char, validate the checksum. If we
-		// don't it's because we ran out of buffer in the previous loop.
-		if ('#' == ch)
-		{
-			unsigned char xmitcsum; // The checksum in the packet
-
-			ch = getRspChar();
-			if (-1 == ch)
-			{
-				//pthread_mutex_unlock(&gdbReadPacket_m);
-				return false; // Connection failed
-			}
-			xmitcsum = Utils::char2Hex(ch) << 4;
-
-			ch = getRspChar();
-			if (-1 == ch)
-			{
-				//pthread_mutex_unlock(&gdbReadPacket_m);
-				return false; // Connection failed
-			}
-
-			xmitcsum += Utils::char2Hex(ch);
-
-			// If the checksums don't match print a warning, and put the
-			// negative ack back to the client. Otherwise put a positive ack.
-			if (checksum != xmitcsum)
-			{
-				cerr << "Warning: Bad RSP checksum: Computed 0x"
-				     << setw(2) << setfill('0') << hex
-				     << checksum << ", received 0x" << xmitcsum
-				     << setfill(' ') << dec << endl;
-				if (!putRspChar('-')) // Failed checksum
-				{
-					//pthread_mutex_unlock(&gdbReadPacket_m);
-					return false; // Comms failure
-				}
-			}
-			else
-			{
-				if (!putRspChar('+')) // successful transfer
-				{
-					//pthread_mutex_unlock(&gdbReadPacket_m);
-					return false; // Comms failure
-				}
-				else
-				{
-//#ifdef RSP_TRACE
-					if (debug_level>D_TRAP_AND_RSP_CON) cerr << "[" << portNum << "]:" << " getPkt: " << *pkt << endl;
-//#endif
-					//pthread_mutex_unlock(&gdbReadPacket_m);
-					return true; // Success
-				}
-			}
-		}
-		else
-		{
-			cerr << "Warning: RSP packet overran buffer" << endl;
-		}
-		//pthread_mutex_unlock(&gdbReadPacket_m);
+	  if (-1 == ch)
+	    {
+	      // pthread_mutex_unlock(&gdbReadPacket_m);
+	      return false;	// Connection failed
+	    }
+	  else
+	    {
+	      ch = getRspChar ();
+	    }
 	}
 
-	return false; // shouldn't get here anyway!
-} // getPkt()
+      // Read until a '#' or end of buffer is found
+      checksum = 0;
+      count = 0;
+      while (count < bufSize - 1)
+	{
+	  ch = getRspChar ();
+
+	  if (-1 == ch)
+	    {
+	      //pthread_mutex_unlock(&gdbReadPacket_m);
+	      return false;	// Connection failed
+	    }
+
+	  // If we hit a start of line char begin all over again
+	  if ('$' == ch)
+	    {
+	      checksum = 0;
+	      count = 0;
+
+	      continue;
+	    }
+
+	  // Break out if we get the end of line char
+	  if ('#' == ch)
+	    {
+	      break;
+	    }
+
+	  // Update the checksum and add the char to the buffer
+	  checksum = checksum + (unsigned char) ch;
+	  pkt->data[count] = (char) ch;
+	  count++;
+	}
+
+      // Mark the end of the buffer with EOS - it's convenient for non-binary
+      // data to be valid strings.
+      pkt->data[count] = 0;
+      pkt->setLen (count);
+
+      // If we have a valid end of packet char, validate the checksum. If we
+      // don't it's because we ran out of buffer in the previous loop.
+      if ('#' == ch)
+	{
+	  unsigned char
+	    xmitcsum;		// The checksum in the packet
+
+	  ch = getRspChar ();
+	  if (-1 == ch)
+	    {
+	      //pthread_mutex_unlock(&gdbReadPacket_m);
+	      return false;	// Connection failed
+	    }
+	  xmitcsum = Utils::char2Hex (ch) << 4;
+
+	  ch = getRspChar ();
+	  if (-1 == ch)
+	    {
+	      //pthread_mutex_unlock(&gdbReadPacket_m);
+	      return false;	// Connection failed
+	    }
+
+	  xmitcsum += Utils::char2Hex (ch);
+
+	  // If the checksums don't match print a warning, and put the
+	  // negative ack back to the client. Otherwise put a positive ack.
+	  if (checksum != xmitcsum)
+	    {
+	      cerr << "Warning: Bad RSP checksum: Computed 0x"
+		<< setw (2) << setfill ('0') << hex
+		<< checksum << ", received 0x" << xmitcsum
+		<< setfill (' ') << dec << endl;
+	      if (!putRspChar ('-'))	// Failed checksum
+		{
+		  //pthread_mutex_unlock(&gdbReadPacket_m);
+		  return false;	// Comms failure
+		}
+	    }
+	  else
+	    {
+	      if (!putRspChar ('+'))	// successful transfer
+		{
+		  //pthread_mutex_unlock(&gdbReadPacket_m);
+		  return false;	// Comms failure
+		}
+	      else
+		{
+//#ifdef RSP_TRACE
+		  if (debug_level > D_TRAP_AND_RSP_CON)
+		    cerr << "[" << portNum << "]:" << " getPkt: " << *pkt <<
+		      endl;
+//#endif
+		  //pthread_mutex_unlock(&gdbReadPacket_m);
+		  return true;	// Success
+		}
+	    }
+	}
+      else
+	{
+	  cerr << "Warning: RSP packet overran buffer" << endl;
+	}
+      //pthread_mutex_unlock(&gdbReadPacket_m);
+    }
+
+  return false;			// shouldn't get here anyway!
+}				// getPkt()
 
 
 //-----------------------------------------------------------------------------
@@ -488,79 +510,84 @@ RspConnection::getPkt(RspPacket *pkt)
 //! @return  TRUE to indicate success, FALSE otherwise (means a communications
 //!          failure).
 //-----------------------------------------------------------------------------
-bool
-RspConnection::putPkt(RspPacket *pkt)
+bool RspConnection::putPkt (RspPacket * pkt)
 {
-	int len = pkt->getLen();
-	int ch; // Ack char
+  int
+    len = pkt->getLen ();
+  int
+    ch;				// Ack char
 
-	// Construct $<packet info>#<checksum>. Repeat until the GDB client
-	// acknowledges satisfactory receipt.
-	do
+  // Construct $<packet info>#<checksum>. Repeat until the GDB client
+  // acknowledges satisfactory receipt.
+  do
+    {
+      unsigned char
+	checksum = 0;		// Computed checksum
+      int
+	count = 0;		// Index into the buffer
+
+      if (!putRspChar ('$'))	// Start char
 	{
-		unsigned char checksum = 0; // Computed checksum
-		int           count    = 0; // Index into the buffer
-
-		if (!putRspChar('$'))   // Start char
-		{
-			return false;       // Comms failure
-		}
-
-
-		// Body of the packet
-		for (count = 0; count < len; count++)
-		{
-			unsigned char ch = pkt->data[count];
-
-			// Check for escaped chars
-			if (('$' == ch) || ('#' == ch) || ('*' == ch) || ('}' == ch))
-			{
-				ch       ^= 0x20;
-				checksum += (unsigned char)'}';
-				if (!putRspChar('}'))
-				{
-					return false; // Comms failure
-				}
-
-			}
-
-			checksum += ch;
-			if (!putRspChar(ch))
-			{
-				return false; // Comms failure
-			}
-		}
-
-		if (!putRspChar('#')) // End char
-		{
-			return false; // Comms failure
-		}
-
-		// Computed checksum
-		if (!putRspChar(Utils::hex2Char(checksum >> 4)))
-		{
-			return false; // Comms failure
-		}
-		if (!putRspChar(Utils::hex2Char(checksum % 16)))
-		{
-			return false; // Comms failure
-		}
-
-		// Check for ack of connection failure
-		ch = getRspChar();
-		if (-1 == ch)
-		{
-			return false; // Comms failure
-		}
+	  return false;		// Comms failure
 	}
-	while ('+' != ch);
+
+
+      // Body of the packet
+      for (count = 0; count < len; count++)
+	{
+	  unsigned char
+	    ch = pkt->data[count];
+
+	  // Check for escaped chars
+	  if (('$' == ch) || ('#' == ch) || ('*' == ch) || ('}' == ch))
+	    {
+	      ch ^= 0x20;
+	      checksum += (unsigned char) '}';
+	      if (!putRspChar ('}'))
+		{
+		  return false;	// Comms failure
+		}
+
+	    }
+
+	  checksum += ch;
+	  if (!putRspChar (ch))
+	    {
+	      return false;	// Comms failure
+	    }
+	}
+
+      if (!putRspChar ('#'))	// End char
+	{
+	  return false;		// Comms failure
+	}
+
+      // Computed checksum
+      if (!putRspChar (Utils::hex2Char (checksum >> 4)))
+	{
+	  return false;		// Comms failure
+	}
+      if (!putRspChar (Utils::hex2Char (checksum % 16)))
+	{
+	  return false;		// Comms failure
+	}
+
+      // Check for ack of connection failure
+      ch = getRspChar ();
+      if (-1 == ch)
+	{
+	  return false;		// Comms failure
+	}
+    }
+  while ('+' != ch);
 
 //#ifdef RSP_TRACE
-	if (debug_level>D_TRAP_AND_RSP_CON) cerr << "[" << portNum << "]:" << " putPkt: " << *pkt << endl;
+  if (debug_level > D_TRAP_AND_RSP_CON)
+    cerr << "[" << portNum << "]:" << " putPkt: " << *pkt << endl;
 //#endif
-	return true;
+  return true;
 
-} // putPkt()
+}				// putPkt()
 
 
 //-----------------------------------------------------------------------------
@@ -573,44 +600,42 @@ RspConnection::putPkt(RspPacket *pkt)
 
 //! @return  TRUE if char sent OK, FALSE if not (communications failure)
 //-----------------------------------------------------------------------------
-bool
-RspConnection::putRspChar(char c)
+bool RspConnection::putRspChar (char c)
 {
-	if (-1 == clientFd)
+  if (-1 == clientFd)
+    {
+      cerr << "Warning: Attempt to write '" << c
+	<< "' to unopened RSP client: Ignored" << endl;
+      return false;
+    }
+
+  // Write until successful (we retry after interrupts) or catastrophic
+  // failure.
+  while (true)
+    {
+      switch (write (clientFd, &c, sizeof (c)))
 	{
-		cerr << "Warning: Attempt to write '" << c
-		     << "' to unopened RSP client: Ignored" << endl;
-		return false;
+	case -1:
+	  // Error: only allow interrupts or would block
+	  if ((EAGAIN != errno) && (EINTR != errno))
+	    {
+	      cerr << "Warning: Failed to write to RSP client: "
+		<< "Closing client connection: " << strerror (errno) << endl;
+	      return false;
+	    }
+
+	  break;
+
+	case 0:
+	  break;		// Nothing written! Try again
+
+	default:
+	  return true;		// Success, we can return
 	}
+    }
 
-	// Write until successful (we retry after interrupts) or catastrophic
-	// failure.
-	while (true)
-	{
-		switch (write(clientFd, &c, sizeof(c)))
-		{
-		case -1:
-		// Error: only allow interrupts or would block
-		if ((EAGAIN != errno) && (EINTR != errno))
-		{
-			cerr << "Warning: Failed to write to RSP client: "
-			     << "Closing client connection: "
-			     << strerror(errno) << endl;
-			return false;
-		}
-
-		break;
-
-		case 0:
-			break; // Nothing written! Try again
-
-		default:
-			return true; // Success, we can return
-		}
-	}
-
-	return false; // shouldn't get here anyway!
-} // putRspChar()
+  return false;			// shouldn't get here anyway!
+}				// putRspChar()
 
 
 //-----------------------------------------------------------------------------
@@ -622,111 +647,116 @@ RspConnection::putRspChar(char c)
 //! @return  The character received or -1 on failure
 //-----------------------------------------------------------------------------
 int
-RspConnection::getRspChar()
+RspConnection::getRspChar ()
 {
-	if (-1 == clientFd)
-	{
-		cerr << "Warning: Attempt to read from "
-		     << "unopened RSP client: Ignored" << endl;
-		return -1;
-	}
+  if (-1 == clientFd)
+    {
+      cerr << "Warning: Attempt to read from "
+	<< "unopened RSP client: Ignored" << endl;
+      return -1;
+    }
 
-	// Blocking read until successful (we retry after interrupts) or
-	// catastrophic failure.
-	while (true)
-	{
-		unsigned char c;
+  // Blocking read until successful (we retry after interrupts) or
+  // catastrophic failure.
+  while (true)
+    {
+      unsigned char c;
 
-		switch (read(clientFd, &c, sizeof(c)))
-		{
-		case -1:
-		// Error: only allow interrupts
-		if (EINTR != errno)
-		{
-			cerr << "Warning: Failed to read from RSP client: "
-			     << "Closing client connection: "
-			     << strerror(errno) << endl;
-			return -1;
-		}
-		break;
-
-		case 0:
-			return -1;
-
-		default:
-			return c & 0xff; // Success, we can return (no sign extend!)
-		}
-	}
-
-	return false; // shouldn't get here anyway!
-} // getRspChar()
-
-
-
-bool RspConnection::GetBreakCommand()
-{
-
-	unsigned char c;
-
-
-	int flags;
-
-	/* Set socket to non-blocking */
-
-	if ((flags = fcntl(clientFd, F_GETFL, 0)) < 0) {
-		cerr << "Error: fcntl get"
-		     << strerror(errno) << endl;
-		return -1;
-	}
-
-	if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) < 0) {
-		cerr << "Error: fcntl set non-blocking "
-		     << strerror(errno) << endl;
-			return -1;
-	}
-
-
-	int n = read(clientFd, &c, sizeof(c));
-//TODO check error
-	/*
-	switch()
+      switch (read (clientFd, &c, sizeof (c)))
 	{
 	case -1:
-	// Error: only allow interrupts
-	if (EINTR != errno)
-	{
-		cerr << "Warning: Failed to read from RSP client: "
-		     << "Closing client connection: "
-		     << strerror(errno) << endl;
-		return -1;
-	}
-	break;
+	  // Error: only allow interrupts
+	  if (EINTR != errno)
+	    {
+	      cerr << "Warning: Failed to read from RSP client: "
+		<< "Closing client connection: " << strerror (errno) << endl;
+	      return -1;
+	    }
+	  break;
 
 	case 0:
-		return false;
+	  return -1;
 
 	default:
-		return c & 0xff; // Success, we can return (no sign extend!)
+	  return c & 0xff;	// Success, we can return (no sign extend!)
 	}
-*/
+    }
+
+  return false;			// shouldn't get here anyway!
+}				// getRspChar()
 
 
-	/* Set socket to blocking */
 
-	if ((flags = fcntl(clientFd, F_GETFL, 0)) < 0) {
-		cerr << "Error: fcntl get"
-		     << strerror(errno) << endl;
-		return -1;
-	}
+bool
+RspConnection::GetBreakCommand ()
+{
 
-
-	if (fcntl(clientFd, F_SETFL, flags & (~O_NONBLOCK)) < 0) {
-		cerr << "Error: fcntl set blocking"
-		     << strerror(errno) << endl;
-			return -1;
-	}
+  unsigned char c;
 
 
-	return ((n> 0) && (c == 0x03));
+  int flags;
+
+  /* Set socket to non-blocking */
+
+  if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
+    {
+      cerr << "Error: fcntl get" << strerror (errno) << endl;
+      return -1;
+    }
+
+  if (fcntl (clientFd, F_SETFL, flags | O_NONBLOCK) < 0)
+    {
+      cerr << "Error: fcntl set non-blocking " << strerror (errno) << endl;
+      return -1;
+    }
+
+
+  int n = read (clientFd, &c, sizeof (c));
+//TODO check error
+  /*
+     switch()
+     {
+     case -1:
+     // Error: only allow interrupts
+     if (EINTR != errno)
+     {
+     cerr << "Warning: Failed to read from RSP client: "
+     << "Closing client connection: "
+     << strerror(errno) << endl;
+     return -1;
+     }
+     break;
+
+     case 0:
+     return false;
+
+     default:
+     return c & 0xff; // Success, we can return (no sign extend!)
+     }
+   */
+
+
+  /* Set socket to blocking */
+
+  if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
+    {
+      cerr << "Error: fcntl get" << strerror (errno) << endl;
+      return -1;
+    }
+
+
+  if (fcntl (clientFd, F_SETFL, flags & (~O_NONBLOCK)) < 0)
+    {
+      cerr << "Error: fcntl set blocking" << strerror (errno) << endl;
+      return -1;
+    }
+
+
+  return ((n > 0) && (c == 0x03));
 }
 
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

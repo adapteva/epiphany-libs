@@ -85,3 +85,9 @@
 #define SYS_reconfig 25
 
 #endif
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

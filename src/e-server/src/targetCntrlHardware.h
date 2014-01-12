@@ -36,51 +36,70 @@
 #include "targetCntrl.h"
 
 
-class TargetControlHardware : public TargetControl {
+class TargetControlHardware:public TargetControl
+{
 public:
 
 public:
-	// Constructor
-	TargetControlHardware(unsigned indexInMemMap);
+  // Constructor
+  TargetControlHardware (unsigned indexInMemMap);
 private:
-	TargetControlHardware():TargetControl() {
-	}
+    TargetControlHardware ():TargetControl ()
+  {
+  }
 public:
-	// check if specified coreis is supported by HW system
-	virtual bool SetAttachedCoreId(unsigned);
+  // check if specified coreis is supported by HW system
+    virtual bool SetAttachedCoreId (unsigned);
 
-	// Functions to access memory. All register access on the ATDSP is via memory
-	virtual bool readMem32(uint32_t addr, uint32_t &);
-	virtual bool readMem16(uint32_t addr, uint16_t &);
-	virtual bool readMem8 (uint32_t addr, uint8_t  &);
+  // Functions to access memory. All register access on the ATDSP is via memory
+  virtual bool readMem32 (uint32_t addr, uint32_t &);
+  virtual bool readMem16 (uint32_t addr, uint16_t &);
+  virtual bool readMem8 (uint32_t addr, uint8_t &);
 
-	virtual bool writeMem32(uint32_t addr, uint32_t value);
-	virtual bool writeMem16(uint32_t addr, uint16_t value);
-	virtual bool writeMem8 (uint32_t addr, uint8_t  value);
+  virtual bool writeMem32 (uint32_t addr, uint32_t value);
+  virtual bool writeMem16 (uint32_t addr, uint16_t value);
+  virtual bool writeMem8 (uint32_t addr, uint8_t value);
 
-	//burst write and read
-	virtual bool WriteBurst(unsigned long addr, unsigned char *buf, size_t buff_size);
-	virtual bool ReadBurst (unsigned long addr, unsigned char *buf, size_t buff_size);
+  //burst write and read
+  virtual bool WriteBurst (unsigned long addr, unsigned char *buf,
+			   size_t buff_size);
+  virtual bool ReadBurst (unsigned long addr, unsigned char *buf,
+			  size_t buff_size);
 
-	//send system specific reset for all platfom/chip
-	virtual void PlatformReset();
+  //send system specific reset for all platfom/chip
+  virtual void PlatformReset ();
 
-	//no support for the trace
-	virtual bool initTrace()  { return true; }
-	virtual bool startTrace() { return true; }
-	virtual bool stopTrace()  { return true; }
+  //no support for the trace
+  virtual bool initTrace ()
+  {
+    return true;
+  }
+  virtual bool startTrace ()
+  {
+    return true;
+  }
+  virtual bool stopTrace ()
+  {
+    return true;
+  }
 
-	virtual std::string GetTargetId();
+  virtual std::string GetTargetId ();
 
 
-private :
-	/* convert the local address to full address */
-	unsigned long ConvertAddress(unsigned long);
+private:
+  /* convert the local address to full address */
+  unsigned long ConvertAddress (unsigned long);
 
-	/* read and write from target */
-	bool readMem (uint32_t addr, sc_uint_32 &data, unsigned burst_size);
-	bool writeMem(uint32_t addr, sc_uint_32  data, unsigned burst_size);
+  /* read and write from target */
+  bool readMem (uint32_t addr, sc_uint_32 & data, unsigned burst_size);
+  bool writeMem (uint32_t addr, sc_uint_32 data, unsigned burst_size);
 
 };
 
 #endif /* TARGETCNTRLHARDWARE_H_ */
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

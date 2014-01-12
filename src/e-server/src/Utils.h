@@ -83,30 +83,38 @@ class Utils
 {
 public:
 
-	static uint8_t    char2Hex(int c);
-	static const char hex2Char(uint8_t d);
-	static void       reg2Hex(uint32_t val, char *buf);
-	static uint32_t   hex2Reg(char *buf);
-	static void       ascii2Hex(char *dest, char *src);
-	static void       hex2Ascii(char *dest, char *src);
-	static int        rspUnescape(char *buf, int len);
-	static uint32_t   htotl(uint32_t hostVal);
-	static uint32_t   ttohl(uint32_t targetVal);
+  static uint8_t char2Hex (int c);
+  static const char hex2Char (uint8_t d);
+  static void reg2Hex (uint32_t val, char *buf);
+  static uint32_t hex2Reg (char *buf);
+  static void ascii2Hex (char *dest, char *src);
+  static void hex2Ascii (char *dest, char *src);
+  static int rspUnescape (char *buf, int len);
+  static uint32_t htotl (uint32_t hostVal);
+  static uint32_t ttohl (uint32_t targetVal);
 
 
 private:
 
-	// Private constructor cannot be instantiated
-	Utils() {};
+  // Private constructor cannot be instantiated
+    Utils ()
+  {
+  };
 
-}; // class Utils
+};				// class Utils
 
 
 //-----------------------------------------------------------------------------
 //! use the same memory allocation routines as Cgen simulator
 //! used for supporting stdio
 //-----------------------------------------------------------------------------
-void *zalloc(unsigned long size);
-void zfree(void *data);
+void *zalloc (unsigned long size);
+void zfree (void *data);
 
 #endif // UTILS_H
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

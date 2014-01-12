@@ -1,0 +1,26 @@
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* ChangeLog: Created.
+	* Release/src/subdir.mk: Make stricter in error testing.
+	* src/GdbServerSC.cpp: Return to GNU style, and enforce for emacs
+	to facilitate comparision against upstream codebase.
+	* src/GdbServerSC.h: Likewise.
+	* src/GdbserverCreate.cpp: Likewise.
+	* src/LoaderServer.h: Likewise.
+	* src/MpHash.cpp: Likewise.
+	* src/MpHash.h: Likewise.
+	* src/RspConnection.cpp: Likewise.
+	* src/RspConnection.h: Likewise.
+	* src/RspPacket.cpp: Likewise.
+	* src/RspPacket.h: Likewise.
+	* src/Utils.cpp: Likewise.
+	* src/Utils.h: Likewise.
+	* src/debugVerbose.h: Likewise.
+	* src/e_printf.cpp: Likewise.
+	* src/libgloss_syscall.h: Likewise.
+	* src/maddr_defs.h: Likewise.
+	* src/main.cpp: Likewise.
+	* src/targetCntrl.h: Likewise.
+	* src/targetCntrlHardware.cpp: Likewise.
+	* src/targetCntrlHardware.h: Likewise.
+	* src/target_param.h: Likewise.

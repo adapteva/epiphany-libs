@@ -25,15 +25,22 @@
 #ifndef DEBUGVERBOSE_H_
 #define DEBUGVERBOSE_H_
 
-enum DebugVerbose {
-	D_STOP_RESUME_INFO = 0,
-	D_TRAP_AND_RSP_CON = 1,
-	D_STOP_RESUME_DETAIL = 2,
-	D_TARGET_WR = 10,
-	D_CTLR_C_WAIT = 15,
-	D_TRAN_DETAIL = 20,
+enum DebugVerbose
+{
+  D_STOP_RESUME_INFO = 0,
+  D_TRAP_AND_RSP_CON = 1,
+  D_STOP_RESUME_DETAIL = 2,
+  D_TARGET_WR = 10,
+  D_CTLR_C_WAIT = 15,
+  D_TRAN_DETAIL = 20,
 };
 
-extern void   StartOfBaudMeasurement(struct timeval& start);
-extern double EndOfBaudMeasurement(struct timeval& start);
+extern void StartOfBaudMeasurement (struct timeval &start);
+extern double EndOfBaudMeasurement (struct timeval &start);
 #endif /* DEBUGVERBOSE_H_ */
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

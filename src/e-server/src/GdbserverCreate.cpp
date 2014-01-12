@@ -28,20 +28,27 @@
 
 extern unsigned PORT_BASE_NUM;
 
-void *CreateGdbServer(void *ptr)
+void *
+CreateGdbServer (void *ptr)
 {
-	unsigned *port = (unsigned int *) ptr;
+  unsigned *port = (unsigned int *) ptr;
 
-	unsigned coreNum = (*port) - PORT_BASE_NUM;
+  unsigned coreNum = (*port) - PORT_BASE_NUM;
 
-	TargetControl *tCntrl;
-		tCntrl = new TargetControlHardware(coreNum);
+  TargetControl *tCntrl;
+  tCntrl = new TargetControlHardware (coreNum);
 
-	GdbServerSC *rspServerP = new GdbServerSC(*port);
+  GdbServerSC *rspServerP = new GdbServerSC (*port);
 
-	//cerr << "Thread id " << pthread_self() << endl << flush;
+  //cerr << "Thread id " << pthread_self() << endl << flush;
 
-	rspServerP->rspServer(tCntrl);
+  rspServerP->rspServer (tCntrl);
 
-	return NULL;
+  return NULL;
 }
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

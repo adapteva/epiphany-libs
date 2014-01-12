@@ -37,79 +37,111 @@ using namespace std;
 
 #define MAX_BUFFER_FROM_SERVER_SIZE 64
 
-struct TPacket2GdbServer {
-	enum ECommand { Kill, Write, Read, Reset, ResumeAndExit};
-	ECommand fCommand;
+struct TPacket2GdbServer
+{
+  enum ECommand
+  { Kill, Write, Read, Reset, ResumeAndExit };
+  ECommand fCommand;
 #ifdef _WIN32
-	unsigned __int64 fAddr;
+  unsigned __int64 fAddr;
 #else
-	unsigned long fAddr;
+  unsigned long fAddr;
 #endif
-	unsigned char fData[MAX_BUFFER_TO_SERVER_SIZE];//up to MAX_BURST_SIZE byte supported
-	unsigned short fDataSizeBytes;
-	TPacket2GdbServer() {
-		fCommand=Kill;
-		fAddr=0;
-		fDataSizeBytes=0;
-		for (unsigned i=0; i<MAX_BUFFER_TO_SERVER_SIZE; i++) {
-			fData[i]=0;
-		}
-	}
-	TPacket2GdbServer(unsigned long _addr, unsigned char *_fData,unsigned short _fDataSize) {
-		fCommand=Write;
-		fAddr=_addr;
-		assert(_fDataSize <= MAX_BUFFER_TO_SERVER_SIZE);
-		fDataSizeBytes=_fDataSize;
-		memcpy((void *)(fData), (const void *) (_fData), fDataSizeBytes);
-	}
+  unsigned char fData[MAX_BUFFER_TO_SERVER_SIZE];	//up to MAX_BURST_SIZE byte supported
+  unsigned short fDataSizeBytes;
+    TPacket2GdbServer ()
+  {
+    fCommand = Kill;
+    fAddr = 0;
+    fDataSizeBytes = 0;
+    for (unsigned i = 0; i < MAX_BUFFER_TO_SERVER_SIZE; i++)
+      {
+	fData[i] = 0;
+      }
+  }
+  TPacket2GdbServer (unsigned long _addr, unsigned char *_fData,
+		     unsigned short _fDataSize)
+  {
+    fCommand = Write;
+    fAddr = _addr;
+    assert (_fDataSize <= MAX_BUFFER_TO_SERVER_SIZE);
+    fDataSizeBytes = _fDataSize;
+    memcpy ((void *) (fData), (const void *) (_fData), fDataSizeBytes);
+  }
 };
-inline ostream& operator << (ostream& s, TPacket2GdbServer& p) {
 
-	if (p.fCommand == TPacket2GdbServer::Write) {
+inline ostream &
+operator << (ostream & s, TPacket2GdbServer & p)
+{
 
-		s << "Write to addr " << hex << p.fAddr << " size " << p.fDataSizeBytes << endl;
-		for (unsigned i=0; i<p.fDataSizeBytes; i++) {
-			s << hex << "[" << p.fAddr + i << "]= " << (unsigned short) p.fData[i] << dec << endl;
-		}
-		s << std::endl;
-	}
+  if (p.fCommand == TPacket2GdbServer::Write)
+    {
 
-	if (p.fCommand == TPacket2GdbServer::Read) {
-		//s << "Read from " << endl;
-		s << hex << "[0x" << p.fAddr << "]/0x" << (unsigned short) p.fDataSizeBytes << dec << endl;
+      s << "Write to addr " << hex << p.fAddr << " size " << p.
+	fDataSizeBytes << endl;
+      for (unsigned i = 0; i < p.fDataSizeBytes; i++)
+	{
+	  s << hex << "[" << p.fAddr +
+	    i << "]= " << (unsigned short) p.fData[i] << dec << endl;
 	}
-	if (p.fCommand == TPacket2GdbServer::Kill) {
-		s << "Kill ........" << endl;
-	}
-	if (p.fCommand == TPacket2GdbServer::ResumeAndExit) {
-		s << "ResumeAndExit ......." << endl;
-	}
-	if (p.fCommand == TPacket2GdbServer::Reset) {
-		s << "Reset " << endl;
-	}
+      s << std::endl;
+    }
 
-	return s;
+  if (p.fCommand == TPacket2GdbServer::Read)
+    {
+      //s << "Read from " << endl;
+      s << hex << "[0x" << p.fAddr << "]/0x" << (unsigned short) p.
+	fDataSizeBytes << dec << endl;
+    }
+  if (p.fCommand == TPacket2GdbServer::Kill)
+    {
+      s << "Kill ........" << endl;
+    }
+  if (p.fCommand == TPacket2GdbServer::ResumeAndExit)
+    {
+      s << "ResumeAndExit ......." << endl;
+    }
+  if (p.fCommand == TPacket2GdbServer::Reset)
+    {
+      s << "Reset " << endl;
+    }
+
+  return s;
 }
 
 
-struct TPacketFromGdbServer {
-	enum Response { Good, Bad };
-	Response resp;
-	unsigned char fData[MAX_BUFFER_FROM_SERVER_SIZE];
+struct TPacketFromGdbServer
+{
+  enum Response
+  { Good, Bad };
+  Response resp;
+  unsigned char fData[MAX_BUFFER_FROM_SERVER_SIZE];
 };
-inline ostream& operator << (ostream& s, TPacketFromGdbServer& p) {
+inline ostream &
+operator << (ostream & s, TPacketFromGdbServer & p)
+{
 
-	if (p.resp == TPacketFromGdbServer::Good) {
-		s << "Data " << endl;
-		for (unsigned i=0; i<MAX_BUFFER_FROM_SERVER_SIZE; i++) {
-			s << hex << (unsigned short) p.fData[i] << dec << endl;
-		}
-		s << std::endl;
-
-	} else {
-		s << " Get Bad response !!!" << endl;
+  if (p.resp == TPacketFromGdbServer::Good)
+    {
+      s << "Data " << endl;
+      for (unsigned i = 0; i < MAX_BUFFER_FROM_SERVER_SIZE; i++)
+	{
+	  s << hex << (unsigned short) p.fData[i] << dec << endl;
 	}
+      s << std::endl;
 
-	return s;
+    }
+  else
+    {
+      s << " Get Bad response !!!" << endl;
+    }
+
+  return s;
 }
 #endif
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

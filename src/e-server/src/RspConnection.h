@@ -103,40 +103,46 @@
 class RspConnection
 {
 public:
-	// Constructors and destructor
-	RspConnection(int         _portNum);
-	RspConnection(const char *_serviceName = DEFAULT_RSP_SERVICE);
-	~RspConnection();
+  // Constructors and destructor
+  RspConnection (int _portNum);
+    RspConnection (const char *_serviceName = DEFAULT_RSP_SERVICE);
+   ~RspConnection ();
 
-	// Public interface: manage client connections
-	bool rspConnect();
-	void rspClose();
-	bool isConnected();
+  // Public interface: manage client connections
+  bool rspConnect ();
+  void rspClose ();
+  bool isConnected ();
 
-	// Public interface: get packets from the stream and put them out
-	bool getPkt(RspPacket *pkt);
-	bool putPkt(RspPacket *pkt);
+  // Public interface: get packets from the stream and put them out
+  bool getPkt (RspPacket * pkt);
+  bool putPkt (RspPacket * pkt);
 
-	bool GetBreakCommand();
+  bool GetBreakCommand ();
 
 private:
 
-	// Generic initializer
-	void rspInit(int _portNum, const char *_serviceName);
+  // Generic initializer
+  void rspInit (int _portNum, const char *_serviceName);
 
-	// Internal routines to handle individual chars
-	bool putRspChar(char c);
-	int  getRspChar();
+  // Internal routines to handle individual chars
+  bool putRspChar (char c);
+  int getRspChar ();
 
-	//! The port number to listen on
-	int  portNum;
+  //! The port number to listen on
+  int portNum;
 
-	//! The service name to listen on
-	const char *serviceName;
+  //! The service name to listen on
+  const char *serviceName;
 
-	//! The client file descriptor
-	int  clientFd;
+  //! The client file descriptor
+  int clientFd;
 
-}; // RspConnection()
+};				// RspConnection()
 
 #endif // RSP_CONNECTION__H
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

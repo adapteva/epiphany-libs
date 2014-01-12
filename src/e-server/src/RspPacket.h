@@ -84,33 +84,39 @@ class RspPacket
 {
 public:
 
-	//! The data buffer. Allow direct access to avoid unnecessary copying.
-	char *data;
+  //! The data buffer. Allow direct access to avoid unnecessary copying.
+  char *data;
 
-	// Constructor and destructor
-	RspPacket(int _bufSize);
-	~RspPacket();
+  // Constructor and destructor
+    RspPacket (int _bufSize);
+   ~RspPacket ();
 
-	// Pack a constant string into a packet
-	void packStr(const char *str); // For fixed packets
+  // Pack a constant string into a packet
+  void packStr (const char *str);	// For fixed packets
 
-	// Accessors
-	int  getBufSize();
-	int  getLen();
-	void setLen(int _len);
+  // Accessors
+  int getBufSize ();
+  int getLen ();
+  void setLen (int _len);
 
 private:
 
-	//! The data buffer size
-	int bufSize;
+  //! The data buffer size
+  int bufSize;
 
-	//! Number of chars in the data buffer (<= bufSize)
-	int len;
+  //! Number of chars in the data buffer (<= bufSize)
+  int len;
 };
 
 
 //! Stream output
-std::ostream &operator << (std::ostream &s, RspPacket &p);
+std::ostream & operator << (std::ostream & s, RspPacket & p);
 
 
 #endif // RSP_PACKET_SC__H
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

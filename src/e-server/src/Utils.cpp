@@ -83,13 +83,12 @@
 //! @return  The value of the hex character, or -1 if the character is
 //!          invalid.
 //-----------------------------------------------------------------------------
-uint8_t
-Utils::char2Hex(int  c)
+uint8_t Utils::char2Hex (int c)
 {
-	return ((c >= 'a') && (c <= 'f')) ? c - 'a' + 10 :
-	       ((c >= '0') && (c <= '9')) ? c - '0' :
-	       ((c >= 'A') && (c <= 'F')) ? c - 'A' + 10 : -1;
-} // char2Hex()
+  return ((c >= 'a') && (c <= 'f')) ? c - 'a' + 10 :
+    ((c >= '0') && (c <= '9')) ? c - '0' :
+    ((c >= 'A') && (c <= 'F')) ? c - 'A' + 10 : -1;
+}				// char2Hex()
 
 
 //-----------------------------------------------------------------------------
@@ -98,27 +97,26 @@ Utils::char2Hex(int  c)
 //! @param[in] d  A hexadecimal digit. Any non-hex digit returns a NULL char
 //-----------------------------------------------------------------------------
 const char
-Utils::hex2Char(uint8_t d)
+Utils::hex2Char (uint8_t d)
 {
-	static const char map [] = "0123456789abcdef"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+  static const char map[] = "0123456789abcdef"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
-	return map[d];
-} // hex2Char()
+  return map[d];
+}				// hex2Char()
 
 
 //-----------------------------------------------------------------------------
@@ -132,17 +130,17 @@ Utils::hex2Char(uint8_t d)
 //! @param[out] buf  The buffer for the text string
 //-----------------------------------------------------------------------------
 void
-Utils::reg2Hex(uint32_t val, char *buf)
+Utils::reg2Hex (uint32_t val, char *buf)
 {
-	for (int n=0; n<8; n+=2)
-	{
-		buf[n]   = hex2Char ((val / 16) & 0xf);
-		buf[n+1] = hex2Char ( val       & 0xf);
-		val /= 256;
-	}
+  for (int n = 0; n < 8; n += 2)
+    {
+      buf[n] = hex2Char ((val / 16) & 0xf);
+      buf[n + 1] = hex2Char (val & 0xf);
+      val /= 256;
+    }
 
-	buf[8] = 0; // Useful to terminate as string
-} // reg2hex()
+  buf[8] = 0;			// Useful to terminate as string
+}				// reg2hex()
 
 
 //-----------------------------------------------------------------------------
@@ -156,18 +154,18 @@ Utils::reg2Hex(uint32_t val, char *buf)
 
 //! @return  The value to convert
 //-----------------------------------------------------------------------------
-uint32_t
-Utils::hex2Reg(char *buf)
+uint32_t Utils::hex2Reg (char *buf)
 {
-	uint32_t val = 0; // The result
+  uint32_t
+    val = 0;			// The result
 
-	for (int n=6; n>=0; n-=2)
-	{
-		val = val * 256 + char2Hex(buf[n]) * 16 + char2Hex(buf[n + 1]);
-	}
+  for (int n = 6; n >= 0; n -= 2)
+    {
+      val = val * 256 + char2Hex (buf[n]) * 16 + char2Hex (buf[n + 1]);
+    }
 
-	return val;
-}// hex2reg()
+  return val;
+}				// hex2reg()
 
 
 //-----------------------------------------------------------------------------
@@ -179,21 +177,21 @@ Utils::hex2Reg(char *buf)
 //! @param[in]  src   The ASCII string (null terminated)                      */
 //-----------------------------------------------------------------------------
 void
-Utils::ascii2Hex(char *dest, char *src)
+Utils::ascii2Hex (char *dest, char *src)
 {
-	int i;
+  int i;
 
-	// Step through converting the source string
-	for (i = 0; src[i] != '\0'; i++)
-	{
-		char ch = src[i];
+  // Step through converting the source string
+  for (i = 0; src[i] != '\0'; i++)
+    {
+      char ch = src[i];
 
-		dest[i * 2]     = hex2Char(ch >> 4 & 0xf);
-		dest[i * 2 + 1] = hex2Char(ch      & 0xf);
-	}
+      dest[i * 2] = hex2Char (ch >> 4 & 0xf);
+      dest[i * 2 + 1] = hex2Char (ch & 0xf);
+    }
 
-	dest[i * 2] = '\0';
-} // ascii2hex()
+  dest[i * 2] = '\0';
+}				// ascii2hex()
 
 
 //-----------------------------------------------------------------------------
@@ -205,18 +203,20 @@ Utils::ascii2Hex(char *dest, char *src)
 //! @param[in]  src   Buffer holding the hex digit pairs (null terminated)
 //-----------------------------------------------------------------------------
 void
-Utils::hex2Ascii(char *dest, char *src)
+Utils::hex2Ascii (char *dest, char *src)
 {
-	int i;
+  int i;
 
-	// Step through convering the source hex digit pairs
-	for (i = 0; src[i*2] != '\0' && src[i*2+1] != '\0'; i++)
-	{
-		dest[i] = ((char2Hex (src[i*2]) & 0xf) << 4) | (char2Hex (src[i*2+1]) & 0xf);
-	}
+  // Step through convering the source hex digit pairs
+  for (i = 0; src[i * 2] != '\0' && src[i * 2 + 1] != '\0'; i++)
+    {
+      dest[i] =
+	((char2Hex (src[i * 2]) & 0xf) << 4) | (char2Hex (src[i * 2 + 1]) &
+						0xf);
+    }
 
-	dest[i] = '\0';
-} // hex2ascii()
+  dest[i] = '\0';
+}				// hex2ascii()
 
 
 //-----------------------------------------------------------------------------
@@ -232,31 +232,31 @@ Utils::hex2Ascii(char *dest, char *src)
 //! @return  The number of bytes AFTER conversion
 //-----------------------------------------------------------------------------
 int
-Utils::rspUnescape(char *buf, int len)
+Utils::rspUnescape (char *buf, int len)
 {
-	int fromOffset = 0; // Offset to source char
-	int toOffset   = 0; // Offset to dest char
+  int fromOffset = 0;		// Offset to source char
+  int toOffset = 0;		// Offset to dest char
 
-	while (fromOffset < len)
+  while (fromOffset < len)
+    {
+      // Is it escaped
+      if ('}' == buf[fromOffset])
 	{
-		// Is it escaped
-		if ('}' == buf[fromOffset])
-		{
-			fromOffset++;
-			buf[toOffset] = buf[fromOffset] ^ 0x20;
-		}
-		else
-		{
-			buf[toOffset] = buf[fromOffset];
-		}
-
-		fromOffset++;
-		toOffset++;
+	  fromOffset++;
+	  buf[toOffset] = buf[fromOffset] ^ 0x20;
+	}
+      else
+	{
+	  buf[toOffset] = buf[fromOffset];
 	}
 
-	return toOffset;
+      fromOffset++;
+      toOffset++;
+    }
 
-} // rspUnescape()
+  return toOffset;
+
+}				// rspUnescape()
 
 
 //-----------------------------------------------------------------------------
@@ -268,18 +268,18 @@ Utils::rspUnescape(char *buf, int len)
 
 //! @return  The value in target endianness
 //-----------------------------------------------------------------------------
-uint32_t
-Utils::htotl(uint32_t hostVal)
+uint32_t Utils::htotl (uint32_t hostVal)
 {
-	uint8_t targetBytes[4];
+  uint8_t
+    targetBytes[4];
 
-	targetBytes[0] = hostVal;
-	targetBytes[1] = hostVal / 256;
-	targetBytes[2] = hostVal / 256 / 256;
-	targetBytes[3] = hostVal / 256 / 256 / 256;
+  targetBytes[0] = hostVal;
+  targetBytes[1] = hostVal / 256;
+  targetBytes[2] = hostVal / 256 / 256;
+  targetBytes[3] = hostVal / 256 / 256 / 256;
 
-	return *((uint32_t *)targetBytes);
-} // htotl()
+  return *((uint32_t *) targetBytes);
+}				// htotl()
 
 
 //-----------------------------------------------------------------------------
@@ -291,19 +291,20 @@ Utils::htotl(uint32_t hostVal)
 
 //! @return  The value in target endianness
 //-----------------------------------------------------------------------------
-uint32_t
-Utils::ttohl(uint32_t targetVal)
+uint32_t Utils::ttohl (uint32_t targetVal)
 {
-	uint8_t *targetBytes = (uint8_t *)(&targetVal);
-	uint32_t hostVal;
+  uint8_t *
+    targetBytes = (uint8_t *) (&targetVal);
+  uint32_t
+    hostVal;
 
-	hostVal =                 targetBytes[3];
-	hostVal = hostVal * 256 + targetBytes[2];
-	hostVal = hostVal * 256 + targetBytes[1];
-	hostVal = hostVal * 256 + targetBytes[0];
+  hostVal = targetBytes[3];
+  hostVal = hostVal * 256 + targetBytes[2];
+  hostVal = hostVal * 256 + targetBytes[1];
+  hostVal = hostVal * 256 + targetBytes[0];
 
-	return hostVal;
-} // ttohl()
+  return hostVal;
+}				// ttohl()
 
 
 //-----------------------------------------------------------------------------
@@ -311,19 +312,30 @@ Utils::ttohl(uint32_t targetVal)
 
 //-----------------------------------------------------------------------------
 void *
-zalloc(unsigned long size)
+zalloc (unsigned long size)
 {
-	void *memory = (void *) malloc(size);
-	if (!memory) {
-		std::cerr << "ERROR malloc failed for stdio buffer allocation ?????????, size " << size << std::endl;
-		exit(4);
-	}
-	memset(memory, 0, size);
-	return memory;
+  void *
+    memory = (void *) malloc (size);
+  if (!memory)
+    {
+      std::
+	cerr <<
+	"ERROR malloc failed for stdio buffer allocation ?????????, size " <<
+	size << std::endl;
+      exit (4);
+    }
+  memset (memory, 0, size);
+  return memory;
 }
 
 void
-zfree(void *data)
+zfree (void *data)
 {
-	free (data);
+  free (data);
 }
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

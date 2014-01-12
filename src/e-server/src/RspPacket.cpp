@@ -79,13 +79,20 @@
 #include "Utils.h"
 
 
-using std::ostream;
-using std::cerr;
-using std::dec;
-using std::endl;
-using std::hex;
-using std::setfill;
-using std::setw;
+using
+  std::ostream;
+using
+  std::cerr;
+using
+  std::dec;
+using
+  std::endl;
+using
+  std::hex;
+using
+  std::setfill;
+using
+  std::setw;
 
 
 //-----------------------------------------------------------------------------
@@ -96,11 +103,11 @@ using std::setw;
 //! @param[in]  _rspConnection  The RSP connection we will use
 //! @param[in]  _bufSize        Size of data buffer to allocate
 //-----------------------------------------------------------------------------
-RspPacket::RspPacket(int _bufSize) : bufSize(_bufSize)
+RspPacket::RspPacket (int _bufSize):bufSize (_bufSize)
 {
-	data = new char[_bufSize];
+  data = new char[_bufSize];
 
-} // RspPacket();
+}				// RspPacket();
 
 
 //-----------------------------------------------------------------------------
@@ -108,11 +115,11 @@ RspPacket::RspPacket(int _bufSize) : bufSize(_bufSize)
 
 //! Give back the data buffer
 //-----------------------------------------------------------------------------
-RspPacket::~RspPacket()
+RspPacket::~RspPacket ()
 {
-	delete [] data;
+  delete[]data;
 
-} // ~RspPacket()
+}				// ~RspPacket()
 
 
 //-----------------------------------------------------------------------------
@@ -125,22 +132,22 @@ RspPacket::~RspPacket()
 void
 RspPacket::packStr (const char *str)
 {
-	int slen = strlen(str);
+  int slen = strlen (str);
 
-	// Construct the packet to send, so long as string is not too big, otherwise
-	// truncate. Add EOS at the end for convenient debug printout
-	if (slen >= bufSize)
-	{
-		cerr << "Warning: String \"" << str
-		     << "\" too large for RSP packet: truncated\n" << endl;
-		slen = bufSize - 1;
-	}
+  // Construct the packet to send, so long as string is not too big, otherwise
+  // truncate. Add EOS at the end for convenient debug printout
+  if (slen >= bufSize)
+    {
+      cerr << "Warning: String \"" << str
+	<< "\" too large for RSP packet: truncated\n" << endl;
+      slen = bufSize - 1;
+    }
 
-	strncpy(data, str, slen);
-	data[slen] = 0;
-	len        = slen;
+  strncpy (data, str, slen);
+  data[slen] = 0;
+  len = slen;
 
-} // packStr()
+}				// packStr()
 
 
 //-----------------------------------------------------------------------------
@@ -149,10 +156,10 @@ RspPacket::packStr (const char *str)
 //! @return  The data buffer size
 //-----------------------------------------------------------------------------
 int
-RspPacket::getBufSize()
+RspPacket::getBufSize ()
 {
-	return bufSize;
-} // getBufSize()
+  return bufSize;
+}				// getBufSize()
 
 
 //-----------------------------------------------------------------------------
@@ -161,10 +168,10 @@ RspPacket::getBufSize()
 //! @return  The number of chars in the data buffer
 //-----------------------------------------------------------------------------
 int
-RspPacket::getLen()
+RspPacket::getLen ()
 {
-	return len;
-} // getLen()
+  return len;
+}				// getLen()
 
 
 //-----------------------------------------------------------------------------
@@ -173,10 +180,10 @@ RspPacket::getLen()
 //! @param[in] _len  The number of chars to be set
 //-----------------------------------------------------------------------------
 void
-RspPacket::setLen(int _len)
+RspPacket::setLen (int _len)
 {
-	len = _len;
-} // setLen()
+  len = _len;
+}				// setLen()
 
 
 //-----------------------------------------------------------------------------
@@ -193,32 +200,37 @@ RspPacket::setLen(int _len)
 //! @param[out] s  Stream to output to
 //! @param[in]  p  Packet to output
 //-----------------------------------------------------------------------------
-ostream &
-operator << (ostream &s, RspPacket &p)
+ostream & operator << (ostream & s, RspPacket & p)
 {
-	unsigned int addr;
-	unsigned int len;
+  unsigned int addr;
+  unsigned int len;
 
-	// See if we have an X packet, with a special version if it is X with a zero
-	// length.
-	if (2 == sscanf (p.data, "X%x,%x:", &addr, &len))
+  // See if we have an X packet, with a special version if it is X with a zero
+  // length.
+  if (2 == sscanf (p.data, "X%x,%x:", &addr, &len))
+    {
+      if (0 == len)
 	{
-		if (0 == len)
-		{
-			return s << "RSP packet: " << dec << setw (3) << p.getLen()
-			         << setw (0) << " chars, \"X" << hex << addr << "," << hex
-			         << len << ":\"";
-		}
-		else
-		{
-			return s << "RSP packet: " << dec << setw (3) << p.getLen()
-			         << setw (0) << " chars, \"X" << hex << addr << "," << hex
-			         << len << ":<binary data>\"";
-		}
+	  return s << "RSP packet: " << dec << setw (3) << p.getLen ()
+	    << setw (0) << " chars, \"X" << hex << addr << "," << hex
+	    << len << ":\"";
 	}
-	else
+      else
 	{
-		return s << "RSP packet: " << dec << setw (3) << p.getLen() << setw (0)
-		         << " chars, \"" << p.data << "\"";
+	  return s << "RSP packet: " << dec << setw (3) << p.getLen ()
+	    << setw (0) << " chars, \"X" << hex << addr << "," << hex
+	    << len << ":<binary data>\"";
 	}
-} // operator << ()
+    }
+  else
+    {
+      return s << "RSP packet: " << dec << setw (3) << p.getLen () << setw (0)
+	<< " chars, \"" << p.data << "\"";
+    }
+}				// operator << ()
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

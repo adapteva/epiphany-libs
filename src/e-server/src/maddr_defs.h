@@ -51,23 +51,23 @@
 #define CORE_R48              (CORE_R0 + 4*48)
 
 // Offsets into the GPRs of various "special" registers
-#define ATDSP_GPR_SB              9 //!< Offset to static base register
-#define ATDSP_GPR_SL             10 //!< Offset to stack limit register
-#define ATDSP_GPR_FP             11 //!< Offset to frame pointer register
-#define ATDSP_GPR_IP             12 //!< Offset to inter-proc scratch reg
-#define ATDSP_GPR_SP             13 //!< Offset to stack pointer register
-#define ATDSP_GPR_LR             14 //!< Offset to link register
+#define ATDSP_GPR_SB              9	//!< Offset to static base register
+#define ATDSP_GPR_SL             10	//!< Offset to stack limit register
+#define ATDSP_GPR_FP             11	//!< Offset to frame pointer register
+#define ATDSP_GPR_IP             12	//!< Offset to inter-proc scratch reg
+#define ATDSP_GPR_SP             13	//!< Offset to stack pointer register
+#define ATDSP_GPR_LR             14	//!< Offset to link register
 
 // Offsets into SCRs
-#define ATDSP_SCR_CONFIG          0 //!< Offset to config register
-#define ATDSP_SCR_STATUS          1 //!< Offset to status register
-#define ATDSP_SCR_PC              2 //!< Offset to program counter reg
-#define ATDSP_SCR_DEBUG           3 //!< Offset to debug register
+#define ATDSP_SCR_CONFIG          0	//!< Offset to config register
+#define ATDSP_SCR_STATUS          1	//!< Offset to status register
+#define ATDSP_SCR_PC              2	//!< Offset to program counter reg
+#define ATDSP_SCR_DEBUG           3	//!< Offset to debug register
 #define ATDSP_SCR_IAB             4
 #define ATDSP_SCR_LC              5
 #define ATDSP_SCR_LS              6
 #define ATDSP_SCR_LE              7
-#define ATDSP_SCR_IRET            8 //!< Offset to interrupt return reg
+#define ATDSP_SCR_IRET            8	//!< Offset to interrupt return reg
 #define ATDSP_SCR_IMASK           9
 #define ATDSP_SCR_ILAT           10
 #define ATDSP_SCR_ILATST         11
@@ -150,10 +150,10 @@ extern unsigned NCORES;
 #define CORE_IDLE_BIT       1
 #define CORE_IDLE_VAL       0x0
 
-#define DMA_IDLE            0    // dma is idle(can be reprogrammed)
-#define DMA_ACTIVE          5    // active transaction stage(master or slave)
-#define DMA_SLAVE_READY     6    // slave mode, autodma ready to receive
-#define DMA_ERROR           0xd  // autodma buffer over-run error
+#define DMA_IDLE            0	// dma is idle(can be reprogrammed)
+#define DMA_ACTIVE          5	// active transaction stage(master or slave)
+#define DMA_SLAVE_READY     6	// slave mode, autodma ready to receive
+#define DMA_ERROR           0xd	// autodma buffer over-run error
 /*
 bits [19:16] = f (MMR space)
 bits [10:8]  = 3
@@ -328,3 +328,9 @@ MESH_SWRESET    NEW      0x60C   core specific software reset                 WR
                                            To get out of reset state, write a 0
 RESERVED                 0x610-0x6FF
 */
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

@@ -82,12 +82,13 @@
 
 //! These have explicit values matching the second digit of 'z' and 'Z'
 //! packets.
-enum MpType {
-	BP_MEMORY   = 0,
-	BP_HARDWARE = 1,
-	WP_WRITE    = 2,
-	WP_READ     = 3,
-	WP_ACCESS   = 4
+enum MpType
+{
+  BP_MEMORY = 0,
+  BP_HARDWARE = 1,
+  WP_WRITE = 2,
+  WP_READ = 3,
+  WP_ACCESS = 4
 };
 
 
@@ -101,16 +102,16 @@ struct MpEntry
 {
 public:
 
-	friend class MpHash; // The only one which can get at next
+  friend class MpHash;		// The only one which can get at next
 
-	MpType   type;       //!< Type of matchpoint
-	uint32_t addr;       //!< Address with the matchpoint
-	uint16_t instr;      //!< Substituted (16-bit) instruction
+  MpType type;			//!< Type of matchpoint
+  uint32_t addr;		//!< Address with the matchpoint
+  uint16_t instr;		//!< Substituted (16-bit) instruction
 
 
 private:
 
-	MpEntry *next;       //!< Next in this slot
+    MpEntry * next;		//!< Next in this slot
 };
 
 
@@ -124,22 +125,28 @@ class MpHash
 {
 public:
 
-	// Constructor and destructor
-	MpHash(int _size = DEFAULT_MP_HASH_SIZE);
-	~MpHash();
+  // Constructor and destructor
+  MpHash (int _size = DEFAULT_MP_HASH_SIZE);
+   ~MpHash ();
 
-	// Accessor methods
-	void     add(MpType type, uint32_t addr, uint16_t instr);
-	MpEntry *lookup(MpType type, uint32_t addr);
-	bool     remove(MpType type, uint32_t addr, uint16_t *instr = NULL);
+  // Accessor methods
+  void add (MpType type, uint32_t addr, uint16_t instr);
+  MpEntry *lookup (MpType type, uint32_t addr);
+  bool remove (MpType type, uint32_t addr, uint16_t * instr = NULL);
 
 private:
 
-	//! The hash table
-	MpEntry **hashTab;
+  //! The hash table
+    MpEntry ** hashTab;
 
-	//! Size of the hash table
-	int size;
+  //! Size of the hash table
+  int size;
 };
 
 #endif // MP_HASH__H
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:

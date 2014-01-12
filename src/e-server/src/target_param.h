@@ -32,3 +32,9 @@
 //#define MAX_NUM_READ_PACKETS 1
 
 #endif /* TARGET_PARAM_H_ */
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// End:
