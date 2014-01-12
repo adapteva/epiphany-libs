@@ -186,7 +186,7 @@ TargetControlHardware::ConvertAddress (unsigned long address)
 extern bool dont_check_hw_address;
 
 bool
-TargetControlHardware::readMem (uint32_t addr, sc_uint_32 & data,
+TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 				unsigned burst_size)
 {
   bool retSt = false;
@@ -242,7 +242,7 @@ TargetControlHardware::readMem (uint32_t addr, sc_uint_32 & data,
 
 
 bool
-TargetControlHardware::writeMem (uint32_t addr, sc_uint_32 data,
+TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
 				 unsigned burst_size)
 {
   bool retSt = false;
@@ -299,7 +299,7 @@ bool
 TargetControlHardware::readMem32 (uint32_t addr, uint32_t & data)
 {
   bool retSt = false;
-  sc_uint_32 data32;
+  uint32_t data32;
 
   retSt = readMem (addr, data32, 4);
   data = data32;
@@ -312,7 +312,7 @@ bool
 TargetControlHardware::readMem16 (uint32_t addr, uint16_t & data)
 {
   bool retSt = false;
-  sc_uint_32 data32;
+  uint32_t data32;
 
   retSt = readMem (addr, data32, 2);
   data = data32 & 0x0000ffff;
@@ -325,7 +325,7 @@ bool
 TargetControlHardware::readMem8 (uint32_t addr, uint8_t & data)
 {
   bool retSt = false;
-  sc_uint_32 data32;
+  uint32_t data32;
 
   retSt = readMem (addr, data32, 1);
   data = data32 & 0x000000ff;
@@ -338,7 +338,7 @@ bool
 TargetControlHardware::writeMem32 (uint32_t addr, uint32_t value)
 {
   bool retSt = false;
-  sc_uint_32 data32 = value;
+  uint32_t data32 = value;
 
   retSt = writeMem (addr, data32, 4);
 
@@ -350,7 +350,7 @@ bool
 TargetControlHardware::writeMem16 (uint32_t addr, uint16_t value)
 {
   bool retSt = false;
-  sc_uint_32 data32 = 0;
+  uint32_t data32 = 0;
 
   data32 = value & 0x0000ffff;
   retSt = writeMem (addr, data32, 2);
@@ -363,7 +363,7 @@ bool
 TargetControlHardware::writeMem8 (uint32_t addr, uint8_t value)
 {
   bool retSt = false;
-  sc_uint_32 data32 = 0;
+  uint32_t data32 = 0;
 
   data32 = value & 0x000000ff;
   retSt = writeMem (addr, data32, 1);

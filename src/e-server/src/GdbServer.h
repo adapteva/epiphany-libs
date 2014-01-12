@@ -71,17 +71,10 @@
 #ifndef GDB_SERVER_SC__H
 #define GDB_SERVER_SC__H
 
+//! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
 #include <inttypes.h>
 
 #include <stdlib.h>
-typedef uint8_t sc_uint_2;
-typedef uint8_t sc_uint_3;
-typedef uint8_t sc_uint_4;
-typedef uint8_t sc_uint_6;
-typedef uint8_t sc_uint_8;
-typedef uint16_t sc_uint_16;
-typedef uint32_t sc_uint_32;
-typedef uint64_t sc_uint_64;
 #include <assert.h>
 #include <string.h>
 
@@ -101,61 +94,31 @@ typedef uint64_t sc_uint_64;
 
 class GdbServer
 {
-
-  private:
-    //! Responsible for the memory operation commands in target
-  TargetControl * fTargetControl;
-
-  public:
-    //! Get CoreID from target
-  unsigned GetAttachedTargetCoreId ()
-  {
-    assert (fTargetControl);
-    return fTargetControl->GetAttachedCoreId ();
-  }
-
 public:
-  //-----------------------------------------------------------------------------
-  //! Constructor for the GDB RSP server.
+public:
 
-  //! We create a SC_THREAD which will act as the listener. Must be a
-  //! thread, since we need to wait for the actions to complete.
-  //! @param[in] name      Name of this module, passed to the parent constructor.
-  //! @param[in] rspPort   The TCP/IP port number to listen on
-
-  int rspPort;
-
-  GdbServer (int _rspPort)
-  {
-
-    fTargetControl = 0;
-
-    rspPort = _rspPort;
-
-    // Create subsidiary classes
-    pkt = new RspPacket (RSP_PKT_MAX);
-    rsp = new RspConnection (rspPort);
-    mpHash = new MpHash ();
-
-    fIsTargetRunning = false;
-
-  }
-
+  // Constructor and destructor
+  GdbServer (int _rspPort);
   ~GdbServer ();
 
-private:
-  //he dgbserver will send the resume command to the target after gdb client kills the debug session
+  //! main loop for core
+  void rspServer (TargetControl * TargetControl);
 
-//      bool fResumeOnDetach;
 
 private:
+
+  // The dgbserver will send the resume command to the target after gdb client
+  // kills the debug session
+
+  // bool fResumeOnDetach;
 
   //! Definition of GDB target signals.
 
   //! Data taken from the GDB 6.8 source. Only those we use defined here.
   enum TargetSignal
   {
-    // Used some places (e.g. stop_signal) to record the concept that there is no signal.
+    // Used some places (e.g. stop_signal) to record the concept that there is
+    // no signal.
     TARGET_SIGNAL_NONE = 0,
     TARGET_SIGNAL_FIRST = 0,
     TARGET_SIGNAL_HUP = 1,
@@ -320,6 +283,11 @@ private:
   //! Thread ID used by ATDSP
   static const int ATDSP_TID = 1;
 
+  //! Responsible for the memory operation commands in target
+  TargetControl * fTargetControl;
+
+  //! The TCP/IP port number to listen on
+  int rspPort;
 
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;
@@ -375,7 +343,8 @@ private:
   void targetHWReset ();
 
   // Convenience wrappers for getting particular registers, which are really
-  // memory mapped and special care of conversion between internal <-> external addresses
+  // memory mapped and special care of conversion between internal <->
+  // external addresses
 
   //Read the of mesh core status register
   uint32_t readCoreStatus ();
@@ -415,43 +384,34 @@ private:
   void saveIVT ();
   void restoreIVT ();
 
-private:
-  //! thread control
+  //! Thread control
   void NanoSleepThread (unsigned long timeout);
 
-public:
+  //! Get CoreID from target
+  unsigned getAttachedTargetCoreId ();
+
+  //!Release the coreID, the target core can be selected by other gdb client
+  //! @todo Fix this empty function.
+  void releaseGdbCmdSelectedCoreId () { };
 
 
-  // main loop for core
-  void rspServer (TargetControl * TargetControl);
+  void redirectSdioOnTrap (uint8_t trapNumber);
 
-
-private:
-  void redirectSdioOnTrap (sc_uint_6 trapNumber);
-
-private:
-  //used in cont command to support CTRL-C from gdb client
+  //! Used in cont command to support CTRL-C from gdb client
   bool fIsTargetRunning;
 
+  bool  is32BitsInstr (uint32_t iab_instr);
 
-public:
-
-  //FIXME
-  //release the coreID, the target core can be selected by other gdb client
-  void ReleaseGdbCmdSelectedCoreId ()
-  {
-  };
+  // YS - provide the SystemC equivalent to the bit range selection operator.
+  uint8_t getfield (uint8_t x, int _lt, int _rt);
+  uint16_t getfield (uint16_t x, int _lt, int _rt);
+  uint32_t getfield (uint32_t x, int _lt, int _rt);
+  uint64_t getfield (uint64_t x, int _lt, int _rt);
+  void setfield (uint32_t & x, int _lt, int _rt, uint32_t val);
 
 };				// GdbServer()
 
 extern int debug_level;
-
-// YS - provide the SystemC equivalent to the bit range selection operator.
-inline sc_uint_8 getfield (sc_uint_8 x, int _lt, int _rt);
-inline sc_uint_16 getfield (sc_uint_16 x, int _lt, int _rt);
-inline sc_uint_32 getfield (sc_uint_32 x, int _lt, int _rt);
-inline sc_uint_64 getfield (sc_uint_64 x, int _lt, int _rt);
-inline void setfield (sc_uint_32 & x, int _lt, int _rt, sc_uint_32 val);
 
 #endif // GDB_SERVER_SC__H
 

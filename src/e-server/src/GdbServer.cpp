@@ -50,7 +50,6 @@
 
 // Note that the Epiphany is a little endian architecture.
 
-
 #include <iostream>
 #include <iomanip>
 
@@ -95,6 +94,32 @@ static pthread_mutex_t
 
 
 //-----------------------------------------------------------------------------
+//! Constructor for the GDB RSP server.
+
+//! We create a SC_THREAD which will act as the listener. Must be a
+//! thread, since we need to wait for the actions to complete.
+
+//! @param[in] name      Name of this module, passed to the parent constructor.
+//! @param[in] rspPort   The TCP/IP port number to listen on
+//-----------------------------------------------------------------------------
+GdbServer::GdbServer (int _rspPort)
+{
+
+  fTargetControl = 0;
+  
+  rspPort = _rspPort;
+  
+  // Create subsidiary classes
+  pkt = new RspPacket (RSP_PKT_MAX);
+  rsp = new RspConnection (rspPort);
+  mpHash = new MpHash ();
+  
+  fIsTargetRunning = false;
+
+}	// GdbServer ()
+
+
+//-----------------------------------------------------------------------------
 //! Destructor
 
 //! Free up data structures
@@ -106,7 +131,7 @@ GdbServer::~GdbServer ()
   delete rsp;
   delete pkt;
 
-  ReleaseGdbCmdSelectedCoreId ();
+  releaseGdbCmdSelectedCoreId ();
 
 }				// ~GdbServer
 
@@ -175,7 +200,7 @@ GdbServer::rspDetach ()
   //      targetResume();
   //}
 
-  ReleaseGdbCmdSelectedCoreId ();
+  releaseGdbCmdSelectedCoreId ();
 }
 
 //-----------------------------------------------------------------------------
@@ -222,7 +247,7 @@ GdbServer::rspServer (TargetControl * TargetControl)
 	    }
 	  else
 	    {
-	      //ReleaseGdbCmdSelectedCoreId();
+	      //releaseGdbCmdSelectedCoreId();
 	      //
 	      //rspClientRequest(); // try to get core id
 
@@ -230,7 +255,7 @@ GdbServer::rspServer (TargetControl * TargetControl)
 
 	      pthread_mutex_lock (&rspCmdControlAccess_m);
 
-	      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec
+	      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec
 		<< " connected to port " << rspPort << endl << flush;
 
 	      if (haltOnAttach)
@@ -245,7 +270,7 @@ GdbServer::rspServer (TargetControl * TargetControl)
 
       // Get a RSP client request
       if (debug_level > D_STOP_RESUME_INFO)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  "-------------- rspClientRequest(): begin" << endl << flush;
       rspClientRequest ();
       //check if the target is stopped and not hit by BP in continue command and check gdb CTRL-C and continue again
@@ -253,7 +278,7 @@ GdbServer::rspServer (TargetControl * TargetControl)
 	{
 
 	  if (debug_level > D_CTLR_C_WAIT)
-	    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	      "check for CTLR-C" << endl << flush;
 	  bool isGotBreakCommand = rsp->GetBreakCommand ();
 	  if (isGotBreakCommand)
@@ -272,12 +297,12 @@ GdbServer::rspServer (TargetControl * TargetControl)
 	      rspContinue (0, 0);	//the args are ignored by continue command in this mode
 	    }
 	  if (debug_level > D_CTLR_C_WAIT)
-	    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	      "check for CTLR-C done" << endl << flush;
 	}
 
       if (debug_level > D_STOP_RESUME_INFO)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" <<
 	  "-------------- rspClientRequest(): end" << endl << endl << flush;
     }
 }				// rspServer()
@@ -672,7 +697,7 @@ GdbServer::targetResume ()
   fTargetControl->writeMem32 (CORE_DEBUGCMD, ATDSP_DEBUG_RUN);
 
   if (debug_level > D_TRAP_AND_RSP_CON)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " resume CORE_DEBUGCMD " << hex << CORE_DEBUGCMD << " " <<
       ATDSP_DEBUG_RUN << dec << endl << flush;
 
@@ -698,7 +723,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 {
   if ((!fIsTargetRunning && debug_level > 1) || (debug_level > 200))
     {
-      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	"GdbServer::rspContinue PC 0x" << hex << addr << dec << endl <<
 	flush;
     }
@@ -770,7 +795,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  uint16_t val_;
 	  fTargetControl->readMem16 (prevPc, val_);
 	  //bool retSt = fTargetControl->readMem16(prevPc, val_);
-	  sc_uint_16 valueOfStoppedInstr = val_;
+	  uint16_t valueOfStoppedInstr = val_;
 
 	  if (valueOfStoppedInstr == ATDSP_BKPT_INSTR)
 	    {
@@ -780,13 +805,13 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		{
 		  writePc (prevPc);
 		  if (debug_level > D_TRAP_AND_RSP_CON)
-		    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:"
+		    cerr << "[" << hex << getAttachedTargetCoreId () << "]:"
 		      << dec << "set pc back " << hex << prevPc << dec << endl
 		      << flush;
 		}
 
 	      if (debug_level > D_TRAP_AND_RSP_CON)
-		cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" <<
+		cerr << "[" << hex << getAttachedTargetCoreId () << "]:" <<
 		  dec << "After wait CONT GdbServer::rspContinue PC 0x" <<
 		  hex << prevPc << dec << endl << flush;
 
@@ -809,7 +834,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		  //cerr << "********* stoppedAtTrap = false **************" << endl << flush;
 		  //try to go back an look for trap // bug in the design !!!!!!!!!!!!!!
 		  if (debug_level > D_TRAP_AND_RSP_CON)
-		    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:"
+		    cerr << "[" << hex << getAttachedTargetCoreId () << "]:"
 		      << dec << "missed trap ... looking backward for trap "
 		      << hex << c_pc << dec << endl << flush;
 
@@ -832,7 +857,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 			    {
 			      if (debug_level > D_STOP_RESUME_DETAIL)
 				cerr << "[" << hex <<
-				  GetAttachedTargetCoreId () << "]:" << dec <<
+				  getAttachedTargetCoreId () << "]:" << dec <<
 				  "trap found @" << hex << j << dec << endl <<
 				  flush;
 			      break;
@@ -850,7 +875,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 		  fIsTargetRunning = false;
 
-		  sc_uint_6 trapNumber =
+		  uint8_t trapNumber =
 		    getfield (valueOfStoppedInstr, 15, 10);
 		  redirectSdioOnTrap (trapNumber);
 		}
@@ -858,7 +883,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		{
 		  //cerr << "********* stoppedAtTrap = false **************" << endl << flush;
 		  if (debug_level > D_STOP_RESUME_DETAIL)
-		    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:"
+		    cerr << "[" << hex << getAttachedTargetCoreId () << "]:"
 		      << dec << " no trap found, return control to gdb" <<
 		      endl << flush;
 		  // report to gdb the target has been stopped
@@ -890,7 +915,7 @@ GdbServer::rspSuspend ()
   bool isHalted;
 
   if (debug_level > D_TRAP_AND_RSP_CON)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       "force debug mode" << endl << flush;
 
   //probably target suspended
@@ -935,7 +960,7 @@ GdbServer::rspSuspend ()
 	      uint16_t val16;
 	      fTargetControl->readMem16 (reportedPc, val16);
 	      //bool st1 = fTargetControl->readMem16(reportedPc, val16);
-	      sc_uint_16 instrOpcode = val16;
+	      uint16_t instrOpcode = val16;
 
 	      //idle
 	      if (getfield (instrOpcode, 8, 0) == IDLE_OPCODE)
@@ -987,7 +1012,7 @@ GdbServer::rspFileIOreply ()
       //write to r3 error core
       writeGpr (3, host_respond_error_code);
       if (debug_level > D_STOP_RESUME_DETAIL)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " remote io done " << result_io << "error code" <<
 	  host_respond_error_code << endl << flush;
 
@@ -996,7 +1021,7 @@ GdbServer::rspFileIOreply ()
     {
 
       if (debug_level > D_STOP_RESUME_DETAIL)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " remote io done " << result_io << endl << flush;
 
       //write to r0
@@ -1037,12 +1062,12 @@ extern bool with_tty_support;
 
 
 void
-GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
+GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 {
   //cout << "---- stop on PC 0x " << hex << prevPc << dec << endl << flush;
   //cout << "---- got trap 0x" << hex << valueOfStoppedInstr << dec << endl << flush;
 
-  sc_uint_32 r0, r1, r2, r3;
+  uint32_t r0, r1, r2, r3;
   char *buf;
   //int result_io;
   unsigned int k;
@@ -1057,14 +1082,14 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
     case TRAP_WRITE:
 
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " Trap 0 write " << endl << flush;
       r0 = readGpr (0);		//chan
       r1 = readGpr (1);		//addr
       r2 = readGpr (2);		//length
 
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " write to chan " << r0 << " bytes " << r2 << endl << flush;
 
       sprintf ((pkt->data), "Fwrite,%lx,%lx,%lx", (unsigned long) r0,
@@ -1076,13 +1101,13 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
 
     case TRAP_READ:
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec << " Trap 1 read " << endl << flush;	/*read(chan, addr, len) */
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec << " Trap 1 read " << endl << flush;	/*read(chan, addr, len) */
       r0 = readGpr (0);		//chan
       r1 = readGpr (1);		//addr
       r2 = readGpr (2);		//length
 
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " read from chan " << r0 << " bytes " << r2 << endl << flush;
 
 
@@ -1097,7 +1122,7 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
       r1 = readGpr (1);		//flags
 
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " Trap 2 open, file name located @" << hex << r0 << dec << " (mode)"
 	  << r1 << endl << flush;
 
@@ -1122,7 +1147,7 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
 
     case TRAP_EXIT:
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " Trap 3 exiting .... ??? " << endl << flush;
       r0 = readGpr (0);		//status
       //cerr << " The remote target got exit() call ... no OS -- ignored" << endl << flush;
@@ -1140,7 +1165,7 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
     case TRAP_CLOSE:
       r0 = readGpr (0);		//chan
       if (debug_level > D_TRAP_AND_RSP_CON)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  " Trap 6 close: " << r0 << endl << flush;
       sprintf ((pkt->data), "Fclose,%lx", (unsigned long) r0);
       pkt->setLen (strlen (pkt->data));
@@ -1155,7 +1180,7 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
 
 	  //cerr << " Trap 7 syscall -- ignored" << endl << flush;
 	  if (debug_level > D_TRAP_AND_RSP_CON)
-	    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	      " Trap 7 " << endl << flush;
 	  r0 = readGpr (0);	// buf_addr
 	  r1 = readGpr (1);	// fmt_len
@@ -1294,18 +1319,18 @@ GdbServer::redirectSdioOnTrap (sc_uint_6 trapNumber)
 	      sprintf ((pkt->data), "Ffstat,%lx,%lx", (unsigned long) r0,
 		       (unsigned long) r1);
 	      if (debug_level > D_TRAP_AND_RSP_CON)
-		cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" <<
+		cerr << "[" << hex << getAttachedTargetCoreId () << "]:" <<
 		  dec << "SYS_fstat fildes " << hex << r0 << " struct stat * "
 		  << r1 << dec << endl << flush;
 	      break;
 
 	    default:
-	      cerr << "[" << hex << GetAttachedTargetCoreId () <<
+	      cerr << "[" << hex << getAttachedTargetCoreId () <<
 		"] ERROR: Trap 7 --- unknown SUBFUN " << r3 << endl << flush;
 	      break;
 	    }
 	  if (debug_level > D_TRAP_AND_RSP_CON)
-	    cerr << "[" << hex << GetAttachedTargetCoreId () << "]: Trap 7: "
+	    cerr << "[" << hex << getAttachedTargetCoreId () << "]: Trap 7: "
 	      << (pkt->data) << endl << flush;
 
 	  pkt->setLen (strlen (pkt->data));
@@ -1346,7 +1371,7 @@ GdbServer::rspReadAllRegs ()
     for (int r = 0; r < ATDSP_NUM_GPRS; r++)
       {
 
-	sc_uint_32 val32;
+	uint32_t val32;
 
 	val32 =
 	  (buf[r * 4 + 3] << (3 * 8)) | (buf[r * 4 + 2] << (2 * 8)) |
@@ -1379,7 +1404,7 @@ GdbServer::rspReadAllRegs ()
     for (int r = 0; r < ATDSP_NUM_SCRS_0; r++)
       {
 
-	sc_uint_32 val32;
+	uint32_t val32;
 
 	val32 =
 	  (buf[r * 4 + 3] << (3 * 8)) | (buf[r * 4 + 2] << (2 * 8)) |
@@ -1404,7 +1429,7 @@ GdbServer::rspReadAllRegs ()
     for (int r = 0; r < ATDSP_NUM_SCRS_1; r++)
       {
 
-	sc_uint_32 val32;
+	uint32_t val32;
 
 	val32 =
 	  (buf[r * 4 + 3] << (3 * 8)) | (buf[r * 4 + 2] << (2 * 8)) |
@@ -1827,7 +1852,7 @@ GdbServer::rspQuery ()
 	{
 	  unsigned coreId = atoi (pkt->data + strlen (coreExtension));
 
-	  unsigned oldCoreId = GetAttachedTargetCoreId ();
+	  unsigned oldCoreId = getAttachedTargetCoreId ();
 
 	  if (fTargetControl->SetAttachedCoreId (coreId))
 	    {
@@ -1927,7 +1952,7 @@ GdbServer::rspCommand ()
   if (strcmp ("swreset", cmd) == 0)
     {
 
-      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	"The debugger sent reset request" << endl << flush;
 
       //reset
@@ -1940,7 +1965,7 @@ GdbServer::rspCommand ()
       char mess[] =
 	"The debugger sent HW (platfrom) reset request, please restart other debug clients.\n";
 
-      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec << mess
+      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec << mess
 	<< endl << flush;
 
       //HW reset (ESYS_RESET)
@@ -1953,7 +1978,7 @@ GdbServer::rspCommand ()
   else if (strcmp ("halt", cmd) == 0)
     {
 
-      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	"The debugger sent halt request," << endl << flush;
 
       //target halt
@@ -1967,7 +1992,7 @@ GdbServer::rspCommand ()
   else if (strcmp ("run", cmd) == 0)
     {
 
-      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	"The debugger sent start request," << endl << flush;
 
       // target start (ILAT set)
@@ -2152,20 +2177,36 @@ GdbServer::rspStep ()
 }				// rspStep()
 
 
+//! Get CoreID from target
+unsigned
+GdbServer::getAttachedTargetCoreId ()
+{
+  assert (fTargetControl);
+  return fTargetControl->GetAttachedCoreId ();
+
+}	// getAttachedTargetCoreId ()
+
+
+//---------------------------------------------------------------------------
+//! Test if we have a 32-bit instruction in our hand.
+
+//! @param[in] iab_instr  The instruction to test
+//! @return TRUE if this is a 32-bit instruction, FALSE otherwise.
+//---------------------------------------------------------------------------
 bool
-Is32BitsInstr (sc_uint_32 iab_instr)
+GdbServer::is32BitsInstr (uint32_t iab_instr)
 {
 
-  bool de_extended_instr = (getfield (iab_instr, 3, 0) == sc_uint_4 (0xf));
+  bool de_extended_instr = (getfield (iab_instr, 3, 0) == uint8_t (0xf));
 
-  bool de_regi = (getfield (iab_instr, 2, 0) == sc_uint_3 (3));
+  bool de_regi = (getfield (iab_instr, 2, 0) == uint8_t (3));
   bool de_regi_long = de_regi && (getfield (iab_instr, 3, 3) == 1);
 
-  bool de_loadstore = (getfield (iab_instr, 2, 0) == sc_uint_3 (0x4))
-    || (getfield (iab_instr, 1, 0) == sc_uint_2 (1));
+  bool de_loadstore = (getfield (iab_instr, 2, 0) == uint8_t (0x4))
+    || (getfield (iab_instr, 1, 0) == uint8_t (1));
   bool de_loadstore_long = de_loadstore && (getfield (iab_instr, 3, 3) == 1);
 
-  bool de_branch = (getfield (iab_instr, 2, 0) == sc_uint_3 (0));
+  bool de_branch = (getfield (iab_instr, 2, 0) == uint8_t (0));
   bool de_branch_long_sel = de_branch && (getfield (iab_instr, 3, 3) == 1);
 
   bool res = (de_extended_instr ||	// extension
@@ -2174,7 +2215,8 @@ Is32BitsInstr (sc_uint_32 iab_instr)
 	      de_branch_long_sel);	// long branch
 
   return res;
-}
+
+}	// is32BitsInstr ()
 
 
 //---------------------------------------------------------------------------
@@ -2186,7 +2228,7 @@ GdbServer::targetHalt ()
 {
   fTargetControl->writeMem32 (CORE_DEBUGCMD, ATDSP_DEBUG_HALT);
   if (debug_level > D_STOP_RESUME_INFO)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_HALT) " << hex << CORE_DEBUGCMD
       << " <-- " << ATDSP_DEBUG_HALT << dec << endl << flush;
 
@@ -2199,7 +2241,7 @@ GdbServer::targetHalt ()
       sleep (1);
       if (!isTargetInDebugState ())
 	{
-	  cerr << "Warning: " << "[" << hex << GetAttachedTargetCoreId () <<
+	  cerr << "Warning: " << "[" << hex << getAttachedTargetCoreId () <<
 	    "]:" << dec << " Target has not been halted after 1 sec " << endl
 	    << flush;
 	  uint32_t val;
@@ -2210,7 +2252,7 @@ GdbServer::targetHalt ()
 	}
     }
   if (debug_level > D_STOP_RESUME_INFO)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " TargetInDebugState = true " << dec << endl << flush;
 
   return true;
@@ -2226,7 +2268,7 @@ GdbServer::putBreakPointInstruction (unsigned long bkpt_addr)
   fTargetControl->writeMem16 (bkpt_addr, ATDSP_BKPT_INSTR);
 
   if (debug_level > D_STOP_RESUME_DETAIL)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " put break point " << hex << bkpt_addr << " " << ATDSP_BKPT_INSTR <<
       dec << endl << flush;
 
@@ -2258,7 +2300,7 @@ GdbServer::isTargetInDebugState ()
   fTargetControl->readMem32 (CORE_DEBUG, val);
   //bool retSt = fTargetControl->readMem32(CORE_DEBUG, val);
 
-  sc_uint_32 valueOfDebugReg = val;
+  uint32_t valueOfDebugReg = val;
 
   bool ret = ((getfield (valueOfDebugReg, 0, 0) == ATDSP_DEBUG_HALT)
 	      && (getfield (valueOfDebugReg, 1, 1) == ATDSP_OUT_TRAN_FALSE));
@@ -2276,8 +2318,8 @@ GdbServer::isTargetExceptionState (unsigned &exCause)
   bool ret = false;
 
   //check if idle state
-  sc_uint_32 coreStatus = readCoreStatus ();
-  sc_uint_32 exStat = getfield (coreStatus, 18, 16);
+  uint32_t coreStatus = readCoreStatus ();
+  uint32_t exStat = getfield (coreStatus, 18, 16);
   if (exStat != 0)
     {
 
@@ -2312,7 +2354,7 @@ GdbServer::isTargetInIldeState ()
   bool ret = false;
 
   //check if idle state
-  sc_uint_32 coreStatus = readCoreStatus ();
+  uint32_t coreStatus = readCoreStatus ();
   if (getfield (coreStatus, 18, 16) != 0)
     {
       cerr << "EXception " << hex << getfield (coreStatus, 18,
@@ -2351,7 +2393,7 @@ GdbServer::saveIVT ()
   //      if (mpHash->lookup(BP_MEMORY,bkpt_addr) == NULL) {
   //              uint16_t val16t;
   //              bool stvlBpMem = fTargetControl->readMem16(bkpt_addr, val16t);
-  //              sc_uint<16> vlBpMem = val16t;
+  //              uint<16> vlBpMem = val16t;
   //
   //              mpHash->add(BP_MEMORY, bkpt_addr, vlBpMem);
   //
@@ -2400,7 +2442,7 @@ void
 GdbServer::rspStep (uint32_t addr, uint32_t except)
 {
   if (debug_level > D_STOP_RESUME_DETAIL)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       "GdbServer::rspStep PC 0x" << hex << addr << dec << endl << flush;
 
   //check if core in debug state
@@ -2433,7 +2475,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   uint16_t val16;
   fTargetControl->readMem16 (reportedPc, val16);
   //bool st1 = fTargetControl->readMem16(reportedPc, val16);
-  sc_uint_16 instrOpcode = val16;
+  uint16_t instrOpcode = val16;
 
   //Skip/Care Idle instruction
   bool stoppedAtIdleInstr = (getfield (instrOpcode, 8, 0) == IDLE_OPCODE);
@@ -2443,7 +2485,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	<< flush;
 
       //check if global ISR enable state
-      sc_uint_32 coreStatus = readCoreStatus ();
+      uint32_t coreStatus = readCoreStatus ();
 
       uint32_t imaskReg = readScrGrp0 (ATDSP_SCR_IMASK);
       uint32_t ilatReg = readScrGrp0 (ATDSP_SCR_ILAT);
@@ -2475,7 +2517,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	  //restore IVT
 	  restoreIVT ();
 	  readCoreStatus ();
-	  //sc_uint_32 coreStatus = readCoreStatus();
+	  //uint32_t coreStatus = readCoreStatus();
 
 	  readScrGrp0 (ATDSP_SCR_IMASK);
 	  //uint32_t imaskReg = readScrGrp0(ATDSP_SCR_IMASK);
@@ -2498,7 +2540,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
       fIsTargetRunning = false;
 
-      sc_uint_6 trapNumber = getfield (instrOpcode, 15, 10);
+      uint8_t trapNumber = getfield (instrOpcode, 15, 10);
       redirectSdioOnTrap (trapNumber);
       //increment pc by size of TRAP instruction
       writePc (addr + ATDSP_TRAP_INSTLEN);
@@ -2509,7 +2551,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   writePc (addr);
 
   //fetch PC
-  sc_uint_32 pc_ = readPc ();
+  uint32_t pc_ = readPc ();
 
   //check if core in debug state
   if ((addr != pc_))
@@ -2522,7 +2564,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
 
   if (debug_level > D_STOP_RESUME_DETAIL)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " get PC " << hex << pc_ << endl << flush;
 
   //fetch instruction opcode on PC
@@ -2533,16 +2575,16 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   fTargetControl->readMem16 (pc_ + 2, val16);
   //bool st2 = fTargetControl->readMem16(pc_+2, val16);
-  sc_uint_16 instrExt = val16;
+  uint16_t instrExt = val16;
 
   if (debug_level > D_STOP_RESUME_DETAIL)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " opcode 0x" << hex << instrOpcode << dec << endl << flush;
 
-  sc_uint_32 bkpt_addr = addr + 2;	//put breakpoint to addr + instruction length
+  uint32_t bkpt_addr = addr + 2;	//put breakpoint to addr + instruction length
 
-  bool is32bitsInstr = Is32BitsInstr (instrOpcode);
-  if (is32bitsInstr)
+  bool is32 = is32BitsInstr (instrOpcode);
+  if (is32)
     {
       bkpt_addr += 2;		//this is extension: 4 bytes instruction
     }
@@ -2557,20 +2599,20 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       mpHash->add (BP_MEMORY, bkpt_addr, bpVal_);
     }
   if (debug_level > D_TRAP_AND_RSP_CON)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       "put (SEQ) bkpt on 0x" << hex << bkpt_addr << dec << endl << flush;
   putBreakPointInstruction (bkpt_addr);
 
 
   //put breakpoint to jump target in case of change of flow
-  sc_uint_32 bkpt_jump_addr = bkpt_addr;
+  uint32_t bkpt_jump_addr = bkpt_addr;
 
   //check if jump by value
   if (getfield (instrOpcode, 2, 0) == 0)
     {
-      sc_uint_32 immExt = 0;
+      uint32_t immExt = 0;
       setfield (immExt, 7, 0, getfield (instrOpcode, 15, 8));
-      if (is32bitsInstr)
+      if (is32)
 	{
 	  setfield (immExt, 23, 8, getfield (instrExt, 15, 0));
 	  if (getfield (immExt, 23, 23) == 1)
@@ -2604,7 +2646,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   if (getfield (instrOpcode, 8, 0) == 0x142
       || getfield (instrOpcode, 8, 0) == 0x152)
     {
-      sc_uint_3 regShortNum = getfield (instrOpcode, 12, 10);
+      uint8_t regShortNum = getfield (instrOpcode, 12, 10);
       bkpt_jump_addr = readGpr (regShortNum);
       //cerr << "PC <-< " << regShortNum << endl << flush;
     }
@@ -2612,7 +2654,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   if (getfield (instrOpcode, 8, 0) == 0x14f
       || getfield (instrOpcode, 8, 0) == 0x15f)
     {
-      sc_uint_6 regLongNum;
+      uint8_t regLongNum;
       regLongNum =
 	(getfield (instrExt, 12, 10) << 3) | (getfield (instrOpcode, 12, 10)
 					      << 0);
@@ -2624,7 +2666,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   if (bkpt_jump_addr != bkpt_addr)
     {
       if (debug_level > D_STOP_RESUME_DETAIL)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  "put bkpt on (change of flow) " << hex << bkpt_jump_addr << dec <<
 	  endl << flush;
       if (mpHash->lookup (BP_MEMORY, bkpt_jump_addr) == NULL)
@@ -2633,12 +2675,12 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	  uint16_t val16t;
 	  fTargetControl->readMem16 (bkpt_jump_addr, val16t);
 	  //bool stvlBpMem = fTargetControl->readMem16(bkpt_jump_addr, val16t);
-	  sc_uint_16 vlBpMem = val16t;
+	  uint16_t vlBpMem = val16t;
 
 	  mpHash->add (BP_MEMORY, bkpt_jump_addr, vlBpMem);
 	}
       if (debug_level > D_STOP_RESUME_DETAIL)
-	cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+	cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	  "put (JMP) bkpt on 0x" << hex << bkpt_jump_addr << dec << endl <<
 	  flush;
 
@@ -2662,7 +2704,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   targetResume ();
 
   if (debug_level > D_TRAP_AND_RSP_CON)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       " resume at PC " << hex << readPc () << endl << flush;
   if (debug_level > D_STOP_RESUME_DETAIL)
     {
@@ -2670,7 +2712,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       fTargetControl->readMem32 (readPc (), pcReadVal);
       //bool pcReadSt = fTargetControl->readMem32(readPc(), pcReadVal);
 
-      cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+      cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
 	" opcode << " << pcReadVal << dec << endl << flush;
     }
 
@@ -2695,7 +2737,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   assert ((NULL != mpHash->lookup (BP_MEMORY, prevPc))
 	  || isHitInBreakPointInstruction (bkpt_jump_addr));
   if (debug_level > D_STOP_RESUME_DETAIL)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       "set prevPc after stop 0x" << hex << prevPc << dec << endl << flush;
   writePc (prevPc);
 
@@ -2710,7 +2752,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
     }
 
   if (debug_level > D_TRAP_AND_RSP_CON)
-    cerr << "[" << hex << GetAttachedTargetCoreId () << "]:" << dec <<
+    cerr << "[" << hex << getAttachedTargetCoreId () << "]:" << dec <<
       "After wait STEP GdbServer::Step 0x" << hex << prevPc << dec << endl
       << flush;
 
@@ -3537,38 +3579,38 @@ GdbServer::rspThreadSubOperation ()
 
 
 // These functions replace the intrinsic SystemC bitfield operators.
-inline sc_uint_8
-getfield (sc_uint_8 x, int _lt, int _rt)
+uint8_t
+GdbServer::getfield (uint8_t x, int _lt, int _rt)
 {
   return (x & ((1 << (_lt + 1)) - 1)) >> _rt;
 }
 
 
-inline sc_uint_16
-getfield (sc_uint_16 x, int _lt, int _rt)
+uint16_t
+GdbServer::getfield (uint16_t x, int _lt, int _rt)
 {
   return (x & ((1 << (_lt + 1)) - 1)) >> _rt;
 }
 
 
-inline sc_uint_32
-getfield (sc_uint_32 x, int _lt, int _rt)
+uint32_t
+GdbServer::getfield (uint32_t x, int _lt, int _rt)
 {
   return (x & ((1 << (_lt + 1)) - 1)) >> _rt;
 }
 
 
-inline sc_uint_64
-getfield (sc_uint_64 x, int _lt, int _rt)
+uint64_t
+GdbServer::getfield (uint64_t x, int _lt, int _rt)
 {
   return (x & ((1 << (_lt + 1)) - 1)) >> _rt;
 }
 
 
-inline void
-setfield (sc_uint_32 & x, int _lt, int _rt, sc_uint_32 val)
+void
+GdbServer::setfield (uint32_t & x, int _lt, int _rt, uint32_t val)
 {
-  sc_uint_32 mask;
+  uint32_t mask;
 
   mask = ((1 << (_lt - _rt + 1)) - 1) << _rt;
 

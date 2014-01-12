@@ -25,10 +25,10 @@
 #ifndef TARGETCNTRL_H_
 #define TARGETCNTRL_H_
 
-#include <stdint.h>
+//! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
+#include <inttypes.h>
+
 #include <stdio.h>
-typedef uint32_t sc_uint_32;
-typedef uint64_t sc_uint_64;
 
 #include <iostream>
 using namespace std;

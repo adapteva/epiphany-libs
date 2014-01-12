@@ -91,8 +91,8 @@ private:
   unsigned long ConvertAddress (unsigned long);
 
   /* read and write from target */
-  bool readMem (uint32_t addr, sc_uint_32 & data, unsigned burst_size);
-  bool writeMem (uint32_t addr, sc_uint_32 data, unsigned burst_size);
+  bool readMem (uint32_t addr, uint32_t & data, unsigned burst_size);
+  bool writeMem (uint32_t addr, uint32_t data, unsigned burst_size);
 
 };
 

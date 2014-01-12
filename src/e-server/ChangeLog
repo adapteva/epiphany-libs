@@ -1,5 +1,29 @@
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* GdbServer.cpp: Replace SystemC types throughout.
+	(GdbServer): Move constructor to this file from header.
+	(is32BitsInstr): Made member function, replacing global Is32BitsInstr.
+	(getfield, setfield): Made member functions, replacing global
+	equivalents.
+	(getAttachedTargetCoreId): Implementation moved here from
+	definition file.
+	* GdbServer.h: Remove all SystemC typedefs, replacing by the
+	equivalent inttypes.h entry. Consolidate public and private member
+	functions for clarity, move constructor to implementation file
+	from definition file, make global functions member functions.
+	(GdbServer): Implementation moved to implementation file.
+	(getAttachedTargetCoreId): Made private and renamed from
+	GetAttachedTargetCoreId, implementation moved to implementation
+	file.
+	(releaseGdbCmdSelectedCoreId): Made private and renamed from
+	ReleaseGdbCmdSelectedCoreId.
+	* targetCntrl.h: Get rid of typedefs for SystemC types, and
+	replace with inttypes througout.
+	* targetCntrlHardware.cpp: Likewise.
+	* targetCntrlHardware.h: Likewise.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Release/src/subdir.mk: Remove unneeded Gdbservercreate and rename
 	GdbServerSC as GdbServer.
 	* GdbServer.cpp: Renamed from GdbServerSC.cpp and all references
