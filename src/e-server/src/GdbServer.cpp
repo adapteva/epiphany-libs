@@ -104,12 +104,17 @@ static pthread_mutex_t
 //! @param[in] name      Name of this module, passed to the parent constructor.
 //! @param[in] rspPort   The TCP/IP port number to listen on
 //-----------------------------------------------------------------------------
-GdbServer::GdbServer (int _rspPort)
+GdbServer::GdbServer (int   _rspPort,
+		      bool  _haltOnAttach,
+		      FILE* _ttyOut,
+		      bool  _withTtySupport) :
+  rspPort (_rspPort),
+  haltOnAttach (_haltOnAttach),
+  ttyOut (_ttyOut),
+  withTtySupport (_withTtySupport)
 {
 
   fTargetControl = 0;
-  
-  rspPort = _rspPort;
   
   // Create subsidiary classes
   pkt = new RspPacket (RSP_PKT_MAX);
@@ -222,8 +227,6 @@ GdbServer::rspDetach ()
 //! complete.
 //-----------------------------------------------------------------------------
 
-
-extern bool haltOnAttach;
 
 void
 GdbServer::rspServer (TargetControl * TargetControl)
@@ -1054,9 +1057,7 @@ enum TRAP_CODES
 };
 
 
-extern FILE *tty_out;
 pthread_mutex_t targeTTYAccess_m = PTHREAD_MUTEX_INITIALIZER;
-extern bool with_tty_support;
 
 #define MAX_FILE_NAME_LENGTH (256*4)
 
@@ -1171,7 +1172,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       break;
     case TRAP_OTHER:
 
-      if (with_tty_support)
+      if (withTtySupport)
 	{
 
 	  pthread_mutex_lock (&targeTTYAccess_m);
@@ -1204,8 +1205,8 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
 
 	  printfWrapper (res_buf, fmt, buf + r1 + 1);
-	  fprintf (tty_out, "[%ld]", fTargetControl->GetAttachedCoreId ());
-	  fprintf (tty_out, "%s", res_buf);
+	  fprintf (ttyOut, "[%ld]", fTargetControl->GetAttachedCoreId ());
+	  fprintf (ttyOut, "%s", res_buf);
 
 	  pthread_mutex_unlock (&targeTTYAccess_m);
 

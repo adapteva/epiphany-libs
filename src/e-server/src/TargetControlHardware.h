@@ -35,19 +35,16 @@
 
 #include "TargetControl.h"
 
+#include <e-xml/src/epiphany_platform.h>
+#include <e-hal/src/epiphany-hal-data.h>
 
 class TargetControlHardware:public TargetControl
 {
 public:
-
-public:
   // Constructor
-  TargetControlHardware (unsigned indexInMemMap);
-private:
-    TargetControlHardware ():TargetControl ()
-  {
-  }
-public:
+  TargetControlHardware (unsigned  indexInMemMap,
+			 bool      _dontCheckHwAddress);
+
   // check if specified coreis is supported by HW system
     virtual bool SetAttachedCoreId (unsigned);
 
@@ -85,8 +82,16 @@ public:
 
   virtual std::string GetTargetId ();
 
+  //! Static function to initialize the hardware
+  static int  initHwPlatform (platform_definition_t* platform);
+
+  //! Static function to initialize the memory map
+  static unsigned initDefaultMemoryMap (platform_definition_t* platform);
 
 private:
+  // Local copy of flag.
+  bool  dontCheckHwAddress;
+
   /* convert the local address to full address */
   unsigned long ConvertAddress (unsigned long);
 

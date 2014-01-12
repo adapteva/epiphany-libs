@@ -23,6 +23,9 @@
   <http://www.gnu.org/licenses/>.
 */
 
+#ifndef EPIPHANY_PLATFORM__H
+#define EPIPHANY_PLATFORM__H
+
 /**
  *
  * Desc:  Define Epiphany platform definition structure.
@@ -69,3 +72,4 @@ typedef struct
 	mem_def_t  *ext_mem;     // array of ext_mem[]
 } platform_definition_t;
 
+#endif	//  EPIPHANY_PLATFORM__H

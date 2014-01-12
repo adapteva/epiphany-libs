@@ -100,7 +100,10 @@ public:
 public:
 
   // Constructor and destructor
-  GdbServer (int _rspPort);
+  GdbServer (int   _rspPort,
+	     bool  _haltOnAttach,
+	     FILE* _ttyOut,
+	     bool  _withTtySupport);
   ~GdbServer ();
 
   //! main loop for core
@@ -290,6 +293,15 @@ private:
 
   //! The TCP/IP port number to listen on
   int rspPort;
+
+  //! Local copy of flag for halt on attach
+  bool  haltOnAttach;
+
+  //! Local copy of TTY output file handle
+  FILE *ttyOut;
+
+  //! Local copy of flag for TTY support
+  bool  withTtySupport;
 
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;

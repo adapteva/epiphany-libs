@@ -1,10 +1,32 @@
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer): Pass haltOnAttach, ttyOut and
+	withTtySupport flags to constructor, rather than as global variables.
+	* src/GdbServer.h: New prototype for constructor, haltOnAttach,
+	ttyOut and withTtySupport as member variables.
+	* src/TargetControlHardware.cpp: Move e-xml and e-hal header
+	includes to header file
+	(TargetControlHardware): Pass in dontCheckHwAddress flag to
+	constructor rather than as global variable.
+	(initHwPlatform): New static member function rather than global.
+	(initDefaultMemoryMap): New static member function rather than global.
+	* src/TargetControlHardware.h: Add e-xml and e-hal header
+	includes, update constructor prototype, new static functions
+	initHwPlatform and initDefaultMemoryMap
+	* src/main.cpp: haltOnAttach, ttyOut, withTtySupport and
+	dontCheckHwAddress passed through relevant
+	constructors. initHwPlatform and initDefaultMemoryMap as static
+	member functions.
+	(ThreadData): Struct for data to be used with pthread_create.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Release/src/subdir.mk: Removed e_printf.c
-	* e_printf.c: Deleted.
-	* GdbServer.cpp (printWrapper): Created, based on printf_wrapper.
-	* GdbServer.h (printfWrapper): New private member function replacing the
-	global printf_wrapper.
+	* src/e_printf.c: Deleted.
+	* src/GdbServer.cpp (printWrapper): Created, based on
+	printf_wrapper.
+	* src/GdbServer.h (printfWrapper): New private member function
+	replacing the global printf_wrapper.
 
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 

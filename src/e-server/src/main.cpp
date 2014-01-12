@@ -24,7 +24,6 @@
 
 
 const char *copyrightStr = "Copyright (C) 2010, 2011, 2012 Adapteva Inc.\n";
-bool haltOnAttach = true;
 static char const *revision = "$Rev: 1362 $";
 
 #include <stdio.h>
@@ -55,13 +54,19 @@ char TTY_[1024];
 // accesses by all threads
 int debug_level = 0;
 bool show_memory_map = false;
-FILE *tty_out = 0;
-bool with_tty_support = false;
-bool dont_check_hw_address = false;
 
 string plafrom_args;
 bool skip_platform_reset = false;
 
+//! Structure to pass data to pthread_create
+struct ThreadData
+{
+  unsigned int  port;
+  bool          dontCheckHwAddress;
+  bool          haltOnAttach;
+  FILE*         ttyOut;
+  bool		withTtySupport;
+};
 
 void
 usage ()
@@ -137,20 +142,18 @@ copyright ()
 }
 
 
-extern int InitHWPlatform (platform_definition_t * platform);
-
-
 static void *
 createGdbServer (void *ptr)
 {
-  unsigned *port = (unsigned int *) ptr;
+  ThreadData *td = (ThreadData *) ptr;
 
-  unsigned coreNum = (*port) - PORT_BASE_NUM;
+  unsigned int coreNum = td->port - PORT_BASE_NUM;
 
   TargetControl *tCntrl;
-  tCntrl = new TargetControlHardware (coreNum);
+  tCntrl = new TargetControlHardware (coreNum, td->dontCheckHwAddress);
 
-  GdbServer *rspServerP = new GdbServer (*port);
+  GdbServer *rspServerP = new GdbServer (td->port, td->haltOnAttach,
+					 td->ttyOut, td->withTtySupport);
 
   //cerr << "Thread id " << pthread_self() << endl << flush;
 
@@ -167,6 +170,10 @@ main (int argc, char *argv[])
   int mainRetStatus = 0;
 
   char *hdf_file = getenv (hdf_env_var_name);
+  bool dontCheckHwAddress = false;
+  bool haltOnAttach = true;
+  FILE *ttyOut = 0;
+  bool withTtySupport = false;
 
   PORT_BASE_NUM = 51000;
 
@@ -200,7 +207,7 @@ main (int argc, char *argv[])
 
       if (!strcmp (argv[n], "--dont-check-hw-address"))
 	{
-	  dont_check_hw_address = true;
+	  dontCheckHwAddress = true;
 	}
 
       if (!strcmp (argv[n], "--dont-halt-on-attach"))
@@ -279,7 +286,7 @@ main (int argc, char *argv[])
 	  n += 1;
 	  if (n < argc)
 	    {
-	      with_tty_support = true;
+	      withTtySupport = true;
 	      strncpy (TTY_, (char *) argv[n], sizeof (TTY_));
 	    }
 	  else
@@ -366,8 +373,7 @@ main (int argc, char *argv[])
 
   //////////////////////////////////////////////////////
   // populate the chip and ext_mem list of memory ranges
-  extern unsigned InitDefaultMemoryMap (platform_definition_t *);
-  unsigned ncores = InitDefaultMemoryMap (platform);
+  unsigned ncores = TargetControlHardware::initDefaultMemoryMap (platform);
 
   extern map < unsigned, pair < unsigned long, unsigned long > >memory_map;
   extern map < unsigned, pair < unsigned long, unsigned long > >register_map;
@@ -407,10 +413,10 @@ main (int argc, char *argv[])
     }
 
   // open terminal
-  if (with_tty_support)
+  if (withTtySupport)
     {
-      tty_out = fopen (TTY_, "w");
-      if (tty_out == NULL)
+      ttyOut = fopen (TTY_, "w");
+      if (ttyOut == NULL)
 	{
 	  cerr << "Can't open tty " << TTY_ << endl;
 	  exit (2);
@@ -420,7 +426,7 @@ main (int argc, char *argv[])
 
   ////////////////////////
   // initialize the device
-  InitHWPlatform (platform);
+  TargetControlHardware::initHwPlatform (platform);
 
 
   if (true)
@@ -446,8 +452,15 @@ main (int argc, char *argv[])
       // create and execute the thread for the cores
       for (unsigned i = 0; i < ncores; i++)
 	{
+	  ThreadData td = {
+	    .port               = portsNum[i],
+	    .dontCheckHwAddress = dontCheckHwAddress,
+	    .haltOnAttach       = haltOnAttach,
+	    .ttyOut             = ttyOut,
+	    .withTtySupport     = withTtySupport
+	  };
 	  pthread_create (&(thread[i]), NULL, createGdbServer,
-			  (void *) (portsNum + i));
+			  (void *) (&td));
 	  //iret = pthread_create(&(thread[i]), NULL, createGdbServer, (void *) (portsNum+i));
 	}
 
@@ -465,9 +478,9 @@ main (int argc, char *argv[])
 
     }
 
-  if (tty_out)
+  if (ttyOut)
     {
-      fclose (tty_out);
+      fclose (ttyOut);
     }
 
   delete xml;

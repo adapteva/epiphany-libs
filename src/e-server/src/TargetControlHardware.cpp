@@ -25,11 +25,10 @@
 
 #include "target_param.h"
 
-#include "TargetControlHardware.h"
 #include "debugVerbose.h"
 #include <string>
-#include <e-xml/src/epiphany_platform.h>
-#include <e-hal/src/epiphany-hal-data.h>
+
+#include "TargetControlHardware.h"
 
 enum
 {
@@ -112,7 +111,9 @@ TargetControlHardware::PlatformReset ()
 }
 
 
-TargetControlHardware::TargetControlHardware (unsigned indexInMemMap)
+TargetControlHardware::TargetControlHardware (unsigned indexInMemMap,
+					      bool _dontCheckHwAddress) :
+  dontCheckHwAddress (_dontCheckHwAddress)
 {
   // indexInMemMap is essentially the core number or ext_mem segment number
   // FIXME
@@ -183,8 +184,6 @@ TargetControlHardware::ConvertAddress (unsigned long address)
 }
 
 
-extern bool dont_check_hw_address;
-
 bool
 TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 				unsigned burst_size)
@@ -198,7 +197,7 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 
   uint32_t fullAddr = ConvertAddress (addr);
   // bool iSAligned = (fullAddr == ());
-  if (fullAddr || dont_check_hw_address)
+  if (fullAddr || dontCheckHwAddress)
     {
       // supported only word size or smaller
       assert (burst_size <= 4);
@@ -250,7 +249,7 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
   uint32_t fullAddr = ConvertAddress (addr);
 
   // bool iSAligned = (fullAddr == ());
-  if (fullAddr || dont_check_hw_address)
+  if (fullAddr || dontCheckHwAddress)
     {
       assert (burst_size <= 4);
       char buf[8];
@@ -385,7 +384,7 @@ TargetControlHardware::ReadBurst (unsigned long addr, unsigned char *buf,
 
   // cerr << "READ burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
 
-  if (fullAddr || dont_check_hw_address)
+  if (fullAddr || dontCheckHwAddress)
     {
       if ((fullAddr % _WORD_) == 0)
 	{
@@ -469,7 +468,7 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
 
   assert (buff_size > 0);
 
-  if (fullAddr || dont_check_hw_address)
+  if (fullAddr || dontCheckHwAddress)
     {
       if ((buff_size == _WORD_) && ((fullAddr % _WORD_) == 0))
 	{
@@ -605,7 +604,7 @@ void BreakSignalHandler (int signum);
 #include <sys/types.h>
 
 int
-InitHWPlatform (platform_definition_t * platform)
+TargetControlHardware::initHwPlatform (platform_definition_t * platform)
 {
   char *error;
 
@@ -768,7 +767,7 @@ EndOfBaudMeasurement (struct timeval &start)
 
 
 unsigned
-InitDefaultMemoryMap (platform_definition_t * platform)
+TargetControlHardware::initDefaultMemoryMap (platform_definition_t* platform)
 {
   unsigned chip;
   unsigned bank;
