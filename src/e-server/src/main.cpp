@@ -42,7 +42,7 @@ static char const *revision = "$Rev: 1362 $";
 using namespace std;
 
 #include "GdbServer.h"
-#include "targetCntrlHardware.h"
+#include "TargetControlHardware.h"
 #include "maddr_defs.h"
 #include <e-xml/src/epiphany_xml.h>
 

@@ -11,7 +11,7 @@ CPP_SRCS += \
 ../src/Utils.cpp \
 ../src/e_printf.cpp \
 ../src/main.cpp \
-../src/targetCntrlHardware.cpp 
+../src/TargetControlHardware.cpp 
 
 OBJS += \
 ./src/GdbServer.o \
@@ -21,7 +21,7 @@ OBJS += \
 ./src/Utils.o \
 ./src/e_printf.o \
 ./src/main.o \
-./src/targetCntrlHardware.o 
+./src/TargetControlHardware.o 
 
 CPP_DEPS += \
 ./src/GdbServer.d \
@@ -31,7 +31,7 @@ CPP_DEPS += \
 ./src/Utils.d \
 ./src/e_printf.d \
 ./src/main.d \
-./src/targetCntrlHardware.d 
+./src/TargetControlHardware.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

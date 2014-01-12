@@ -25,7 +25,7 @@
 
 #include "target_param.h"
 
-#include "targetCntrlHardware.h"
+#include "TargetControlHardware.h"
 #include "debugVerbose.h"
 #include <string>
 #include <e-xml/src/epiphany_platform.h>

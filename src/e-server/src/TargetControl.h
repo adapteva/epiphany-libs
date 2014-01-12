@@ -1,5 +1,4 @@
-/*
-  File: targetCntrl.h
+/* Abstract class for control of target
 
   This file is part of the Epiphany Software Development Kit.
 
@@ -22,8 +21,8 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TARGETCNTRL_H_
-#define TARGETCNTRL_H_
+#ifndef TARGET_CONTROL__H
+#define TARGET_CONTROL__H
 
 //! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
 #include <inttypes.h>
@@ -111,7 +110,7 @@ public:
   virtual std::string GetTargetId () = 0;
 };
 
-#endif /* TARGETCNTRL_H_ */
+#endif	// TARGET_CONTROL__H
 
 
 // Local Variables:

@@ -22,8 +22,8 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TARGETCNTRLHARDWARE_H_
-#define TARGETCNTRLHARDWARE_H_
+#ifndef TARGET_CONTROL_HARDWARE__H
+#define TARGET_CONTROL_HARDWARE__H
 
 //-----------------------------------------------------------------------------
 //! Module implementing a hardware target
@@ -33,7 +33,7 @@
 //-----------------------------------------------------------------------------
 
 
-#include "targetCntrl.h"
+#include "TargetControl.h"
 
 
 class TargetControlHardware:public TargetControl
@@ -96,7 +96,7 @@ private:
 
 };
 
-#endif /* TARGETCNTRLHARDWARE_H_ */
+#endif /* TARGET_CONTROL_HARDWARE__H */
 
 
 // Local Variables:

@@ -83,7 +83,9 @@
 #include "RspPacket.h"
 
 #include "maddr_defs.h"
-#include "targetCntrl.h"
+#include "TargetControl.h"
+
+
 //-----------------------------------------------------------------------------
 //! Module implementing a GDB RSP server.
 
@@ -102,7 +104,7 @@ public:
   ~GdbServer ();
 
   //! main loop for core
-  void rspServer (TargetControl * TargetControl);
+  void rspServer (TargetControl* TargetControl);
 
 
 private:

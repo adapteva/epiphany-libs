@@ -1,5 +1,21 @@
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* Release/src/subdir.mk: Renamed targetCntrlHardware as
+	TargetControlHardware.
+	* src/TargetControl.h: Renamed from targetCntrl.h for consistency.
+	* src/TargetControlHardware.cpp: Renamed from
+	targetCntrlHardware.cpp for consistency.
+	* src/TargetControlHardware.h: Renamed from
+	targetCntrlHardware.h for consistency.
+	* src/GdbServer.h: Changed all references to targetCtrl to
+	TargetControl.
+	* src/TargetControl.h: Likewise.
+	* src/TargetControlHardware.cpp: Likewise.
+	* src/TargetControlHardware.h: Likewise.
+	* src/main.cpp: Likewise.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* GdbServer.cpp: Replace SystemC types throughout.
 	(GdbServer): Move constructor to this file from header.
 	(is32BitsInstr): Made member function, replacing global Is32BitsInstr.
