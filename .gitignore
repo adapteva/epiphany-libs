@@ -1,0 +1,10 @@
+# Editor backup files
+*~
+# Compiled code
+Release
+Debug
+# Specific compiled programs
+src/e-utils/e-hw-rev/e-hw-rev
+src/e-utils/e-reset/e-reset
+# BSP libraries
+libe-hal.so
