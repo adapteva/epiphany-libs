@@ -1,5 +1,4 @@
-/*
-  File: libgloss_syscall.h
+/* Syscall numbers for interfacing to libgloss
 
   This file is part of the Epiphany Software Development Kit.
 

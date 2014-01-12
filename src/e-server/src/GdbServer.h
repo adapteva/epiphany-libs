@@ -1,5 +1,5 @@
 /*
-  File: GdbServerSC.h
+  File: GdbServer.h
 
   This file is part of the Epiphany Software Development Kit.
 
@@ -65,7 +65,7 @@
 // Embecosm Subversion Identification
 // ==================================
 
-// $Id: GdbServerSC.h 1286 2013-01-02 19:09:49Z ysapir $
+// $Id: GdbServer.h 1286 2013-01-02 19:09:49Z ysapir $
 //-----------------------------------------------------------------------------
 
 #ifndef GDB_SERVER_SC__H
@@ -99,7 +99,7 @@ typedef uint64_t sc_uint_64;
 //-----------------------------------------------------------------------------
 
 
-class GdbServerSC
+class GdbServer
 {
 
   private:
@@ -125,7 +125,7 @@ public:
 
   int rspPort;
 
-  GdbServerSC (int _rspPort)
+  GdbServer (int _rspPort)
   {
 
     fTargetControl = 0;
@@ -141,7 +141,7 @@ public:
 
   }
 
-  ~GdbServerSC ();
+  ~GdbServer ();
 
 private:
   //he dgbserver will send the resume command to the target after gdb client kills the debug session
@@ -442,7 +442,7 @@ public:
   {
   };
 
-};				// GdbServerSC()
+};				// GdbServer()
 
 extern int debug_level;
 

@@ -4,8 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../src/GdbServerSC.cpp \
-../src/GdbserverCreate.cpp \
+../src/GdbServer.cpp \
 ../src/MpHash.cpp \
 ../src/RspConnection.cpp \
 ../src/RspPacket.cpp \
@@ -15,8 +14,7 @@ CPP_SRCS += \
 ../src/targetCntrlHardware.cpp 
 
 OBJS += \
-./src/GdbServerSC.o \
-./src/GdbserverCreate.o \
+./src/GdbServer.o \
 ./src/MpHash.o \
 ./src/RspConnection.o \
 ./src/RspPacket.o \
@@ -26,8 +24,7 @@ OBJS += \
 ./src/targetCntrlHardware.o 
 
 CPP_DEPS += \
-./src/GdbServerSC.d \
-./src/GdbserverCreate.d \
+./src/GdbServer.d \
 ./src/MpHash.d \
 ./src/RspConnection.d \
 ./src/RspPacket.d \

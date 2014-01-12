@@ -23,7 +23,7 @@
 */
 
 
-const char *copyrigth = "Copyright (C) 2010, 2011, 2012 Adapteva Inc.\n";
+const char *copyrightStr = "Copyright (C) 2010, 2011, 2012 Adapteva Inc.\n";
 bool haltOnAttach = true;
 static char const *revision = "$Rev: 1362 $";
 
@@ -41,6 +41,8 @@ static char const *revision = "$Rev: 1362 $";
 
 using namespace std;
 
+#include "GdbServer.h"
+#include "targetCntrlHardware.h"
 #include "maddr_defs.h"
 #include <e-xml/src/epiphany_xml.h>
 
@@ -56,8 +58,6 @@ bool show_memory_map = false;
 FILE *tty_out = 0;
 bool with_tty_support = false;
 bool dont_check_hw_address = false;
-
-void *CreateGdbServer (void *ptr);
 
 string plafrom_args;
 bool skip_platform_reset = false;
@@ -130,7 +130,7 @@ copyright ()
 						find (" ")) << ">" << std::
     endl;
 
-  std::cerr << copyrigth << std::endl;
+  std::cerr << copyrightStr << std::endl;
   std::
     cerr <<
     "The Epiphany XML Parser uses the XML library developed by Michael Chourdakis\n";
@@ -138,6 +138,26 @@ copyright ()
 
 
 extern int InitHWPlatform (platform_definition_t * platform);
+
+
+static void *
+createGdbServer (void *ptr)
+{
+  unsigned *port = (unsigned int *) ptr;
+
+  unsigned coreNum = (*port) - PORT_BASE_NUM;
+
+  TargetControl *tCntrl;
+  tCntrl = new TargetControlHardware (coreNum);
+
+  GdbServer *rspServerP = new GdbServer (*port);
+
+  //cerr << "Thread id " << pthread_self() << endl << flush;
+
+  rspServerP->rspServer (tCntrl);
+
+  return NULL;
+}
 
 
 int
@@ -426,9 +446,9 @@ main (int argc, char *argv[])
       // create and execute the thread for the cores
       for (unsigned i = 0; i < ncores; i++)
 	{
-	  pthread_create (&(thread[i]), NULL, CreateGdbServer,
+	  pthread_create (&(thread[i]), NULL, createGdbServer,
 			  (void *) (portsNum + i));
-	  //iret = pthread_create(&(thread[i]), NULL, CreateGdbServer, (void *) (portsNum+i));
+	  //iret = pthread_create(&(thread[i]), NULL, createGdbServer, (void *) (portsNum+i));
 	}
 
       sleep (1);

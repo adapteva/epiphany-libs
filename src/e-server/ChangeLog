@@ -1,5 +1,19 @@
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* Release/src/subdir.mk: Remove unneeded Gdbservercreate and rename
+	GdbServerSC as GdbServer.
+	* GdbServer.cpp: Renamed from GdbServerSC.cpp and all references
+	internally updated.
+	* GdbServer.h: Renamed from GdbServerSC.h and all references
+	internally updated.
+	* GdbserverCreate.cpp: Deleted
+	* libgloss_syscall.h: Header comment change.
+	* main.cpp: Incorporate GdbserverCreate and change reference to
+	GdbServer from GdbServerSC.
+	(createGdbServer): Renamed from CreateGdbServer.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* ChangeLog: Created.
 	* Release/src/subdir.mk: Make stricter in error testing.
 	* src/GdbServerSC.cpp: Return to GNU style, and enforce for emacs
