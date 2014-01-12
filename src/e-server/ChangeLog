@@ -1,5 +1,13 @@
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* Release/src/subdir.mk: Removed e_printf.c
+	* e_printf.c: Deleted.
+	* GdbServer.cpp (printWrapper): Created, based on printf_wrapper.
+	* GdbServer.h (printfWrapper): New private member function replacing the
+	global printf_wrapper.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Release/src/subdir.mk: Renamed targetCntrlHardware as
 	TargetControlHardware.
 	* src/TargetControl.h: Renamed from targetCntrl.h for consistency.

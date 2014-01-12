@@ -9,7 +9,6 @@ CPP_SRCS += \
 ../src/RspConnection.cpp \
 ../src/RspPacket.cpp \
 ../src/Utils.cpp \
-../src/e_printf.cpp \
 ../src/main.cpp \
 ../src/TargetControlHardware.cpp 
 
@@ -19,7 +18,6 @@ OBJS += \
 ./src/RspConnection.o \
 ./src/RspPacket.o \
 ./src/Utils.o \
-./src/e_printf.o \
 ./src/main.o \
 ./src/TargetControlHardware.o 
 
@@ -29,7 +27,6 @@ CPP_DEPS += \
 ./src/RspConnection.d \
 ./src/RspPacket.d \
 ./src/Utils.d \
-./src/e_printf.d \
 ./src/main.d \
 ./src/TargetControlHardware.d 
 

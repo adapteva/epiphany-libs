@@ -404,6 +404,9 @@ private:
 
   bool  is32BitsInstr (uint32_t iab_instr);
 
+  //! Wrapper to avoid external memory problems. 
+  void printfWrapper (char *result_str, const char *fmt, const char *args_buf);
+
   // YS - provide the SystemC equivalent to the bit range selection operator.
   uint8_t getfield (uint8_t x, int _lt, int _rt);
   uint16_t getfield (uint16_t x, int _lt, int _rt);
