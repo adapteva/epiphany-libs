@@ -23,8 +23,6 @@
 */
 
 
-const char *copyrightStr = "Copyright (C) 2010, 2011, 2012 Adapteva Inc.\n";
-static char const *revision = "$Rev: 1362 $";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,12 +36,22 @@ static char const *revision = "$Rev: 1362 $";
 #include <vector>
 #include <map>
 
-using namespace std;
+using std::cerr;
+using std::cout;
 
 #include "GdbServer.h"
 #include "TargetControlHardware.h"
 #include "maddr_defs.h"
 #include <e-xml/src/epiphany_xml.h>
+
+// Up to the builder to specify a revision.
+#define XDOREVSTR(s) DOREVSTR(s)
+#define DOREVSTR(s) #s
+#ifdef REVISION
+#define REVSTR XDOREVSTR (REVISION)
+#else
+#define REVSTR XDOREVSTR (undefined)
+#endif
 
 unsigned int PORT_BASE_NUM;
 
@@ -68,78 +76,116 @@ struct ThreadData
   bool		withTtySupport;
 };
 
-void
-usage ()
-{
-  cerr << "\033[4mUsage:\033[0m" << endl;
-  cerr << endl;
-  cerr <<
-    "e-server -hdf <hdf-file> [-p <base-port-number>] [--show-memory-map]" <<
-    endl;
-  cerr << "         [-Wpl,<options>] [-Xpl <arg>] [--version]" << endl;
-  cerr << endl;
-  cerr << "\033[4mProgram options:\033[0m" << endl;
-  cerr << endl;
-  cerr << "  \033[1m-hdf\033[0m <hdf-file>" << endl;
-  cerr <<
-    "\t\tSpecify a platform definition file. This parameter is mandatory if no"
-    << endl;
-  cerr << "                EPIPHANY_HDF environment variable is set" << endl;
-  cerr << "  \033[1m-p\033[0m" << endl;
-  cerr << "\t\tBase port number. Default is 51000" << endl;
-  cerr << "  \033[1m--show-memory-map\033[0m" << endl;
-  cerr << "\t\tPrint out the supported memory map" << endl;
-  cerr << "  \033[1m-Wpl,\033[0m <options>" << endl;
-  cerr << "\t\tPass comma-separated <options> on to the platform driver" <<
-    endl;
-  cerr << "  \033[1m-Xpl\033[0m <arg>" << endl;
-  cerr << "\t\tPass <arg> on to the platform driver" << endl;
-  cerr << "  \033[1m--version\033[0m" << endl;
-  cerr << "\t\tDisplay the version number and copyrights" << endl;
-}
 
-void
-usage_hidden ()
-{
-  cerr << endl;
-  cerr <<
-    "Debug options: [-d <debug-level>] [--tty <terminal>] [--dont-halt-on-attach]\n"
-    << endl;
-  cerr <<
-    "  -d <debug-level>\n\t\tRun the e-server in debug mode. Default is 0 (silent)"
-    << endl;
-  cerr <<
-    "  --tty <terminal>\n\t\tRedirect the e_printf to terminal with tty name"
-    << endl;
-  cerr <<
-    "  --dont-halt-on-attach\n\t\tWhen starting an e-gdb session, the debugger initiates an attachment\n\t\tprocedure when executing the 'target remote:' command. By default,\n\t\tthis procedure includes a reset sequence sent to the attached core.\n\t\tUse this option to disable the intrusive attachment and perform a non\n\t\t-intrusive one that does not change the core's state. This allows to\n\t\tconnect and monitor a core that is currently running a program."
-    << endl;
-  cerr <<
-    "  --dont-check-hw-address\n\t\tThe e-server filters out transactions if the address is invalid (not\n\t\tincluded in the device supported memeory map). Use this option to\n\t\tdisable this protection"
-    << endl;
-  cerr << "\nTarget validation/check additional options:" << endl;
-  cerr << endl;
-  cerr <<
-    "  -skip-platform-reset\n\t\tDon't make the hardware reset during initialization"
-    << endl;
-}
+//! Put the usage message out on the given stream.
 
+//! Typically std::cout if this is standard help and std::cerr if this is in
+//! response to bad arguments.
+
+//! @param[in] s  Stream on which to output the usage.
+void
+usage (ostream& s)
+{
+  s << "Usage:" << endl;
+  s << endl;
+  s << "e-server [-hdf <hdf-file>] [-p <port-number>] [--show-memory-map]"
+    << endl;
+  s << "         [-Wpl,<options>] [-Xpl <arg>] [--version] [--h | --help]"
+    << endl;
+  s << "         [-d <debug-level>] [--tty <terminal>] [--dont-halt-on-attach]" 
+    << endl;
+  s << "         [-skip-platform-reset]" << endl;
+  s << endl;
+  s << "Standard program options:" << endl;
+  s << endl;
+  s << "  -hdf <hdf-file>" << endl;
+  s << endl;
+  s << "    Specify a platform definition file. This parameter is mandatory "
+    << endl;
+  s << "    if no EPIPHANY_HDF environment variable is set." << endl;
+  s << endl;
+  s << "  -p <port-number>" << endl;
+  s << endl;
+  s << "    Port number on which GDB should connnect. Default is 51000."
+    << endl;
+  s << endl;
+  s << "  --show-memory-map" << endl;
+  s << endl;
+  s << "    Print out the supported memory map." << endl;
+  s << endl;
+  s << "  -Wpl <options>" << endl;
+  s << endl;
+  s << "    Pass comma-separated <options> on to the platform driver."
+    << endl;
+  s << endl;
+  s << "  -Xpl <arg>" << endl;
+  s << endl;
+  s << "    Pass <arg> on to the platform driver." << endl;
+  s << endl;
+  s << "  --version" << endl;
+  s << endl;
+  s << "    Display the version number and copyright information." << endl;
+  s << endl;
+  s << "  --h | --help" << endl;
+  s << endl;
+  s << "    Display this help message." << endl;
+  s << endl;
+  s << "Debug options:" << endl;
+  s << endl;
+  s << "  -d <debug-level>" << endl;
+  s << endl;
+  s << "    Run the e-server in debug mode. Default 0 (no debug)." << endl;
+  s << endl;
+  s << "  --tty <terminal>" << endl;
+  s << endl;
+  s << "    Redirect the e_printf to terminal with tty name <terminal>."
+    << endl;
+  s << endl;
+  s << "  --dont-halt-on-attach" << endl;
+  s << endl;
+  s << "    When starting an e-gdb session, the debugger initiates an" << endl;
+  s << "    attachment procedure when executing the 'target remote:' command."
+    << endl;
+  s << "    By default, this procedure includes a reset sequence sent to the"
+    << endl;
+  s << "    attached core.  Use this option to disable the intrusive attachment"
+    << endl;
+  s << "    and perform a non-intrusive one that does not change the core's"
+    << endl;
+  s << "    state.  This allows connection to and monitoring of a core that is"
+    << endl;
+  s << "    currently running a program." << endl;
+  s << endl;
+  s << "  --dont-check-hw-address" << endl;
+  s << endl;
+  s << "    The e-server filters out transactions if the address is invalid"
+    << endl;
+  s << "    (not included in the device supported memeory map).  Use this"
+    << endl;
+  s << "    option to disable this protection."
+    << endl;
+  s << endl;
+  s << "Advanced options:" << endl;
+  s << endl;
+  s << "  -skip-platform-reset" << endl;
+  s << endl;
+  s << "    Don't make the hardware reset during initialization." << endl;
+
+}	// usage ()
+
+
+//! Printout version and copyright information
 void
 copyright ()
 {
-  std::cerr << "e-server " << "(compiled on " << __DATE__ << ")";
-  std::cerr << "<" << string (revision).substr (string (revision).find (" "),
-						string (revision).
-						rfind ("$") -
-						string (revision).
-						find (" ")) << ">" << std::
-    endl;
+  cout << "e-server revision " << REVSTR << " (compiled on "
+       << __DATE__ << ")" << endl;
+  cout << "Copyright (C) 2010-2013 Adapteva Inc." << endl;
+  cout << "The Epiphany XML Parser uses the XML library developed by Michael "
+       << "Chourdakis." << endl;
+  cout << "Please report bugs to: support-sdk@adapteva.com" << endl;
 
-  std::cerr << copyrightStr << std::endl;
-  std::
-    cerr <<
-    "The Epiphany XML Parser uses the XML library developed by Michael Chourdakis\n";
-}
+}	// copyright ()
 
 
 static void *
@@ -186,23 +232,13 @@ main (int argc, char *argv[])
       if (!strcmp (argv[n], "--version"))
 	{
 	  copyright ();
-	  cerr <<
-	    "\n\033[4mPlease report bugs to:\033[0m \033[1m<support-sdk@adapteva.com>\033[0m"
-	    << endl;
-	  return 1;
+	  return 0;
 	}
 
       if ((!strcmp (argv[n], "-h")) || (!strcmp (argv[n], "--help")))
 	{
-	  usage ();
-	  return 1;
-	}
-
-      if (!strcmp (argv[n], "-help-hidden"))
-	{
-	  usage ();
-	  usage_hidden ();
-	  return 1;
+	  usage (cout);
+	  return 0;
 	}
 
       if (!strcmp (argv[n], "--dont-check-hw-address"))
@@ -214,7 +250,6 @@ main (int argc, char *argv[])
 	{
 	  haltOnAttach = false;
 	}
-
 
       if (!strcmp (argv[n], "-skip-platform-reset"))
 	{
@@ -232,7 +267,7 @@ main (int argc, char *argv[])
 	    }
 	  else
 	    {
-	      usage ();
+	      usage (cerr);
 	      return 3;
 	    }
 	  continue;
@@ -269,13 +304,13 @@ main (int argc, char *argv[])
 	  if (n < argc)
 	    {
 	      PORT_BASE_NUM = atoi (argv[n]);
-	      std::
+	      
 		cout << "Setting base port number to " << PORT_BASE_NUM << "."
-		<< std::endl;
+		<< endl;
 	    }
 	  else
 	    {
-	      usage ();
+	      usage (cerr);
 	      return 3;
 	    }
 	  continue;
@@ -291,7 +326,7 @@ main (int argc, char *argv[])
 	    }
 	  else
 	    {
-	      usage ();
+	      usage (cerr);
 	      return 3;
 	    }
 	  continue;
@@ -303,12 +338,12 @@ main (int argc, char *argv[])
 	  if (n < argc)
 	    {
 	      debug_level = atoi (argv[n]);
-	      std::cout << "setting debug level to " << debug_level << std::
+	      cout << "setting debug level to " << debug_level << 
 		endl;
 	    }
 	  else
 	    {
-	      usage ();
+	      usage (cerr);
 	      return 3;
 	    }
 	  continue;
@@ -324,7 +359,7 @@ main (int argc, char *argv[])
 	  n += 1;
 	  if (n >= argc)
 	    {
-	      usage ();
+	      usage (cerr);
 	      return 3;
 	    }
 	  else
@@ -346,7 +381,7 @@ main (int argc, char *argv[])
   if (hdf_file == 0)
     {
       cerr << "Please specify a platform definition file." << endl << endl;
-      usage ();
+      usage (cerr);
       return 3;
     }
 
@@ -452,13 +487,14 @@ main (int argc, char *argv[])
       // create and execute the thread for the cores
       for (unsigned i = 0; i < ncores; i++)
 	{
-	  ThreadData td = {
-	    .port               = portsNum[i],
-	    .dontCheckHwAddress = dontCheckHwAddress,
-	    .haltOnAttach       = haltOnAttach,
-	    .ttyOut             = ttyOut,
-	    .withTtySupport     = withTtySupport
-	  };
+	  ThreadData td;
+
+	  td.port               = portsNum[i];
+	  td.dontCheckHwAddress = dontCheckHwAddress;
+	  td.haltOnAttach       = haltOnAttach;
+	  td.ttyOut             = ttyOut;
+	  td.withTtySupport     = withTtySupport;
+
 	  pthread_create (&(thread[i]), NULL, createGdbServer,
 			  (void *) (&td));
 	  //iret = pthread_create(&(thread[i]), NULL, createGdbServer, (void *) (portsNum+i));

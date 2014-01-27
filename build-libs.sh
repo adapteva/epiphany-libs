@@ -46,13 +46,13 @@ function build-hal() {
 
 
 function build-server() {
-	# Build the Epiphnay GDB RSP Server
+	# Build the Epiphany GDB RSP Server
 	echo '=================================='
 	echo '============ E-SERVER ============'
 	echo '=================================='
 	cd src/e-server/Release
 #	make clean
-	make all
+	make CPPFLAGS+="-DREVISION=${REV}" all
 	cd ../../../
 }
 

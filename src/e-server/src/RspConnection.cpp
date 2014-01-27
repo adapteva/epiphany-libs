@@ -83,7 +83,6 @@
 #include <sys/socket.h>
 #include <poll.h>
 #include <unistd.h>
-
 #include <assert.h>
 
 #include "RspConnection.h"
@@ -256,8 +255,10 @@ bool RspConnection::rspConnect ()
   // Listen for (at most one) client
   if (listen (tmpFd, 1))
     {
-      cerr << "ERROR: Cannot listen on RSP socket for port " << portNum <<
-	endl;
+      pthread_mutex_lock (&prettyPrint_m);
+      cerr << "ERROR: Cannot listen on RSP socket for port " << portNum
+	   << ": " << strerror (errno) << endl;
+      pthread_mutex_unlock (&prettyPrint_m);
       return false;
     }
 
