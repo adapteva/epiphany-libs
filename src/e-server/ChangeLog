@@ -1,5 +1,16 @@
 2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/main.cpp: Include sstream.
+	(platform_args): Deleted (replaced by platformArgs local to main.
+	(show_memory_map): Deleted (replaced by doShowMemoryMap) local to
+	main.
+	(showMemoryMap): Created, based on code previously in main.
+	(main): Make declaration of hdf_file local and change to hdfFile,
+	make arg check use if-then-else structure, use stringstream to
+	parse -Wpl, move code to show memory map to its own routine.
+
+2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Release/src/subdir.mk: Add CPPFLAGS to command line.
 	* src/RspConnection.cpp (rspConnect): Add mutex around listen
 	error message and report error details.

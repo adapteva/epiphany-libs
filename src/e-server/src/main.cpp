@@ -33,11 +33,9 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
-
-using std::cerr;
-using std::cout;
 
 #include "GdbServer.h"
 #include "TargetControlHardware.h"
@@ -53,17 +51,18 @@ using std::cout;
 #define REVSTR XDOREVSTR (undefined)
 #endif
 
+using std::cerr;
+using std::cout;
+using std::stringstream;
+
 unsigned int PORT_BASE_NUM;
 
-char const hdf_env_var_name[] = "EPIPHANY_HDF";
 char TTY_[1024];
 
 
 // accesses by all threads
 int debug_level = 0;
-bool show_memory_map = false;
 
-string plafrom_args;
 bool skip_platform_reset = false;
 
 //! Structure to pass data to pthread_create
@@ -83,12 +82,12 @@ struct ThreadData
 //! response to bad arguments.
 
 //! @param[in] s  Stream on which to output the usage.
-void
+static void
 usage (ostream& s)
 {
   s << "Usage:" << endl;
   s << endl;
-  s << "e-server [-hdf <hdf-file>] [-p <port-number>] [--show-memory-map]"
+  s << "e-server -hdf <hdf_file [-p <port-number>] [--show-memory-map]"
     << endl;
   s << "         [-Wpl,<options>] [-Xpl <arg>] [--version] [--h | --help]"
     << endl;
@@ -100,9 +99,11 @@ usage (ostream& s)
   s << endl;
   s << "  -hdf <hdf-file>" << endl;
   s << endl;
-  s << "    Specify a platform definition file. This parameter is mandatory "
+  s << "    Specify a platform definition file. This parameter is mandatory and"
     << endl;
-  s << "    if no EPIPHANY_HDF environment variable is set." << endl;
+  s << "    should be the XML equivalent of the text file specified by the "
+    << endl;
+  s << "    EPIPHANY_HDF environment variable." << endl;
   s << endl;
   s << "  -p <port-number>" << endl;
   s << endl;
@@ -175,7 +176,7 @@ usage (ostream& s)
 
 
 //! Printout version and copyright information
-void
+static void
 copyright ()
 {
   cout << "e-server revision " << REVSTR << " (compiled on "
@@ -186,6 +187,50 @@ copyright ()
   cout << "Please report bugs to: support-sdk@adapteva.com" << endl;
 
 }	// copyright ()
+
+
+//! Print out the memory map for the platform
+
+//! @param[in] xml     The XML description of the platform.
+//! @param[in] nCores  The number of cores in the target.
+static void
+showMemoryMap (EpiphanyXML* xml,
+	       unsigned int nCores)
+{
+  extern map < unsigned, pair < unsigned long, unsigned long > >memory_map;
+  extern map < unsigned, pair < unsigned long, unsigned long > >register_map;
+
+  xml->PrintPlatform ();
+  cout << "Supported registers map: " << endl;
+  for (map < unsigned, pair < unsigned long,
+	 unsigned long > >::iterator ii = register_map.begin ();
+       ii != register_map.end (); ++ii)
+    {
+      unsigned long startAddr = (*ii).second.first;
+      unsigned long endAddr = (*ii).second.second;
+      cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
+    }
+  unsigned core_num = 0;
+  cout << "Supported memory map: " << endl;
+  for (map < unsigned, pair < unsigned long,
+	 unsigned long > >::iterator ii = memory_map.begin ();
+       ii != memory_map.end (); ++ii)
+    {
+      unsigned long startAddr = (*ii).second.first;
+      unsigned long endAddr = (*ii).second.second;
+      
+      if (core_num < nCores)
+	{
+	  cout << "";
+	}
+      else
+	{
+	  cout << "External: ";
+	}
+      cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
+      core_num++;
+    }
+}	// showMemoryMap ()
 
 
 static void *
@@ -212,10 +257,11 @@ createGdbServer (void *ptr)
 int
 main (int argc, char *argv[])
 {
-  //int iret = 0;
+  char *hdfFile = NULL;
+  string platformArgs;
   int mainRetStatus = 0;
+  bool doShowMemoryMap = false;
 
-  char *hdf_file = getenv (hdf_env_var_name);
   bool dontCheckHwAddress = false;
   bool haltOnAttach = true;
   FILE *ttyOut = 0;
@@ -232,91 +278,76 @@ main (int argc, char *argv[])
       if (!strcmp (argv[n], "--version"))
 	{
 	  copyright ();
-	  return 0;
+	  exit (0);
 	}
-
-      if ((!strcmp (argv[n], "-h")) || (!strcmp (argv[n], "--help")))
+      else if ((!strcmp (argv[n], "-h")) || (!strcmp (argv[n], "--help")))
 	{
 	  usage (cout);
-	  return 0;
+	  exit (0);
 	}
-
-      if (!strcmp (argv[n], "--dont-check-hw-address"))
-	{
-	  dontCheckHwAddress = true;
-	}
-
-      if (!strcmp (argv[n], "--dont-halt-on-attach"))
-	{
-	  haltOnAttach = false;
-	}
-
-      if (!strcmp (argv[n], "-skip-platform-reset"))
-	{
-	  skip_platform_reset = true;
-
-	}
-
-      if (!strcmp (argv[n], "-Xpl"))
-	{
+      else if (!strcmp (argv[n], "-hdf"))
+        {
 	  n += 1;
 	  if (n < argc)
-	    {
-	      plafrom_args += string (argv[n]) + " ";
-
-	    }
+	    hdfFile = argv[n];
 	  else
 	    {
 	      usage (cerr);
 	      return 3;
 	    }
-	  continue;
 	}
+      else if (!strcmp (argv[n], "--dont-check-hw-address"))
+	{
+	  dontCheckHwAddress = true;
+	}
+      else if (!strcmp (argv[n], "--dont-halt-on-attach"))
+	{
+	  haltOnAttach = false;
+	}
+      else if (!strcmp (argv[n], "-skip-platform-reset"))
+	{
+	  skip_platform_reset = true;
 
-      if (!strncmp (argv[n], "-Wpl,", strlen ("-Wpl,")))
+	}
+      else if (!strcmp (argv[n], "-Xpl"))
+	{
+	  n += 1;
+	  if (n < argc)
+	      platformArgs += " " + string (argv[n]);
+	  else
+	    {
+	      usage (cerr);
+	      exit (3);
+	    }
+	}
+      else if (!strncmp (argv[n], "-Wpl,", strlen ("-Wpl,")))
 	{
 	  //-Wpl,-abc,-123,-reset_timeout,4
+	  stringstream   ss (argv[n]);
+	  string         subarg;
 
-	  string str = string (argv[n]);
-	  char const *delim = ",";
-	  char *pch = strtok ((char *) str.c_str (), delim);
-	  if (pch)
-	    pch = strtok (NULL, delim);
-	  while (pch != NULL)
-	    {
-	      plafrom_args += " " + string (pch);
-	      pch = strtok (NULL, delim);
-	    }
+	  // Break out the sub-args
+	  getline (ss, subarg, ',');	// Skip the -Wpl
 
-	  continue;
+	  while (getline (ss, subarg, ','))
+	    platformArgs += " " + subarg;
 	}
-
-      if (!strcmp (argv[n], ""))
-	{
-	  return 1;
-	}
-
-
-
-      if (!strcmp (argv[n], "-p"))
+      else if (!strcmp (argv[n], "-p"))
 	{
 	  n += 1;
 	  if (n < argc)
 	    {
 	      PORT_BASE_NUM = atoi (argv[n]);
-	      
-		cout << "Setting base port number to " << PORT_BASE_NUM << "."
-		<< endl;
+	      cout << "Setting base port number to " << PORT_BASE_NUM << "."
+		   << endl;
 	    }
 	  else
 	    {
 	      usage (cerr);
-	      return 3;
+	      exit (3);
 	    }
-	  continue;
 	}
-
-      if (!strcmp (argv[n], "--tty"))
+      else if (!strcmp (argv[n], "--tty"))
 	{
 	  n += 1;
 	  if (n < argc)
@@ -327,125 +358,71 @@ main (int argc, char *argv[])
 	  else
 	    {
 	      usage (cerr);
-	      return 3;
+	      exit (3);
 	    }
-	  continue;
 	}
-
-      if (!strcmp (argv[n], "-d"))
+      else if (!strcmp (argv[n], "-d"))
 	{
 	  n += 1;
 	  if (n < argc)
 	    {
 	      debug_level = atoi (argv[n]);
-	      cout << "setting debug level to " << debug_level << 
-		endl;
+	      cout << "setting debug level to " << debug_level
+		   << endl;
 	    }
 	  else
 	    {
 	      usage (cerr);
-	      return 3;
+	      exit (3);
 	    }
-	  continue;
 	}
-
-      if (!strcmp (argv[n], "--show-memory-map"))
+      else if (!strcmp (argv[n], "--show-memory-map"))
 	{
-	  show_memory_map = true;
-	}
-
-      if (!strcmp (argv[n], "-hdf"))
-	{
-	  n += 1;
-	  if (n >= argc)
-	    {
-	      usage (cerr);
-	      return 3;
-	    }
-	  else
-	    {
-	      if (hdf_file)
-		{
-		  cerr << "Warning: The HDF environment variable <" <<
-		    hdf_env_var_name <<
-		    "> is overwritten by command line option." << endl;
-		}
-	      hdf_file = argv[n];
-	    }
+	  doShowMemoryMap = true;
 	}
     }
-
 
   ////////////////
-  // parse the HDF
-  if (hdf_file == 0)
+  // Parse the HDF. Note that contrary to previous advice, the system will
+  // barf if you don't set the environment variable. But the -hdf argument is
+  // necesary for now, since it specifies the XML equivalent of the
+  // environment variable text file.
+  // @todo Fix this!
+  if (NULL == hdfFile)
     {
-      cerr << "Please specify a platform definition file." << endl << endl;
+      cerr << "Please specify the -hdf argument." << endl << endl;
       usage (cerr);
-      return 3;
+      exit (3);
     }
 
-  cout << "Using the HDF file: " << hdf_file << endl;
-  EpiphanyXML *xml = new EpiphanyXML ((char *) hdf_file);
+  cout << "Using the HDF file: " << hdfFile << endl;
+  EpiphanyXML *xml = new EpiphanyXML ((char *) hdfFile);
   if (xml->Parse ())
     {
       delete xml;
-      cerr << "Can't parse Epiphany HDF file: " << hdf_file << endl;
+      cerr << "Can't parse Epiphany HDF file: " << hdfFile << endl;
       exit (3);
     }
+
   platform_definition_t *platform = xml->GetPlatform ();
   if (!platform)
     {
       delete xml;
-      cerr << "Could not extract platform information from " << hdf_file <<
+      cerr << "Could not extract platform information from " << hdfFile <<
 	endl;
       exit (3);
     }
 
-  // prepare args list to fardware driver library
-  plafrom_args += string (" ") + string (platform->libinitargs);
-  platform->libinitargs = (char *) plafrom_args.c_str ();
+  // prepare args list to hardware driver library
+  platformArgs += string (" ") + string (platform->libinitargs);
+  platform->libinitargs = (char *) platformArgs.c_str ();
 
   //////////////////////////////////////////////////////
   // populate the chip and ext_mem list of memory ranges
-  unsigned ncores = TargetControlHardware::initDefaultMemoryMap (platform);
+  unsigned nCores = TargetControlHardware::initDefaultMemoryMap (platform);
 
-  extern map < unsigned, pair < unsigned long, unsigned long > >memory_map;
-  extern map < unsigned, pair < unsigned long, unsigned long > >register_map;
-
-  if (show_memory_map)
-    {
-      xml->PrintPlatform ();
-      cout << "Supported registers map: " << endl;
-      for (map < unsigned, pair < unsigned long,
-	   unsigned long > >::iterator ii = register_map.begin ();
-	   ii != register_map.end (); ++ii)
-	{
-	  unsigned long startAddr = (*ii).second.first;
-	  unsigned long endAddr = (*ii).second.second;
-	  cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
-	}
-      unsigned core_num = 0;
-      cout << "Supported memory map: " << endl;
-      for (map < unsigned, pair < unsigned long,
-	   unsigned long > >::iterator ii = memory_map.begin ();
-	   ii != memory_map.end (); ++ii)
-	{
-	  unsigned long startAddr = (*ii).second.first;
-	  unsigned long endAddr = (*ii).second.second;
-
-	  if (core_num < ncores)
-	    {
-	      cout << "";
-	    }
-	  else
-	    {
-	      cout << "External: ";
-	    }
-	  cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
-	  core_num++;
-	}
-    }
+  if (doShowMemoryMap)
+    showMemoryMap (xml, nCores);
 
   // open terminal
   if (withTtySupport)
@@ -463,29 +440,30 @@ main (int argc, char *argv[])
   // initialize the device
   TargetControlHardware::initHwPlatform (platform);
 
+  // Create
 
   if (true)
     {
-      // Create independent threads each of which will execute function
-      // FIXME: switch to dynamic port creation model
-      // n threads for gdb, thread for loader, thread for reset client (Used in Eclipse)
-      unsigned portsNum[ncores];
+      // Create independent threads each of which will execute function FIXME:
+      // switch to dynamic port creation model n threads for gdb, thread for
+      // loader, thread for reset client (Used in Eclipse)
+      unsigned portsNum[nCores];
 
       // loader
-///             portsNum[ncores] = PORT_BASE_NUM-1;
+///             portsNum[nCores] = PORT_BASE_NUM-1;
       // host reset proxy
-///             portsNum[ncores+1] = PORT_BASE_NUM-2;
+///             portsNum[nCores+1] = PORT_BASE_NUM-2;
 
-      for (unsigned i = 0; i < ncores; i++)
+      for (unsigned i = 0; i < nCores; i++)
 	{
 	  portsNum[i] = PORT_BASE_NUM + i;
 	}
 
-      pthread_t thread[ncores];
+      pthread_t thread[nCores];
 
       //////////////////////////////////////////////
       // create and execute the thread for the cores
-      for (unsigned i = 0; i < ncores; i++)
+      for (unsigned i = 0; i < nCores; i++)
 	{
 	  ThreadData td;
 
@@ -497,7 +475,6 @@ main (int argc, char *argv[])
 
 	  pthread_create (&(thread[i]), NULL, createGdbServer,
 			  (void *) (&td));
-	  //iret = pthread_create(&(thread[i]), NULL, createGdbServer, (void *) (portsNum+i));
 	}
 
       sleep (1);
@@ -507,7 +484,7 @@ main (int argc, char *argv[])
       /* Wait till threads are complete before main continues. Unless we */
       /* wait we run the risk of executing an exit which will terminate  */
       /* the process and all threads before the threads have completed.  */
-      for (unsigned i = 0; i < (ncores); i++)
+      for (unsigned i = 0; i < (nCores); i++)
 	{
 	  pthread_join ((thread[i]), NULL);
 	}
