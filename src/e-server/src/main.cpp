@@ -65,17 +65,6 @@ int debug_level = 0;
 
 bool skip_platform_reset = false;
 
-//! Structure to pass data to pthread_create
-struct ThreadData
-{
-  unsigned int  port;
-  bool          dontCheckHwAddress;
-  bool          haltOnAttach;
-  FILE*         ttyOut;
-  bool		withTtySupport;
-};
-
-
 //! Put the usage message out on the given stream.
 
 //! Typically std::cout if this is standard help and std::cerr if this is in
@@ -233,33 +222,11 @@ showMemoryMap (EpiphanyXML* xml,
 }	// showMemoryMap ()
 
 
-static void *
-createGdbServer (void *ptr)
-{
-  ThreadData *td = (ThreadData *) ptr;
-
-  unsigned int coreNum = td->port - PORT_BASE_NUM;
-
-  TargetControl *tCntrl;
-  tCntrl = new TargetControlHardware (coreNum, td->dontCheckHwAddress);
-
-  GdbServer *rspServerP = new GdbServer (td->port, td->haltOnAttach,
-					 td->ttyOut, td->withTtySupport);
-
-  //cerr << "Thread id " << pthread_self() << endl << flush;
-
-  rspServerP->rspServer (tCntrl);
-
-  return NULL;
-}
-
-
 int
 main (int argc, char *argv[])
 {
   char *hdfFile = NULL;
   string platformArgs;
-  int mainRetStatus = 0;
   bool doShowMemoryMap = false;
 
   bool dontCheckHwAddress = false;
@@ -440,66 +407,29 @@ main (int argc, char *argv[])
   // initialize the device
   TargetControlHardware::initHwPlatform (platform);
 
-  // Create
+  // Create the single port listening for GDB RSP packets.
+  // @todo We may need a separate thread to listen for BREAK.
+  
+  // @todo We used to create new control hardware for each core. How do we do
+  // that now?
+  unsigned int coreNum = 0;
 
-  if (true)
-    {
-      // Create independent threads each of which will execute function FIXME:
-      // switch to dynamic port creation model n threads for gdb, thread for
-      // loader, thread for reset client (Used in Eclipse)
-      unsigned portsNum[nCores];
+  TargetControl* tCntrl = new TargetControlHardware (coreNum,
+						     dontCheckHwAddress);
+  GdbServer* rspServerP = new GdbServer (PORT_BASE_NUM, haltOnAttach,
+					 ttyOut, withTtySupport);
 
-      // loader
-///             portsNum[nCores] = PORT_BASE_NUM-1;
-      // host reset proxy
-///             portsNum[nCores+1] = PORT_BASE_NUM-2;
+  // @todo We really need this for just one port.
+  rspServerP->rspServer (tCntrl);
 
-      for (unsigned i = 0; i < nCores; i++)
-	{
-	  portsNum[i] = PORT_BASE_NUM + i;
-	}
-
-      pthread_t thread[nCores];
-
-      //////////////////////////////////////////////
-      // create and execute the thread for the cores
-      for (unsigned i = 0; i < nCores; i++)
-	{
-	  ThreadData td;
-
-	  td.port               = portsNum[i];
-	  td.dontCheckHwAddress = dontCheckHwAddress;
-	  td.haltOnAttach       = haltOnAttach;
-	  td.ttyOut             = ttyOut;
-	  td.withTtySupport     = withTtySupport;
-
-	  pthread_create (&(thread[i]), NULL, createGdbServer,
-			  (void *) (&td));
-	}
-
-      sleep (1);
-
-      /////////////////////////////
-      // wait for threads to finish
-      /* Wait till threads are complete before main continues. Unless we */
-      /* wait we run the risk of executing an exit which will terminate  */
-      /* the process and all threads before the threads have completed.  */
-      for (unsigned i = 0; i < (nCores); i++)
-	{
-	  pthread_join ((thread[i]), NULL);
-	}
-
-    }
-
+  // Tidy up
   if (ttyOut)
-    {
       fclose (ttyOut);
-    }
 
   delete xml;
+  exit (0);
 
-  return mainRetStatus;
-}
+}	// main ()
 
 
 // Local Variables:

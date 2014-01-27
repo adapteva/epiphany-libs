@@ -1,5 +1,10 @@
 2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/main.cpp (ThreadData, createGdbServer): Deleted.
+	(main): Remove mainRetStatus, create a single port GdbServer.
+
+2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/main.cpp: Include sstream.
 	(platform_args): Deleted (replaced by platformArgs local to main.
 	(show_memory_map): Deleted (replaced by doShowMemoryMap) local to
