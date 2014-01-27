@@ -1,3 +1,23 @@
+2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Add CPPFLAGS to command line.
+	* src/RspConnection.cpp (rspConnect): Add mutex around listen
+	error message and report error details.
+	* src/main.cpp: Make explicit which functions using applies to.
+	(copyrightStr): Move as literal to copyright
+	function.
+	(revision): Delete and replace by defined value.
+	(XDOREVSTR, DOREVSTR, REVSTR): New macros.
+	(usage): Rewritten to include all options and remove all terminal
+	specific control codes, takes argument to specify output stream.
+	(usage_hidden): Deleted.
+	(copyright): Unified to print all information consistently, using
+	supplied revision string.
+	(main): Return success if printing version or help, remove
+	--help-hidden, replace usage and usage_hidden by usage with either
+	cout or cerr as parameters, don't use designated initializer for
+	ThreadData, since not standard C++ (C99 only).
+
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer): Pass haltOnAttach, ttyOut and
