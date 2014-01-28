@@ -73,6 +73,7 @@
 #define RSP_CONNECTION__H
 
 #include "RspPacket.h"
+#include "ServerInfo.h"
 
 
 //! The default service to use if port number = 0 and no service specified
@@ -104,9 +105,8 @@ class RspConnection
 {
 public:
   // Constructors and destructor
-  RspConnection (int _portNum);
-    RspConnection (const char *_serviceName = DEFAULT_RSP_SERVICE);
-   ~RspConnection ();
+  RspConnection (ServerInfo* _si);
+  ~RspConnection ();
 
   // Public interface: manage client connections
   bool rspConnect ();
@@ -122,17 +122,17 @@ public:
 private:
 
   // Generic initializer
-  void rspInit (int _portNum, const char *_serviceName);
+  void rspInit (int _portNum);
 
   // Internal routines to handle individual chars
   bool putRspChar (char c);
   int getRspChar ();
 
+  //! Pointer to the server info
+  ServerInfo *si;
+
   //! The port number to listen on
   int portNum;
-
-  //! The service name to listen on
-  const char *serviceName;
 
   //! The client file descriptor
   int clientFd;

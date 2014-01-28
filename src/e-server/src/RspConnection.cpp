@@ -84,62 +84,33 @@
 #include <poll.h>
 #include <unistd.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include "RspConnection.h"
 #include "Utils.h"
 
-#include "debugVerbose.h"
 
+using std::cerr;
+using std::cout;
+using std::dec;
+using std::endl;
+using std::flush;
+using std::hex;
+using std::setfill;
+using std::setw;
 
-using
-  std::cerr;
-using
-  std::cout;
-using
-  std::dec;
-using
-  std::endl;
-using
-  std::flush;
-using
-  std::hex;
-using
-  std::setfill;
-using
-  std::setw;
-
-//#ifdef RSP_TRACE
-//using sc_core::sc_time_stamp;
-//#endif
-extern int
-  debug_level;
-#include <fcntl.h>
 
 //-----------------------------------------------------------------------------
 //! Constructor when using a port number
 
 //! Calls the generic initializer.
 
-//! @param[in] _portNum     The port number to connect to
+//! @param[in] _si    The server information
 //-----------------------------------------------------------------------------
-RspConnection::RspConnection (int _portNum)
+RspConnection::RspConnection (ServerInfo* _si) :
+  si (_si)
 {
-  rspInit (_portNum, DEFAULT_RSP_SERVICE);
-
-}				// RspConnection()
-
-
-//-----------------------------------------------------------------------------
-//! Constructor when using a service
-
-//! Calls the generic initializer.
-
-//! @param[in] _serviceName  The service name to use. Defaults to
-//!                          DEFAULT_RSP_SERVER
-//-----------------------------------------------------------------------------
-RspConnection::RspConnection (const char *_serviceName)
-{
-  rspInit (0, _serviceName);
+  rspInit (si->port ());
 
 }				// RspConnection()
 
@@ -169,13 +140,11 @@ RspConnection::~RspConnection ()
 //! packet here (rather than getting a new one each time.
 
 //! @param[in] _portNum       The port number to connect to
-//! @param[in] _serviceName   The service name to use (if PortNum == 0).
 //-----------------------------------------------------------------------------
 void
-RspConnection::rspInit (int _portNum, const char *_serviceName)
+RspConnection::rspInit (int _portNum)
 {
   portNum = _portNum;
-  serviceName = _serviceName;
   clientFd = -1;
 
 }				// init()
@@ -474,11 +443,9 @@ bool RspConnection::getPkt (RspPacket * pkt)
 		}
 	      else
 		{
-//#ifdef RSP_TRACE
-		  if (debug_level > D_TRAP_AND_RSP_CON)
+		  if (si->debugTrapAndRspCon ())
 		    cerr << "[" << portNum << "]:" << " getPkt: " << *pkt <<
 		      endl;
-//#endif
 		  //pthread_mutex_unlock(&gdbReadPacket_m);
 		  return true;	// Success
 		}
@@ -582,10 +549,9 @@ bool RspConnection::putPkt (RspPacket * pkt)
     }
   while ('+' != ch);
 
-//#ifdef RSP_TRACE
-  if (debug_level > D_TRAP_AND_RSP_CON)
+  if (si->debugTrapAndRspCon ())
     cerr << "[" << portNum << "]:" << " putPkt: " << *pkt << endl;
-//#endif
+
   return true;
 
 }				// putPkt()

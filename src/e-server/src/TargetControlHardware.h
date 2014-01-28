@@ -25,7 +25,9 @@
 #define TARGET_CONTROL_HARDWARE__H
 
 #include <map>
+#include <inttypes.h>
 
+#include "ServerInfo.h"
 #include "TargetControl.h"
 
 #include <e-xml/src/epiphany_platform.h>
@@ -36,13 +38,12 @@ using std::map;
 using std::pair;
 
 
-class TargetControlHardware:public TargetControl
+class TargetControlHardware: public TargetControl
 {
 public:
   // Constructor
-  TargetControlHardware (unsigned  indexInMemMap,
-			 bool      _dontCheckHwAddress,
-			 bool      _skipPlatformReset);
+  TargetControlHardware (unsigned    indexInMemMap,
+			 ServerInfo* _si);
 
   // Functions to access memory. All register access on the ATDSP is via memory
   virtual bool readMem32 (uint32_t addr, uint32_t &);
@@ -86,17 +87,12 @@ protected:
 
 
 private:
-  //! Number of bytes per core address space.
-  static const uint32_t CORE_SPACE = 0x00100000;
 
   //! Local copy of core offset in memory map
   unsigned int  indexInMemMap;
 
-  //! Local copy of flag.
-  bool  dontCheckHwAddr;
-
-  //! Local copy of flag.
-  bool  skipPlatformReset;
+  //! Local pointer to server info
+  ServerInfo* si;
 
   //! Handle for the shared object libraries
   void *dsoHandle;

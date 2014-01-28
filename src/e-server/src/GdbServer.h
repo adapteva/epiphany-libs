@@ -49,26 +49,20 @@
 #include "RspPacket.h"
 
 #include "maddr_defs.h"
+#include "ServerInfo.h"
 #include "TargetControl.h"
 
 
-//-----------------------------------------------------------------------------
-//! Module implementing a GDB RSP server.
+//! Class implementing a GDB RSP server.
 
 //! A thread listens for RSP requests, which are converted to requests to read
 //! and write registers or memory or control the CPU in the debug unit
-//-----------------------------------------------------------------------------
-
-
 class GdbServer
 {
 public:
 
   // Constructor and destructor
-  GdbServer (int   _rspPort,
-	     bool  _haltOnAttach,
-	     FILE* _ttyOut,
-	     bool  _withTtySupport);
+  GdbServer (ServerInfo* _si);
   ~GdbServer ();
 
   //! main loop for core
@@ -256,17 +250,8 @@ private:
   //! Responsible for the memory operation commands in target
   TargetControl * fTargetControl;
 
-  //! The TCP/IP port number to listen on
-  int rspPort;
-
-  //! Local copy of flag for halt on attach
-  bool  haltOnAttach;
-
-  //! Local copy of TTY output file handle
-  FILE *ttyOut;
-
-  //! Local copy of flag for TTY support
-  bool  withTtySupport;
+  //! Local pointer to server info
+  ServerInfo *si;
 
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;
@@ -392,8 +377,6 @@ private:
   void setfield (uint32_t & x, int _lt, int _rt, uint32_t val);
 
 };				// GdbServer()
-
-extern int debug_level;
 
 #endif // GDB_SERVER__H
 

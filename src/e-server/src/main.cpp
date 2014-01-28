@@ -37,6 +37,7 @@
 #include <map>
 
 #include "GdbServer.h"
+#include "ServerInfo.h"
 #include "TargetControlHardware.h"
 #include "maddr_defs.h"
 #include <e-xml/src/epiphany_xml.h>
@@ -59,15 +60,6 @@ using std::map;
 using std::ostream;
 using std::pair;
 using std::stringstream;
-
-unsigned int PORT_BASE_NUM;
-
-char TTY_[1024];
-
-
-// accesses by all threads
-int debug_level = 0;
-
 
 
 //! Put the usage message out on the given stream.
@@ -127,9 +119,16 @@ usage (ostream& s)
   s << endl;
   s << "Debug options:" << endl;
   s << endl;
-  s << "  -d <debug-level>" << endl;
+  s << "  -d stop-resume" << endl;
+  s << "  -d trap-and-rsp-con" << endl;
+  s << "  -d stop-resume-detail" << endl;
+  s << "  -d target-wr" << endl;
+  s << "  -d ctrl-c-wait" << endl;
+  s << "  -d tran-detail" << endl;
   s << endl;
-  s << "    Run the e-server in debug mode. Default 0 (no debug)." << endl;
+  s << "    Enable specified class of debug messages. Use multiple times for"
+    << endl;
+  s << "    multiple classes of debug message. Default no debug." << endl;
   s << endl;
   s << "  --tty <terminal>" << endl;
   s << endl;
@@ -189,9 +188,9 @@ copyright ()
 //! @param[in] xml     The XML description of the platform.
 //! @param[in] nCores  The number of cores in the target.
 static void
-showMemoryMap (TargetControlHardware* tCntrl,
-	       EpiphanyXML* xml,
-	       unsigned int nCores)
+showMaps (TargetControlHardware* tCntrl,
+	  EpiphanyXML* xml,
+	  unsigned int nCores)
 {
   xml->PrintPlatform ();
 
@@ -232,7 +231,7 @@ showMemoryMap (TargetControlHardware* tCntrl,
       cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
       core_num++;
     }
-}	// showMemoryMap ()
+}	// showMaps ()
 
 
 //! Initialize the hardware platform
@@ -242,22 +241,15 @@ showMemoryMap (TargetControlHardware* tCntrl,
 //! necesary for now, since it specifies the XML equivalent of the
 //! environment variable text file. We need to fix this!
 
-//! @param[in] hdfFile            Filename of the XML file describing the
-//!                               platform.
-//! @param[in] dontCheckHwAddr    Don't check the hardware address on init.
-//! @param[in] doShowMemoryMap    TRUE if a dump of the register and memory
-//!                               information was requested. FALSE otherwise.
-//! @param[in] skipPlatformReset  TRUE if the platform should *not* be reset
-//!                               on initialization. FALSE otherwise.
-//! @param[in] platformArgs       Additional args (if any) to be passed to the
-//!                               platform.
+//! @param[in] si            Server information with HDF file name and command
+//!                          line flags.
+//! @param[in] platformArgs  Additional args (if any) to be passed to the
+//!                          platform.
 static TargetControl*
-initPlatform (const char* hdfFile,
-	      bool        dontCheckHwAddr,
-	      bool        doShowMemoryMap,
-	      bool        skipPlatformReset,
+initPlatform (ServerInfo *si,
 	      string      platformArgs)
 {
+  const char * hdfFile = si->hdfFile ();
   if (NULL != hdfFile)
     cout << "Using the HDF file: " << hdfFile << endl;
   else
@@ -290,15 +282,13 @@ initPlatform (const char* hdfFile,
   // @todo We used to create new control hardware for each core. How do we do
   // that now?
   unsigned int coreNum = 0;
-  TargetControlHardware* tCntrl = new TargetControlHardware (coreNum,
-							     dontCheckHwAddr,
-							     skipPlatformReset);
+  TargetControlHardware* tCntrl = new TargetControlHardware (coreNum, si);
 
   // populate the chip and ext_mem list of memory ranges
   unsigned nCores = tCntrl->initDefaultMemoryMap (platform);
 
-  if (doShowMemoryMap)
-    showMemoryMap (tCntrl, xml, nCores);
+  if (si->showMemoryMap ())
+    showMaps (tCntrl, xml, nCores);
 
   // initialize the device
   tCntrl->initHwPlatform (platform);
@@ -313,18 +303,8 @@ initPlatform (const char* hdfFile,
 int
 main (int argc, char *argv[])
 {
-  char *hdfFile = NULL;
+  ServerInfo *si = new ServerInfo;
   string platformArgs;
-  bool doShowMemoryMap = false;
-  bool skipPlatformReset = false;
-  bool dontCheckHwAddress = false;
-  bool haltOnAttach = true;
-  FILE *ttyOut = 0;
-  bool withTtySupport = false;
-
-  PORT_BASE_NUM = 51000;
-
-  sprintf (TTY_, "tty");
 
   /////////////////////////////
   // parse command line options
@@ -344,7 +324,7 @@ main (int argc, char *argv[])
         {
 	  n += 1;
 	  if (n < argc)
-	    hdfFile = argv[n];
+	    si->hdfFile (argv[n]);
 	  else
 	    {
 	      usage (cerr);
@@ -352,18 +332,13 @@ main (int argc, char *argv[])
 	    }
 	}
       else if (!strcmp (argv[n], "--dont-check-hw-address"))
-	{
-	  dontCheckHwAddress = true;
-	}
+	si->dontCheckHwAddr (true);
       else if (!strcmp (argv[n], "--dont-halt-on-attach"))
-	{
-	  haltOnAttach = false;
-	}
+	si->haltOnAttach (false);
       else if (!strcmp (argv[n], "-skip-platform-reset"))
-	{
-	  skipPlatformReset = true;
-
-	}
+	si->skipPlatformReset (true);
+      else if (!strcmp (argv[n], "--show-memory-map"))
+	si->showMemoryMap (true);
       else if (!strcmp (argv[n], "-Xpl"))
 	{
 	  n += 1;
@@ -392,9 +367,15 @@ main (int argc, char *argv[])
 	  n += 1;
 	  if (n < argc)
 	    {
-	      PORT_BASE_NUM = atoi (argv[n]);
-	      cout << "Setting base port number to " << PORT_BASE_NUM << "."
-		   << endl;
+	      si->port ((unsigned int) atoi (argv[n]));
+	      if (si->validPort ())
+		cout << "Port number " << si->port () << "." << endl;
+	      else
+		{
+		  cerr << "ERROR: Invalid port number: " << si->port () << "."
+		       << endl;
+		  exit (EXIT_FAILURE);
+		}
 	    }
 	  else
 	    {
@@ -407,8 +388,12 @@ main (int argc, char *argv[])
 	  n += 1;
 	  if (n < argc)
 	    {
-	      withTtySupport = true;
-	      strncpy (TTY_, (char *) argv[n], sizeof (TTY_));
+	      si->ttyOut (fopen (argv[n], "w"));
+	      if (NULL == si->ttyOut ())
+		{
+		  cerr << "ERRORL: Can't open tty " << argv[n] << endl;
+		  exit (EXIT_FAILURE);
+		}
 	    }
 	  else
 	    {
@@ -421,9 +406,41 @@ main (int argc, char *argv[])
 	  n += 1;
 	  if (n < argc)
 	    {
-	      debug_level = atoi (argv[n]);
-	      cout << "setting debug level to " << debug_level
-		   << endl;
+	      if (0 == strcasecmp (argv[n], "stop-resume"))
+		{
+		  si->debugStopResume (true);
+		  cout << "INFO: Setting stop/resume debug." << endl;
+		}
+	      else if (0 == strcasecmp (argv[n], "trap-and-rsp-con"))
+		{
+		  si->debugTrapAndRspCon (true);
+		  cout << "INFO: Setting trace/RSP connection debug." << endl;
+		}
+	      else if (0 == strcasecmp (argv[n], "stop-resume-detail"))
+		{
+		  si->debugStopResumeDetail (true);
+		  cout << "INFO: Setting stop/resume detail debug." << endl;
+		}
+	      else if (0 == strcasecmp (argv[n], "target-wr"))
+		{
+		  si->debugTargetWr (true);
+		  cout << "INFO: Setting target write debug." << endl;
+		}
+	      else if (0 == strcasecmp (argv[n], "ctrl-c-wait"))
+		{
+		  si->debugCtrlCWait (true);
+		  cout << "INFO: Setting control-C wait debug." << endl;
+		}
+	      else if (0 == strcasecmp (argv[n], "tran-detail"))
+		{
+		  si->debugTranDetail (true);
+		  cout << "INFO: Setting transaction detail debug." << endl;
+		}
+	      else
+		{
+		  cerr << "WARNING: Unrecognized debug flag " << argv[n]
+		       << ": ignored." << endl;
+		}
 	    }
 	  else
 	    {
@@ -431,39 +448,23 @@ main (int argc, char *argv[])
 	      exit (EXIT_FAILURE);
 	    }
 	}
-      else if (!strcmp (argv[n], "--show-memory-map"))
-	{
-	  doShowMemoryMap = true;
-	}
-    }
-
-  // open terminal
-  if (withTtySupport)
-    {
-      ttyOut = fopen (TTY_, "w");
-      if (ttyOut == NULL)
-	{
-	  cerr << "Can't open tty " << TTY_ << endl;
-	  exit (EXIT_FAILURE);
-	}
     }
 
   // Create the single port listening for GDB RSP packets.
   // @todo We may need a separate thread to listen for BREAK.
-  GdbServer* rspServerP = new GdbServer (PORT_BASE_NUM, haltOnAttach,
-					 ttyOut, withTtySupport);
+  GdbServer* rspServerP = new GdbServer (si);
 
   // @todo We really need this for just one port.
-  TargetControl* tCntrl = initPlatform (hdfFile, dontCheckHwAddress,
-					doShowMemoryMap, skipPlatformReset,
-					platformArgs);
+  TargetControl* tCntrl = initPlatform (si, platformArgs);
   rspServerP->rspServer (tCntrl);
 
   // Tidy up
-  if (ttyOut)
-      fclose (ttyOut);
+  if (NULL != si->ttyOut ())
+    fclose (si->ttyOut ());
 
   delete tCntrl;
+  delete si;
+
   exit (EXIT_SUCCESS);
 
 }	// main ()

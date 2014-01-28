@@ -1,5 +1,57 @@
 2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* Release/src/subdir.mk: Added reference to ServerInfo.c,
+	ServerInfo.o and ServerInfo.d.
+	* src/debugVerbose.h: Deleted.
+	* src/GdbServer.cpp: Replace references to rspPort by si->port
+	throughout, replace references to haltOnAttach by si->haltOnAttach
+	throughout, replace references to ttyOut by si->ttyOut throughout,
+	replace references to debug_level by calls to ServerInfo debug
+	accessors throughout.
+	(GdbServer): Initalize from ServerInfo, pass ServerInfo to
+	RspConnection.
+	* src/GdbServer.h: Constructor takes just ServerInfo as parameter,
+	remove rspPort, haltOnAttach and ttyOut and replace by si, remove
+	external ref to debug_level and include of debugVerbose.h.
+	* src/RspConnection.cpp: Include ServerInfo.h
+	(RspConnection): Take ServerInfo and sole parameter and extract
+	portNum from this, remover overloaded version taking serviceName
+	parameter, since nevery used.
+	(rspInit): Remove serviceName parameter.
+	(getPkt, putPkt): Replace debug_level by debugTrapAndRspConn.
+	* src/RspConnection.h: Include ServerInfo.h, pass ServerInfo as
+	sole paramter to RspConnection, and remove variant constructor
+	with service name, remove serviceName parameter from rspInit, add
+	private member to point to ServerInfo, remove serviceName.
+	* src/ServerInfo.cpp: Created.
+	* src/ServerInfo.h: Created.
+	* src/TargetControlHardware.cpp: Remove incldue of debugVerbose
+	and add include of maddr_defs.h
+	(TargetControlHardware): Pass ServerInfo instead of
+	dontCheckHwAddr and skipPlatformReset.
+	(readBurst, writeBurst): Replace dontCheckHwAddr with ref to
+	ServerInfo.
+	(initHwPlatform): Replace debug_level with ServerInfo
+	debugTrapAndRspCon, replace skipPlatformReset with ref to
+	ServerInfo
+	(readMem, writeMem): Replace dontCheckHwAddr with ref to
+	ServerInfo, replace debug_level with ServerInfo debugTargetWr
+	* src/TargetControlHardware.h: Initialize constructor with
+	ServerInfo instead of flags, remove CORE_SPACE, add si member var.
+	* src/main.cpp: Include ServerInfo:
+	(PORT_BASE_NUM, TTY_, debug_level): Deleted.
+	(usage): Add new debug flags.
+	(showMaps): Renamed from showMemoryMap, add ServerInfo parameter.
+	(initPlatform): Pass all but last arg as ServerInfo class, pass on
+	to tCntrl and showMaps.
+	(main): Create ServerInfo instance and repace corresponding flags
+	throughout - doShowMemoryMap, skipPlatformReset,
+	dontCheckHwAddress,haltOnAttach, ttyOut, PORT_BASE_NUN.  Remove
+	withTtySupport - now use NULL ttyOut instead, validate port
+	number, use named debug flags.
+
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Release/src/subdir.mk: Added TargetControl.cpp.
 	* src/GdbServer.cpp: Put contributors in header, tidy up
 	organization of included headers.

@@ -38,7 +38,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include "debugVerbose.h"
+#include "maddr_defs.h"
 #include "TargetControlHardware.h"
 
 
@@ -50,22 +50,18 @@ using std::map;
 using std::pair;
 
 
-extern int debug_level;
-
 pthread_mutex_t targetControlHWAccess_m = PTHREAD_MUTEX_INITIALIZER;
 
 
 //! Constructor
 
-//! @param[in] _indexInMemMap    Index in memory map of this core
-//! @param[in] _dontCheckHwAddr  Don't check the hardware address
+//! @param[in] _indexInMemMap  Index in memory map of this core
+//! @param[in] _si             Server information about flags etc.
 TargetControlHardware::TargetControlHardware (unsigned int  _indexInMemMap,
-					      bool _dontCheckHwAddr,
-					      bool _skipPlatformReset) :
+					      ServerInfo*   _si) :
   TargetControl (),
   indexInMemMap (_indexInMemMap),
-  dontCheckHwAddr (_dontCheckHwAddr),
-  skipPlatformReset (_skipPlatformReset),
+  si (_si),
   dsoHandle (NULL)
 {
 }	// TargetControlHardware ()
@@ -161,7 +157,7 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 
   // cerr << "READ burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
 
-  if (fullAddr || dontCheckHwAddr)
+  if (fullAddr || si->dontCheckHwAddr())
     {
       if ((fullAddr % E_WORD_BYTES) == 0)
 	{
@@ -245,7 +241,7 @@ TargetControlHardware::writeBurst (uint32_t addr, uint8_t *buf,
 
   assert (buff_size > 0);
 
-  if (fullAddr || dontCheckHwAddr)
+  if (fullAddr || si->dontCheckHwAddr())
     {
       if ((buff_size == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
 	{
@@ -547,9 +543,13 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
       exit (EXIT_FAILURE);
     }
 
-  // Initialize target platform
-  (*e_set_host_verbosity) (debug_level);
-  int res = (*init_platform) (platform, debug_level);
+  // Initialize target platform. Values taken from old code, but they really
+  // ought to be replaced.
+  int extDebugLevel = si->debugTrapAndRspCon ()
+    ? 1 : si->debugStopResumeDetail () ? 2 : 0;
+ 
+  (*e_set_host_verbosity) (extDebugLevel);
+  int res = (*init_platform) (platform, extDebugLevel);
 
   if (res < 0)
     {
@@ -559,7 +559,7 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
     }
 
   // Optionally reset the platform
-  if (skipPlatformReset)
+  if (si->skipPlatformReset())
     {
       cerr << "Warning: No hardware reset sent to target" << endl;
     }
@@ -677,7 +677,7 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 
   uint32_t fullAddr = convertAddress (addr);
   // bool iSAligned = (fullAddr == ());
-  if (fullAddr || dontCheckHwAddr)
+  if (fullAddr || si->dontCheckHwAddr())
     {
       // supported only word size or smaller
       assert (burst_size <= 4);
@@ -696,7 +696,7 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 	    {
 	      data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
 	    }
-	  if (debug_level > D_TARGET_WR)
+	  if (si->debugTargetWr ())
 	    {
 	      cerr << "TARGET READ (" << burst_size << ") " << hex << fullAddr
 		<< " >> " << data << dec << endl;
@@ -729,7 +729,7 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
   uint32_t fullAddr = convertAddress (addr);
 
   // bool iSAligned = (fullAddr == ());
-  if (fullAddr || dontCheckHwAddr)
+  if (fullAddr || si->dontCheckHwAddr())
     {
       assert (burst_size <= 4);
       char buf[8];
@@ -747,7 +747,7 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
       // double mes = EndOfBaudMeasurement(start_t);
       // cerr << "--- WRITE (writeMem)(" << burst_size << ") milliseconds: " << mes << endl;
 
-      if (debug_level > D_TARGET_WR)
+      if (si->debugTargetWr ())
 	{
 	  cerr << "TARGET WRITE (" << burst_size << ") " << hex << fullAddr <<
 	    " >> " << data << dec << endl;
