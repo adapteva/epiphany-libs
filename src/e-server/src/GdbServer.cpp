@@ -1,33 +1,11 @@
-/*
-  File: GdbServer.cpp
-
-  This file is part of the Epiphany Software Development Kit.
-
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
-
-// Based on SystemC GDB RSP server implementation
+// GDB RSP server class: Definition.
 
 // Copyright (C) 2008, 2009, Embecosm Limited
-// Copyright (C) 2009 Adapteva Inc.
+// Copyright (C) 2009-2014 Adapteva Inc.
 
-// Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
 // This file is part of the Adapteva RSP server.
 
@@ -44,43 +22,29 @@
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-// Implementation is based on the Embecosm Application Note 4 "Howto: GDB
-// Remote Serial Protocol: Writing a RSP Server"
-// (http://www.embecosm.com/download/ean4.html).
-
 // Note that the Epiphany is a little endian architecture.
 
 #include <iostream>
 #include <iomanip>
 #include <pthread.h>
 
-
-#include "GdbServer.h"
-
-#include "Utils.h"
-
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "GdbServer.h"
+#include "Utils.h"
+
 #include "debugVerbose.h"
-
-
 #include "libgloss_syscall.h"
 
-using
-  std::cerr;
-using
-  std::cout;
-using
-  std::dec;
-using
-  std::endl;
-using
-  std::hex;
-using
-  std::setfill;
-using
-  std::setw;
+using std::cerr;
+using std::cout;
+using std::dec;
+using std::endl;
+using std::flush;
+using std::hex;
+using std::setfill;
+using std::setw;
 
 static pthread_mutex_t
   rspCmdControlAccess_m = PTHREAD_MUTEX_INITIALIZER;
@@ -286,10 +250,9 @@ GdbServer::rspServer (TargetControl * TargetControl)
 	  bool isGotBreakCommand = rsp->GetBreakCommand ();
 	  if (isGotBreakCommand)
 	    {
-	      cerr <<
-		"!!!!!!!!!!- get CTLR-C request from gdb server suspending the coreid 0x"
-		<< hex << fTargetControl->
-		GetAttachedCoreId () << dec << endl << flush;
+	      cerr << "CTLR-C request from gdb server suspending the coreid 0x"
+		   << hex << fTargetControl-> getAttachedCoreId () << dec
+		   << endl << flush;
 
 	      rspSuspend ();
 	      //get CTRl-C from gdb, the user should continue the target
@@ -435,7 +398,12 @@ GdbServer::rspClientRequest ()
 
     case 'k':
 
-      cerr << hex << "GDB client for core [" << fTargetControl->GetAttachedCoreId () << "]: Kill request ... the multicore server will be detached from the specific gdb client, \n Use target remote :<port> to connect again" << dec << endl << flush;	//Stop target id supported
+      cerr << hex << "GDB client for core ["
+	   << fTargetControl->getAttachedCoreId ()
+	   << "]: Kill request. The multicore server will be detached from the"
+	   << endl
+	   << "specific gdb client. Use target remote :<port> to connect again"
+	   << endl << flush;	//Stop target id supported
       //pkt->packStr("OK");
       //rsp->putPkt(pkt);
       //exit(23);
@@ -552,9 +520,9 @@ GdbServer::rspReportException (unsigned stoppedPC, unsigned threadID,
 				 unsigned exCause)
 {
   if (debug_level > D_STOP_RESUME_INFO)
-    cerr << "[" << hex << fTargetControl->
-      GetAttachedCoreId () << "]: stopped at PC " << hex << stoppedPC <<
-      "  EX 0x" << exCause << dec << endl << flush;
+    cerr << "[" << hex << fTargetControl-> getAttachedCoreId ()
+	 << "]: stopped at PC 0x" << hex << stoppedPC << "  EX 0x" << exCause
+	 << dec << endl << flush;
 
   // Construct a signal received packet
   if (threadID == 0)
@@ -707,8 +675,8 @@ GdbServer::targetResume ()
   fIsTargetRunning = true;
 
   if (debug_level > D_STOP_RESUME_INFO)
-    cerr << "[" << hex << fTargetControl->
-      GetAttachedCoreId () << "]: ... resumed" << endl << flush;
+    cerr << "[" << hex << fTargetControl-> getAttachedCoreId () << "]: resumed"
+	 << endl << flush;
 }
 
 
@@ -1205,7 +1173,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
 
 	  printfWrapper (res_buf, fmt, buf + r1 + 1);
-	  fprintf (ttyOut, "[%ld]", fTargetControl->GetAttachedCoreId ());
+	  fprintf (ttyOut, "[%ud]", fTargetControl->getAttachedCoreId ());
 	  fprintf (ttyOut, "%s", res_buf);
 
 	  pthread_mutex_unlock (&targeTTYAccess_m);
@@ -1358,14 +1326,13 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 void
 GdbServer::rspReadAllRegs ()
 {
-  struct timeval start_t;
-  StartOfBaudMeasurement (start_t);
+  fTargetControl->startOfBaudMeasurement ();
   //cerr << "MTIME--- READ all regs START ----" << endl << flush;
 
   // The GPRs
   {
     unsigned char buf[ATDSP_NUM_GPRS * 4];
-    bool retSt = fTargetControl->ReadBurst (CORE_R0, buf, sizeof (buf));
+    bool retSt = fTargetControl->readBurst (CORE_R0, buf, sizeof (buf));
 
     for (int r = 0; r < ATDSP_NUM_GPRS; r++)
       {
@@ -1392,7 +1359,7 @@ GdbServer::rspReadAllRegs ()
 
     unsigned char buf[ATDSP_NUM_SCRS_0 * 4];
 
-    bool retSt = fTargetControl->ReadBurst (CORE_CONFIG, buf, sizeof (buf));
+    bool retSt = fTargetControl->readBurst (CORE_CONFIG, buf, sizeof (buf));
     if (!retSt)
       {
 	cerr << "ERROR read all regs failed" << endl << flush;
@@ -1417,7 +1384,7 @@ GdbServer::rspReadAllRegs ()
 
     assert (ATDSP_NUM_SCRS_0 == ATDSP_NUM_SCRS_1);
 
-    retSt = fTargetControl->ReadBurst (DMA0_CONFIG, buf, sizeof (buf));
+    retSt = fTargetControl->readBurst (DMA0_CONFIG, buf, sizeof (buf));
     if (!retSt)
       {
 	cerr << "ERROR read all regs failed" << endl << flush;
@@ -1440,9 +1407,8 @@ GdbServer::rspReadAllRegs ()
       }
   }
 
-  EndOfBaudMeasurement (start_t);
-  //double mes = EndOfBaudMeasurement(start_t);
-  //cerr << "MTIME--- READ all regs DONE -- milliseconds: " << mes << endl << flush;
+  double mes = fTargetControl->endOfBaudMeasurement();
+  cerr << "MTIME--- READ all regs DONE -- milliseconds: " << mes << endl;
 
   // Finalize the packet and send it
   pkt->data[ATDSP_TOTAL_NUM_REGS * 8] = '\0';
@@ -1543,16 +1509,16 @@ GdbServer::rspReadMem ()
       len = (pkt->getBufSize () - 1) / 2;
     }
 
-  struct timeval start_t;
-  StartOfBaudMeasurement (start_t);
-  //cerr << "MTIME--- READ mem START -- " << hex << addr << dec << " (" << len << ")" << endl << flush;
+  fTargetControl->startOfBaudMeasurement ();
+  cerr << "MTIME--- READ mem START -- " << hex << addr << dec << " (" << len
+       << ")" << endl;
 
   // Write the bytes to memory
   {
     char buf[len];
 
     bool retReadOp =
-      fTargetControl->ReadBurst (addr, (unsigned char *) buf, len);
+      fTargetControl->readBurst (addr, (unsigned char *) buf, len);
 
     if (!retReadOp)
       {
@@ -1573,9 +1539,8 @@ GdbServer::rspReadMem ()
 
 
   }
-  EndOfBaudMeasurement (start_t);
-  //double mes = EndOfBaudMeasurement(start_t);
-  //cerr << "MTIME--- READ mem END -- milliseconds: " << mes << endl << flush;
+  double mes = fTargetControl->endOfBaudMeasurement();
+  cerr << "MTIME--- READ mem END -- milliseconds: " << mes << endl;
 
   pkt->data[off * 2] = '\0';	// End of string
   pkt->setLen (strlen (pkt->data));
@@ -1630,7 +1595,7 @@ GdbServer::rspWriteMem ()
   // Write the bytes to memory
   {
     //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl << flush;
-    if (!fTargetControl->WriteBurst (addr, (unsigned char *) symDat, len))
+    if (!fTargetControl->writeBurst (addr, (unsigned char *) symDat, len))
       {
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
@@ -1853,12 +1818,11 @@ GdbServer::rspQuery ()
 
 	  unsigned oldCoreId = getAttachedTargetCoreId ();
 
-	  if (fTargetControl->SetAttachedCoreId (coreId))
+	  if (fTargetControl->setAttachedCoreId (coreId))
 	    {
 	      //if (debug_level > D_STOP_RESUME_INFO || (oldCoreId != coreId))
-	      cerr << "[" << hex << oldCoreId << "]:" << " core ID set to " <<
-		coreId << "'" << pkt->data << dec << endl << flush;
-
+	      cerr << "[" << hex << oldCoreId << "]:" << " core ID set to "
+		   << coreId << "'" << pkt->data << dec << endl << flush;
 	    }
 	  else
 	    {
@@ -2181,7 +2145,7 @@ unsigned
 GdbServer::getAttachedTargetCoreId ()
 {
   assert (fTargetControl);
-  return fTargetControl->GetAttachedCoreId ();
+  return fTargetControl->getAttachedCoreId ();
 
 }	// getAttachedTargetCoreId ()
 
@@ -2506,7 +2470,7 @@ GdbServer::isTargetInIldeState ()
 void
 GdbServer::saveIVT ()
 {
-  fTargetControl->ReadBurst (0, fIVTSaveBuff, sizeof (fIVTSaveBuff));
+  fTargetControl->readBurst (0, fIVTSaveBuff, sizeof (fIVTSaveBuff));
 
   //for (unsigned i=1; i<ATDSP_NUM_ENTRIES_IN_IVT-1; i++) { //skip reset ISR
   //      uint32_t bkpt_addr = i * ATDSP_INST32LEN;
@@ -2533,7 +2497,7 @@ void
 GdbServer::restoreIVT ()
 {
 
-  fTargetControl->WriteBurst (0, fIVTSaveBuff, sizeof (fIVTSaveBuff));
+  fTargetControl->writeBurst (0, fIVTSaveBuff, sizeof (fIVTSaveBuff));
   //remove "hidden" bk
   //for (unsigned i=1; i<ATDSP_NUM_ENTRIES_IN_IVT-1; i++) { // skip reset ISR
   //      uint32_t bkpt_addr = i*ATDSP_INST32LEN;
@@ -3027,7 +2991,7 @@ GdbServer::rspWriteMemBin ()
     }
 
   //cerr << "rspWriteMemBin" << hex << addr << dec << " (" << len << ")" << endl << flush;
-  if (!fTargetControl->WriteBurst (addr, bindat, len))
+  if (!fTargetControl->writeBurst (addr, bindat, len))
     {
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
@@ -3229,7 +3193,7 @@ GdbServer::targetSWReset ()
 void
 GdbServer::targetHWReset ()
 {
-  fTargetControl->PlatformReset ();
+  fTargetControl->platformReset ();
 }				// hw_reset, ESYS_RESET
 
 

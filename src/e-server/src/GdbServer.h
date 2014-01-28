@@ -1,33 +1,11 @@
-/*
-  File: GdbServer.h
-
-  This file is part of the Epiphany Software Development Kit.
-
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
-
-// Based on SystemC GDB RSP server definition
+// GDB RSP server class: Declaration.
 
 // Copyright (C) 2008, 2009, Embecosm Limited
-// Copyright (C) 2009 Adapteva Inc.
+// Copyright (C) 2009-2014 Adapteva Inc.
 
-// Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
 // This file is part of the Adapteva RSP server.
 
@@ -56,20 +34,8 @@
 
 // Commenting is Doxygen compatible.
 
-// Change Management
-// =================
-
-//  4 May 09: Jeremy Bennett. Initial version based on the Embecosm GDB server
-//                            for Verilator implementation.
-
-// Embecosm Subversion Identification
-// ==================================
-
-// $Id: GdbServer.h 1286 2013-01-02 19:09:49Z ysapir $
-//-----------------------------------------------------------------------------
-
-#ifndef GDB_SERVER_SC__H
-#define GDB_SERVER_SC__H
+#ifndef GDB_SERVER__H
+#define GDB_SERVER__H
 
 //! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
 #include <inttypes.h>
@@ -96,7 +62,6 @@
 
 class GdbServer
 {
-public:
 public:
 
   // Constructor and destructor
@@ -430,7 +395,7 @@ private:
 
 extern int debug_level;
 
-#endif // GDB_SERVER_SC__H
+#endif // GDB_SERVER__H
 
 
 // Local Variables:

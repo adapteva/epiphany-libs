@@ -1,297 +1,74 @@
-/*
-  File: targetCntrlHardware.cpp
+// Target control specification for real hardware: Definition.
 
-  This file is part of the Epiphany Software Development Kit.
+// This file is part of the Epiphany Software Development Kit.
 
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
+// Copyright (C) 2013-2014 Adapteva, Inc.
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
 
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details.
 
+// You should have received a copy of the GNU General Public License along
+// with this program (see the file COPYING).  If not, see
+// <http://www.gnu.org/licenses/>.
 
 #include "target_param.h"
 
-#include "debugVerbose.h"
-#include <string>
-
-#include "TargetControlHardware.h"
-
-enum
-{
-  _BYTE_ = 1,
-  _SHORT_ = 2,
-  _WORD_ = 4,
-  _DOUBLE_ = 8,
-};
-
-#include <map>
-#include <utility>
-
-using namespace std;
-
-e_epiphany_t Epiphany, *pEpiphany;
-//DRAM_t     *pDRAM;
-
-int (*init_platform) (platform_definition_t * platform, unsigned verbose);
-int (*close_platform) ();
-int (*write_to) (unsigned address, void *buf, size_t busrt_size);
-int (*read_from) (unsigned address, void *data, size_t busrt_size);
-int (*hw_reset) ();
-
-int (*get_description) (char **);
-int (*get_memory_map) (unsigned long *);
-int (*get_number_supported_cores) (unsigned long *);
-int (*set_chip_x_y) (unsigned x, unsigned y);
-
-int (*e_open) (e_epiphany_t * dev);
-int (*e_close) (e_epiphany_t * dev);
-ssize_t (*e_read) (e_epiphany_t * dev, int corenum, const off_t from_addr,
-		   void *buf, size_t count);
-ssize_t (*e_write) (e_epiphany_t * dev, int corenum, off_t to_addr,
-		    const void *buf, size_t count);
-int (*e_reset) (e_epiphany_t * pEpiphany);
-void (*e_set_host_verbosity) (int verbose);
-
-
-#include <string.h>
+#include <cassert>
+#include <cerrno>
+#include <cstring>
 #include <iostream>
 #include <map>
+#include <string>
 #include <utility>
 
-#include <stdlib.h>
 #include <dlfcn.h>
-
 #include <signal.h>
-#include <cassert>
+#include <stdlib.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
-using namespace std;
+#include "debugVerbose.h"
+#include "TargetControlHardware.h"
 
-/* common database for ALL threads */
-static void *handle = 0;
-map < unsigned, pair < unsigned long, unsigned long > >memory_map;
-map < unsigned, pair < unsigned long, unsigned long > >register_map;
+
+using std::cerr;
+using std::dec;
+using std::endl;
+using std::hex;
+using std::map;
+using std::pair;
+
 
 extern int debug_level;
-
-#define CORE_SPACE 0x00100000
-
-
-inline unsigned
-IsAddressLocal (unsigned addr)
-{
-  return addr < CORE_SPACE;
-}
-
 
 pthread_mutex_t targetControlHWAccess_m = PTHREAD_MUTEX_INITIALIZER;
 
 
-void
-TargetControlHardware::PlatformReset ()
+//! Constructor
+
+//! @param[in] _indexInMemMap    Index in memory map of this core
+//! @param[in] _dontCheckHwAddr  Don't check the hardware address
+TargetControlHardware::TargetControlHardware (unsigned int  _indexInMemMap,
+					      bool _dontCheckHwAddr,
+					      bool _skipPlatformReset) :
+  TargetControl (),
+  indexInMemMap (_indexInMemMap),
+  dontCheckHwAddr (_dontCheckHwAddr),
+  skipPlatformReset (_skipPlatformReset),
+  dsoHandle (NULL)
 {
-  pthread_mutex_lock (&targetControlHWAccess_m);
-
-  hw_reset ();			// ESYS_RESET
-
-  pthread_mutex_unlock (&targetControlHWAccess_m);
-}
-
-
-TargetControlHardware::TargetControlHardware (unsigned indexInMemMap,
-					      bool _dontCheckHwAddress) :
-  dontCheckHwAddress (_dontCheckHwAddress)
-{
-  // indexInMemMap is essentially the core number or ext_mem segment number
-  // FIXME
-  assert (indexInMemMap < memory_map.size ());
-
-  fAttachedCoreId = (memory_map[indexInMemMap].first) >> 20;
-}
-
-
-bool
-TargetControlHardware::SetAttachedCoreId (unsigned coreId)
-{
-  // check if coreId is a valid core for this device by iterating over the memory map. if it is, set the fAttachedCoreId.
-  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
-       memory_map.begin (); ii != memory_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-
-      if ((coreId << 20) == startAddr)
-	{
-	  fAttachedCoreId = coreId;
-	  return true;
-	}
-    }
-
-  return false;
-}
-
-
-// Convert a local address to a global one.
-unsigned long
-TargetControlHardware::ConvertAddress (unsigned long address)
-{
-  assert (handle);
-
-  if (IsAddressLocal (address))
-    {
-      return (fAttachedCoreId << 20) + address;
-    }
-
-  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
-       memory_map.begin (); ii != memory_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-      unsigned long endAddr = (*ii).second.second;
-
-      if ((address >= startAddr) && (address <= endAddr))
-	{
-	  // found
-	  return address;
-	}
-    }
-
-  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
-       register_map.begin (); ii != register_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-      unsigned long endAddr = (*ii).second.second;
-
-      if ((address >= startAddr) && (address <= endAddr))
-	{
-	  // found
-	  return address;
-	}
-    }
-
-  return 0;
-}
-
-
-bool
-TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
-				unsigned burst_size)
-{
-  bool retSt = false;
-
-  //struct timeval start_t;
-  // StartOfBaudMeasurement(start_t);
-
-  pthread_mutex_lock (&targetControlHWAccess_m);
-
-  uint32_t fullAddr = ConvertAddress (addr);
-  // bool iSAligned = (fullAddr == ());
-  if (fullAddr || dontCheckHwAddress)
-    {
-      // supported only word size or smaller
-      assert (burst_size <= 4);
-      char buf[8];
-      unsigned int res = (*read_from) (fullAddr, (void *) buf, burst_size);
-
-      if (res != burst_size)
-	{
-	  cerr << "ERROR (" << res << "): mem read failed for addr " << hex <<
-	    addr << dec << endl;
-	}
-      else
-	{
-	  // pack returned data
-	  for (unsigned i = 0; i < burst_size; i++)
-	    {
-	      data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
-	    }
-	  if (debug_level > D_TARGET_WR)
-	    {
-	      cerr << "TARGET READ (" << burst_size << ") " << hex << fullAddr
-		<< " >> " << data << dec << endl;
-	    }
-	}
-      retSt = (res == burst_size);
-    }
-  else
-    {
-      cerr << "WARNING (READ_MEM ignored): The address " << hex << addr <<
-	" is not in the valid range for target " << this->
-	GetTargetId () << dec << endl;
-    }
-
-  // double mes = EndOfBaudMeasurement(start_t);
-  // cerr << "--- READ milliseconds: " << mes << endl;
-
-  pthread_mutex_unlock (&targetControlHWAccess_m);
-
-  return retSt;
-}
-
-
-bool
-TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
-				 unsigned burst_size)
-{
-  bool retSt = false;
-  pthread_mutex_lock (&targetControlHWAccess_m);
-  uint32_t fullAddr = ConvertAddress (addr);
-
-  // bool iSAligned = (fullAddr == ());
-  if (fullAddr || dontCheckHwAddress)
-    {
-      assert (burst_size <= 4);
-      char buf[8];
-
-      for (unsigned i = 0; i < burst_size; i++)
-	{
-	  buf[i] = (data >> (i * 8)) & 0xff;
-	}
-
-      // struct timeval start_t;
-      // StartOfBaudMeasurement(start_t);
-
-      unsigned int res = (*write_to) (fullAddr, (void *) buf, burst_size);
-
-      // double mes = EndOfBaudMeasurement(start_t);
-      // cerr << "--- WRITE (writeMem)(" << burst_size << ") milliseconds: " << mes << endl;
-
-      if (debug_level > D_TARGET_WR)
-	{
-	  cerr << "TARGET WRITE (" << burst_size << ") " << hex << fullAddr <<
-	    " >> " << data << dec << endl;
-	}
-
-      if (res != burst_size)
-	{
-	  cerr << "ERROR (" << res << "): mem write failed for addr " << hex
-	    << fullAddr << dec << endl;
-	}
-
-      retSt = (res == burst_size);
-    }
-  else
-    {
-      cerr << "WARNING (WRITE_MEM ignored): The address " << hex << addr <<
-	" is not in the valid range for target " << this->
-	GetTargetId () << dec << endl;
-    }
-
-  pthread_mutex_unlock (&targetControlHWAccess_m);
-
-  return retSt;
-}
+}	// TargetControlHardware ()
 
 
 bool
@@ -375,33 +152,33 @@ TargetControlHardware::writeMem8 (uint32_t addr, uint8_t value)
 
 // burst read
 bool
-TargetControlHardware::ReadBurst (unsigned long addr, unsigned char *buf,
+TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 				  size_t buff_size)
 {
   bool ret = true;
 
-  uint32_t fullAddr = ConvertAddress (addr);
+  uint32_t fullAddr = convertAddress (addr);
 
   // cerr << "READ burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
 
-  if (fullAddr || dontCheckHwAddress)
+  if (fullAddr || dontCheckHwAddr)
     {
-      if ((fullAddr % _WORD_) == 0)
+      if ((fullAddr % E_WORD_BYTES) == 0)
 	{
 	  pthread_mutex_lock (&targetControlHWAccess_m);
 
 	  // struct timeval start_time;
 	  // StartOfBaudMeasurement(start_time);
 	  for (unsigned k = 0;
-	       k < buff_size / (MAX_NUM_READ_PACKETS * _WORD_); k++)
+	       k < buff_size / (MAX_NUM_READ_PACKETS * E_WORD_BYTES); k++)
 	    {
 	      int res =
-		(*read_from) (fullAddr + k * MAX_NUM_READ_PACKETS * _WORD_,
+		(*read_from) (fullAddr + k * MAX_NUM_READ_PACKETS * E_WORD_BYTES,
 			      (void *) (buf +
-					k * MAX_NUM_READ_PACKETS * _WORD_),
-			      (MAX_NUM_READ_PACKETS * _WORD_));
+					k * MAX_NUM_READ_PACKETS * E_WORD_BYTES),
+			      (MAX_NUM_READ_PACKETS * E_WORD_BYTES));
 
-	      if (res != (MAX_NUM_READ_PACKETS * _WORD_))
+	      if (res != (MAX_NUM_READ_PACKETS * E_WORD_BYTES))
 		{
 		  cerr << "ERROR (" << res <<
 		    "): memory read failed for full address " << hex <<
@@ -410,7 +187,7 @@ TargetControlHardware::ReadBurst (unsigned long addr, unsigned char *buf,
 		}
 	    }
 
-	  unsigned trailSize = (buff_size % (MAX_NUM_READ_PACKETS * _WORD_));
+	  unsigned trailSize = (buff_size % (MAX_NUM_READ_PACKETS * E_WORD_BYTES));
 	  if (trailSize != 0)
 	    {
 	      unsigned int res =
@@ -442,7 +219,7 @@ TargetControlHardware::ReadBurst (unsigned long addr, unsigned char *buf,
     {
       cerr << "WARNING (READ_BURST ignored): The address " << hex << addr <<
 	" is not in the valid range for target " << this->
-	GetTargetId () << dec << endl;
+	getTargetId () << dec << endl;
       ret = false;
     }
 
@@ -452,7 +229,7 @@ TargetControlHardware::ReadBurst (unsigned long addr, unsigned char *buf,
 
 // burst write
 bool
-TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
+TargetControlHardware::writeBurst (uint32_t addr, uint8_t *buf,
 				   size_t buff_size)
 {
   bool ret = true;
@@ -462,20 +239,21 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
 
   pthread_mutex_lock (&targetControlHWAccess_m);
 
-  uint32_t fullAddr = ConvertAddress (addr);
+  uint32_t fullAddr = convertAddress (addr);
 
   // cerr << "---Write burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
 
   assert (buff_size > 0);
 
-  if (fullAddr || dontCheckHwAddress)
+  if (fullAddr || dontCheckHwAddr)
     {
-      if ((buff_size == _WORD_) && ((fullAddr % _WORD_) == 0))
+      if ((buff_size == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
 	{
 	  // register access -- should be word transaction
-	  // cerr << "---Write WORD " << hex << fullAddr << " Size " << dec << _WORD_ << endl;
-	  int res = (*write_to) (fullAddr, (void *) (buf), _WORD_);
-	  if (res != _WORD_)
+	  // cerr << "---Write WORD " << hex << fullAddr << " Size " << dec << E_WORD_BYTES << endl;
+	  unsigned int res = (*write_to) (fullAddr, (void *) (buf),
+					  E_WORD_BYTES);
+	  if (res != E_WORD_BYTES)
 	    {
 	      cerr << "ERROR (" << res <<
 		"): mem write failed for full address " << hex << fullAddr <<
@@ -486,9 +264,9 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
       else
 	{
 	  // head up to double boundary
-	  if ((fullAddr % _DOUBLE_) != 0)
+	  if ((fullAddr % E_DOUBLE_BYTES) != 0)
 	    {
-	      unsigned int headSize = _DOUBLE_ - (fullAddr % _DOUBLE_);
+	      unsigned int headSize = E_DOUBLE_BYTES - (fullAddr % E_DOUBLE_BYTES);
 
 	      if (headSize > buff_size)
 		{
@@ -513,13 +291,13 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
 		}
 	    }
 
-	  assert (buff_size == 0 || (fullAddr % _DOUBLE_) == 0);
-	  assert ((MAX_NUM_WRITE_PACKETS % _DOUBLE_) == 0);
-	  size_t numMaxBurst = buff_size / (MAX_NUM_WRITE_PACKETS * _DOUBLE_);
+	  assert (buff_size == 0 || (fullAddr % E_DOUBLE_BYTES) == 0);
+	  assert ((MAX_NUM_WRITE_PACKETS % E_DOUBLE_BYTES) == 0);
+	  size_t numMaxBurst = buff_size / (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
 
 	  for (unsigned k = 0; k < numMaxBurst; k++)
 	    {
-	      unsigned cBufSize = (MAX_NUM_WRITE_PACKETS * _DOUBLE_);
+	      unsigned cBufSize = (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
 
 	      // cerr << "BIG DOUBLE BURST " << k << " fullAddr " << hex << fullAddr << " size " << cBufSize << endl;
 
@@ -536,7 +314,7 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
 	      buff_size = buff_size - cBufSize;
 	    }
 
-	  size_t trailSize = buff_size % _DOUBLE_;
+	  size_t trailSize = buff_size % E_DOUBLE_BYTES;
 	  if (buff_size > trailSize)
 	    {
 	      // cerr << "LAST DOUBLE BURST " << " fullAddr " << hex << fullAddr << " size " << buff_size-trailSize << endl;
@@ -578,7 +356,7 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
     {
       cerr << "WARNING (WRITE_BURST ignored): The address " << hex << addr <<
 	" is not in the valid range for target " << this->
-	GetTargetId () << dec << endl;
+	getTargetId () << dec << endl;
       ret = false;
     }
 
@@ -588,181 +366,208 @@ TargetControlHardware::WriteBurst (unsigned long addr, unsigned char *buf,
 }
 
 
-string
-TargetControlHardware::GetTargetId ()
-{
-  char *targetId;
-  get_description (&targetId);
+//! Access for the memory map
 
-  return string (targetId);
+//! @todo This is a temporary fix. We really need semantically meaningful
+//!       access to the contents. And in any case this should never be a map -
+//!       at least as used currently.
+
+//! @return  The memory map
+map <unsigned, pair <unsigned long, unsigned long> >
+TargetControlHardware::getMemoryMap ()
+{
+  return memory_map;
+
+}	// getMemoryMap ()
+
+
+map <unsigned, pair <unsigned long, unsigned long> >
+TargetControlHardware::getRegisterMap ()
+{
+  return register_map;
+
+}	// getRegisterMap ()
+
+
+//! initialize the attached core ID
+
+//! Pick out of the memory map
+void
+TargetControlHardware::initAttachedCoreId ()
+{
+  // indexInMemMap is essentially the core number or ext_mem segment number
+  // FIXME
+  assert (indexInMemMap < memory_map.size ());
+  fAttachedCoreId = (memory_map[indexInMemMap].first) >> 20;
+
+}	// initAttachedCoreId ()
+
+
+//! Set the Core ID of the attached core
+bool
+TargetControlHardware::setAttachedCoreId (unsigned int coreId)
+{
+  // check if coreId is a valid core for this device by iterating over the
+  // memory map. if it is, set the fAttachedCoreId.
+  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
+       memory_map.begin (); ii != memory_map.end (); ++ii)
+    {
+      unsigned long startAddr = (*ii).second.first;
+
+      if ((coreId << 20) == startAddr)
+	{
+	  fAttachedCoreId = coreId;
+	  return true;
+	}
+    }
+
+  return false;
 }
 
 
-void BreakSignalHandler (int signum);
+//! Reset the platform
+void
+TargetControlHardware::platformReset ()
+{
+  pthread_mutex_lock (&targetControlHWAccess_m);
 
-#include <sys/time.h>
-#include <sys/types.h>
+  hw_reset ();			// ESYS_RESET
 
-int
+  pthread_mutex_unlock (&targetControlHWAccess_m);
+
+}	// platformReset ()
+
+
+//! Resume and exit
+
+//! This is only supported in simulation targets.
+void
+TargetControlHardware::resumeAndExit ()
+{
+  cerr << "Warning: Resume and detach not supported in real hardware: ignored."
+       << endl;
+
+}	// resumeAndExit ()
+
+
+//! Initialize VCD tracing (null operation in real hardware)
+
+// @return TRUE to indicate tracing was successfully initialized.
+bool
+TargetControlHardware::initTrace ()
+{
+  return true;
+
+}	// initTrace ()
+
+
+//! Start VCD tracing (null operation in real hardware)
+
+// @return TRUE to indicate tracing was successfully stopped.
+bool
+TargetControlHardware::startTrace ()
+{
+  return true;
+
+}	// startTrace ()
+
+
+//! Stop VCD tracing (null operation in real hardware)
+
+// @return TRUE to indicate tracing was successfully stopped.
+bool
+TargetControlHardware::stopTrace ()
+{
+  return true;
+
+}	// stopTrace ()
+
+
+//! Close the target due to Ctrl-C signal
+
+//! @todo Have reset from client
+
+//! @param[in] Signal number
+void
+TargetControlHardware::breakSignalHandler (int signum)
+{
+  cerr << " Get OS signal .. exiting ..." << endl;
+  // give chance to finish usb drive
+  // sleep(1);
+
+  // hw_reset();
+
+  // sleep(1);
+
+  // None of this works in a static function - sigh
+  // if (handle)
+  //   {
+  //     close_platform ();
+  //     // e_close(pEpiphany);
+  //     dlclose (handle);
+  //   }
+
+  exit (0);
+}
+
+
+//! Initialize the hardware platform
+
+//! This involves setting up the shared object functions first, then calling
+//! the system init and resetting if necessary.
+void
 TargetControlHardware::initHwPlatform (platform_definition_t * platform)
 {
-  char *error;
-
-  handle = dlopen (platform->lib, RTLD_LAZY);
-  if (!handle)
+  if (NULL == (dsoHandle = dlopen (platform->lib, RTLD_LAZY)))
     {
-      cerr << "HW target ERORR: Can't open library " << platform->
-	lib << ", error: " << dlerror () << endl;
-      exit (EXIT_FAILURE);
-    }
-  dlerror ();			/* Clear any existing error */
-
-#if 1
-  *(void **) (&init_platform) = dlsym (handle, "esrv_init_platform");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "init_platform: " << error << endl;
+      cerr << "ERROR: Can't open hardware platform library " << platform->lib
+	   << ": " << dlerror () << endl;
       exit (EXIT_FAILURE);
     }
 
-  *(void **) (&close_platform) = dlsym (handle, "esrv_close_platform");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "close_platform: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&write_to) = dlsym (handle, "esrv_write_to");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "write_to_platform: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&read_from) = dlsym (handle, "esrv_read_from");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "read_from_platform: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-#endif
-
-  *(void **) (&e_open) = dlsym (handle, "e_open");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "e_open: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&e_close) = dlsym (handle, "e_close");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "e_close: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&e_write) = dlsym (handle, "e_write");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "e_write_to_platform: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&e_read) = dlsym (handle, "e_read");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "e_read_platform: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&get_description) = dlsym (handle, "esrv_get_description");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "platform_id: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&hw_reset) = dlsym (handle, "esrv_hw_reset");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "platform_id: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  *(void **) (&e_set_host_verbosity) = dlsym (handle, "e_set_host_verbosity");
-  if ((error = dlerror ()) != NULL)
-    {
-      cerr << "platform_id: " << error << endl;
-      exit (EXIT_FAILURE);
-    }
+  // Find the shared functions
+  *(void **) (&init_platform) = findSharedFunc ("esrv_init_platform");
+  *(void **) (&close_platform) = findSharedFunc ("esrv_close_platform");
+  *(void **) (&write_to) = findSharedFunc ("esrv_write_to");
+  *(void **) (&read_from) = findSharedFunc ("esrv_read_from");
+  *(void **) (&e_open) = findSharedFunc ("e_open");
+  *(void **) (&e_close) = findSharedFunc ("e_close");
+  *(void **) (&e_write) = findSharedFunc ("e_write");
+  *(void **) (&e_read) = findSharedFunc ("e_read");
+  *(void **) (&get_description) = findSharedFunc ("esrv_get_description");
+  *(void **) (&hw_reset) = findSharedFunc ("esrv_hw_reset");
+  *(void **) (&e_set_host_verbosity) = findSharedFunc ("e_set_host_verbosity");
 
 
   // add signal handler to close target connection
-  if (signal (SIGINT, BreakSignalHandler) < 0)
+  if (signal (SIGINT, breakSignalHandler) < 0)
     {
-      perror ("signal");
+      cerr << "ERROR: Failed to register BREAK signal handler: "
+	   << strerror (errno) << "." << endl;
       exit (EXIT_FAILURE);
     }
 
-
-  // Open target platform
-#if 1
+  // Initialize target platform
   (*e_set_host_verbosity) (debug_level);
-  int intRes = (*init_platform) (platform, debug_level);
-  if (intRes < 0)
+  int res = (*init_platform) (platform, debug_level);
+
+  if (res < 0)
     {
-      cerr << "Cannot initialize target device. Bailing out!" << endl;
+      cerr << "ERROR: Can't initialize target device: Error code " << res << "."
+	   << endl;
       exit (EXIT_FAILURE);
     }
-#else
-  pEpiphany = &Epiphany;
-  (*e_set_host_verbosity) (debug_level);
-  int intRes = (*e_open) (pEpiphany);
-  if (intRes != 0)
+
+  // Optionally reset the platform
+  if (skipPlatformReset)
     {
-      cerr << "Cannot initialize target device. Bailing out!" << endl;
+      cerr << "Warning: No hardware reset sent to target" << endl;
+    }
+  else if (hw_reset () != 0)
+    {
+      cerr << "ERROR: Cannot reset the hardware." << endl;
       exit (EXIT_FAILURE);
     }
-#endif
-
-  extern bool skip_platform_reset;
-  if (!skip_platform_reset)
-    {
-      if (hw_reset () != 0)
-	{
-	  cerr << "Cannot reset the hardware. Exiting!" << endl;
-	  exit (EXIT_FAILURE);
-	}
-    }
-  else
-    {
-      cerr <<
-	"Warning: The platform hardware reset has not been sent to target" <<
-	endl;
-    }
-  return 0;
-}
-
-
-void
-StartOfBaudMeasurement (struct timeval &start)
-{
-  gettimeofday (&start, NULL);
-}
-
-
-double
-EndOfBaudMeasurement (struct timeval &start)
-{
-  struct timeval end;
-  gettimeofday (&end, NULL);
-
-  double seconds = end.tv_sec - start.tv_sec;
-  double useconds = end.tv_usec - start.tv_usec;
-
-  double ret = ((seconds) * 1000 + useconds / 1000.0) + 0.5;
-
-  return ret;
 }
 
 
@@ -808,28 +613,192 @@ TargetControlHardware::initDefaultMemoryMap (platform_definition_t* platform)
 }
 
 
-// close the target by having controlC signal
-// TODO have reset from client
-void
-BreakSignalHandler (int signum)
+string
+TargetControlHardware::getTargetId ()
 {
-  cerr << " Get OS signal .. exiting ..." << endl;
-  // give chance to finish usb drive
-  // sleep(1);
+  char *targetId;
+  get_description (&targetId);
 
-  // hw_reset();
+  return string (targetId);
+}
 
-  // sleep(1);
 
-  if (handle)
+//! Convert a local address to a global one.
+uint32_t
+TargetControlHardware::convertAddress (uint32_t address)
+{
+  assert (dsoHandle);
+
+  if (address < CORE_SPACE)
     {
-      close_platform ();
-///             e_close(pEpiphany);
-      dlclose (handle);
+      return (fAttachedCoreId << 20) + address;
     }
 
-  exit (0);
+  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
+       memory_map.begin (); ii != memory_map.end (); ++ii)
+    {
+      unsigned long startAddr = (*ii).second.first;
+      unsigned long endAddr = (*ii).second.second;
+
+      if ((address >= startAddr) && (address <= endAddr))
+	{
+	  // found
+	  return address;
+	}
+    }
+
+  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
+       register_map.begin (); ii != register_map.end (); ++ii)
+    {
+      unsigned long startAddr = (*ii).second.first;
+      unsigned long endAddr = (*ii).second.second;
+
+      if ((address >= startAddr) && (address <= endAddr))
+	{
+	  // found
+	  return address;
+	}
+    }
+
+  return 0;
 }
+
+
+bool
+TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
+				unsigned burst_size)
+{
+  bool retSt = false;
+
+  //struct timeval start_t;
+  // StartOfBaudMeasurement(start_t);
+
+  pthread_mutex_lock (&targetControlHWAccess_m);
+
+  uint32_t fullAddr = convertAddress (addr);
+  // bool iSAligned = (fullAddr == ());
+  if (fullAddr || dontCheckHwAddr)
+    {
+      // supported only word size or smaller
+      assert (burst_size <= 4);
+      char buf[8];
+      unsigned int res = (*read_from) (fullAddr, (void *) buf, burst_size);
+
+      if (res != burst_size)
+	{
+	  cerr << "ERROR (" << res << "): mem read failed for addr " << hex <<
+	    addr << dec << endl;
+	}
+      else
+	{
+	  // pack returned data
+	  for (unsigned i = 0; i < burst_size; i++)
+	    {
+	      data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
+	    }
+	  if (debug_level > D_TARGET_WR)
+	    {
+	      cerr << "TARGET READ (" << burst_size << ") " << hex << fullAddr
+		<< " >> " << data << dec << endl;
+	    }
+	}
+      retSt = (res == burst_size);
+    }
+  else
+    {
+      cerr << "WARNING (READ_MEM ignored): The address " << hex << addr <<
+	" is not in the valid range for target " << this->
+	getTargetId () << dec << endl;
+    }
+
+  // double mes = EndOfBaudMeasurement(start_t);
+  // cerr << "--- READ milliseconds: " << mes << endl;
+
+  pthread_mutex_unlock (&targetControlHWAccess_m);
+
+  return retSt;
+}
+
+
+bool
+TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
+				 unsigned burst_size)
+{
+  bool retSt = false;
+  pthread_mutex_lock (&targetControlHWAccess_m);
+  uint32_t fullAddr = convertAddress (addr);
+
+  // bool iSAligned = (fullAddr == ());
+  if (fullAddr || dontCheckHwAddr)
+    {
+      assert (burst_size <= 4);
+      char buf[8];
+
+      for (unsigned i = 0; i < burst_size; i++)
+	{
+	  buf[i] = (data >> (i * 8)) & 0xff;
+	}
+
+      // struct timeval start_t;
+      // StartOfBaudMeasurement(start_t);
+
+      unsigned int res = (*write_to) (fullAddr, (void *) buf, burst_size);
+
+      // double mes = EndOfBaudMeasurement(start_t);
+      // cerr << "--- WRITE (writeMem)(" << burst_size << ") milliseconds: " << mes << endl;
+
+      if (debug_level > D_TARGET_WR)
+	{
+	  cerr << "TARGET WRITE (" << burst_size << ") " << hex << fullAddr <<
+	    " >> " << data << dec << endl;
+	}
+
+      if (res != burst_size)
+	{
+	  cerr << "ERROR (" << res << "): mem write failed for addr " << hex
+	    << fullAddr << dec << endl;
+	}
+
+      retSt = (res == burst_size);
+    }
+  else
+    {
+      cerr << "WARNING (WRITE_MEM ignored): The address " << hex << addr <<
+	" is not in the valid range for target " << this->
+	getTargetId () << dec << endl;
+    }
+
+  pthread_mutex_unlock (&targetControlHWAccess_m);
+
+  return retSt;
+}
+
+
+//! Find a function from a shared library.
+
+//! Convenience function which loads the function and exits with an error
+//! message in the event of any failures.
+
+//! @param[in] funcName  The function to find
+//! @return  The pointer to the function.
+void *
+TargetControlHardware::findSharedFunc (const char *funcName)
+{
+  (void) dlerror ();			// Clear any old error
+
+  void *funcPtr = dlsym (dsoHandle, funcName);
+  char *error = dlerror ();
+
+  if (error != NULL)
+    {
+      cerr << "ERROR: Failed to load shared function" << funcName << ": "
+	   << error << endl;
+      exit (EXIT_FAILURE);
+    }
+
+  return funcPtr;
+
+}	// loadSharedFunc ()
 
 
 // Local Variables:

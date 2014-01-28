@@ -1,5 +1,92 @@
 2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* Release/src/subdir.mk: Added TargetControl.cpp.
+	* src/GdbServer.cpp: Put contributors in header, tidy up
+	organization of included headers.
+	(rspServer, rspClientRequest, rspReportException, targetResume)
+	(getAttachedTargetCoreId): Use getAttachedCoreId rather than
+	GetAttachedCoreId.
+	(rspReadAllRegs, rspReadMem): use startOfBaudMeasurement member
+	function instead of StartOfBaudMeasurement, rename ReadBurst to
+	readBurst, use endOfBaudMeasurement member function instead of
+	EndOfBaudMeasurement.
+	(rspWriteMem, rspWriteMemBin, restoreIVT): Rename WriteBurst to
+	writeBurst.
+	(rspQuery): Rename SetAttachedTargetCoreId as
+	setAttachedTargetCoreId
+	(isTargetInIldeState): Rename ReadBurst to readBurst.
+	(targetHWReset): Rename PlatformReset to platformReset.
+	* src/GdbServer.h: Put contributors in header, make guard macro
+	naming consistent.
+	* src/TargetControl.cpp: Created.
+	* src/TargetControl.h: Put contributors in header, include
+	sys/time.h, remove local typedefs of uint32_t, uint8_t and
+	uint16_t, rename WriteBurst as writeBurst, ReadBurst as readBurst,
+	PlatformReset as platformReset and ResumeAndExit as resumeAndExit
+	for consistency, add initAttachedCoreId, add E_BYTE_BYTES,
+	E_SHORT_BYTES, E_WORD_BYTES and E_DOUBLE_BYTES, make
+	convertAddress a member function, add startTime as member
+	variable.
+	* src/TargetControlHardware.cpp: Put contributors in header,
+	remove enum of _BYTE_, _SHORT_, _WORD_ and _DOUBLE_ and replace by
+	E_BYTE_BYTES, E_SHORT_BYTES, E_WORD_BYTES and E_DOUBLE_BYTES
+	throughout, tidy up headers and remove duplicate includes, add
+	explicit using declarations.
+	(init_platform, close_platform, write_to, read_from, hw_reset)
+	(get_description, get_memory_map, get_number_supported_cores)
+	(set_chip_x_y, e_open, e_close, e_read, e_write, e_reset)
+	(e_set_host_verbosity): Deleted and replaced by member variables.
+	(IsAddressLocal): Deleted.
+	(CORE_SPACE): Deleted and replaced by member constant.
+	(PlatformReset): Deleted and replaced by platformReset throughout.
+	(platformReset): Created from PlatformReset.
+	(ReadBurst): Deleted and replaced by readBurst throughout.
+	(readBurst): Created from ReadBurst.
+	(WriteBurst): Deleted and replaced by writeBurst throughout.
+	(writeBurst): Created from WriteBurst.
+	(SetAttachedCoreId): Deleted and replaced by setAttachedCoreId
+	throughout.
+	(setAttachedCoreId): Created from SetAttachedCoreId.
+	(GetTargetId): Deleted and replaced by getTargetId throughout.
+	(getTargetId): Created from GetTargetId.
+	(ConvertAddress): Deleted and replaced by member function
+	convertAddress throughout.
+	(convertAddress): Created from ConvertAddress.
+	(TargetControlHardware): Add parameters for command line switches
+	instead of using global variables.
+	(dontCheckHwAddr): Renamed from dontCheckHwAddress throughout.
+	(BreakSignalHander): Deleted and replaced by static member
+	function breakSignalHander.
+	(breakSignalHandler): Created, and all references to member
+	variables commented out.
+	(initHwPlatform): Made member function, use helper to find DSO
+	entries.
+	(initDefaultMemoryMap): Made member function.
+	(initAttachedCoreId): Created
+	(startOfBaudMeasurement, endOfBaudMeasurement, findSharedFunc)
+	(getMemoryMap, getRegisterMap): Created.
+	* src/TargetControlHardware.h: Extend constructor arguments,
+	rename WriteBurst as writeBurst, ReadBurst as readBurst,
+	PlatformReset as platformReset, SetAttachedCoreId as
+	setAttachedCoreId, ResumeAndExit as resumeAndExit and GetTargetId
+	as getTargetId, make ConvertAddress member function
+	convertAddress, add new member functions initHwPlatform,
+	initDefaultMemoryMap, getMemoryMap, getRegisterMap,
+	initAttachedCoreId, findSharedFunc, add pointers to DSO functions
+	init_platform, close_platform, write_to, read_from, hw_reset,
+	get_description, get_memory_map, get_number_supported_cores,
+	set_chip_x_y, e_open, e_close, e_read, e_write, e_reset and
+	e_set_host_verbosity
+	* src/main.cpp: Add missing using declarations
+	(skip_platform_reset): Deleted, now arg to constructor.
+	(showMemoryMap): Get maps through accessors
+	(initPlatform): Pass command line switches as arguments, ,
+	initialze tCntrl and return as result.
+	(main): Use EXIT_FAILURE and EXIT_SUCCESS result codes for
+	consistency.
+
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/main.cpp (initPlatform): Created from code to initialize in
 	main function.
 	(main): Remove initialization code into initPlatform.

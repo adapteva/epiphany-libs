@@ -1,27 +1,26 @@
-/*
-  File: main.cpp
+// Main program for the Epiphany GDB Remote Serial Protocol Server
 
-  This file is part of the Epiphany Software Development Kit.
+// This file is part of the Epiphany Software Development Kit.
 
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
+// Copyright (C) 2013-2014 Adapteva, Inc.
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
 
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details.
 
+// You should have received a copy of the GNU General Public License along
+// with this program (see the file COPYING).  If not, see
+// <http://www.gnu.org/licenses/>.
 
 
 #include <stdio.h>
@@ -42,6 +41,7 @@
 #include "maddr_defs.h"
 #include <e-xml/src/epiphany_xml.h>
 
+
 // Up to the builder to specify a revision.
 #define XDOREVSTR(s) DOREVSTR(s)
 #define DOREVSTR(s) #s
@@ -53,6 +53,11 @@
 
 using std::cerr;
 using std::cout;
+using std::dec;
+using std::hex;
+using std::map;
+using std::ostream;
+using std::pair;
 using std::stringstream;
 
 unsigned int PORT_BASE_NUM;
@@ -63,7 +68,7 @@ char TTY_[1024];
 // accesses by all threads
 int debug_level = 0;
 
-bool skip_platform_reset = false;
+
 
 //! Put the usage message out on the given stream.
 
@@ -180,16 +185,19 @@ copyright ()
 
 //! Print out the memory map for the platform
 
+//! @param[in] tCntrl  Target control structure
 //! @param[in] xml     The XML description of the platform.
 //! @param[in] nCores  The number of cores in the target.
 static void
-showMemoryMap (EpiphanyXML* xml,
+showMemoryMap (TargetControlHardware* tCntrl,
+	       EpiphanyXML* xml,
 	       unsigned int nCores)
 {
-  extern map < unsigned, pair < unsigned long, unsigned long > >memory_map;
-  extern map < unsigned, pair < unsigned long, unsigned long > >register_map;
-
   xml->PrintPlatform ();
+
+  map <unsigned, pair <unsigned long, unsigned long> > register_map =
+    tCntrl->getRegisterMap ();
+
   cout << "Supported registers map: " << endl;
   for (map < unsigned, pair < unsigned long,
 	 unsigned long > >::iterator ii = register_map.begin ();
@@ -199,7 +207,12 @@ showMemoryMap (EpiphanyXML* xml,
       unsigned long endAddr = (*ii).second.second;
       cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
     }
+
   unsigned core_num = 0;
+
+  map <unsigned, pair <unsigned long, unsigned long> > memory_map =
+    tCntrl->getMemoryMap ();
+
   cout << "Supported memory map: " << endl;
   for (map < unsigned, pair < unsigned long,
 	 unsigned long > >::iterator ii = memory_map.begin ();
@@ -229,15 +242,20 @@ showMemoryMap (EpiphanyXML* xml,
 //! necesary for now, since it specifies the XML equivalent of the
 //! environment variable text file. We need to fix this!
 
-//! @param[in] hdfFile          Filename of the XML file describing the
-//!                             platform.
-//! @param[in] doShowMemoryMap  TRUE if a dump of the register and memory
-//!                             information was requested. FALSE otherwise.
-//! @param[in] platformArgs     Additional args (if any) to be passed to the
-//!                             platform.
-static void
+//! @param[in] hdfFile            Filename of the XML file describing the
+//!                               platform.
+//! @param[in] dontCheckHwAddr    Don't check the hardware address on init.
+//! @param[in] doShowMemoryMap    TRUE if a dump of the register and memory
+//!                               information was requested. FALSE otherwise.
+//! @param[in] skipPlatformReset  TRUE if the platform should *not* be reset
+//!                               on initialization. FALSE otherwise.
+//! @param[in] platformArgs       Additional args (if any) to be passed to the
+//!                               platform.
+static TargetControl*
 initPlatform (const char* hdfFile,
+	      bool        dontCheckHwAddr,
 	      bool        doShowMemoryMap,
+	      bool        skipPlatformReset,
 	      string      platformArgs)
 {
   if (NULL != hdfFile)
@@ -246,7 +264,7 @@ initPlatform (const char* hdfFile,
     {
       cerr << "Please specify the -hdf argument." << endl << endl;
       usage (cerr);
-      exit (3);
+      exit (EXIT_FAILURE);
     }
 
   EpiphanyXML *xml = new EpiphanyXML ((char *) hdfFile);
@@ -254,7 +272,7 @@ initPlatform (const char* hdfFile,
     {
       cerr << "Can't parse Epiphany HDF file: " << hdfFile << "." << endl;
       delete xml;
-      exit (3);
+      exit (EXIT_FAILURE);
     }
 
   platform_definition_t *platform = xml->GetPlatform ();
@@ -262,23 +280,32 @@ initPlatform (const char* hdfFile,
     {
       cerr << "Can't extract platform info from " << hdfFile << "." << endl;
       delete xml;
-      exit (3);
+      exit (EXIT_FAILURE);
     }
 
   // prepare args list to hardware driver library
   string initArgs = platformArgs + " " + platform->libinitargs;
   platform->libinitargs = initArgs.c_str ();
 
+  // @todo We used to create new control hardware for each core. How do we do
+  // that now?
+  unsigned int coreNum = 0;
+  TargetControlHardware* tCntrl = new TargetControlHardware (coreNum,
+							     dontCheckHwAddr,
+							     skipPlatformReset);
+
   // populate the chip and ext_mem list of memory ranges
-  unsigned nCores = TargetControlHardware::initDefaultMemoryMap (platform);
+  unsigned nCores = tCntrl->initDefaultMemoryMap (platform);
 
   if (doShowMemoryMap)
-    showMemoryMap (xml, nCores);
+    showMemoryMap (tCntrl, xml, nCores);
 
   // initialize the device
-  TargetControlHardware::initHwPlatform (platform);
+  tCntrl->initHwPlatform (platform);
+  tCntrl->initAttachedCoreId ();
 
   delete xml;
+  return tCntrl;
 
 }	// initPlatform ()
 
@@ -289,7 +316,7 @@ main (int argc, char *argv[])
   char *hdfFile = NULL;
   string platformArgs;
   bool doShowMemoryMap = false;
-
+  bool skipPlatformReset = false;
   bool dontCheckHwAddress = false;
   bool haltOnAttach = true;
   FILE *ttyOut = 0;
@@ -306,12 +333,12 @@ main (int argc, char *argv[])
       if (!strcmp (argv[n], "--version"))
 	{
 	  copyright ();
-	  exit (0);
+	  exit (EXIT_SUCCESS);
 	}
       else if ((!strcmp (argv[n], "-h")) || (!strcmp (argv[n], "--help")))
 	{
 	  usage (cout);
-	  exit (0);
+	  exit (EXIT_SUCCESS);
 	}
       else if (!strcmp (argv[n], "-hdf"))
         {
@@ -334,7 +361,7 @@ main (int argc, char *argv[])
 	}
       else if (!strcmp (argv[n], "-skip-platform-reset"))
 	{
-	  skip_platform_reset = true;
+	  skipPlatformReset = true;
 
 	}
       else if (!strcmp (argv[n], "-Xpl"))
@@ -345,7 +372,7 @@ main (int argc, char *argv[])
 	  else
 	    {
 	      usage (cerr);
-	      exit (3);
+	      exit (EXIT_FAILURE);
 	    }
 	}
       else if (!strncmp (argv[n], "-Wpl,", strlen ("-Wpl,")))
@@ -372,7 +399,7 @@ main (int argc, char *argv[])
 	  else
 	    {
 	      usage (cerr);
-	      exit (3);
+	      exit (EXIT_FAILURE);
 	    }
 	}
       else if (!strcmp (argv[n], "--tty"))
@@ -386,7 +413,7 @@ main (int argc, char *argv[])
 	  else
 	    {
 	      usage (cerr);
-	      exit (3);
+	      exit (EXIT_FAILURE);
 	    }
 	}
       else if (!strcmp (argv[n], "-d"))
@@ -401,7 +428,7 @@ main (int argc, char *argv[])
 	  else
 	    {
 	      usage (cerr);
-	      exit (3);
+	      exit (EXIT_FAILURE);
 	    }
 	}
       else if (!strcmp (argv[n], "--show-memory-map"))
@@ -410,8 +437,6 @@ main (int argc, char *argv[])
 	}
     }
 
-  initPlatform (hdfFile, doShowMemoryMap, platformArgs);
-
   // open terminal
   if (withTtySupport)
     {
@@ -419,30 +444,27 @@ main (int argc, char *argv[])
       if (ttyOut == NULL)
 	{
 	  cerr << "Can't open tty " << TTY_ << endl;
-	  exit (2);
+	  exit (EXIT_FAILURE);
 	}
     }
 
   // Create the single port listening for GDB RSP packets.
   // @todo We may need a separate thread to listen for BREAK.
-  
-  // @todo We used to create new control hardware for each core. How do we do
-  // that now?
-  unsigned int coreNum = 0;
-
-  TargetControl* tCntrl = new TargetControlHardware (coreNum,
-						     dontCheckHwAddress);
   GdbServer* rspServerP = new GdbServer (PORT_BASE_NUM, haltOnAttach,
 					 ttyOut, withTtySupport);
 
   // @todo We really need this for just one port.
+  TargetControl* tCntrl = initPlatform (hdfFile, dontCheckHwAddress,
+					doShowMemoryMap, skipPlatformReset,
+					platformArgs);
   rspServerP->rspServer (tCntrl);
 
   // Tidy up
   if (ttyOut)
       fclose (ttyOut);
 
-  exit (0);
+  delete tCntrl;
+  exit (EXIT_SUCCESS);
 
 }	// main ()
 
