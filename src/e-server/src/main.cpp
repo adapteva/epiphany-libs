@@ -222,6 +222,67 @@ showMemoryMap (EpiphanyXML* xml,
 }	// showMemoryMap ()
 
 
+//! Initialize the hardware platform
+
+//! @todo Contrary to previous advice, the system will
+//! barf if you don't set the environment variable. But the -hdf argument is
+//! necesary for now, since it specifies the XML equivalent of the
+//! environment variable text file. We need to fix this!
+
+//! @param[in] hdfFile          Filename of the XML file describing the
+//!                             platform.
+//! @param[in] doShowMemoryMap  TRUE if a dump of the register and memory
+//!                             information was requested. FALSE otherwise.
+//! @param[in] platformArgs     Additional args (if any) to be passed to the
+//!                             platform.
+static void
+initPlatform (const char* hdfFile,
+	      bool        doShowMemoryMap,
+	      string      platformArgs)
+{
+  if (NULL != hdfFile)
+    cout << "Using the HDF file: " << hdfFile << endl;
+  else
+    {
+      cerr << "Please specify the -hdf argument." << endl << endl;
+      usage (cerr);
+      exit (3);
+    }
+
+  EpiphanyXML *xml = new EpiphanyXML ((char *) hdfFile);
+  if (xml->Parse ())
+    {
+      cerr << "Can't parse Epiphany HDF file: " << hdfFile << "." << endl;
+      delete xml;
+      exit (3);
+    }
+
+  platform_definition_t *platform = xml->GetPlatform ();
+  if (!platform)
+    {
+      cerr << "Can't extract platform info from " << hdfFile << "." << endl;
+      delete xml;
+      exit (3);
+    }
+
+  // prepare args list to hardware driver library
+  string initArgs = platformArgs + " " + platform->libinitargs;
+  platform->libinitargs = initArgs.c_str ();
+
+  // populate the chip and ext_mem list of memory ranges
+  unsigned nCores = TargetControlHardware::initDefaultMemoryMap (platform);
+
+  if (doShowMemoryMap)
+    showMemoryMap (xml, nCores);
+
+  // initialize the device
+  TargetControlHardware::initHwPlatform (platform);
+
+  delete xml;
+
+}	// initPlatform ()
+
+
 int
 main (int argc, char *argv[])
 {
@@ -349,47 +410,7 @@ main (int argc, char *argv[])
 	}
     }
 
-  ////////////////
-  // Parse the HDF. Note that contrary to previous advice, the system will
-  // barf if you don't set the environment variable. But the -hdf argument is
-  // necesary for now, since it specifies the XML equivalent of the
-  // environment variable text file.
-  // @todo Fix this!
-  if (NULL == hdfFile)
-    {
-      cerr << "Please specify the -hdf argument." << endl << endl;
-      usage (cerr);
-      exit (3);
-    }
-
-  cout << "Using the HDF file: " << hdfFile << endl;
-  EpiphanyXML *xml = new EpiphanyXML ((char *) hdfFile);
-  if (xml->Parse ())
-    {
-      delete xml;
-      cerr << "Can't parse Epiphany HDF file: " << hdfFile << endl;
-      exit (3);
-    }
-
-  platform_definition_t *platform = xml->GetPlatform ();
-  if (!platform)
-    {
-      delete xml;
-      cerr << "Could not extract platform information from " << hdfFile <<
-	endl;
-      exit (3);
-    }
-
-  // prepare args list to hardware driver library
-  platformArgs += string (" ") + string (platform->libinitargs);
-  platform->libinitargs = (char *) platformArgs.c_str ();
-
-  //////////////////////////////////////////////////////
-  // populate the chip and ext_mem list of memory ranges
-  unsigned nCores = TargetControlHardware::initDefaultMemoryMap (platform);
-
-  if (doShowMemoryMap)
-    showMemoryMap (xml, nCores);
+  initPlatform (hdfFile, doShowMemoryMap, platformArgs);
 
   // open terminal
   if (withTtySupport)
@@ -401,11 +422,6 @@ main (int argc, char *argv[])
 	  exit (2);
 	}
     }
-
-
-  ////////////////////////
-  // initialize the device
-  TargetControlHardware::initHwPlatform (platform);
 
   // Create the single port listening for GDB RSP packets.
   // @todo We may need a separate thread to listen for BREAK.
@@ -426,7 +442,6 @@ main (int argc, char *argv[])
   if (ttyOut)
       fclose (ttyOut);
 
-  delete xml;
   exit (0);
 
 }	// main ()

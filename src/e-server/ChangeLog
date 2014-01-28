@@ -1,3 +1,9 @@
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/main.cpp (initPlatform): Created from code to initialize in
+	main function.
+	(main): Remove initialization code into initPlatform.
+
 2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/main.cpp (ThreadData, createGdbServer): Deleted.

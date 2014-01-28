@@ -1,3 +1,7 @@
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/epiphany_platform.h: Make libinitargs const.
+
 2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
-	* epiphany_platform.h: Add guards against multiple inclusion.
+	* src/epiphany_platform.h: Add guards against multiple inclusion.

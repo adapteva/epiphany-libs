@@ -65,7 +65,7 @@ typedef struct
 	unsigned    version;     // version number of this structure
 	char       *name;        // name of the platform (e.g. "AAHM")
 	char       *lib;         // name of platform library (e.g. "libftdi_target")
-	char       *libinitargs; // additional argument string passed to library init fxn
+	const char *libinitargs; // additional argument string passed to library init fxn
 	unsigned    num_chips;   // number of elements in chips[] array
 	chip_def_t *chips;       // array of chips[]
 	unsigned    num_banks;   // number of elements in ext_mem[] array
