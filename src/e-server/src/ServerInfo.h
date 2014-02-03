@@ -85,6 +85,9 @@ private:
   //! Maximum permissible port number
   static const unsigned int MAX_PORT_NUM = 0xffff;
 
+  //! Default port
+  static const unsigned int DEFAULT_RSP_PORT = 51000;
+
   //! The name of the HDF file or NULL if not set
   const char* hdfFileName;
 

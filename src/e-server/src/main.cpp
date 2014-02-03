@@ -303,7 +303,9 @@ initPlatform (ServerInfo *si,
   tCntrl->initHwPlatform (platform);
   tCntrl->initAttachedCoreId ();
 
-  delete xml;
+  //! @todo. The XML is somehow corrupted. If we delete this, then the stack
+  //!        will be corrupted. Needs some valgrind work.
+  // delete xml;
   return tCntrl;
 
 }	// initPlatform ()

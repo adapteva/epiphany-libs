@@ -1,5 +1,13 @@
 2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/ServerInfo.cpp: portNum initialized to
+	DEFAULT_RSP_PORT.
+	* src/ServerInfo.h: Define DEFAULT_RSP_PORT.
+	* src/main.cpp (initPlatform): Do not delete xml at
+	end of function, since it causes stack corruption. BUG TO BE FIXED.
+
+2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Initialize
 	halDebugLevel.
 	(ServerInfo::halDebug): Created (two versions).

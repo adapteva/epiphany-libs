@@ -31,11 +31,11 @@ using std::endl;
 
 //! Constructor.
 
-//! Initialize all the values
+//! Initialize all the values to defaults
 ServerInfo::ServerInfo () :
   hdfFileName (NULL),
   ttyOutHandle (NULL),
-  portNum (0),
+  portNum (ServerInfo::DEFAULT_RSP_PORT),
   debugFlags (DEBUG_NONE),
   halDebugLevel (H_D0),
   showMemoryMapFlag (false),
