@@ -63,14 +63,14 @@ using std::pair;
 using std::stringstream;
 
 
-//! Put the usage message out on the given stream.
+//! Put the summary usage message out on the given stream
 
 //! Typically std::cout if this is standard help and std::cerr if this is in
 //! response to bad arguments.
 
-//! @param[in] s  Stream on which to output the usage.
+//! @param[in] s  Stream on which to output the summyar usage.
 static void
-usage (ostream& s)
+usage_summary (ostream& s)
 {
   s << "Usage:" << endl;
   s << endl;
@@ -81,6 +81,21 @@ usage (ostream& s)
   s << "         [-d <debug-level>] [--tty <terminal>] [--dont-halt-on-attach]" 
     << endl;
   s << "         [-skip-platform-reset]" << endl;
+
+}	// usage_summary ()
+
+
+//! Put the full usage message out on the given stream.
+
+//! Typically std::cout if this is standard help and std::cerr if this is in
+//! response to bad arguments.
+
+//! @param[in] s  Stream on which to output the usage.
+static void
+usage_full (ostream& s)
+{
+  usage_summary (s);
+
   s << endl;
   s << "Standard program options:" << endl;
   s << endl;
@@ -174,7 +189,7 @@ usage (ostream& s)
   s << endl;
   s << "    Pass <arg> on to the platform driver." << endl;
 
-}	// usage ()
+}	// usage_full ()
 
 
 //! Printout version and copyright information
@@ -264,7 +279,7 @@ initPlatform (ServerInfo *si,
   else
     {
       cerr << "Please specify the -hdf argument." << endl << endl;
-      usage (cerr);
+      usage_summary (cerr);
       exit (EXIT_FAILURE);
     }
 
@@ -328,7 +343,7 @@ main (int argc, char *argv[])
 	}
       else if ((!strcmp (argv[n], "-h")) || (!strcmp (argv[n], "--help")))
 	{
-	  usage (cout);
+	  usage_full (cout);
 	  exit (EXIT_SUCCESS);
 	}
       else if (!strcmp (argv[n], "-hdf"))
@@ -338,7 +353,7 @@ main (int argc, char *argv[])
 	    si->hdfFile (argv[n]);
 	  else
 	    {
-	      usage (cerr);
+	      usage_summary (cerr);
 	      return 3;
 	    }
 	}
@@ -357,7 +372,7 @@ main (int argc, char *argv[])
 	    si->halDebug ((e_hal_diag_t) atoi (argv[n]));
 	  else
 	    {
-	      usage (cerr);
+	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
 	} 
@@ -368,7 +383,7 @@ main (int argc, char *argv[])
 	      platformArgs += " " + string (argv[n]);
 	  else
 	    {
-	      usage (cerr);
+	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
 	}
@@ -401,7 +416,7 @@ main (int argc, char *argv[])
 	    }
 	  else
 	    {
-	      usage (cerr);
+	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
 	}
@@ -419,7 +434,7 @@ main (int argc, char *argv[])
 	    }
 	  else
 	    {
-	      usage (cerr);
+	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
 	}
@@ -466,9 +481,15 @@ main (int argc, char *argv[])
 	    }
 	  else
 	    {
-	      usage (cerr);
+	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
+	}
+      else
+	{
+	  cerr << "ERROR: Unrecognized argument: " << argv[n] << "." << endl;
+	  usage_summary (cerr);
+	  exit (EXIT_FAILURE);
 	}
     }
 

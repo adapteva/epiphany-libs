@@ -1,5 +1,15 @@
 2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/main.cpp (usage_summary): Created from initial part of usage.
+	(usage): Deleted
+	(usage_full): Created from all but initial part of usage.
+	(initPlatform): Call usage_summary instead of usage.
+	(main): Call usage_summary instead of usage, except in the case of
+	-h/--help when we call usage_full. Deal with case of unrecognized
+	arguments, which were previously silently ignored.
+
+2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/ServerInfo.cpp: portNum initialized to
 	DEFAULT_RSP_PORT.
 	* src/ServerInfo.h: Define DEFAULT_RSP_PORT.
