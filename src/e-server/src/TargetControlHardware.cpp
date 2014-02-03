@@ -543,13 +543,8 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
       exit (EXIT_FAILURE);
     }
 
-  // Initialize target platform. Values taken from old code, but they really
-  // ought to be replaced.
-  int extDebugLevel = si->debugTrapAndRspCon ()
-    ? 1 : si->debugStopResumeDetail () ? 2 : 0;
- 
-  (*e_set_host_verbosity) (extDebugLevel);
-  int res = (*init_platform) (platform, extDebugLevel);
+  // Initialize target platform.
+  int res = (*init_platform) (platform, si->halDebug());
 
   if (res < 0)
     {

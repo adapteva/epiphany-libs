@@ -40,7 +40,8 @@
 #include "ServerInfo.h"
 #include "TargetControlHardware.h"
 #include "maddr_defs.h"
-#include <e-xml/src/epiphany_xml.h>
+#include "e-xml/src/epiphany_xml.h"
+#include "e-hal/src/epiphany-hal-data.h"
 
 
 // Up to the builder to specify a revision.
@@ -100,14 +101,10 @@ usage (ostream& s)
   s << endl;
   s << "    Print out the supported memory map." << endl;
   s << endl;
-  s << "  -Wpl <options>" << endl;
+  s << "  --tty <terminal>" << endl;
   s << endl;
-  s << "    Pass comma-separated <options> on to the platform driver."
+  s << "    Redirect the e_printf to terminal with tty name <terminal>."
     << endl;
-  s << endl;
-  s << "  -Xpl <arg>" << endl;
-  s << endl;
-  s << "    Pass <arg> on to the platform driver." << endl;
   s << endl;
   s << "  --version" << endl;
   s << endl;
@@ -130,9 +127,23 @@ usage (ostream& s)
     << endl;
   s << "    multiple classes of debug message. Default no debug." << endl;
   s << endl;
-  s << "  --tty <terminal>" << endl;
+  s << "  --hal-debug <level>" << endl;
   s << endl;
-  s << "    Redirect the e_printf to terminal with tty name <terminal>."
+  s << "    Enable HAL debug level <level>. Default 0 (no debug). Permitted"
+    << endl;
+  s << "    values are 0 to 4, larger values will be treated as 4 with a"
+    << endl;
+  s << "    warning." << endl;
+  s << endl;
+  s << "Advanced options:" << endl;
+  s << endl;
+  s << "  --dont-check-hw-address" << endl;
+  s << endl;
+  s << "    The e-server filters out transactions if the address is invalid"
+    << endl;
+  s << "    (not included in the device supported memeory map).  Use this"
+    << endl;
+  s << "    option to disable this protection."
     << endl;
   s << endl;
   s << "  --dont-halt-on-attach" << endl;
@@ -150,20 +161,18 @@ usage (ostream& s)
     << endl;
   s << "    currently running a program." << endl;
   s << endl;
-  s << "  --dont-check-hw-address" << endl;
-  s << endl;
-  s << "    The e-server filters out transactions if the address is invalid"
-    << endl;
-  s << "    (not included in the device supported memeory map).  Use this"
-    << endl;
-  s << "    option to disable this protection."
-    << endl;
-  s << endl;
-  s << "Advanced options:" << endl;
-  s << endl;
   s << "  -skip-platform-reset" << endl;
   s << endl;
   s << "    Don't make the hardware reset during initialization." << endl;
+  s << endl;
+  s << "  -Wpl <options>" << endl;
+  s << endl;
+  s << "    Pass comma-separated <options> on to the platform driver."
+    << endl;
+  s << endl;
+  s << "  -Xpl <arg>" << endl;
+  s << endl;
+  s << "    Pass <arg> on to the platform driver." << endl;
 
 }	// usage ()
 
@@ -339,6 +348,17 @@ main (int argc, char *argv[])
 	si->skipPlatformReset (true);
       else if (!strcmp (argv[n], "--show-memory-map"))
 	si->showMemoryMap (true);
+      else if (!strcmp (argv[n], "--hal-debug"))
+	{
+	  n += 1;
+	  if (n < argc)
+	    si->halDebug ((e_hal_diag_t) atoi (argv[n]));
+	  else
+	    {
+	      usage (cerr);
+	      exit (EXIT_FAILURE);
+	    }
+	} 
       else if (!strcmp (argv[n], "-Xpl"))
 	{
 	  n += 1;

@@ -20,8 +20,13 @@
 // with this program (see the file COPYING).  If not, see
 // <http://www.gnu.org/licenses/>.
 
+#include <iostream>
 
 #include "ServerInfo.h"
+
+
+using std::cerr;
+using std::endl;
 
 
 //! Constructor.
@@ -32,6 +37,7 @@ ServerInfo::ServerInfo () :
   ttyOutHandle (NULL),
   portNum (0),
   debugFlags (DEBUG_NONE),
+  halDebugLevel (H_D0),
   showMemoryMapFlag (false),
   skipPlatformResetFlag (false),
   dontCheckHwAddrFlag (false),
@@ -107,6 +113,37 @@ ServerInfo::validPort () const
   return (0 < portNum) && (portNum <= MAX_PORT_NUM);
 
 }	// validPort ()
+
+
+//! Set the HAL debug level, with warning
+void
+ServerInfo::halDebug (e_hal_diag_t  _halDebugLevel)
+{
+  switch (_halDebugLevel)
+    {
+    case H_D0:
+    case H_D1:
+    case H_D2:
+    case H_D3:
+    case H_D4:
+      halDebugLevel = _halDebugLevel;
+      return;
+
+    default:
+      cerr << "Warning: HAL debug level must in the the range " << H_D0
+	   << " to " << H_D4 << ". Set to " << H_D4 << "." << endl;
+      halDebugLevel = H_D4;
+    }
+}	// halDebug ()
+
+
+//! Get the HAL debug level
+e_hal_diag_t
+ServerInfo::halDebug () const
+{
+  return halDebugLevel;
+
+}	// halDebug ()
 
 
 //! Enable or disable the stop/resume debug flag

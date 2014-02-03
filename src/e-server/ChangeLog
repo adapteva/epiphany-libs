@@ -1,3 +1,18 @@
+2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Initialize
+	halDebugLevel.
+	(ServerInfo::halDebug): Created (two versions).
+	* src/ServerInfo.h: Include epiphany-hal-data from e-hal. New
+	accessor methods halDebug (set and get), and new private data
+	halDebugLevel.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initHwPlatform): initialize platform using
+	halDebug from ServerInfo. No need to call e_set_host_verbosity,
+	since called from init.
+	* src/main.cpp (usage): Document new flag --hal-debug
+	(main): Capture --hal-debug value.
+
 2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* Release/src/subdir.mk: Added reference to ServerInfo.c,

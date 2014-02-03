@@ -24,6 +24,7 @@
 #define SERVER_INFO__H
 
 #include <cstdio>
+#include "e-hal/src/epiphany-hal-data.h"
 
 
 //! A class for carrying around general information about the GDB server.
@@ -43,6 +44,8 @@ public:
   void  port (unsigned int _portNum);
   unsigned int  port () const;
   bool  validPort () const;
+  void  halDebug (e_hal_diag_t  h_alDebugLevel);
+  e_hal_diag_t halDebug () const;
     
   // Debug level accessors
   void  debugStopResume (const bool  enable);
@@ -94,6 +97,9 @@ private:
 
   //! The debug flags
   unsigned int  debugFlags;
+
+  //! HAL debug level
+  e_hal_diag_t  halDebugLevel;
 
   // Command line flags
   bool showMemoryMapFlag;		//!< Show memory and register maps
