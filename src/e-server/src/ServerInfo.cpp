@@ -162,7 +162,7 @@ ServerInfo::debugStopResume (const bool  enable)
 bool
 ServerInfo::debugStopResume () const
 {
-  return (debugFlags | ServerInfo::DEBUG_STOP_RESUME)
+  return (debugFlags & ServerInfo::DEBUG_STOP_RESUME)
     == ServerInfo::DEBUG_STOP_RESUME;
 
 }	// debugStopResume ()
@@ -184,7 +184,7 @@ ServerInfo::debugTrapAndRspCon (const bool  enable)
 bool
 ServerInfo::debugTrapAndRspCon () const
 {
-  return (debugFlags | ServerInfo::DEBUG_TRAP_AND_RSP_CON)
+  return (debugFlags & ServerInfo::DEBUG_TRAP_AND_RSP_CON)
     == ServerInfo::DEBUG_TRAP_AND_RSP_CON;
 
 }	// debugTrapAndRspCon ()
@@ -206,7 +206,7 @@ ServerInfo::debugStopResumeDetail (const bool  enable)
 bool
 ServerInfo::debugStopResumeDetail () const
 {
-  return (debugFlags | ServerInfo::DEBUG_STOP_RESUME_DETAIL)
+  return (debugFlags & ServerInfo::DEBUG_STOP_RESUME_DETAIL)
     == ServerInfo::DEBUG_STOP_RESUME_DETAIL;
 
 }	// debugStopResumeDetail ()
@@ -228,7 +228,7 @@ ServerInfo::debugTargetWr (const bool  enable)
 bool
 ServerInfo::debugTargetWr () const
 {
-  return (debugFlags | ServerInfo::DEBUG_TARGET_WR)
+  return (debugFlags & ServerInfo::DEBUG_TARGET_WR)
     == ServerInfo::DEBUG_TARGET_WR;
 
 }	// debugTargetWr ()
@@ -250,7 +250,7 @@ ServerInfo::debugCtrlCWait (const bool  enable)
 bool
 ServerInfo::debugCtrlCWait () const
 {
-  return (debugFlags | ServerInfo::DEBUG_CTRL_C_WAIT)
+  return (debugFlags & ServerInfo::DEBUG_CTRL_C_WAIT)
     == ServerInfo::DEBUG_CTRL_C_WAIT;
 
 }	// debugCtrlCWait ()
@@ -272,7 +272,7 @@ ServerInfo::debugTranDetail (const bool  enable)
 bool
 ServerInfo::debugTranDetail () const
 {
-  return (debugFlags | ServerInfo::DEBUG_TRAN_DETAIL)
+  return (debugFlags & ServerInfo::DEBUG_TRAN_DETAIL)
     == ServerInfo::DEBUG_TRAN_DETAIL;
 
 }	// debugTranDetail ()

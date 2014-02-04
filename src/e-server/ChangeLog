@@ -1,5 +1,15 @@
 2014-02-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/ServerInfo.cpp (ServerInfo::debugStopResume):
+	Mask for flag using AND rather than OR.
+	(ServerInfo::debugTrapAndRspCon): Likewise.
+	(ServerInfo::debugStopResumeDetail): Likewise.
+	(ServerInfo::debugTargetWr): Likewise.
+	(ServerInfo::debugCtrlCWait): Likewise.
+	(ServerInfo::debugTranDetail): Likewise.
+
+2014-02-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Release/src/subdir.mk: Add src/MemRange.cpp, src/MemRange.o and
 	src/MemRange.d.
 	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Replace
