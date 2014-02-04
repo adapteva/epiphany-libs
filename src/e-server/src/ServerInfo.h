@@ -66,8 +66,8 @@ public:
   bool showMemoryMap () const;
   void skipPlatformReset (const bool _skipPlatformResetFlag);
   bool skipPlatformReset () const;
-  void dontCheckHwAddr (const bool _dontCheckHwAddrFlag);
-  bool dontCheckHwAddr () const;
+  void checkHwAddr (const bool _checkHwAddrFlag);
+  bool checkHwAddr () const;
   void haltOnAttach (const bool _haltOnAttachFlag);
   bool haltOnAttach () const;
 
@@ -107,7 +107,7 @@ private:
   // Command line flags
   bool showMemoryMapFlag;		//!< Show memory and register maps
   bool skipPlatformResetFlag;           //!< Don't reset on init
-  bool dontCheckHwAddrFlag;		//!< Don't check HW address on init
+  bool checkHwAddrFlag;			//!< Check HW address when used
   bool haltOnAttachFlag;		//!< Don't halt processor when attaching
 
 };	// ServerInfo

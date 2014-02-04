@@ -28,6 +28,7 @@
 #include <cerrno>
 #include <cstring>
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <string>
 #include <utility>
@@ -43,11 +44,13 @@
 
 
 using std::cerr;
+using std::cout;
 using std::dec;
 using std::endl;
 using std::hex;
 using std::map;
 using std::pair;
+using std::setw;
 
 
 pthread_mutex_t targetControlHWAccess_m = PTHREAD_MUTEX_INITIALIZER;
@@ -55,14 +58,13 @@ pthread_mutex_t targetControlHWAccess_m = PTHREAD_MUTEX_INITIALIZER;
 
 //! Constructor
 
-//! @param[in] _indexInMemMap  Index in memory map of this core
 //! @param[in] _si             Server information about flags etc.
-TargetControlHardware::TargetControlHardware (unsigned int  _indexInMemMap,
-					      ServerInfo*   _si) :
+TargetControlHardware::TargetControlHardware (ServerInfo*   _si) :
   TargetControl (),
-  indexInMemMap (_indexInMemMap),
   si (_si),
-  dsoHandle (NULL)
+  dsoHandle (NULL),
+  numCores (0),
+  currentCoreId (0)
 {
 }	// TargetControlHardware ()
 
@@ -157,7 +159,7 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 
   // cerr << "READ burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
 
-  if (fullAddr || si->dontCheckHwAddr())
+  if (fullAddr || !si->checkHwAddr())
     {
       if ((fullAddr % E_WORD_BYTES) == 0)
 	{
@@ -241,7 +243,7 @@ TargetControlHardware::writeBurst (uint32_t addr, uint8_t *buf,
 
   assert (buff_size > 0);
 
-  if (fullAddr || si->dontCheckHwAddr())
+  if (fullAddr || !si->checkHwAddr())
     {
       if ((buff_size == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
 	{
@@ -362,64 +364,7 @@ TargetControlHardware::writeBurst (uint32_t addr, uint8_t *buf,
 }
 
 
-//! Access for the memory map
-
-//! @todo This is a temporary fix. We really need semantically meaningful
-//!       access to the contents. And in any case this should never be a map -
-//!       at least as used currently.
-
-//! @return  The memory map
-map <unsigned, pair <unsigned long, unsigned long> >
-TargetControlHardware::getMemoryMap ()
-{
-  return memory_map;
-
-}	// getMemoryMap ()
-
-
-map <unsigned, pair <unsigned long, unsigned long> >
-TargetControlHardware::getRegisterMap ()
-{
-  return register_map;
-
-}	// getRegisterMap ()
-
-
 //! initialize the attached core ID
-
-//! Pick out of the memory map
-void
-TargetControlHardware::initAttachedCoreId ()
-{
-  // indexInMemMap is essentially the core number or ext_mem segment number
-  // FIXME
-  assert (indexInMemMap < memory_map.size ());
-  fAttachedCoreId = (memory_map[indexInMemMap].first) >> 20;
-
-}	// initAttachedCoreId ()
-
-
-//! Set the Core ID of the attached core
-bool
-TargetControlHardware::setAttachedCoreId (unsigned int coreId)
-{
-  // check if coreId is a valid core for this device by iterating over the
-  // memory map. if it is, set the fAttachedCoreId.
-  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
-       memory_map.begin (); ii != memory_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-
-      if ((coreId << 20) == startAddr)
-	{
-	  fAttachedCoreId = coreId;
-	  return true;
-	}
-    }
-
-  return false;
-}
-
 
 //! Reset the platform
 void
@@ -566,46 +511,131 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
 }
 
 
-unsigned
-TargetControlHardware::initDefaultMemoryMap (platform_definition_t* platform)
+//! Create maps and sets for the platform.
+
+//! We set up the following
+//! - a map from relative to absolute core ID.
+//! - a map from memory range to absolute coreID.
+//! - a set of all the external memory ranges.
+
+//! @param[in] platform  The platform definition.
+void
+TargetControlHardware::initMaps (platform_definition_t* platform)
 {
-  unsigned chip;
-  unsigned bank;
-  unsigned row;
-  unsigned col;
-  unsigned entry = 0;
-  unsigned base;
-  unsigned num_cores;
+  numCores = 0;
 
-  // Add core memory to memory_map and core registers to register_map
-  for (chip = 0; chip < platform->num_chips; chip++)
+  // Iterate through each core on each chip
+  for (unsigned int  chipNum = 0; chipNum < platform->num_chips; chipNum++)
     {
-      for (row = 0; row < platform->chips[chip].num_rows; row++)
-	{
-	  for (col = 0; col < platform->chips[chip].num_cols; col++)
-	    {
-	      base = ((platform->chips[chip].yid + row) << 26) +
-		((platform->chips[chip].xid + col) << 20);
+      chip_def_t  chip = platform->chips[chipNum];
 
-	      memory_map[entry] = pair < unsigned long, unsigned long >
-		(base, base + platform->chips[chip].core_memory_size - 1);
-	      register_map[entry] = pair < unsigned long, unsigned long >
-		(base + 0xf0000, base + 0xf1000 - 1);
-	      entry++;
+      for (unsigned int row = 0; row < chip.num_rows; row++)
+	{
+	  assert (row < (0x1 << 6));		// Max 6 bits
+
+	  for (unsigned int col = 0; col < chip.num_cols; col++)
+	    {
+	      assert (col < (0x1 << 6));	// Max 6 bits
+	      
+	      // Set up the relative to absolute core ID map entry
+	      uint16_t relId = (row << 6) | col;
+	      uint16_t absRow = chip.yid + row;
+	      uint16_t absCol = chip.xid + col;
+	      uint16_t absId = (absRow << 6) | absCol;
+
+	      coreMap[relId] = absId;
+
+	      // Set up the memory map to and from absolute core ID map
+	      // entries.
+	      uint32_t  minAddr = (((uint32_t) absRow) << 26)
+		| (((uint32_t) absCol) << 20);
+	      uint32_t  maxAddr = minAddr + chip.core_memory_size - 1;
+	      uint32_t  minRegAddr = minAddr + 0xf0000;
+	      uint32_t  maxRegAddr = minAddr + 0xf1000 - 1;
+	      MemRange r (minAddr, maxAddr, minRegAddr, maxRegAddr);
+
+	      coreMemMap[r] = absId;
+	      reverseCoreMemMap [absId] = r;
+
+	      // One more core done
+	      numCores++;
 	    }
 	}
     }
-  num_cores = entry;
-  // Add external memory banks to memory map
-  for (bank = 0; bank < platform->num_banks; bank++)
+
+  // Populate external memory map set
+  for (unsigned int  bankNum = 0; bankNum < platform->num_banks; bankNum++)
     {
-      memory_map[entry++] = pair < unsigned long, unsigned long >
-	(platform->ext_mem[bank].base,
-	 platform->ext_mem[bank].base + platform->ext_mem[bank].size - 1);
+      mem_def_t  bank = platform->ext_mem[bankNum];
+      uint32_t  minAddr = bank.base;
+      uint32_t  maxAddr = bank.base + bank.size - 1;
+      MemRange r (minAddr, maxAddr);
+
+      if (extMemSet.find (r) == extMemSet.end())
+	(void) extMemSet.insert (r);
+      else
+	{
+	  cerr << "ERROR: Duplicate or overlapping extenal memory bank: [0x"
+	       << hex << setw (8) << r.minAddr () << ", 0x"
+	       << r.maxAddr () << "]." << dec << setw (0) << endl;
+	  exit (EXIT_FAILURE);
+	}
+    }
+}	// initMaps ()
+
+
+//! Print out the maps
+void
+TargetControlHardware::showMaps ()
+{
+  // Iterate over all the cores
+  cout << "Core details:" << endl;
+
+  for (map <uint16_t, uint16_t>::iterator it = coreMap.begin ();
+       it != coreMap.end ();
+       it++)
+    {
+      uint16_t relId = it->first;
+      uint16_t absId = it->second;
+
+      uint16_t relRow = relId >> 6;
+      uint16_t relCol = relId & 0x3f;
+      uint16_t absRow = absId >> 6;
+      uint16_t absCol = absId & 0x3f;
+
+      // We really can't have a core without a memory map, but do a sanity
+      // check.
+      assert (reverseCoreMemMap.find (absId) != reverseCoreMemMap.end());
+      MemRange r = reverseCoreMemMap[absId];
+      uint32_t  minAddr = r.minAddr ();
+      uint32_t  maxAddr = r.maxAddr ();
+      uint32_t  minRegAddr = r.minRegAddr ();
+      uint32_t  maxRegAddr = r.maxRegAddr ();
+
+      cout << "  relative -> absolute core ID (" << relRow << ", " << relCol
+	   << ") ->  (" << absRow << ", " << absCol << ")" << endl;
+      cout << "    memory range   [0x" << hex << setw (8) << minAddr << ", 0x"
+	   << maxAddr << "]" << endl;
+      cout << "    register range [0x" << minRegAddr << ", 0x" << maxRegAddr
+	   << "]" << dec << setw (0) << endl;
     }
 
-  return num_cores;
-}
+  // Iterate over all the memories
+  cout << endl;
+  cout << "External memories" << endl;
+
+  for (set <MemRange>::iterator it = extMemSet.begin ();
+       it != extMemSet.end ();
+       it++)
+    {
+      MemRange r = *it;
+      uint32_t  minAddr = r.minAddr ();
+      uint32_t  maxAddr = r.maxAddr ();
+
+      cout << "  [" << hex << setw (8) << minAddr << ", 0x" << maxAddr << "]"
+	   << endl;
+    }
+}	// showMaps ()
 
 
 string
@@ -619,6 +649,9 @@ TargetControlHardware::getTargetId ()
 
 
 //! Convert a local address to a global one.
+
+//! If we have a local address, then convert it to a global address based on
+//! the current thread being used.
 uint32_t
 TargetControlHardware::convertAddress (uint32_t address)
 {
@@ -626,37 +659,32 @@ TargetControlHardware::convertAddress (uint32_t address)
 
   if (address < CORE_SPACE)
     {
-      return (fAttachedCoreId << 20) + address;
+      return (((uint32_t) currentCoreId) << 20) | (address & 0x000fffff);
     }
 
-  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
-       memory_map.begin (); ii != memory_map.end (); ++ii)
+  // Validate any global address if requested
+  if (si->checkHwAddr ())
     {
-      unsigned long startAddr = (*ii).second.first;
-      unsigned long endAddr = (*ii).second.second;
-
-      if ((address >= startAddr) && (address <= endAddr))
+      MemRange r (address, address);
+      if (coreMemMap.find (r) != coreMemMap.end ())
+	return address;			// Another core
+      else if (extMemSet.find (r) != extMemSet.end ())
+	return address;			// External memory
+      else
 	{
-	  // found
-	  return address;
+	  uint16_t absRow = currentCoreId >> 6;
+	  uint16_t absCol = currentCoreId & 0x3f;
+
+	  cerr << "ERROR: core ID (" << absRow << ", " << absCol 
+	       << "): invalid address 0x" << hex << setw (8) << address
+	       << setw (0) << dec << "." << endl;
+	  exit (EXIT_FAILURE);
 	}
     }
+  else
+    return address;
 
-  for (map < unsigned, pair < unsigned long, unsigned long > >::iterator ii =
-       register_map.begin (); ii != register_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-      unsigned long endAddr = (*ii).second.second;
-
-      if ((address >= startAddr) && (address <= endAddr))
-	{
-	  // found
-	  return address;
-	}
-    }
-
-  return 0;
-}
+}	// convertAddress ()
 
 
 bool
@@ -672,7 +700,7 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 
   uint32_t fullAddr = convertAddress (addr);
   // bool iSAligned = (fullAddr == ());
-  if (fullAddr || si->dontCheckHwAddr())
+  if (fullAddr || si->checkHwAddr())
     {
       // supported only word size or smaller
       assert (burst_size <= 4);
@@ -724,7 +752,7 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
   uint32_t fullAddr = convertAddress (addr);
 
   // bool iSAligned = (fullAddr == ());
-  if (fullAddr || si->dontCheckHwAddr())
+  if (fullAddr || si->checkHwAddr())
     {
       assert (burst_size <= 4);
       char buf[8];

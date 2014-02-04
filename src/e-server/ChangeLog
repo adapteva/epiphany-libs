@@ -1,3 +1,47 @@
+2014-02-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Add src/MemRange.cpp, src/MemRange.o and
+	src/MemRange.d.
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Replace
+	dontCheckHwAddrFlag with checkHwAddrFlag and invert default.
+	(ServerInfo::dontCheckHwAddr): Renamed as checkHwAddr.
+	(ServerInfo::checkHwAddr): Replaces dontCheckHwAddr.
+	* src/ServerInfo.h: Replace dontCheckHwAddr by checkHwAddr throughout.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::TargetControlHardware): Remove
+	_indexInMemMap param.
+	(TargetControlHardware::readBurst): Replace call to
+	si->dontCheckHwAddr by call to si->checkHwAddr and invert result.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::getMemoryMap): Deleted.
+	(TargetControlHardware::getRegisterMap): Deleted.
+	(TargetControlHardware::initAttachedCoreId): Deleted.
+	(TargetControlHardware::setAttachedCoreId): Deleted.
+	(TargetControlHardware::initDefaultMemoryMap): Deleted.
+	(TargetControlHardware::initMaps): Created.
+	(TargetControlHardware::showMaps): Created.
+	(TargetControlHardware::convertAddress): Rewritten to use
+	currentCoreId and new memory maps.
+	(TargetControlHardware::readMem): Replace call to
+	si->dontCheckHwAddr by call to si->checkHwAddr and invert result.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/TargetControlHardware.h (class TargetControlHardware):
+	Remove _indexInMemMap param to consturctor.  Delete member
+	functions getMemoryMap, getRegisterMap, initAttachedCoreId,
+	setAttachedCoreId and initDefaultMemoryMap.  Add member functions
+	initMaps and showMaps.  Remove member variables indexInMemMap,
+	memory_map and register_map.  Add membervariables coreMap,
+	coreMemMap, reverseCoreMemMap, extMemSet and currentCoreId.
+	* src/main.cpp (usage_summary): Add missing options and change
+	--dont-check-hw-address to --check-hw-address.
+	(usage_full): Change --dont-check-hw-address to
+	--check-hw-address.
+	(showMaps): Deleted.
+	(initPlatform): Use initMaps for tCntrl initialzation and tCntrl
+	showMaps function instead of local function.
+	(main): Change argument --dont-check-hw-address to
+	--check-hw-address.
+
 2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/main.cpp (usage_summary): Created from initial part of usage.

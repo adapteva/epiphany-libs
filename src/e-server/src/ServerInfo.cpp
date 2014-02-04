@@ -1,4 +1,4 @@
-// Server information class: Declaration
+// Server information class: Definition
 
 // This file is part of the Epiphany Software Development Kit.
 
@@ -40,7 +40,7 @@ ServerInfo::ServerInfo () :
   halDebugLevel (H_D0),
   showMemoryMapFlag (false),
   skipPlatformResetFlag (false),
-  dontCheckHwAddrFlag (false),
+  checkHwAddrFlag (false),
   haltOnAttachFlag (true)
 {
 }	// ServerInfo ()
@@ -314,22 +314,22 @@ ServerInfo::skipPlatformReset () const
 }	// skipPlatformReset ()
 
 
-//! Set the don't check hardware flag
+//! Set the check hardware address flag
 void
-ServerInfo::dontCheckHwAddr (const bool _dontCheckHwAddrFlag)
+ServerInfo::checkHwAddr (const bool _checkHwAddrFlag)
 {
-  dontCheckHwAddrFlag = _dontCheckHwAddrFlag;
+  checkHwAddrFlag = _checkHwAddrFlag;
 
-}	// dontCheckHwAddr ()
+}	// checkHwAddr ()
 
 
-//! Get the don't check hardware flag
+//! Get the check hardware addressflag
 bool
-ServerInfo::dontCheckHwAddr () const
+ServerInfo::checkHwAddr () const
 {
-  return  dontCheckHwAddrFlag;
+  return  checkHwAddrFlag;
 
-}	// dontCheckHwAddr ()
+}	// checkHwAddr ()
 
 
 //! Set the halt on attach flag

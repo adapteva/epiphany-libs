@@ -5,6 +5,7 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
 ../src/GdbServer.cpp \
+../src/MemRange.cpp \
 ../src/MpHash.cpp \
 ../src/RspConnection.cpp \
 ../src/RspPacket.cpp \
@@ -16,6 +17,7 @@ CPP_SRCS += \
 
 OBJS += \
 ./src/GdbServer.o \
+./src/MemRange.o \
 ./src/MpHash.o \
 ./src/RspConnection.o \
 ./src/RspPacket.o \
@@ -27,6 +29,7 @@ OBJS += \
 
 CPP_DEPS += \
 ./src/GdbServer.d \
+./src/MemRange.d \
 ./src/MpHash.d \
 ./src/RspConnection.d \
 ./src/RspPacket.d \

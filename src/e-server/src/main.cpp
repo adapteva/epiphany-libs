@@ -76,11 +76,14 @@ usage_summary (ostream& s)
   s << endl;
   s << "e-server -hdf <hdf_file [-p <port-number>] [--show-memory-map]"
     << endl;
-  s << "         [-Wpl,<options>] [-Xpl <arg>] [--version] [--h | --help]"
+  s << "         [--tty <terminal>] [--version] [--h | --help]"
     << endl;
-  s << "         [-d <debug-level>] [--tty <terminal>] [--dont-halt-on-attach]" 
+  s << "         [-d <debug-level>] [--hal-debug <level> [--check-hw-address]"
     << endl;
-  s << "         [-skip-platform-reset]" << endl;
+  s << "         [--dont-halt-on-attach] [-skip-platform-reset] "
+    << endl;
+  s << "         [-Wpl,<options>] [-Xpl <arg>]"
+    << endl;
 
 }	// usage_summary ()
 
@@ -152,13 +155,15 @@ usage_full (ostream& s)
   s << endl;
   s << "Advanced options:" << endl;
   s << endl;
-  s << "  --dont-check-hw-address" << endl;
+  s << "  --check-hw-address" << endl;
   s << endl;
-  s << "    The e-server filters out transactions if the address is invalid"
+  s << "    If set, the e-server will fail with an error if given an address"
     << endl;
-  s << "    (not included in the device supported memeory map).  Use this"
+  s << "    that does not correspond to a valid core or external memory. "
     << endl;
-  s << "    option to disable this protection."
+  s << "    Otherwise all addresses are accepted without checking. Note that"
+    << endl;
+  s << "    selecting this option carries some performance penalty."
     << endl;
   s << endl;
   s << "  --dont-halt-on-attach" << endl;
@@ -206,58 +211,6 @@ copyright ()
 }	// copyright ()
 
 
-//! Print out the memory map for the platform
-
-//! @param[in] tCntrl  Target control structure
-//! @param[in] xml     The XML description of the platform.
-//! @param[in] nCores  The number of cores in the target.
-static void
-showMaps (TargetControlHardware* tCntrl,
-	  EpiphanyXML* xml,
-	  unsigned int nCores)
-{
-  xml->PrintPlatform ();
-
-  map <unsigned, pair <unsigned long, unsigned long> > register_map =
-    tCntrl->getRegisterMap ();
-
-  cout << "Supported registers map: " << endl;
-  for (map < unsigned, pair < unsigned long,
-	 unsigned long > >::iterator ii = register_map.begin ();
-       ii != register_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-      unsigned long endAddr = (*ii).second.second;
-      cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
-    }
-
-  unsigned core_num = 0;
-
-  map <unsigned, pair <unsigned long, unsigned long> > memory_map =
-    tCntrl->getMemoryMap ();
-
-  cout << "Supported memory map: " << endl;
-  for (map < unsigned, pair < unsigned long,
-	 unsigned long > >::iterator ii = memory_map.begin ();
-       ii != memory_map.end (); ++ii)
-    {
-      unsigned long startAddr = (*ii).second.first;
-      unsigned long endAddr = (*ii).second.second;
-      
-      if (core_num < nCores)
-	{
-	  cout << "";
-	}
-      else
-	{
-	  cout << "External: ";
-	}
-      cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
-      core_num++;
-    }
-}	// showMaps ()
-
-
 //! Initialize the hardware platform
 
 //! @todo Contrary to previous advice, the system will
@@ -303,20 +256,21 @@ initPlatform (ServerInfo *si,
   string initArgs = platformArgs + " " + platform->libinitargs;
   platform->libinitargs = initArgs.c_str ();
 
-  // @todo We used to create new control hardware for each core. How do we do
-  // that now?
-  unsigned int coreNum = 0;
-  TargetControlHardware* tCntrl = new TargetControlHardware (coreNum, si);
+  // Set up the hardware
+  TargetControlHardware* tCntrl = new TargetControlHardware (si);
 
-  // populate the chip and ext_mem list of memory ranges
-  unsigned nCores = tCntrl->initDefaultMemoryMap (platform);
-
+  // populate the chip and ext_mem list of memory ranges and optionally show
+  // it.
+  tCntrl->initMaps (platform);
   if (si->showMemoryMap ())
-    showMaps (tCntrl, xml, nCores);
+    {
+      xml->PrintPlatform ();
+      cout << endl;
+      tCntrl->showMaps ();
+    }
 
   // initialize the device
   tCntrl->initHwPlatform (platform);
-  tCntrl->initAttachedCoreId ();
 
   //! @todo. The XML is somehow corrupted. If we delete this, then the stack
   //!        will be corrupted. Needs some valgrind work.
@@ -357,8 +311,8 @@ main (int argc, char *argv[])
 	      return 3;
 	    }
 	}
-      else if (!strcmp (argv[n], "--dont-check-hw-address"))
-	si->dontCheckHwAddr (true);
+      else if (!strcmp (argv[n], "--check-hw-address"))
+	si->checkHwAddr (true);
       else if (!strcmp (argv[n], "--dont-halt-on-attach"))
 	si->haltOnAttach (false);
       else if (!strcmp (argv[n], "-skip-platform-reset"))

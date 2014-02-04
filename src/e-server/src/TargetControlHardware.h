@@ -26,7 +26,9 @@
 
 #include <map>
 #include <inttypes.h>
+#include <set>
 
+#include "MemRange.h"
 #include "ServerInfo.h"
 #include "TargetControl.h"
 
@@ -36,14 +38,14 @@
 
 using std::map;
 using std::pair;
+using std::set;
 
 
 class TargetControlHardware: public TargetControl
 {
 public:
   // Constructor
-  TargetControlHardware (unsigned    indexInMemMap,
-			 ServerInfo* _si);
+  TargetControlHardware (ServerInfo* _si);
 
   // Functions to access memory. All register access on the ATDSP is via memory
   virtual bool readMem32 (uint32_t addr, uint32_t &);
@@ -60,17 +62,12 @@ public:
   virtual bool readBurst (uint32_t addr, uint8_t *buf,
 			  size_t buff_size);
 
-  // Accessors for the maps
-  map <unsigned, pair <unsigned long, unsigned long> > getMemoryMap ();
-  map <unsigned, pair <unsigned long, unsigned long> > getRegisterMap ();
-  
   // Initialization functions
   void  initHwPlatform (platform_definition_t* platform);
-  unsigned initDefaultMemoryMap (platform_definition_t* platform);
+  void  initMaps (platform_definition_t* platform);
+  void  showMaps ();
 
   // Control functions
-  virtual void initAttachedCoreId ();
-  virtual bool setAttachedCoreId (unsigned int  coreId);
   virtual void platformReset ();
   virtual void resumeAndExit ();
 
@@ -88,20 +85,29 @@ protected:
 
 private:
 
-  //! Local copy of core offset in memory map
-  unsigned int  indexInMemMap;
-
   //! Local pointer to server info
   ServerInfo* si;
 
   //! Handle for the shared object libraries
   void *dsoHandle;
 
-  //! Map of target's memory
-  map < unsigned, pair < unsigned long, unsigned long > >memory_map;
+  //! Map of relative to absolute core ID
+  map <uint16_t, uint16_t> coreMap;
 
-  //! Map of target's registers
-  map < unsigned, pair < unsigned long, unsigned long > >register_map;
+  //! Map of memory range to absolute core ID
+  map <MemRange, uint16_t, MemRange> coreMemMap;
+
+  //! Map of core ID to memory range
+  map <uint16_t, MemRange> reverseCoreMemMap;
+
+  //! Set of all the external memory ranges
+  set <MemRange, MemRange> extMemSet;
+
+  //! The number of cores
+  unsigned int numCores;
+
+  //! Current core being operated on
+  uint16_t  currentCoreId;
 
   // Handler for the BREAK signal
   static void breakSignalHandler (int signum);
