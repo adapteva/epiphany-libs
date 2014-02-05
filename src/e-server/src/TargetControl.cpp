@@ -44,37 +44,6 @@ TargetControl::~TargetControl ()
 }	// ~TargetControl ()
 
 
-//! initialize the attached core ID
-
-//! In this base class implementation, we do nothing.
-void
-TargetControl::initAttachedCoreId ()
-{
-}	// initAttachedCoreId ()
-
-
-//! Return the ID of the core we are attached to.
-unsigned int
-TargetControl::getAttachedCoreId ()
-{
-  return fAttachedCoreId;
-
-}	// getAttachedCoreId ()
-
-
-//! Set the core ID
-
-//! In this base case implementation changing the core ID never succeeds.
-
-//! @return TRUE if successfully changed, FALSE otherwise.
-bool
-TargetControl::setAttachedCoreId (unsigned int  coreId)
-{
-  return false;
-
-}	// setAttachedCoreId ()
-
-
 //! Reset the platform
 
 //! Default implementation does nothing.

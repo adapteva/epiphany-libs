@@ -351,9 +351,6 @@ private:
   //! Thread control
   void NanoSleepThread (unsigned long timeout);
 
-  //! Get CoreID from target
-  unsigned getAttachedTargetCoreId ();
-
   //!Release the coreID, the target core can be selected by other gdb client
   //! @todo Fix this empty function.
   void releaseGdbCmdSelectedCoreId () { };

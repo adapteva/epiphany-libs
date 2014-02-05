@@ -398,35 +398,17 @@ main (int argc, char *argv[])
 	  if (n < argc)
 	    {
 	      if (0 == strcasecmp (argv[n], "stop-resume"))
-		{
-		  si->debugStopResume (true);
-		  cout << "INFO: Setting stop/resume debug." << endl;
-		}
+		si->debugStopResume (true);
 	      else if (0 == strcasecmp (argv[n], "trap-and-rsp-con"))
-		{
-		  si->debugTrapAndRspCon (true);
-		  cout << "INFO: Setting trace/RSP connection debug." << endl;
-		}
+		si->debugTrapAndRspCon (true);
 	      else if (0 == strcasecmp (argv[n], "stop-resume-detail"))
-		{
-		  si->debugStopResumeDetail (true);
-		  cout << "INFO: Setting stop/resume detail debug." << endl;
-		}
+		si->debugStopResumeDetail (true);
 	      else if (0 == strcasecmp (argv[n], "target-wr"))
-		{
-		  si->debugTargetWr (true);
-		  cout << "INFO: Setting target write debug." << endl;
-		}
+		si->debugTargetWr (true);
 	      else if (0 == strcasecmp (argv[n], "ctrl-c-wait"))
-		{
-		  si->debugCtrlCWait (true);
-		  cout << "INFO: Setting control-C wait debug." << endl;
-		}
+		si->debugCtrlCWait (true);
 	      else if (0 == strcasecmp (argv[n], "tran-detail"))
-		{
-		  si->debugTranDetail (true);
-		  cout << "INFO: Setting transaction detail debug." << endl;
-		}
+		si->debugTranDetail (true);
 	      else
 		{
 		  cerr << "WARNING: Unrecognized debug flag " << argv[n]

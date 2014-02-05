@@ -66,9 +66,6 @@ public:
 			  size_t buff_size) = 0;
 
   // Control functions
-  virtual void initAttachedCoreId ();
-  virtual unsigned int getAttachedCoreId ();
-  virtual bool setAttachedCoreId (unsigned int  coreId);
   virtual void platformReset ();
   virtual void resumeAndExit () = 0;
   virtual void startOfBaudMeasurement ();

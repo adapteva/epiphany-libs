@@ -50,6 +50,7 @@ using std::endl;
 using std::hex;
 using std::map;
 using std::pair;
+using std::setfill;
 using std::setw;
 
 
@@ -171,7 +172,7 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 	       k < buff_size / (MAX_NUM_READ_PACKETS * E_WORD_BYTES); k++)
 	    {
 	      int res =
-		(*read_from) (fullAddr + k * MAX_NUM_READ_PACKETS * E_WORD_BYTES,
+		readFrom (fullAddr + k * MAX_NUM_READ_PACKETS * E_WORD_BYTES,
 			      (void *) (buf +
 					k * MAX_NUM_READ_PACKETS * E_WORD_BYTES),
 			      (MAX_NUM_READ_PACKETS * E_WORD_BYTES));
@@ -189,7 +190,7 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 	  if (trailSize != 0)
 	    {
 	      unsigned int res =
-		(*read_from) (fullAddr + buff_size - trailSize,
+		readFrom (fullAddr + buff_size - trailSize,
 			      (void *) (buf + buff_size - trailSize),
 			      trailSize);
 
@@ -225,143 +226,184 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 }
 
 
-// burst write
+//! Burst write
+
+//! @param[in] addr     Address to write to (full or local)
+//! @param[in] buf      Data to write
+//! @param[in] bufSize  Number of bytes of data to write
+//! @return  TRUE on success, FALSE otherwise.
 bool
-TargetControlHardware::writeBurst (uint32_t addr, uint8_t *buf,
-				   size_t buff_size)
+TargetControlHardware::writeBurst (uint32_t addr,
+				   uint8_t *buf,
+				   size_t bufSize)
 {
-  bool ret = true;
-
-  if (buff_size == 0)
+  if (bufSize == 0)
     return true;
-
-  pthread_mutex_lock (&targetControlHWAccess_m);
 
   uint32_t fullAddr = convertAddress (addr);
 
-  // cerr << "---Write burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
-
-  assert (buff_size > 0);
-
-  if (fullAddr || !si->checkHwAddr())
+  if (si->debugTargetWr ())
     {
-      if ((buff_size == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
-	{
-	  // register access -- should be word transaction
-	  // cerr << "---Write WORD " << hex << fullAddr << " Size " << dec << E_WORD_BYTES << endl;
-	  unsigned int res = (*write_to) (fullAddr, (void *) (buf),
-					  E_WORD_BYTES);
-	  if (res != E_WORD_BYTES)
-	    {
-	      cerr << "ERROR (" << res <<
-		"): mem write failed for full address " << hex << fullAddr <<
-		dec << endl;
-	      ret = false;
-	    }
-	}
+      cerr << "DebugTargetWr: Write burst to 0x" << hex << setw (8)
+	   << setfill ('0') << addr << " (0x" << fullAddr << "), size "
+	   << setfill (' ') << setw (0) << dec << bufSize << "bytes." << endl;
+    }
+  
+  if ((bufSize == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
+    {
+      // Single aligned word write. Typically register access
+      if (si->debugTargetWr ())
+	cerr << "DebugTargetWr: Write burst single word" << endl;
+
+      unsigned int res = writeTo (fullAddr, buf, E_WORD_BYTES);
+      if (res == E_WORD_BYTES)
+	return true;
       else
 	{
-	  // head up to double boundary
-	  if ((fullAddr % E_DOUBLE_BYTES) != 0)
-	    {
-	      unsigned int headSize = E_DOUBLE_BYTES - (fullAddr % E_DOUBLE_BYTES);
-
-	      if (headSize > buff_size)
-		{
-		  headSize = buff_size;
-		}
-
-	      // head
-	      for (unsigned n = 0; n < headSize; n++)
-		{
-		  // cerr << "head fullAddr " << hex << fullAddr << " size " << 1 << endl;
-		  int res = (*write_to) (fullAddr, (void *) (buf), 1);
-		  if (res != 1)
-		    {
-		      cerr << "ERROR (" << res <<
-			"): mem write failed for full address " << hex <<
-			fullAddr << dec << endl;
-		      ret = false;
-		    }
-		  buf += 1;
-		  fullAddr += 1;
-		  buff_size = buff_size - 1;
-		}
-	    }
-
-	  assert (buff_size == 0 || (fullAddr % E_DOUBLE_BYTES) == 0);
-	  assert ((MAX_NUM_WRITE_PACKETS % E_DOUBLE_BYTES) == 0);
-	  size_t numMaxBurst = buff_size / (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
-
-	  for (unsigned k = 0; k < numMaxBurst; k++)
-	    {
-	      unsigned cBufSize = (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
-
-	      // cerr << "BIG DOUBLE BURST " << k << " fullAddr " << hex << fullAddr << " size " << cBufSize << endl;
-
-	      size_t res = (*write_to) (fullAddr, (void *) (buf), cBufSize);
-	      if (res != cBufSize)
-		{
-		  cerr << "ERROR (" << res <<
-		    "): mem write failed for full address " << hex << fullAddr
-		    << dec << endl;
-		  ret = false;
-		}
-	      fullAddr += cBufSize;
-	      buf += cBufSize;
-	      buff_size = buff_size - cBufSize;
-	    }
-
-	  size_t trailSize = buff_size % E_DOUBLE_BYTES;
-	  if (buff_size > trailSize)
-	    {
-	      // cerr << "LAST DOUBLE BURST " << " fullAddr " << hex << fullAddr << " size " << buff_size-trailSize << endl;
-	      size_t res =
-		(*write_to) (fullAddr, (void *) (buf), buff_size - trailSize);
-	      if (res != buff_size - trailSize)
-		{
-		  cerr << "ERROR (" << res <<
-		    "): mem write failed for full address " << hex << fullAddr
-		    << dec << endl;
-		  ret = false;
-		}
-	      fullAddr += buff_size - trailSize;
-	      buf += buff_size - trailSize;
-	    }
-
-	  // trail
-	  if (trailSize > 0)
-	    {
-	      for (unsigned n = 0; n < trailSize; n++)
-		{
-		  // cerr << "TRAIL " << " fullAddr " << hex << fullAddr << " size " << 1 << endl;
-		  int res = (*write_to) (fullAddr, (void *) (buf), 1);
-		  if (res != 1)
-		    {
-		      cerr << "ERROR (" << res <<
-			"): mem write failed for full address " << hex <<
-			fullAddr << dec << endl;
-		      ret = false;
-		    }
-
-		  buf += 1;
-		  fullAddr += 1;
-		}
-	    }
+	  cerr << "Warning: WriteBurst of single word to address 0x" << hex
+	       << setw (8) << setfill ('0') << fullAddr
+	       << " failed with result " << res << "." << setfill (' ')
+	       << setw (0) << dec << endl;
+	  return  false;
 	}
     }
   else
     {
-      cerr << "WARNING (WRITE_BURST ignored): The address " << hex << addr <<
-	" is not in the valid range for target " << this->
-	getTargetId () << dec << endl;
-      ret = false;
+      if ((fullAddr % E_DOUBLE_BYTES) != 0)
+	{
+	  // Not double word alinged. Head up to double boundary
+	  unsigned int headSize = E_DOUBLE_BYTES - (fullAddr % E_DOUBLE_BYTES);
+	  headSize = (headSize > bufSize) ? bufSize : headSize;
+
+	  // Write out bytes up to head
+	  for (unsigned int n = 0; n < headSize; n++)
+	    {
+	      if (si->debugTargetWr ())
+		{
+		  cerr << "DebugTargetWr: Write burst head byte " << n
+		       << " to 0x" << hex << setw (8) << setfill ('0') 
+		       << fullAddr << "." << setfill (' ') << setw (0)
+		       << dec << endl;
+		}
+
+	      int res = writeTo (fullAddr, buf, 1);
+	      if (res == 1)
+		{
+		  buf++;
+		  fullAddr++;
+		  bufSize--;
+		}
+	      else
+		{
+		  cerr << "Warning: Write burst of 1 header byte to address 0x"
+		       << hex << setw (8) << setfill ('0') << fullAddr
+		       << " failed with result " << setfill (' ') << setw (0)
+		       << dec << res << "." << endl;
+		  return  false;
+		}
+	    }
+	}
+
+      if (0 == bufSize)
+	return  true;
+
+      // We should now be double word aligned. Second assertion should be
+      // optimized out at compile time.
+      assert ((fullAddr % E_DOUBLE_BYTES) == 0);
+      assert ((MAX_NUM_WRITE_PACKETS % E_DOUBLE_BYTES) == 0);
+
+      // Break up into maximum size packets
+      size_t numMaxBurst = bufSize / (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
+
+      for (unsigned k = 0; k < numMaxBurst; k++)
+	{
+	  // Send a maximal packet
+	  size_t  cBufSize = (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
+
+	  if (si->debugTargetWr ())
+	    {
+	      cerr << "DebugTargetWr: Maximal write burst " << k
+		   << " to full address 0x" << hex << setw (8) << setfill ('0')
+		   << fullAddr << setfill (' ') << setw (0) << dec
+		   << ", size " << cBufSize << "bytes." << endl;
+	    }
+
+	  size_t  res = writeTo (fullAddr, (void *) (buf), cBufSize);
+	  if (res == cBufSize)
+	    {
+	      fullAddr += cBufSize;
+	      buf += cBufSize;
+	      bufSize = bufSize - cBufSize;
+	    }
+	  else
+	    {
+	      cerr << "Warning: Maximal write burst of " << cBufSize
+		   << " bytes to address 0x" << hex << setw (8)
+		   << setfill ('0') << fullAddr << " failed with result "
+		   << setfill (' ') << setw (0) << dec << res << "." << endl;
+	      return false;
+	    }
+	}
+
+      // Remaining double word transfers
+      size_t trailSize = bufSize % E_DOUBLE_BYTES;
+      if (bufSize > trailSize)
+	{
+	  // Send the last double word packet
+	  size_t lastDoubleSize = bufSize - trailSize;
+	  if (si->debugTargetWr ())
+	    {
+	      cerr << "DebugTargetWr: Last double word write burst "
+		   << " to full address 0x" << hex << setw (8) << setfill ('0')
+		   << fullAddr << setfill (' ') << setw (0) << dec
+		   << ", size " << lastDoubleSize << "bytes." << endl;
+	    }
+
+	  size_t res = writeTo (fullAddr, buf, lastDoubleSize);
+	  if (res == lastDoubleSize)
+	    {
+	      fullAddr += lastDoubleSize;
+	      buf += lastDoubleSize;
+	    }
+	  else
+	    {
+	      cerr << "Warning: Last double write burst of " << lastDoubleSize
+		   << " bytes to address 0x" << hex << setw (8)
+		   << setfill ('0') << fullAddr << " failed with result "
+		   << setfill (' ') << setw (0) << dec << res << "." << endl;
+	      return false;
+	    }
+	}
+
+      // Final partial word
+      for (unsigned n = 0; n < trailSize; n++)
+	{
+	  if (si->debugTargetWr ())
+	    {
+	      cerr << "DebugTargetWr: Write burst trail byte " << n
+		   << " to 0x" << hex << setw (8) << setfill ('0') << fullAddr
+		   << "." << setfill (' ') << setw (0) << dec << endl;
+	    }
+
+	  int res = writeTo (fullAddr, buf, 1);
+	  if (res == 1)
+	    {
+	      buf++;
+	      fullAddr++;
+	    }
+	  else
+	    {
+	      cerr << "Warning: Write burst of 1 trailer byte to address 0x"
+		   << hex << setw (8) << setfill ('0') << fullAddr
+		   << " failed with result " << setfill (' ') << setw (0)
+		   << dec << res << "." << endl;
+	      return  false;
+	    }
+	}
+
+      return true;
     }
-
-  pthread_mutex_unlock (&targetControlHWAccess_m);
-
-  return ret;
-}
+}	// writeBurst ()
 
 
 //! initialize the attached core ID
@@ -372,7 +414,7 @@ TargetControlHardware::platformReset ()
 {
   pthread_mutex_lock (&targetControlHWAccess_m);
 
-  hw_reset ();			// ESYS_RESET
+  hwReset ();			// ESYS_RESET
 
   pthread_mutex_unlock (&targetControlHWAccess_m);
 
@@ -436,7 +478,7 @@ TargetControlHardware::breakSignalHandler (int signum)
   // give chance to finish usb drive
   // sleep(1);
 
-  // hw_reset();
+  // hwReset();
 
   // sleep(1);
 
@@ -467,18 +509,12 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
     }
 
   // Find the shared functions
-  *(void **) (&init_platform) = findSharedFunc ("esrv_init_platform");
-  *(void **) (&close_platform) = findSharedFunc ("esrv_close_platform");
-  *(void **) (&write_to) = findSharedFunc ("esrv_write_to");
-  *(void **) (&read_from) = findSharedFunc ("esrv_read_from");
-  *(void **) (&e_open) = findSharedFunc ("e_open");
-  *(void **) (&e_close) = findSharedFunc ("e_close");
-  *(void **) (&e_write) = findSharedFunc ("e_write");
-  *(void **) (&e_read) = findSharedFunc ("e_read");
-  *(void **) (&get_description) = findSharedFunc ("esrv_get_description");
-  *(void **) (&hw_reset) = findSharedFunc ("esrv_hw_reset");
-  *(void **) (&e_set_host_verbosity) = findSharedFunc ("e_set_host_verbosity");
-
+  *(void **) (&initPlatformFunc) = findSharedFunc ("esrv_init_platform");
+  *(void **) (&closePlatformFunc) = findSharedFunc ("esrv_close_platform");
+  *(void **) (&writeToFunc) = findSharedFunc ("esrv_write_to");
+  *(void **) (&readFromFunc) = findSharedFunc ("esrv_read_from");
+  *(void **) (&getDescriptionFunc) = findSharedFunc ("esrv_get_description");
+  *(void **) (&hwResetFunc) = findSharedFunc ("esrv_hw_reset");
 
   // add signal handler to close target connection
   if (signal (SIGINT, breakSignalHandler) < 0)
@@ -489,7 +525,7 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
     }
 
   // Initialize target platform.
-  int res = (*init_platform) (platform, si->halDebug());
+  int res = initPlatform (platform, si->halDebug());
 
   if (res < 0)
     {
@@ -503,7 +539,7 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
     {
       cerr << "Warning: No hardware reset sent to target" << endl;
     }
-  else if (hw_reset () != 0)
+  else if (hwReset () != 0)
     {
       cerr << "ERROR: Cannot reset the hardware." << endl;
       exit (EXIT_FAILURE);
@@ -563,6 +599,9 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
 	}
     }
 
+  // Set a default core corresponding to relative core (0,0)
+  currentCoreId = coreMap[0];
+
   // Populate external memory map set
   for (unsigned int  bankNum = 0; bankNum < platform->num_banks; bankNum++)
     {
@@ -576,8 +615,9 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
       else
 	{
 	  cerr << "ERROR: Duplicate or overlapping extenal memory bank: [0x"
-	       << hex << setw (8) << r.minAddr () << ", 0x"
-	       << r.maxAddr () << "]." << dec << setw (0) << endl;
+	       << hex << setw (8) << setfill ('0') << r.minAddr () << ", 0x"
+	       << r.maxAddr () << "]." << dec << setfill (' ') << setw (0)
+	       << endl;
 	  exit (EXIT_FAILURE);
 	}
     }
@@ -614,10 +654,10 @@ TargetControlHardware::showMaps ()
 
       cout << "  relative -> absolute core ID (" << relRow << ", " << relCol
 	   << ") ->  (" << absRow << ", " << absCol << ")" << endl;
-      cout << "    memory range   [0x" << hex << setw (8) << minAddr << ", 0x"
-	   << maxAddr << "]" << endl;
+      cout << "    memory range   [0x" << hex << setw (8) << setfill ('0')
+	   << minAddr << ", 0x" << maxAddr << "]" << endl;
       cout << "    register range [0x" << minRegAddr << ", 0x" << maxRegAddr
-	   << "]" << dec << setw (0) << endl;
+	   << "]" << dec << setfill (' ') << setw (0) << endl;
     }
 
   // Iterate over all the memories
@@ -632,7 +672,7 @@ TargetControlHardware::showMaps ()
       uint32_t  minAddr = r.minAddr ();
       uint32_t  maxAddr = r.maxAddr ();
 
-      cout << "  [" << hex << setw (8) << minAddr << ", 0x" << maxAddr << "]"
+      cout << "  [" << hex << setw (8) << setfill ('0') << minAddr << ", 0x" << maxAddr << "]"
 	   << endl;
     }
 }	// showMaps ()
@@ -642,7 +682,7 @@ string
 TargetControlHardware::getTargetId ()
 {
   char *targetId;
-  get_description (&targetId);
+  getDescription (&targetId);
 
   return string (targetId);
 }
@@ -676,8 +716,8 @@ TargetControlHardware::convertAddress (uint32_t address)
 	  uint16_t absCol = currentCoreId & 0x3f;
 
 	  cerr << "ERROR: core ID (" << absRow << ", " << absCol 
-	       << "): invalid address 0x" << hex << setw (8) << address
-	       << setw (0) << dec << "." << endl;
+	       << "): invalid address 0x" << hex << setw (8) << setfill ('0') << address
+	       << setfill (' ') << setw (0) << dec << "." << endl;
 	  exit (EXIT_FAILURE);
 	}
     }
@@ -705,7 +745,7 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
       // supported only word size or smaller
       assert (burst_size <= 4);
       char buf[8];
-      unsigned int res = (*read_from) (fullAddr, (void *) buf, burst_size);
+      unsigned int res = readFrom (fullAddr, (void *) buf, burst_size);
 
       if (res != burst_size)
 	{
@@ -765,7 +805,7 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
       // struct timeval start_t;
       // StartOfBaudMeasurement(start_t);
 
-      unsigned int res = (*write_to) (fullAddr, (void *) buf, burst_size);
+      unsigned int res = writeTo (fullAddr, (void *) buf, burst_size);
 
       // double mes = EndOfBaudMeasurement(start_t);
       // cerr << "--- WRITE (writeMem)(" << burst_size << ") milliseconds: " << mes << endl;
@@ -795,6 +835,86 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
 
   return retSt;
 }
+
+
+//! Wrapper for the dynamically linked platform initialization
+
+//! @param[in] platform  The description of the platform
+//! @param[in] verbose   The level of debug messages from HAL
+//! @return  0 on success, 1 on error, 2 on warning.
+int
+TargetControlHardware::initPlatform (platform_definition_t* platform,
+				     unsigned int           verbose)
+{
+  return (*initPlatformFunc) (platform, verbose);
+
+}	// initPlatform ()
+
+
+//! Wrapper for the dynamically linked platform close function
+
+//! @return  0 on success, 1 on error, 2 on warning.
+int
+TargetControlHardware::closePlatform ()
+{
+  return (*closePlatformFunc) ();
+
+}	// closePlatform ()
+
+
+//! Wrapper for the dynamically linked write to target
+
+//! @param[in] address    The (global) address to write to.
+//! @param[in] buf        The data to write.
+//! @param[in] burstSize  The number of bytes to write.
+//! @return  The number of bytes written.
+int
+TargetControlHardware::writeTo (unsigned int  address,
+				void*         buf,
+				size_t        burstSize)
+{
+  return (*writeToFunc) (address, buf, burstSize);
+
+}	// writeTo ()
+
+
+//! Wrapper for the dynamically linked read from target
+
+//! @param[in]  address    The (global) address to read from.
+//! @param[out] buf        The data read.
+//! @param[in]  burstSize  The number of bytes to read.
+//! @return  The number of bytes read.
+int
+TargetControlHardware::readFrom (unsigned  address,
+				 void*     buf,
+				 size_t    burstSize)
+{
+  return (*readFromFunc) (address, buf, burstSize);
+
+}	// readFrom ()
+
+
+//! Wrapper for the dynamically linked platform reset function
+
+//! @return  0 on success, 1 on error, 2 on warning.
+int
+TargetControlHardware::hwReset ()
+{
+  return (*hwResetFunc) ();
+
+}	// hwReset ()
+
+
+//! Wrapper for the dynamically linked function to get the platform name.
+
+//! @param[out] targetIdp  The platform name.
+//! @return  0 on success, 1 on error, 2 on warning.
+int
+TargetControlHardware::getDescription (char** targetIdp)
+{
+  return (*getDescriptionFunc) (targetIdp);
+
+}	// getDescription ()
 
 
 //! Find a function from a shared library.

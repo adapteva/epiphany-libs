@@ -116,40 +116,34 @@ private:
   bool readMem (uint32_t addr, uint32_t & data, unsigned burst_size);
   bool writeMem (uint32_t addr, uint32_t data, unsigned burst_size);
 
+  // Wrappers for dynamically loaded functions
+  int initPlatform (platform_definition_t* platform,
+		    unsigned int           verbose);
+  int closePlatform ();
+  int writeTo (unsigned int  address,
+	       void*         buf,
+	       size_t        burstSize);
+  int readFrom (unsigned  address,
+		void*     buf,
+		size_t    burstSize);
+  int hwReset ();
+  int getDescription (char** targetIdp);
+
   // Convenience function
   void* findSharedFunc (const char *funcName);
 
   // pointers to the dynamically loaded functions.
-  int (*init_platform) (platform_definition_t* platform,
-			unsigned int           verbose);
-  int (*close_platform) ();
-  int (*write_to) (unsigned int  address,
-		   void*         buf,
-		   size_t        burst_size);
-  int (*read_from) (unsigned  address,
-		    void*     data,
-		    size_t    burst_size);
-  int (*hw_reset) ();
-  int (*get_description) (char** targetIdp);
-
-  int (*e_open) (e_epiphany_t* dev,
-		 unsigned int  row,
-		 unsigned int  col,
-		 unsigned int  rows,
-		 unsigned int  cols);
-  int (*e_close) (e_epiphany_t* dev);
-  ssize_t (*e_read) (e_epiphany_t* dev,
-		     int           corenum,
-		     const off_t   from_addr,
-		     void*         buf,
-		     size_t        count);
-  ssize_t (*e_write) (e_epiphany_t *dev,
-		      int           corenum,
-		      off_t         to_addr,
-		      const void*   buf,
-		      size_t        count);
-  int (*e_reset) (e_epiphany_t * pEpiphany);
-  void (*e_set_host_verbosity) (int verbose);	// @todo Wrong arg type
+  int (*initPlatformFunc) (platform_definition_t* platform,
+			   unsigned int           verbose);
+  int (*closePlatformFunc) ();
+  int (*writeToFunc) (unsigned int  address,
+		      void*         buf,
+		      size_t        burstSize);
+  int (*readFromFunc) (unsigned  address,
+		       void*     buf,
+		       size_t    burstSize);
+  int (*hwResetFunc) ();
+  int (*getDescriptionFunc) (char** targetIdp);
 
 };	// TargetControlHardware
 

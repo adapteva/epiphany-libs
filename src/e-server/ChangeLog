@@ -1,3 +1,58 @@
+2014-02-05  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): Remove CoreID from
+	messages.
+	(GdbServer::rspClientRequest): Likewise.
+	(GdbServer::rspReportException): Likewise.
+	(GdbServer::targetResume): Likewise.
+	(GdbServer::rspContinue): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::rspFileIOreply): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspReadAllRegs): Likewise.
+	(GdbServer::rspQuery): Likewise.
+	(GdbServer::rspCommand): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::getAttachedTargetCoreId): Deleted.
+	(GdbServer::targetHalt): Remove CoreID from messages.
+	(GdbServer::putBreakPointInstruction): Likewise.
+	* src/GdbServer.h: Deleted getAttachedTargetCoreId.
+	* src/TargetControl.cpp	(TargetControl::initAttachedCoreId): Deleted.
+	(TargetControl::getAttachedCoreId): Likewise.
+	(TargetControl::setAttachedCoreId): Likewise.
+	* src/TargetControl.h: Deleted initAttachedCoreId,
+	getAttachedCoreId and setAttachedCoreId.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readBurst): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::writeBurst): Completely rewritten for
+	clarity and debug visibility.
+	(TargetControlHardware::platformReset): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::breakSignalHandler): Likewise.
+	(TargetControlHardware::initHwPlatform): Rename private names of
+	links, replace dynamically loaded function references by wrapper
+	functions.
+	(TargetControlHardware::initMaps): Set sensible default
+	currentCoreId, clean up error message.
+	(TargetControlHardware::showMaps): Better layout of messages.
+	(TargetControlHardware::getTargetId): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::convertAddress): Better error message.
+	(TargetControlHardware::readMem): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::initPlatform): Created.
+	(TargetControlHardware::closePlatform): Created.
+	(TargetControlHardware::writeTo): Created.
+	(TargetControlHardware::readFrom): Created.
+	(TargetControlHardware::hwReset): Created.
+	(TargetControlHardware::getDescription): Created.
+	* src/TargetControlHardware.h: Add initPlatform, closePlatform,
+	writeTo, readFrom, hwReset and getDescription wrapper functions,
+	rename pointers to dynamically loaded functions.
+	* src/main.cpp (main): No INFO messages for debug settings.
+
 2014-02-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/ServerInfo.cpp (ServerInfo::debugStopResume):
