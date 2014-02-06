@@ -1,3 +1,24 @@
+2014-02-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Set all
+	member variables in prototype.
+	(GdbServer::~GdbServer): Remove call to releaseGdbCmdSelectedCoreId.
+	(GdbServer::rspAttach): Rewritten to not reset and remove
+	commented out code.
+	(GdbServer::rspDetach): Remove call to releaseGdbCmdSelectedCoreId
+	and remove commented out code.
+	(GdbServer::rspServer): Tidy up error messages, remove mutex.
+	(GdbServer::rspClientRequest): Tidy up error messages
+	(GdbServer::redirectSdioOnTrap): Remove mutex.
+	(GdbServer::targetHalt): Rewritten from scratch.
+	(GdbServer::targetSwReset): Renamed from targetSWReset.
+	* src/GdbServer.h: Reorder memver variables, rename
+	targetSWReset as targetSwReset.
+	(RspConnection::getBreakCommand): Renamed from GetBreakCommand,
+	tidy up error messages.
+	* src/RspConnection.h: Rename GetBreakCommand as
+	getBreakCommand.
+
 2014-02-05  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspServer): Remove CoreID from

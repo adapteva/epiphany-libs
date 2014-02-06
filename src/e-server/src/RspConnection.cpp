@@ -653,55 +653,55 @@ RspConnection::getRspChar ()
 }				// getRspChar()
 
 
+//! Check if there is an out-of-band BREAK command on the serial link.
 
+//! @return  TRUE if we got a BREAK, FALSE otherwise.
 bool
-RspConnection::GetBreakCommand ()
+RspConnection::getBreakCommand ()
 {
-
-  unsigned char c;
-
-
   int flags;
 
-  /* Set socket to non-blocking */
-
+  // Set socket non-blocking
   if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
     {
-      cerr << "Error: fcntl get" << strerror (errno) << endl;
-      return -1;
+      cerr << "Warning: getBreakCommand: fcntl initial get flags: "
+	   << strerror (errno) << "." << endl;
+      return  false;
     }
 
   if (fcntl (clientFd, F_SETFL, flags | O_NONBLOCK) < 0)
     {
-      cerr << "Error: fcntl set non-blocking " << strerror (errno) << endl;
-      return -1;
+      cerr << "Warning: getBreakCommand fcntl set non-blocking: "
+	   << strerror (errno) << "." << endl;
+      return  false;
     }
 
+  unsigned char c;
+  bool gotChar = false;
 
-  int n = read (clientFd, &c, sizeof (c));
-//TODO check error
-  /*
-     switch()
-     {
-     case -1:
-     // Error: only allow interrupts
-     if (EINTR != errno)
-     {
-     cerr << "Warning: Failed to read from RSP client: "
-     << "Closing client connection: "
-     << strerror(errno) << endl;
-     return -1;
-     }
-     break;
+  while (!gotChar)
+    {
+      int n = read (clientFd, &c, sizeof (c));
 
-     case 0:
-     return false;
+      switch (n)
+	{
+	case -1:
+	  if (EINTR == errno)
+	    break;		// Retry
+	  else
+	    {
+	      cerr << "Warning: getBreakCommand: read for BREAK: "
+		   << strerror(errno) << endl;
+	      return false;
+	    }
 
-     default:
-     return c & 0xff; // Success, we can return (no sign extend!)
-     }
-   */
+	case 0:
+	  return false;	// No break character there
 
+	default:
+	  gotChar = true;
+	}
+    }
 
   /* Set socket to blocking */
 

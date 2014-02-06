@@ -247,11 +247,14 @@ private:
   //! Thread ID used by ATDSP
   static const int ATDSP_TID = 1;
 
+  //! Local pointer to server info
+  ServerInfo *si;
+
   //! Responsible for the memory operation commands in target
   TargetControl * fTargetControl;
 
-  //! Local pointer to server info
-  ServerInfo *si;
+  //! Used in cont command to support CTRL-C from gdb client
+  bool fIsTargetRunning;
 
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;
@@ -303,7 +306,7 @@ private:
   void rspDetach ();
 
   // Convenience functions to control and report on the CPU
-  void targetSWReset ();
+  void targetSwReset ();
   void targetHWReset ();
 
   // Convenience wrappers for getting particular registers, which are really
@@ -351,15 +354,7 @@ private:
   //! Thread control
   void NanoSleepThread (unsigned long timeout);
 
-  //!Release the coreID, the target core can be selected by other gdb client
-  //! @todo Fix this empty function.
-  void releaseGdbCmdSelectedCoreId () { };
-
-
   void redirectSdioOnTrap (uint8_t trapNumber);
-
-  //! Used in cont command to support CTRL-C from gdb client
-  bool fIsTargetRunning;
 
   bool  is32BitsInstr (uint32_t iab_instr);
 

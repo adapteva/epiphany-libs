@@ -117,7 +117,7 @@ public:
   bool getPkt (RspPacket * pkt);
   bool putPkt (RspPacket * pkt);
 
-  bool GetBreakCommand ();
+  bool getBreakCommand ();
 
 private:
 

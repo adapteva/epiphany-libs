@@ -26,7 +26,6 @@
 
 #include <iostream>
 #include <iomanip>
-#include <pthread.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -45,11 +44,7 @@ using std::hex;
 using std::setfill;
 using std::setw;
 
-static pthread_mutex_t
-  rspCmdControlAccess_m = PTHREAD_MUTEX_INITIALIZER;
 
-
-// TODO:
 //! @todo We do not handle a user coded BKPT properly (i.e. one that is not
 //!       a breakpoint). Effectively it is ignored, whereas we ought to set up
 //!       the exception registers and redirect through the trap vector.
@@ -58,137 +53,71 @@ static pthread_mutex_t
 
 
 
-//-----------------------------------------------------------------------------
 //! Constructor for the GDB RSP server.
 
 //! Create a new packet for passing, a new connection to listen to the client
 //! and a new hash table for breakpoints etc.
 
-//! @param[in] rspPort   The TCP/IP port number to listen on
-//-----------------------------------------------------------------------------
+//! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
   si (_si),
+  fTargetControl (NULL),
   fIsTargetRunning (false)
 {
-
-  fTargetControl = 0;
-  
-  // Create subsidiary classes
   pkt = new RspPacket (RSP_PKT_MAX);
   rsp = new RspConnection (si);
   mpHash = new MpHash ();
-  
-  fIsTargetRunning = false;
 
 }	// GdbServer ()
 
 
-//-----------------------------------------------------------------------------
 //! Destructor
-
-//! Free up data structures
-//-----------------------------------------------------------------------------
 GdbServer::~GdbServer ()
 {
-
   delete mpHash;
   delete rsp;
   delete pkt;
 
-  releaseGdbCmdSelectedCoreId ();
-
-}				// ~GdbServer
+}	// ~GdbServer ()
 
 
-//-----------------------------------------------------------------------------
-//! Cold attach to hardware, the server will execute the following sequence
-//! SW Reset
-//! Enter to emulation mode
-//! Write HALT to debug register
-//! Drive ILAT
-//-----------------------------------------------------------------------------
+//! Attach to the target
+
+//! If not already halted, the target will be halted.
+
+//! @todo What should we really do if the target fails to halt?
+
+//! @note  The target should *not* be reset when attaching.
 void
 GdbServer::rspAttach ()
 {
-  //try to halt target in case re entrance
-  //if (fResumeOnDetach) {
-  //      targetHalt();
-  //}
-
-  //reset
-  //TODO -- can kill the multicore program
-  targetSWReset ();
-
-  //reset the special regs
-  // The SCRs
-  //for (int r=0; r<ATDSP_NUM_SCRS; r++)
-  //{
-  //      if (r < ATDSP_NUM_SCRS_0) {
-  //              writeScrGrp0(r, 0);
-  //      } else {
-  //              writeScrDMA(r-ATDSP_NUM_SCRS_0, 0);
-  //      }
-  //}
-
-  //emulation enable
-  //fTargetControl->writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_EMUL_MODE_IN);
-
   bool isHalted = targetHalt ();
+
   if (!isHalted)
-    {
       rspReportException (0, 0 /*all threads */ , TARGET_SIGNAL_HUP);
-    }
 
-  // ILAT set
-  writeScrGrp0 (ATDSP_SCR_ILAT, ATDSP_EXCEPT_RESET);
-}
+}	// rspAttach ()
 
 
-//-----------------------------------------------------------------------------
-//! disconnect/ detach from hardware
-//! Leave emulation mode,
-//!
+//! Detach from hardware.
+
+//! For now a null function.
+
+//! @todo Leave emulation mode?
 void
 GdbServer::rspDetach ()
 {
-  //emulation disable
-  //fTargetControl->writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_EMUL_MODE_OUT);
-
-  //extern bool hardware_simulation;
-  //if (!hardware_simulation && isTargetInDebugState()) {
-  //      targetResume();
-  //}
-  //continue, assuming no break points
-  //if (fResumeOnDetach) {
-  //      if (si->debugTrapAndRspCon ()) cerr << "[" << hex << GetCoreID() << "]:" << dec << " Resume on detach " << endl << flush;
-  //      targetResume();
-  //}
-
-  releaseGdbCmdSelectedCoreId ();
-}
-
-//-----------------------------------------------------------------------------
+}	// rspDetach ()
 
 
-//-----------------------------------------------------------------------------
-//! SystemC thread to listen for RSP requests
+//! Listen for RSP requests
 
-//! Target actions will be queued as appropriate. Runs forever
-
-//! The processor is brought out of its startup reset by storing a BKPT
-//! instruction at the reset interrupt location (0x0), then writing 0x1 (reset
-//! exception) to the ILAT SCR, which will cause a reset exception (which
-//! promptly stalls).
-
-//! Have to use a thread, since we will end up waiting for actions to
-//! complete.
-//-----------------------------------------------------------------------------
-
-
+//! @param[in] _fTargetControl  Pointer to the target API for the actual
+//!                             target.
 void
-GdbServer::rspServer (TargetControl * TargetControl)
+GdbServer::rspServer (TargetControl* _fTargetControl)
 {
-  fTargetControl = TargetControl;
+  fTargetControl = _fTargetControl;
   assert (fTargetControl);
 
   // Loop processing commands forever
@@ -201,44 +130,31 @@ GdbServer::rspServer (TargetControl * TargetControl)
 	  if (!rsp->rspConnect ())
 	    {
 	      // Serious failure. Must abort execution.
-	      cerr << "*** Unable to continue: ABORTING .. ";
-	      cerr << pthread_self () << endl << flush;
-	      exit (-3);
+	      cerr << "ERROR: Failed to reconnect to client. Exiting.";
+	      exit (EXIT_FAILURE);
 	    }
 	  else
 	    {
-	      //releaseGdbCmdSelectedCoreId();
-	      //
-	      //rspClientRequest(); // try to get core id
-
-	      //if (si->debugTrapAndRspCon ())
-
-	      pthread_mutex_lock (&rspCmdControlAccess_m);
-
-	      cerr << "connected to port " << si->port () << endl << flush;
+	      cout << "INFO: connected to port " << si->port () << endl;
 
 	      if (si->haltOnAttach ())
-		{
 		  rspAttach ();
-		}
-
-	      pthread_mutex_unlock (&rspCmdControlAccess_m);
 	    }
 	}
 
 
       // Get a RSP client request
       if (si->debugStopResume())
-	cerr << dec <<
-	  "-------------- rspClientRequest(): begin" << endl << flush;
+	cerr << dec << "DebugStopResume: Getting RSP client request." << endl;
+
       rspClientRequest ();
-      //check if the target is stopped and not hit by BP in continue command and check gdb CTRL-C and continue again
+
+      //check if the target is stopped and not hit by BP in continue command
+      //and check gdb CTRL-C and continue again
       while (fIsTargetRunning)
 	{
-
 	  if (si->debugCtrlCWait())
-	    cerr << dec <<
-	      "check for CTLR-C" << endl << flush;
+	    cerr << "DebugCtrlCWait: Check for Ctrl-C" << endl;
 	  bool isGotBreakCommand = rsp->GetBreakCommand ();
 	  if (isGotBreakCommand)
 	    {
@@ -288,8 +204,6 @@ GdbServer::rspClientRequest ()
       rsp->rspClose ();		// Comms failure
       return;
     }
-
-  pthread_mutex_lock (&rspCmdControlAccess_m);
 
   switch (pkt->data[0])
     {
@@ -491,9 +405,6 @@ GdbServer::rspClientRequest ()
       cerr << "Warning: Unknown RSP request" << pkt->data << endl << flush;
       break;
     }
-
-  pthread_mutex_unlock (&rspCmdControlAccess_m);
-
 }				// rspClientRequest()
 
 
@@ -505,7 +416,7 @@ GdbServer::rspClientRequest ()
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspReportException (unsigned stoppedPC, unsigned threadID,
-				 unsigned exCause)
+			       unsigned exCause)
 {
   if (si->debugStopResume ())
     cerr << "stopped at PC 0x" << hex << stoppedPC << "  EX 0x" << exCause
@@ -1008,8 +919,6 @@ enum TRAP_CODES
 };
 
 
-pthread_mutex_t targeTTYAccess_m = PTHREAD_MUTEX_INITIALIZER;
-
 #define MAX_FILE_NAME_LENGTH (256*4)
 
 
@@ -1126,8 +1035,6 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (NULL != si->ttyOut ())
 	{
 
-	  pthread_mutex_lock (&targeTTYAccess_m);
-
 	  //cerr << " Trap 7 syscall -- ignored" << endl << flush;
 	  if (si->debugTrapAndRspCon ())
 	    cerr << dec <<
@@ -1157,8 +1064,6 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
 	  printfWrapper (res_buf, fmt, buf + r1 + 1);
 	  fprintf (si->ttyOut (), "%s", res_buf);
-
-	  pthread_mutex_unlock (&targeTTYAccess_m);
 
 	  targetResume ();
 	}
@@ -1890,7 +1795,7 @@ GdbServer::rspCommand ()
 	"The debugger sent reset request" << endl << flush;
 
       //reset
-      targetSWReset ();
+      targetSwReset ();
 
     }
   else if (strcmp ("hwreset", cmd) == 0)
@@ -2266,43 +2171,48 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 }	// printf_wrappper ()
 
 
-//---------------------------------------------------------------------------
-//! Force the debug mode by writing to debug register
-//
-//-----------------------------------------------------------------------------
+//! Halt the target
+
+//! Done by putting the processor into debug mode.
+
+//! @return  TRUE if we halt successfully, FALSE otherwise.
 bool
 GdbServer::targetHalt ()
 {
-  fTargetControl->writeMem32 (CORE_DEBUGCMD, ATDSP_DEBUG_HALT);
-  if (si->debugStopResume ())
-    cerr << "DebugStopResume:" << dec <<
-      " writeMem32(CORE_DEBUGCMD, ATDSP_DEBUG_HALT) " << hex << CORE_DEBUGCMD
-      << " <-- " << ATDSP_DEBUG_HALT << dec << endl << flush;
+  if (!fTargetControl->writeMem32 (CORE_DEBUGCMD, ATDSP_DEBUG_HALT))
+    cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
-  while (true)
-    {
-      if (isTargetInDebugState ())
-	{
-	  break;
-	}
-      sleep (1);
-      if (!isTargetInDebugState ())
-	{
-	  cerr << "Warning: " << dec << " Target has not been halted after 1 sec " << endl
-	    << flush;
-	  uint32_t val;
-	  fTargetControl->readMem32 (CORE_DEBUG, val);
-	  cerr << " The value of debug reg is " << hex << val << dec << endl
-	    << flush;
-	  return false;
-	}
-    }
   if (si->debugStopResume ())
-    cerr << dec <<
-      " TargetInDebugState = true " << dec << endl << flush;
+      cerr << "DebugStopResume: Write HALT to DEBUGCMD" << endl;
+
+  if (!isTargetInDebugState ())
+    {
+      sleep (1);
+    }
+
+  if (!isTargetInDebugState ())
+    {
+      cerr << "Warning: Target has not halted after 1 sec " << endl;
+      uint32_t val;
+      if (fTargetControl->readMem32 (CORE_DEBUG, val))
+	{
+	  cerr << "           DEBUG= 0x" << hex << setw (8) << setfill ('0')
+	       << val << setfill (' ') << setw (0) << dec << endl;
+	}
+      else
+	cerr << "            Unable to access DEBUG register." << endl;
+
+      return false;
+
+    }
+
+  if (si->debugStopResume ())
+    cerr << "DebugStopResume: Target halted." << flush;
 
   return true;
-}
+
+}	// targetHalt ()
+
 
 //---------------------------------------------------------------------------
 //! Put Breakpoint instruction
@@ -3127,22 +3037,19 @@ GdbServer::rspInsertMatchpoint ()
 }				// rspInsertMatchpoint()
 
 
-//-----------------------------------------------------------------------------
-//! (SW) Reset the processor
+//! Sotware reset of the processor
 
-//! This is achieved by writing 1 (RESET exception) and 0 to mes_rest register
-
-//-----------------------------------------------------------------------------
+//! This is achieved by repeatedly writing 1 (RESET exception) and finally 0
+//! to the  MESH_SWRESET register
 void
-GdbServer::targetSWReset ()
+GdbServer::targetSwReset ()
 {
   for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
-    {
       fTargetControl->writeMem32 (MESH_SWRESET, 1);
-    }
 
   fTargetControl->writeMem32 (MESH_SWRESET, 0);
-}				// reset(). E_CORE_RESET
+
+}	// targetSWreset()
 
 
 //-----------------------------------------------------------------------------
