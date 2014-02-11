@@ -62,6 +62,10 @@ public:
   virtual bool readBurst (uint32_t addr, uint8_t *buf,
 			  size_t buff_size);
 
+  // Functions to deal with threads (which correspond to cores)
+  virtual bool setThreadGeneral (int threadId);
+  virtual bool setThreadExecute (int threadId);
+
   // Initialization functions
   void  initHwPlatform (platform_definition_t* platform);
   void  initMaps (platform_definition_t* platform);
@@ -106,8 +110,20 @@ private:
   //! The number of cores
   unsigned int numCores;
 
-  //! Current core being operated on
+  //! Current core being used for memory and register access.
   uint16_t  currentCoreId;
+
+  //! Current thread to use for general access to memory and registers.
+
+  //! A value of -1 means all threads, 0 means any thread, any other value N,
+  //! corresponds to Core ID N - 1. However a value of -1 is meaningless for
+  //! access to memory and registers.
+  int  threadIdGeneral;
+
+  //! Current thread to use for execution.
+
+  //! @see threadIdGeneral for details.
+  int  threadIdExecute;
 
   // Handler for the BREAK signal
   static void breakSignalHandler (int signum);

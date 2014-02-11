@@ -280,6 +280,7 @@ private:
   void rspContinue (uint32_t addr, uint32_t except);
   void rspReadAllRegs ();
   void rspWriteAllRegs ();
+  void rspSetThread ();
   void rspReadMem ();
   void rspWriteMem ();
   void rspReadReg ();

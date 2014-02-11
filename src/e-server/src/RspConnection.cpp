@@ -719,7 +719,7 @@ RspConnection::getBreakCommand ()
     }
 
 
-  return ((n > 0) && (c == 0x03));
+  return (gotChar && (c == 0x03));
 }
 
 

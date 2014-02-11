@@ -65,7 +65,9 @@ TargetControlHardware::TargetControlHardware (ServerInfo*   _si) :
   si (_si),
   dsoHandle (NULL),
   numCores (0),
-  currentCoreId (0)
+  currentCoreId (0),
+  threadIdGeneral (0),
+  threadIdExecute (0)
 {
 }	// TargetControlHardware ()
 
@@ -492,6 +494,70 @@ TargetControlHardware::breakSignalHandler (int signum)
 
   exit (0);
 }
+
+
+//! Set the thread for general access
+
+//! @see threadIdGeneral for meanings of threadId
+
+//! @param[in] threadId  The thread ID to use for general access
+//! @return  TRUE if the threadId was valid, FALSE otherwise.
+bool
+TargetControlHardware::setThreadGeneral (int  threadId)
+{
+  switch (threadId)
+    {
+    case -1:
+      return  false;		// Meaningless for access
+
+    case 0:
+      return  true;		// Pick the current thread
+
+    default:
+      uint16_t relCoreId = (uint16_t) (threadId - 1);
+      map <uint16_t, uint16_t>::iterator it = coreMap.find (relCoreId);
+
+      if (it == coreMap.end ())
+	return false;
+      else
+	{
+	  threadIdGeneral = threadId;
+	  currentCoreId = it->second;
+	  return true;
+	}
+    }
+}	// setThreadGeneral ()
+
+
+//! Set the thread for execution
+
+//! @see threadIdGeneral for meanings of threadId
+
+//! @param[in] threadId  The thread ID to use for execution
+//! @return  TRUE if the threadId was valid, FALSE otherwise.
+bool
+TargetControlHardware::setThreadExecute (int  threadId)
+{
+  switch (threadId)
+    {
+    case -1:
+    case 0:
+      threadIdExecute = threadId;
+      return  true;		// Meaningless for access
+
+    default:
+      uint16_t relCoreId = (uint16_t) (threadId - 1);
+      map <uint16_t, uint16_t>::iterator it = coreMap.find (relCoreId);
+
+      if (it == coreMap.end ())
+	return false;
+      else
+	{
+	  threadIdExecute = threadId;
+	  return true;
+	}
+    }
+}	// setThreadExecute ()
 
 
 //! Initialize the hardware platform

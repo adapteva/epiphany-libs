@@ -1,3 +1,23 @@
+2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): Correct capitalization
+	of getBreakCommand.
+	(GdbServer::rspClientRequest): Provide handler for 'H' packets
+	(GdbServer::rspSetThread): Created.
+	* src/e-server/src/GdbServer.h: Add rspSetThread.
+	* src/e-server/src/RspConnection.cpp
+	(RspConnection::getBreakCommand): Use gotChar, not n in return.
+	* src/e-server/src/TargetControl.h: Add SetThreadIdGeneral and
+	SetThreadIdExecute as pure virtual methods.
+	* src/e-server/src/TargetControlHardware.cpp
+	(TargetControlHardware::TargetControlHardware): Initialize
+	threadIdGeneral and threadIdExecute.
+	(TargetControlHardware::setThreadGeneral): Created.
+	(TargetControlHardware::setThreadExecute): Created.
+	* src/e-server/src/TargetControlHardware.h: Add declarations of
+	setThreadGeneral, setThreadExecute, threadIdGeneral and
+	threadIdExecute.
+
 2014-02-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::GdbServer): Set all

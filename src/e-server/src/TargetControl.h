@@ -65,6 +65,10 @@ public:
   virtual bool readBurst (uint32_t addr, uint8_t *buf,
 			  size_t buff_size) = 0;
 
+  // Functions to deal with threads (which correspond to cores)
+  virtual bool setThreadGeneral (int threadId) = 0;
+  virtual bool setThreadExecute (int threadId) = 0;
+
   // Control functions
   virtual void platformReset ();
   virtual void resumeAndExit () = 0;

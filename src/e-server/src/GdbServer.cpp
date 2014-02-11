@@ -155,7 +155,7 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	{
 	  if (si->debugCtrlCWait())
 	    cerr << "DebugCtrlCWait: Check for Ctrl-C" << endl;
-	  bool isGotBreakCommand = rsp->GetBreakCommand ();
+	  bool isGotBreakCommand = rsp->getBreakCommand ();
 	  if (isGotBreakCommand)
 	    {
 	      cerr << "CTLR-C request from gdb server." << endl;
@@ -283,12 +283,7 @@ GdbServer::rspClientRequest ()
       break;
 
     case 'H':
-      // Set the thread number of subsequent operations. For now ignore
-      // silently and just reply "OK"
-      //TODO support multithread
-      //rspThreadSubOperation();
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
+      rspSetThread ();
       break;
 
     case 'i':
@@ -1356,6 +1351,47 @@ GdbServer::rspWriteAllRegs ()
   rsp->putPkt (pkt);
 
 }				// rspWriteAllRegs()
+
+
+//! Set the thread number of subsequent operations.
+
+//! The thread number corresponds to the local core ID, but we can't use it
+//! exactly, because then we would have thread ID '0' which means "any
+//! thread", so the thread ID is core ID + 1.
+
+//! We store this locally, but also pass it on to the target hardware. If we
+//! have a thread ID which corresponds to an invalid core, then we return an
+//! error.
+void
+GdbServer::rspSetThread ()
+{
+  char  c;
+  int  threadId;
+
+  if (2 != sscanf (pkt->data, "H%c%d:", &c, &threadId))
+    {
+      cerr << "Warning: Failed to recognize RSP set thread command: "
+	   << pkt->data << endl;
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+  
+  if ((c == 'c' && fTargetControl->setThreadExecute (threadId))
+      || (c == 'g' && fTargetControl->setThreadGeneral (threadId)))
+    {
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else
+    {
+      cerr << "Warning: Failed RSP set thread command: "
+	   << pkt->data << endl;
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+}	// rspSetThread ()
 
 
 //-----------------------------------------------------------------------------
