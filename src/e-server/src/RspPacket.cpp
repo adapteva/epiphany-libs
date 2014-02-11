@@ -151,6 +151,38 @@ RspPacket::packStr (const char *str)
 
 
 //-----------------------------------------------------------------------------
+//! Pack a part of a string into a packet.
+
+//! A convenience version of this method.
+
+//! @param  str     The string to copy into the data packet before sending
+//! @param  n       The maximum number of bytes to copy.
+//! @param  prefix  A character to prefix the packet
+//-----------------------------------------------------------------------------
+void
+RspPacket::packNStr (const char *str,
+		     int         n,
+		     char        prefix)
+{
+  // Construct the packet to send, so long as string is not too big, otherwise
+  // truncate. Add prefix at the start and EOS at the end for convenient debug
+  // printout
+  if ((n + 1) >= bufSize)
+    {
+      cerr << "Warning: String \"" << str
+		<< "\" too large for RSP packet: truncated\n" << endl;
+      n = bufSize - 2;
+    }
+
+  data[0] = prefix;
+  strncpy (&(data[1]), str, n);
+  data[n + 1] = 0;
+  len = n + 1;
+
+}	// packNStr ()
+  
+
+//-----------------------------------------------------------------------------
 //! Get the data buffer size
 
 //! @return  The data buffer size

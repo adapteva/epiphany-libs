@@ -93,6 +93,9 @@ public:
 
   // Pack a constant string into a packet
   void packStr (const char *str);	// For fixed packets
+  void packNStr (const char *str,	// For partial packets
+		 int         n,
+		 char        prefix);
 
   // Accessors
   int getBufSize ();

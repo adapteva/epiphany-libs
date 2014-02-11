@@ -26,6 +26,8 @@
 
 #include <iostream>
 #include <iomanip>
+#include <sstream>
+#include <vector>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -43,6 +45,8 @@ using std::flush;
 using std::hex;
 using std::setfill;
 using std::setw;
+using std::stringstream;
+using std::vector;
 
 
 //! @todo We do not handle a user coded BKPT properly (i.e. one that is not
@@ -1739,18 +1743,15 @@ GdbServer::rspQuery ()
       char const *coreExtension = "qSupported:xmlRegisters=coreid.";
 
       if (0 == strncmp (coreExtension, pkt->data, strlen (coreExtension)))
-	{
-	  cerr << "Warning: GDB setcoreid isn't supported in the HW platform: ignored" << endl <<
-	    flush;
-	}
-
+	cerr << "Warning: GDB setcoreid not supporte: ignored" << endl;
 
       // Report a list of the features we support. For now we just ignore any
       // supplied specific feature queries, but in the future these may be
       // supported as well. Note that the packet size allows for 'G' + all the
       // registers sent to us, or a reply to 'g' with all the registers and an
       // EOS so the buffer is a well formed string.
-      sprintf (pkt->data, "PacketSize=%x", pkt->getBufSize ());
+      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+",
+	       pkt->getBufSize ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -1779,11 +1780,7 @@ GdbServer::rspQuery ()
     }
   else if (0 == strncmp ("qXfer:", pkt->data, strlen ("qXfer:")))
     {
-      // For now we support no 'qXfer' requests, but these should not be
-      // expected, since they were not reported by 'qSupported'
-      cerr << "Warning: RSP 'qXfer' not supported: ignored" << endl << flush;
-      pkt->packStr ("");
-      rsp->putPkt (pkt);
+      rspTransfer ();
     }
   else if (0 == strncmp ("qTStatus", pkt->data, strlen ("qTStatus")))
     {
@@ -1803,7 +1800,10 @@ GdbServer::rspQuery ()
     }
   else
     {
-      cerr << "Unrecognized RSP query: ignored" << endl << flush;
+      // We don't support this feature. RSP specification is to return an
+      // empty packet.
+      pkt->packStr ("");
+      rsp->putPkt (pkt);
     }
 }				// rspQuery()
 
@@ -1910,6 +1910,193 @@ GdbServer::rspCommand ()
   rsp->putPkt (pkt);
 
 }				// rspCommand()
+
+
+//-----------------------------------------------------------------------------
+//! Handle a RSP qXfer request
+
+//! The actual format is one of:
+//! - "qXfer:<object>:read:<annex>:<offset>,<length>"
+//! - "qXfer:<object>:write:<annex>:<offset>,<data>"
+
+//! We only support a small subset.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspTransfer ()
+{
+  stringstream   ss (pkt->data);
+  vector<string> tokens;		// To break out the packet elements
+  string         item;
+
+  // Break out the packet
+  while (getline (ss, item, ':'))
+    tokens.push_back (item);
+
+  // Break out offset/length or offset/data, which are comma separated.
+  if (5 == tokens.size ())
+    {
+      ss.str (tokens[4]);
+      ss.clear ();
+      tokens.pop_back ();		// Remove offset/{length,data}
+
+      // Break out the packet
+      while (getline (ss, item, ','))
+	tokens.push_back (item);
+    }
+      
+  if (si->debugTrapAndRspCon ())
+    {
+      for (unsigned int i = 0; i < tokens.size (); i++)
+	{
+	  cerr << "RSP trace: qXfer: tokens[" << i << "] = " << tokens[i]
+	       << "." << endl;
+	}
+    }
+
+  // Default is to return an empty packet, indicating
+  // unsupported/unrecognized.
+  pkt->packStr ("");
+
+  // See if we recognize anything
+  if ((6 == tokens.size ())
+      && (0 == tokens[2].compare ("read"))
+      && (0 != tokens[4].size ())
+      && (0 != tokens[5].size ()))
+    {
+      // All the read qXfers
+      string object = tokens[1];
+      string annex = tokens[3];
+      unsigned int  offset;
+      unsigned int  length;
+
+      // Convert the offset and length.
+      ss.str ("");
+      ss.clear ();
+      ss << hex << tokens[4];
+      ss >> offset;
+      ss.str ("");
+      ss.clear ();
+      ss << hex << tokens[5];
+      ss >> length;
+
+      if (si->debugTrapAndRspCon ())
+	{
+	  cerr << "RSP trace: qXfer, object = \"" << object
+	       << "\", read, annex = \"" << annex << "\", offset = 0x"
+	       << hex << offset << ", length = 0x" << length << dec << endl;
+	}
+
+      // Sort out what we have
+      if (0 == object.compare ("osdata"))
+	{
+	  if (0 == annex.compare ("process"))
+	    rspOsDataProcesses (offset, length);
+	}
+    }
+  else if ((6 == tokens.size ())
+	   && (0 == tokens[2].compare ("write"))
+	   && (0 != tokens[4].size ()))
+    {
+      string object = tokens[1];
+      string annex = tokens[3];
+      unsigned int  offset;
+      string data = tokens[5];
+
+      // Convert the offset.
+      ss.str ("");
+      ss.clear ();
+      ss << hex << tokens[4];
+      ss >> offset;
+
+      // All the write qXfers. Currently none supported
+      if (si->debugTrapAndRspCon ())
+	cerr << "RSP trace: qXfer, object = \"" << object
+	     << ", write, annex = \"" << annex << "\", offset = 0x" << hex
+	     << offset << dec <<  ", data = " << data << endl;
+    }
+  else
+    if (si->debugTrapAndRspCon ())
+      cerr << "RSP trace: qXfer unrecognzed." << endl;
+
+  // Push out the packet
+  rsp->putPkt (pkt);
+
+}	// rspTransfer ()
+
+
+//-----------------------------------------------------------------------------
+//! Handle an OS processes request
+
+//! We need to return standard data, at this stage with all the cores. the
+//! header and trailer part of the response is fixed.
+
+//! @param[in] offset  Offset into the reply to send.
+//! @param[in] length  Length of the reply to send.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspOsDataProcesses (unsigned int offset,
+			       unsigned int length)
+{
+  static const char *processesHeader =
+    "<?xml version=\"1.0\"?>\n"
+    "<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
+    "<osdata type=\"processes\">\n"
+    "  <item>\n"
+    "    <column name=\"pid\">1</column>\n"
+    "    <column name=\"user\">root</column>\n"
+    "    <column name=\"command\"></column>\n"
+    "    <column name=\"cores\">\n"
+    "      ";
+  static const char *processesTrailer =
+    "\n    </column>\n"
+    "  </item>\n"
+    "  </osdata>";
+  vector <uint16_t> cores = fTargetControl->listCoreIds ();
+  vector <uint16_t>::iterator  it;
+  stringstream ss;
+  string coreStr;
+
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: qXfer:osdata:read:process offset 0x" << hex << offset
+	   << ", length " << length << dec << endl;
+    }
+
+  for (it = cores.begin (); it != cores.end (); it++)
+    {
+      if (it == cores.begin ())
+	ss << *it;
+      else
+	ss << "," << *it;
+    }
+  ss >> coreStr;
+
+  string fullReply = processesHeader + coreStr + processesTrailer;
+  unsigned int  len = fullReply.size ();
+
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: OS process info length " << len << endl;
+      cerr << fullReply << endl;
+    }
+
+  if (offset >= len)
+    pkt->packStr ("l");
+  else
+    {
+      unsigned int pktlen = len - offset;
+      char pkttype = 'm';
+
+      if (pktlen > length)
+	{
+	  /* Will need more packets */
+	  pktlen = length;
+	  pkttype = 'l';
+	}
+
+      pkt->packNStr (&(fullReply.c_str ()[offset]), pktlen, pkttype);
+    }
+}	// rspOsDataProcesses ()
 
 
 //-----------------------------------------------------------------------------

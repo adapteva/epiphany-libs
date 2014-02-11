@@ -29,6 +29,7 @@
 #include <iostream>
 #include <string>
 #include <cstdio>
+#include <vector>
 
 //! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
 #include <inttypes.h>
@@ -38,6 +39,7 @@
 using std::cerr;
 using std::endl;
 using std::string;
+using std::vector;
 
 
 //! Abstract base class for an Epiphany target
@@ -64,6 +66,9 @@ public:
 			   size_t buff_size) = 0;
   virtual bool readBurst (uint32_t addr, uint8_t *buf,
 			  size_t buff_size) = 0;
+
+  // Functions to access data about the target
+  virtual vector <uint16_t>  listCoreIds () = 0;
 
   // Functions to deal with threads (which correspond to cores)
   virtual bool setThreadGeneral (int threadId) = 0;

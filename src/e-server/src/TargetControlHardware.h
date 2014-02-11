@@ -62,6 +62,9 @@ public:
   virtual bool readBurst (uint32_t addr, uint8_t *buf,
 			  size_t buff_size);
 
+  // Functions to access data about the target
+  virtual vector <uint16_t>  listCoreIds ();
+
   // Functions to deal with threads (which correspond to cores)
   virtual bool setThreadGeneral (int threadId);
   virtual bool setThreadExecute (int threadId);

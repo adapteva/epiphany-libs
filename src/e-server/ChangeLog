@@ -1,5 +1,21 @@
 2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspQuery): Tidy up
+	error message, report support for qXferosdata:read with
+	qSupported, handle qXfer.
+	(GdbServer::rspTransfer): Created.
+	(GdbServer::rspOsDataProcesses): Created.
+	* src/e-server/src/GdbServer.h: Add rspTransfer and
+	rspOsDataProcesses.
+	* src/e-server/src/RspPacket.cpp (RspPacket::packNStr): Created.
+	* src/e-server/src/RspPacket.h: Add packNStr.
+	* src/e-server/src/TargetControl.h: Add listCoreIds.
+	* src/e-server/src/TargetControlHardware.cpp
+	(TargetControlHardware::listCoreIds): Created.
+	* src/e-server/src/TargetControlHardware.h: Add listCoreIds.
+
+2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::rspServer): Correct capitalization
 	of getBreakCommand.
 	(GdbServer::rspClientRequest): Provide handler for 'H' packets

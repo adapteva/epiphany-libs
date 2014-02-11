@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <vector>
 
 #include "RspConnection.h"
 #include "MpHash.h"
@@ -51,6 +52,9 @@
 #include "maddr_defs.h"
 #include "ServerInfo.h"
 #include "TargetControl.h"
+
+
+using std::vector;
 
 
 //! Class implementing a GDB RSP server.
@@ -287,6 +291,9 @@ private:
   void rspWriteReg ();
   void rspQuery ();
   void rspCommand ();
+  void rspTransfer ();
+  void rspOsDataProcesses (unsigned int offset,
+			   unsigned int length);
   void rspSet ();
   void rspRestart ();
   void rspStep ();

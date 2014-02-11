@@ -496,6 +496,27 @@ TargetControlHardware::breakSignalHandler (int signum)
 }
 
 
+//! Return a comma separated of all the (relative) CoreIds we know about.
+vector <uint16_t>
+TargetControlHardware::listCoreIds ()
+{
+  vector <uint16_t> relCoreIds; 
+
+  // Iterate over all the cores
+  cout << "Core details:" << endl;
+
+  for (map <uint16_t, uint16_t>::iterator it = coreMap.begin ();
+       it != coreMap.end ();
+       it++)
+    {
+      relCoreIds.push_back (it->first);
+    }
+
+  return relCoreIds;
+
+}	// listCoreIds ()
+
+
 //! Set the thread for general access
 
 //! @see threadIdGeneral for meanings of threadId
