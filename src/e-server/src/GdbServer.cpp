@@ -43,6 +43,8 @@ using std::dec;
 using std::endl;
 using std::flush;
 using std::hex;
+using std::ostringstream;
+using std::setbase;
 using std::setfill;
 using std::setw;
 using std::stringstream;
@@ -1991,6 +1993,10 @@ GdbServer::rspTransfer ()
 	{
 	  if (0 == annex.compare ("process"))
 	    rspOsDataProcesses (offset, length);
+	  else if (0 == annex.compare ("load"))
+	    rspOsDataLoad (offset, length);
+	  else if (0 == annex.compare ("traffic"))
+	    rspOsDataTraffic (offset, length);
 	}
     }
   else if ((6 == tokens.size ())
@@ -2027,7 +2033,7 @@ GdbServer::rspTransfer ()
 //-----------------------------------------------------------------------------
 //! Handle an OS processes request
 
-//! We need to return standard data, at this stage with all the cores. the
+//! We need to return standard data, at this stage with all the cores. The
 //! header and trailer part of the response is fixed.
 
 //! @param[in] offset  Offset into the reply to send.
@@ -2037,47 +2043,51 @@ void
 GdbServer::rspOsDataProcesses (unsigned int offset,
 			       unsigned int length)
 {
-  static const char *processesHeader =
-    "<?xml version=\"1.0\"?>\n"
-    "<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
-    "<osdata type=\"processes\">\n"
-    "  <item>\n"
-    "    <column name=\"pid\">1</column>\n"
-    "    <column name=\"user\">root</column>\n"
-    "    <column name=\"command\"></column>\n"
-    "    <column name=\"cores\">\n"
-    "      ";
-  static const char *processesTrailer =
-    "\n    </column>\n"
-    "  </item>\n"
-    "  </osdata>";
-  vector <uint16_t> cores = fTargetControl->listCoreIds ();
-  vector <uint16_t>::iterator  it;
-  stringstream ss;
-  string coreStr;
-
   if (si->debugTrapAndRspCon ())
     {
-      cerr << "RSP trace: qXfer:osdata:read:process offset 0x" << hex << offset
-	   << ", length " << length << dec << endl;
+      cerr << "RSP trace: qXfer:osdata:read:process offset 0x" << hex
+	   << offset << ", length " << length << dec << endl;
     }
 
-  for (it = cores.begin (); it != cores.end (); it++)
+  // Get the data only for the first part of the reply. The rest of the time
+  // we are just sending the remainder of the string.
+  if (0 == offset)
     {
-      if (it == cores.begin ())
-	ss << *it;
-      else
-	ss << "," << *it;
-    }
-  ss >> coreStr;
+      osProcessReply =
+	"<?xml version=\"1.0\"?>\n"
+	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
+	"<osdata type=\"processes\">\n"
+	"  <item>\n"
+	"    <column name=\"pid\">1</column>\n"
+	"    <column name=\"user\">root</column>\n"
+	"    <column name=\"command\"></column>\n"
+	"    <column name=\"cores\">\n"
+	"      ";
 
-  string fullReply = processesHeader + coreStr + processesTrailer;
-  unsigned int  len = fullReply.size ();
+      vector <uint16_t> cores = fTargetControl->listCoreIds ();
+      vector <uint16_t>::iterator  it;
+
+      for (it = cores.begin (); it != cores.end (); it++)
+	{
+	  if (it != cores.begin ())
+	    osProcessReply += ", ";
+
+	  osProcessReply += intStr (*it);
+	}
+
+      osProcessReply += "\n"
+	"    </column>\n"
+	"  </item>\n"
+	"  </osdata>";
+    }
+
+  // Send the reply (or part reply) back
+  unsigned int  len = osProcessReply.size ();
 
   if (si->debugTrapAndRspCon ())
     {
       cerr << "RSP trace: OS process info length " << len << endl;
-      cerr << fullReply << endl;
+      cerr << osProcessReply << endl;
     }
 
   if (offset >= len)
@@ -2085,18 +2095,225 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
   else
     {
       unsigned int pktlen = len - offset;
-      char pkttype = 'm';
+      char pkttype = 'l';
 
       if (pktlen > length)
 	{
 	  /* Will need more packets */
 	  pktlen = length;
-	  pkttype = 'l';
+	  pkttype = 'm';
 	}
 
-      pkt->packNStr (&(fullReply.c_str ()[offset]), pktlen, pkttype);
+      pkt->packNStr (&(osProcessReply.c_str ()[offset]), pktlen, pkttype);
     }
 }	// rspOsDataProcesses ()
+
+
+//-----------------------------------------------------------------------------
+//! Handle an OS core load request
+
+//! This is epiphany specific.
+
+//! @todo For now this is a stub which returns random values in the range 0 -
+//! 99 for each core.
+
+//! @param[in] offset  Offset into the reply to send.
+//! @param[in] length  Length of the reply to send.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspOsDataLoad (unsigned int offset,
+			     unsigned int length)
+{
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: qXfer:osdata:read:load offset 0x" << hex << offset
+	   << ", length " << length << dec << endl;
+    }
+
+  // Get the data only for the first part of the reply. The rest of the time
+  // we are just sending the remainder of the string.
+  if (0 == offset)
+    {
+      osLoadReply =
+	"<?xml version=\"1.0\"?>\n"
+	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
+	"<osdata type=\"load\">\n";
+
+      vector <uint16_t> cores = fTargetControl->listCoreIds ();
+      vector <uint16_t>::iterator  it;
+
+      for (it = cores.begin (); it != cores.end (); it++)
+	{
+	  osLoadReply +=
+	    "  <item>\n"
+	    "    <column name=\"threadid\">";
+	  osLoadReply += intStr (*it + 1);
+	  osLoadReply += "</column>\n";
+
+	  osLoadReply +=
+	    "    <column name=\"coreid\">";
+	  osLoadReply += intStr (*it);
+	  osLoadReply += "</column>\n";
+
+	  osLoadReply +=
+	    "    <column name=\"corerow\">";
+	  osLoadReply += intStr ((*it >> 6) & 0x3f);
+	  osLoadReply += "</column>\n";
+
+	  osLoadReply +=
+	    "    <column name=\"corecol\">";
+	  osLoadReply += intStr (*it & 0x3f);
+	  osLoadReply += "</column>\n";
+
+	  osLoadReply +=
+	    "    <column name=\"load\">";
+	  osLoadReply += intStr (random () % 100);
+	  osLoadReply += "</column>\n"
+	    "  </item>\n";
+	}
+
+      osLoadReply += "</osdata>";
+    }
+
+  // Send the reply (or part reply) back
+  unsigned int  len = osLoadReply.size ();
+
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: OS load info length " << len << endl;
+      cerr << osLoadReply << endl;
+    }
+
+  if (offset >= len)
+    pkt->packStr ("l");
+  else
+    {
+      unsigned int pktlen = len - offset;
+      char pkttype = 'l';
+
+      if (pktlen > length)
+	{
+	  /* Will need more packets */
+	  pktlen = length;
+	  pkttype = 'm';
+	}
+
+      pkt->packNStr (&(osLoadReply.c_str ()[offset]), pktlen, pkttype);
+    }
+}	// rspOsDataLoad ()
+
+
+//-----------------------------------------------------------------------------
+//! Handle an OS mesh load request
+
+//! This is epiphany specific.
+
+//! @param[in] offset  Offset into the reply to send.
+//! @param[in] length  Length of the reply to send.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspOsDataTraffic (unsigned int offset,
+			     unsigned int length)
+{
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: qXfer:osdata:read:traffic offset 0x" << hex << offset
+	   << ", length " << length << dec << endl;
+    }
+
+  // Get the data only for the first part of the reply. The rest of the time
+  // we are just sending the remainder of the string.
+  if (0 == offset)
+    {
+      osTrafficReply =
+	"<?xml version=\"1.0\"?>\n"
+	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
+	"<osdata type=\"traffic\">\n";
+
+      unsigned int maxRow = fTargetControl->getNumRows () - 1;
+      unsigned int maxCol = fTargetControl->getNumCols () - 1;
+      vector <uint16_t> cores = fTargetControl->listCoreIds ();
+      vector <uint16_t>::iterator  it;
+
+      for (it = cores.begin (); it != cores.end (); it++)
+	{
+	  uint16_t coreId = *it;
+	  unsigned int row = (coreId >> 6) & 0x3f;
+	  unsigned int col = coreId & 0x3f;
+	  vector <uint16_t> adj;
+	  vector <uint16_t>::iterator  ita;
+
+	  // See what adjacent cores we have
+	  if (row > 0)
+	    adj.push_back (((row - 1) << 6) | col);
+	  if (row < maxRow)
+	    adj.push_back (((row + 1) << 6) | col);
+	  if (col > 0)
+	    adj.push_back ((row << 6) | (col - 1));
+	  if (col < maxCol)
+	    adj.push_back ((row << 6) | (col + 1));
+
+	  // Load for each adjacent core
+	  for (ita = adj.begin (); ita != adj.end (); ita++)
+	    {
+	      osTrafficReply +=
+		"  <item>\n"
+		"    <column name=\"from\">";
+	      osTrafficReply += intStr (coreId);
+	      osTrafficReply += "</column>\n";
+
+	      osTrafficReply +=
+		"    <column name=\"to\">";
+	      osTrafficReply += intStr (*ita);
+	      osTrafficReply += "</column>\n";
+
+	      osTrafficReply +=
+		"    <column name=\"cmesh\">";
+	      osTrafficReply += intStr (random () % 100);
+	      osTrafficReply += "</column>\n";
+
+	      osTrafficReply +=
+		"    <column name=\"rmesh\">";
+	      osTrafficReply += intStr (random () % 100);
+	      osTrafficReply += "</column>\n";
+
+	      osTrafficReply +=
+		"    <column name=\"xmesh\">";
+	      osTrafficReply += intStr (random () % 100);
+	      osTrafficReply += "</column>\n"
+		"  </item>\n";
+	    }
+	}
+
+      osTrafficReply += "</osdata>";
+    }
+
+  // Send the reply (or part reply) back
+  unsigned int  len = osTrafficReply.size ();
+
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: OS traffic info length " << len << endl;
+      cerr << osTrafficReply << endl;
+    }
+
+  if (offset >= len)
+    pkt->packStr ("l");
+  else
+    {
+      unsigned int pktlen = len - offset;
+      char pkttype = 'l';
+
+      if (pktlen > length)
+	{
+	  /* Will need more packets */
+	  pktlen = length;
+	  pkttype = 'm';
+	}
+
+      pkt->packNStr (&(osTrafficReply.c_str ()[offset]), pktlen, pkttype);
+    }
+}	// rspOsDataTraffic ()
 
 
 //-----------------------------------------------------------------------------
@@ -3794,6 +4011,25 @@ GdbServer::setfield (uint32_t & x, int _lt, int _rt, uint32_t val)
 
   return;
 }
+
+
+//! Convenience function to turn an integer into a string
+
+//! @param[in] val    The value to convert
+//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
+//!                   or 16. Other values will reset the iostream flags.
+//! @param[in] width  The width to pad (with zeros).
+string
+GdbServer::intStr (int  val,
+		   int  base,
+		   int  width)
+{
+  ostringstream  os;
+
+  os << setbase (base) << setfill ('0') << setw (width) << val;
+  return os.str ();
+
+}	// intStr ()
 
 
 // Local Variables:

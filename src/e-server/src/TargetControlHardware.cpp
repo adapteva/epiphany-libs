@@ -486,25 +486,31 @@ TargetControlHardware::breakSignalHandler (int signum)
 }
 
 
-//! Return a comma separated of all the (relative) CoreIds we know about.
+//! Return a vector of all the (relative) CoreIds we know about.
 vector <uint16_t>
 TargetControlHardware::listCoreIds ()
 {
-  vector <uint16_t> relCoreIds; 
-
-  // Iterate over all the cores
-  cout << "Core details:" << endl;
-
-  for (map <uint16_t, uint16_t>::iterator it = coreMap.begin ();
-       it != coreMap.end ();
-       it++)
-    {
-      relCoreIds.push_back (it->first);
-    }
-
   return relCoreIds;
 
 }	// listCoreIds ()
+
+
+//! Return the number of rows
+unsigned int
+TargetControlHardware::getNumRows ()
+{
+  return  numRows;
+
+}	// numRows ();
+
+
+//! Return the number of columns
+unsigned int
+TargetControlHardware::getNumCols ()
+{
+  return  numCols;
+
+}	// numCols ();
 
 
 //! Set the thread for general access
@@ -635,12 +641,24 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
 void
 TargetControlHardware::initMaps (platform_definition_t* platform)
 {
+  // Clear everything
   numCores = 0;
+  numRows = 0;
+  numCols = 0;
+
+  relCoreIds.clear ();
+  coreMap.clear ();
+  coreMemMap.clear ();
+  reverseCoreMemMap.clear ();
+  extMemSet.clear ();
 
   // Iterate through each core on each chip
   for (unsigned int  chipNum = 0; chipNum < platform->num_chips; chipNum++)
     {
       chip_def_t  chip = platform->chips[chipNum];
+
+      numRows += chip.num_rows;	// This really only works for one chip
+      numCols += chip.num_rows;
 
       for (unsigned int row = 0; row < chip.num_rows; row++)
 	{
@@ -649,13 +667,15 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
 	  for (unsigned int col = 0; col < chip.num_cols; col++)
 	    {
 	      assert (col < (0x1 << 6));	// Max 6 bits
-	      
-	      // Set up the relative to absolute core ID map entry
+
+	      // Record the relative core ID.
 	      uint16_t relId = (row << 6) | col;
+	      relCoreIds.push_back (relId);
+
+	      // Set up the relative to absolute core ID map entry
 	      uint16_t absRow = chip.yid + row;
 	      uint16_t absCol = chip.xid + col;
 	      uint16_t absId = (absRow << 6) | absCol;
-
 	      coreMap[relId] = absId;
 
 	      // Set up the memory map to and from absolute core ID map

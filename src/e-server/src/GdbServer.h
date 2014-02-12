@@ -37,13 +37,15 @@
 #ifndef GDB_SERVER__H
 #define GDB_SERVER__H
 
+#include <string>
+#include <vector>
+
 //! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
 #include <inttypes.h>
 
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <vector>
 
 #include "RspConnection.h"
 #include "MpHash.h"
@@ -54,6 +56,7 @@
 #include "TargetControl.h"
 
 
+using std::string;
 using std::vector;
 
 
@@ -273,6 +276,15 @@ private:
   //! Hash table for matchpoints
   MpHash *mpHash;
 
+  //! String for OS processes
+  string  osProcessReply;
+
+  //! String for OS core load
+  string  osLoadReply;
+
+  //! String for OS mesh traffic
+  string  osTrafficReply;
+
   // Main RSP request handler
   void rspClientRequest ();
 
@@ -294,6 +306,10 @@ private:
   void rspTransfer ();
   void rspOsDataProcesses (unsigned int offset,
 			   unsigned int length);
+  void rspOsDataLoad (unsigned int offset,
+		      unsigned int length);
+  void rspOsDataTraffic (unsigned int offset,
+			 unsigned int length);
   void rspSet ();
   void rspRestart ();
   void rspStep ();
@@ -375,6 +391,11 @@ private:
   uint32_t getfield (uint32_t x, int _lt, int _rt);
   uint64_t getfield (uint64_t x, int _lt, int _rt);
   void setfield (uint32_t & x, int _lt, int _rt, uint32_t val);
+
+  //! Integer to string conversion
+  string  intStr (int  val,
+		  int  base = 10,
+		  int  width = 0);
 
 };				// GdbServer()
 

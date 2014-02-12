@@ -69,6 +69,8 @@ public:
 
   // Functions to access data about the target
   virtual vector <uint16_t>  listCoreIds () = 0;
+  virtual unsigned int  getNumRows () = 0;
+  virtual unsigned int  getNumCols () = 0;
 
   // Functions to deal with threads (which correspond to cores)
   virtual bool setThreadGeneral (int threadId) = 0;

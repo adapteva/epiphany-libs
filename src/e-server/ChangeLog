@@ -1,5 +1,29 @@
 2014-02-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/e-server/src/GdbServer.cpp (GdbServer::rspTransfer): Add
+	support for "load" and "traffic" values for annex.
+	(GdbServer::rspOsDataProcesses): Simplify implemenation and use
+	intStr, correct use of extension packets.
+	(GdbServer::rspOsDataLoad): Created.
+	(GdbServer::rspOsDataTraffic): Created.
+	(GdbServer::intStr): Created.
+	* src/e-server/src/GdbServer.h: Add osProcessReply, osLoadReply,
+	osTrafficReply, rspOsDataLoad, rspOsDataTraffic and intStr.
+	* src/e-server/src/TargetControl.h: Add pure virtual getNumRows
+	and getNumCols.
+	* src/e-server/src/TargetControlHardware.cpp
+	(TargetControlHardware::listCoreIds): Return pre-computed vector.
+	(TargetControlHardware::getNumRows): Created.
+	(TargetControlHardware::getNumCols): Created.
+	(TargetControlHardware::initMaps): Clear all maps, sets and
+	vectors and member variables for cores, rows and columns. Compute
+	number of rows and columns and initialize vector of relative core
+	IDs.
+	* src/e-server/src/TargetControlHardware.h: Add getNumRows,
+	getNumCols, relCoreIds, numRows and numCols.
+
+2014-02-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/RspConnection.cpp (RspConnection::rspInit): Remove
 	references to pthread_mutex_lock/pthread_mutex_unlock.
 	(bool RspConnection::rspConnect): Likewise.

@@ -64,6 +64,8 @@ public:
 
   // Functions to access data about the target
   virtual vector <uint16_t>  listCoreIds ();
+  virtual unsigned int  getNumRows ();
+  virtual unsigned int  getNumCols ();
 
   // Functions to deal with threads (which correspond to cores)
   virtual bool setThreadGeneral (int threadId);
@@ -98,6 +100,9 @@ private:
   //! Handle for the shared object libraries
   void *dsoHandle;
 
+  //! Vector of all the relative CoreIds
+  vector <uint16_t> relCoreIds; 
+
   //! Map of relative to absolute core ID
   map <uint16_t, uint16_t> coreMap;
 
@@ -111,8 +116,14 @@ private:
   set <MemRange, MemRange> extMemSet;
 
   //! The number of cores
-  unsigned int numCores;
+  unsigned int  numCores;
 
+  //! The number of rows
+  unsigned int  numRows;
+  
+  //! The number of columns
+  unsigned int  numCols;
+  
   //! Current core being used for memory and register access.
   uint16_t  currentCoreId;
 
