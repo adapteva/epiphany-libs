@@ -54,9 +54,6 @@ using std::setfill;
 using std::setw;
 
 
-pthread_mutex_t targetControlHWAccess_m = PTHREAD_MUTEX_INITIALIZER;
-
-
 //! Constructor
 
 //! @param[in] _si             Server information about flags etc.
@@ -166,8 +163,6 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
     {
       if ((fullAddr % E_WORD_BYTES) == 0)
 	{
-	  pthread_mutex_lock (&targetControlHWAccess_m);
-
 	  // struct timeval start_time;
 	  // StartOfBaudMeasurement(start_time);
 	  for (unsigned k = 0;
@@ -206,7 +201,6 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 	    }
 
 	  // cerr << " done nbytesToSend " << buff_size << " msec " << EndOfBaudMeasurement(start_time) << endl;
-	  pthread_mutex_unlock (&targetControlHWAccess_m);
 	}
       else
 	{
@@ -414,11 +408,7 @@ TargetControlHardware::writeBurst (uint32_t addr,
 void
 TargetControlHardware::platformReset ()
 {
-  pthread_mutex_lock (&targetControlHWAccess_m);
-
   hwReset ();			// ESYS_RESET
-
-  pthread_mutex_unlock (&targetControlHWAccess_m);
 
 }	// platformReset ()
 
@@ -823,8 +813,6 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
   //struct timeval start_t;
   // StartOfBaudMeasurement(start_t);
 
-  pthread_mutex_lock (&targetControlHWAccess_m);
-
   uint32_t fullAddr = convertAddress (addr);
   // bool iSAligned = (fullAddr == ());
   if (fullAddr || si->checkHwAddr())
@@ -864,8 +852,6 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
   // double mes = EndOfBaudMeasurement(start_t);
   // cerr << "--- READ milliseconds: " << mes << endl;
 
-  pthread_mutex_unlock (&targetControlHWAccess_m);
-
   return retSt;
 }
 
@@ -875,7 +861,6 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
 				 unsigned burst_size)
 {
   bool retSt = false;
-  pthread_mutex_lock (&targetControlHWAccess_m);
   uint32_t fullAddr = convertAddress (addr);
 
   // bool iSAligned = (fullAddr == ());
@@ -917,8 +902,6 @@ TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
 	" is not in the valid range for target " << this->
 	getTargetId () << dec << endl;
     }
-
-  pthread_mutex_unlock (&targetControlHWAccess_m);
 
   return retSt;
 }

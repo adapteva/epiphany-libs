@@ -170,7 +170,6 @@ RspConnection::rspInit (int _portNum)
 //! @return  TRUE if the connection was established or can be retried. FALSE
 //!          if the error was so serious the program must be aborted.
 //-----------------------------------------------------------------------------
-pthread_mutex_t prettyPrint_m = PTHREAD_MUTEX_INITIALIZER;
 bool RspConnection::rspConnect ()
 {
   // 0 is used as the RSP port number to indicate that we should use the
@@ -224,16 +223,12 @@ bool RspConnection::rspConnect ()
   // Listen for (at most one) client
   if (listen (tmpFd, 1))
     {
-      pthread_mutex_lock (&prettyPrint_m);
       cerr << "ERROR: Cannot listen on RSP socket for port " << portNum
 	   << ": " << strerror (errno) << endl;
-      pthread_mutex_unlock (&prettyPrint_m);
       return false;
     }
 
-  pthread_mutex_lock (&prettyPrint_m);
   cerr << "Listening for RSP on port " << dec << portNum << endl << flush;
-  pthread_mutex_unlock (&prettyPrint_m);
 
   // Accept a client which connects
   socklen_t
@@ -261,11 +256,8 @@ bool RspConnection::rspConnect ()
   close (tmpFd);		// No longer need this
   signal (SIGPIPE, SIG_IGN);	// So we don't exit if client dies
 
-  pthread_mutex_lock (&prettyPrint_m);
   cerr << "Remote debugging from host " << inet_ntoa (sockAddr.
 						      sin_addr) << endl;
-  pthread_mutex_unlock (&prettyPrint_m);
-
   return true;
 
 }				// rspConnect()
@@ -319,9 +311,6 @@ bool RspConnection::isConnected ()
 //!          failure)
 //-----------------------------------------------------------------------------
 
-//#include <pthread.h>
-//pthread_mutex_t gdbReadPacket_m = PTHREAD_MUTEX_INITIALIZER;
-
 bool RspConnection::getPkt (RspPacket * pkt)
 {
   // Keep getting packets, until one is found with a valid checksum
@@ -342,13 +331,11 @@ bool RspConnection::getPkt (RspPacket * pkt)
       ch = getRspChar ();
 
       // once read char from GDB --- lock the read -- TODO should be protected by timeout in case of gdb fails
-      //pthread_mutex_lock(&gdbReadPacket_m);
 
       while (ch != '$')
 	{
 	  if (-1 == ch)
 	    {
-	      // pthread_mutex_unlock(&gdbReadPacket_m);
 	      return false;	// Connection failed
 	    }
 	  else
@@ -366,7 +353,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 
 	  if (-1 == ch)
 	    {
-	      //pthread_mutex_unlock(&gdbReadPacket_m);
 	      return false;	// Connection failed
 	    }
 
@@ -406,7 +392,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	  ch = getRspChar ();
 	  if (-1 == ch)
 	    {
-	      //pthread_mutex_unlock(&gdbReadPacket_m);
 	      return false;	// Connection failed
 	    }
 	  xmitcsum = Utils::char2Hex (ch) << 4;
@@ -414,7 +399,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	  ch = getRspChar ();
 	  if (-1 == ch)
 	    {
-	      //pthread_mutex_unlock(&gdbReadPacket_m);
 	      return false;	// Connection failed
 	    }
 
@@ -430,7 +414,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 		<< setfill (' ') << dec << endl;
 	      if (!putRspChar ('-'))	// Failed checksum
 		{
-		  //pthread_mutex_unlock(&gdbReadPacket_m);
 		  return false;	// Comms failure
 		}
 	    }
@@ -438,7 +421,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	    {
 	      if (!putRspChar ('+'))	// successful transfer
 		{
-		  //pthread_mutex_unlock(&gdbReadPacket_m);
 		  return false;	// Comms failure
 		}
 	      else
@@ -446,7 +428,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 		  if (si->debugTrapAndRspCon ())
 		    cerr << "[" << portNum << "]:" << " getPkt: " << *pkt <<
 		      endl;
-		  //pthread_mutex_unlock(&gdbReadPacket_m);
 		  return true;	// Success
 		}
 	    }
@@ -455,7 +436,6 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	{
 	  cerr << "Warning: RSP packet overran buffer" << endl;
 	}
-      //pthread_mutex_unlock(&gdbReadPacket_m);
     }
 
   return false;			// shouldn't get here anyway!

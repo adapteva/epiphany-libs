@@ -1,3 +1,18 @@
+2014-02-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/RspConnection.cpp (RspConnection::rspInit): Remove
+	references to pthread_mutex_lock/pthread_mutex_unlock.
+	(bool RspConnection::rspConnect): Likewise.
+	(bool RspConnection::isConnected): Likewise.
+	(bool RspConnection::getPkt): Likewise.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readBurst): Likewise.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::platformReset): Likewise.
+	(TargetControlHardware::readMem): Likewise.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/main.cpp: Don't include pthread.h
+
 2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspQuery): Tidy up
@@ -5,14 +20,14 @@
 	qSupported, handle qXfer.
 	(GdbServer::rspTransfer): Created.
 	(GdbServer::rspOsDataProcesses): Created.
-	* src/e-server/src/GdbServer.h: Add rspTransfer and
+	* src/GdbServer.h: Add rspTransfer and
 	rspOsDataProcesses.
-	* src/e-server/src/RspPacket.cpp (RspPacket::packNStr): Created.
-	* src/e-server/src/RspPacket.h: Add packNStr.
-	* src/e-server/src/TargetControl.h: Add listCoreIds.
-	* src/e-server/src/TargetControlHardware.cpp
+	* src/RspPacket.cpp (RspPacket::packNStr): Created.
+	* src/RspPacket.h: Add packNStr.
+	* src/TargetControl.h: Add listCoreIds.
+	* src/TargetControlHardware.cpp
 	(TargetControlHardware::listCoreIds): Created.
-	* src/e-server/src/TargetControlHardware.h: Add listCoreIds.
+	* src/TargetControlHardware.h: Add listCoreIds.
 
 2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
@@ -20,17 +35,17 @@
 	of getBreakCommand.
 	(GdbServer::rspClientRequest): Provide handler for 'H' packets
 	(GdbServer::rspSetThread): Created.
-	* src/e-server/src/GdbServer.h: Add rspSetThread.
-	* src/e-server/src/RspConnection.cpp
+	* src/GdbServer.h: Add rspSetThread.
+	* src/RspConnection.cpp
 	(RspConnection::getBreakCommand): Use gotChar, not n in return.
-	* src/e-server/src/TargetControl.h: Add SetThreadIdGeneral and
+	* src/TargetControl.h: Add SetThreadIdGeneral and
 	SetThreadIdExecute as pure virtual methods.
-	* src/e-server/src/TargetControlHardware.cpp
+	* src/TargetControlHardware.cpp
 	(TargetControlHardware::TargetControlHardware): Initialize
 	threadIdGeneral and threadIdExecute.
 	(TargetControlHardware::setThreadGeneral): Created.
 	(TargetControlHardware::setThreadExecute): Created.
-	* src/e-server/src/TargetControlHardware.h: Add declarations of
+	* src/TargetControlHardware.h: Add declarations of
 	setThreadGeneral, setThreadExecute, threadIdGeneral and
 	threadIdExecute.
 
