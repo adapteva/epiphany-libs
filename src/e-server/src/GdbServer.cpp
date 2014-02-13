@@ -2146,33 +2146,25 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 	{
 	  osLoadReply +=
 	    "  <item>\n"
-	    "    <column name=\"threadid\">";
-	  osLoadReply += intStr (*it + 1);
-	  osLoadReply += "</column>\n";
-
-	  osLoadReply +=
 	    "    <column name=\"coreid\">";
-	  osLoadReply += intStr (*it);
-	  osLoadReply += "</column>\n";
-
-	  osLoadReply +=
-	    "    <column name=\"corerow\">";
-	  osLoadReply += intStr ((*it >> 6) & 0x3f);
-	  osLoadReply += "</column>\n";
-
-	  osLoadReply +=
-	    "    <column name=\"corecol\">";
-	  osLoadReply += intStr (*it & 0x3f);
+	  osLoadReply += intStr (*it, 8, 4);
 	  osLoadReply += "</column>\n";
 
 	  osLoadReply +=
 	    "    <column name=\"load\">";
-	  osLoadReply += intStr (random () % 100);
+	  osLoadReply += intStr (random () % 100, 10, 2);
 	  osLoadReply += "</column>\n"
 	    "  </item>\n";
 	}
 
       osLoadReply += "</osdata>";
+
+      if (si->debugTrapAndRspCon ())
+	{
+	  cerr << "RSP trace: OS load info length "
+	       << osLoadReply.size () << endl;
+	  cerr << osLoadReply << endl;
+	}
     }
 
   // Send the reply (or part reply) back
@@ -2208,6 +2200,9 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 
 //! This is epiphany specific.
 
+//! When working out "North", "South", "East" and "West", the assumption is
+//! that core (0,0) is at the North-East corner.
+
 //! @param[in] offset  Offset into the reply to send.
 //! @param[in] length  Length of the reply to send.
 //-----------------------------------------------------------------------------
@@ -2240,62 +2235,63 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  uint16_t coreId = *it;
 	  unsigned int row = (coreId >> 6) & 0x3f;
 	  unsigned int col = coreId & 0x3f;
-	  vector <uint16_t> adj;
-	  vector <uint16_t>::iterator  ita;
 
-	  // See what adjacent cores we have
+	  osTrafficReply +=
+	    "  <item>\n"
+	    "    <column name=\"coreid\">";
+	  osTrafficReply += intStr (coreId, 8, 4);
+	  osTrafficReply += "</column>\n";
+
+	  // See what adjacent cores we have. Note that empty columns confuse
+	  // GDB!
+	  osTrafficReply +=
+	    "    <column name=\"North\">";
+
 	  if (row > 0)
-	    adj.push_back (((row - 1) << 6) | col);
+	    osTrafficReply += intStr (random () % 100, 10, 2);
+	  else
+	    osTrafficReply += "--";
+
+	  osTrafficReply += "</column>\n"
+	    "    <column name=\"South\">";
+
 	  if (row < maxRow)
-	    adj.push_back (((row + 1) << 6) | col);
-	  if (col > 0)
-	    adj.push_back ((row << 6) | (col - 1));
+	    osTrafficReply += intStr (random () % 100, 10, 2);
+	  else
+	    osTrafficReply += "--";
+
+	  osTrafficReply += "</column>\n"
+	    "    <column name=\"East\">";
+
 	  if (col < maxCol)
-	    adj.push_back ((row << 6) | (col + 1));
+	    osTrafficReply += intStr (random () % 100, 10, 2);
+	  else
+	    osTrafficReply += "--";
 
-	  // Load for each adjacent core
-	  for (ita = adj.begin (); ita != adj.end (); ita++)
-	    {
-	      osTrafficReply +=
-		"  <item>\n"
-		"    <column name=\"from\">";
-	      osTrafficReply += intStr (coreId);
-	      osTrafficReply += "</column>\n";
+	  osTrafficReply += "</column>\n"
+	    "    <column name=\"West\">";
 
-	      osTrafficReply +=
-		"    <column name=\"to\">";
-	      osTrafficReply += intStr (*ita);
-	      osTrafficReply += "</column>\n";
+	  if (col > 0)
+	    osTrafficReply += intStr (random () % 100, 10, 2);
+	  else
+	    osTrafficReply += "--";
 
-	      osTrafficReply +=
-		"    <column name=\"cmesh\">";
-	      osTrafficReply += intStr (random () % 100);
-	      osTrafficReply += "</column>\n";
-
-	      osTrafficReply +=
-		"    <column name=\"rmesh\">";
-	      osTrafficReply += intStr (random () % 100);
-	      osTrafficReply += "</column>\n";
-
-	      osTrafficReply +=
-		"    <column name=\"xmesh\">";
-	      osTrafficReply += intStr (random () % 100);
-	      osTrafficReply += "</column>\n"
-		"  </item>\n";
-	    }
+	  osTrafficReply += "</column>\n"
+	    "  </item>\n";
 	}
 
       osTrafficReply += "</osdata>";
+
+      if (si->debugTrapAndRspCon ())
+	{
+	  cerr << "RSP trace: OS traffic info length "
+	       << osTrafficReply.size () << endl;
+	  cerr << osTrafficReply << endl;
+	}
     }
 
   // Send the reply (or part reply) back
   unsigned int  len = osTrafficReply.size ();
-
-  if (si->debugTrapAndRspCon ())
-    {
-      cerr << "RSP trace: OS traffic info length " << len << endl;
-      cerr << osTrafficReply << endl;
-    }
 
   if (offset >= len)
     pkt->packStr ("l");
