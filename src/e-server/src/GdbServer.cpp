@@ -2201,7 +2201,10 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 //! This is epiphany specific.
 
 //! When working out "North", "South", "East" and "West", the assumption is
-//! that core (0,0) is at the North-East corner.
+//! that core (0,0) is at the North-East corner. We provide in and out traffic
+//! for each direction.
+
+//! @todo Currently only dummy data.
 
 //! @param[in] offset  Offset into the reply to send.
 //! @param[in] length  Length of the reply to send.
@@ -2235,6 +2238,8 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  uint16_t coreId = *it;
 	  unsigned int row = (coreId >> 6) & 0x3f;
 	  unsigned int col = coreId & 0x3f;
+	  string inTraffic;
+	  string outTraffic;
 
 	  osTrafficReply +=
 	    "  <item>\n"
@@ -2244,38 +2249,80 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 
 	  // See what adjacent cores we have. Note that empty columns confuse
 	  // GDB!
-	  osTrafficReply +=
-	    "    <column name=\"North\">";
-
 	  if (row > 0)
-	    osTrafficReply += intStr (random () % 100, 10, 2);
+	    {
+	      inTraffic = intStr (random () % 100, 10, 2);
+	      outTraffic = intStr (random () % 100, 10, 2);
+	    }
 	  else
-	    osTrafficReply += "--";
-
+	    {
+	      inTraffic = "--";
+	      outTraffic = "--";
+	    }
+		  
+	  osTrafficReply +=
+	    "    <column name=\"North In\">";
+	  osTrafficReply += inTraffic;
 	  osTrafficReply += "</column>\n"
-	    "    <column name=\"South\">";
+	    "    <column name=\"North Out\">";
+	  osTrafficReply += outTraffic;
+	  osTrafficReply += "</column>\n";
 
 	  if (row < maxRow)
-	    osTrafficReply += intStr (random () % 100, 10, 2);
+	    {
+	      inTraffic = intStr (random () % 100, 10, 2);
+	      outTraffic = intStr (random () % 100, 10, 2);
+	    }
 	  else
-	    osTrafficReply += "--";
+	    {
+	      inTraffic = "--";
+	      outTraffic = "--";
+	    }
 
+	  osTrafficReply +=
+	    "    <column name=\"South In\">";
+	  osTrafficReply += inTraffic;
 	  osTrafficReply += "</column>\n"
-	    "    <column name=\"East\">";
+	    "    <column name=\"South Out\">";
+	  osTrafficReply += outTraffic;
+	  osTrafficReply += "</column>\n";
 
 	  if (col < maxCol)
-	    osTrafficReply += intStr (random () % 100, 10, 2);
+	    {
+	      inTraffic = intStr (random () % 100, 10, 2);
+	      outTraffic = intStr (random () % 100, 10, 2);
+	    }
 	  else
-	    osTrafficReply += "--";
+	    {
+	      inTraffic = "--";
+	      outTraffic = "--";
+	    }
 
+	  osTrafficReply +=
+	    "    <column name=\"East In\">";
+	  osTrafficReply += inTraffic;
 	  osTrafficReply += "</column>\n"
-	    "    <column name=\"West\">";
+	    "    <column name=\"East Out\">";
+	  osTrafficReply += outTraffic;
+	  osTrafficReply += "</column>\n";
 
 	  if (col > 0)
-	    osTrafficReply += intStr (random () % 100, 10, 2);
+	    {
+	      inTraffic = intStr (random () % 100, 10, 2);
+	      outTraffic = intStr (random () % 100, 10, 2);
+	    }
 	  else
-	    osTrafficReply += "--";
+	    {
+	      inTraffic = "--";
+	      outTraffic = "--";
+	    }
 
+	  osTrafficReply +=
+	    "    <column name=\"West In\">";
+	  osTrafficReply += inTraffic;
+	  osTrafficReply += "</column>\n"
+	    "    <column name=\"West Out\">";
+	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n"
 	    "  </item>\n";
 	}

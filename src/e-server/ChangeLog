@@ -1,5 +1,10 @@
 2014-02-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspOsDataTraffic): Updated format
+	of output.
+
+2014-02-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::rspOsDataLoad):
 	Update to new format,  only print debug if offset is zero.
 	(GdbServer::rspOsDataTraffic): Likewise.
