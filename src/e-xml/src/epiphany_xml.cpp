@@ -298,7 +298,7 @@ int EpiphanyXML::Parse()
 	    ExtractAttr(root, &m_platform->version, "version") ||
 	    ExtractAttr(root, &m_platform->name, "name") ||
 	    ExtractAttr(root, &m_platform->lib, "lib") ||
-	    ExtractAttr(root, &m_platform->libinitargs, "libinitargs"))
+	    ExtractAttr(root, (char **)&m_platform->libinitargs, "libinitargs"))
 	{
 		return -1;
 	}

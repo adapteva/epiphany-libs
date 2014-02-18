@@ -1,3 +1,9 @@
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/epiphany_xml.cpp (int EpiphanyXML::Parse): Cast
+	m_platform->libinitargs to char ** (really should be const, but
+	that needs bigger changes).
+
 2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/epiphany_platform.h: Make libinitargs const.
