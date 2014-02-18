@@ -4,37 +4,40 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../src/GdbServerSC.cpp \
-../src/GdbserverCreate.cpp \
+../src/GdbServer.cpp \
+../src/MemRange.cpp \
 ../src/MpHash.cpp \
 ../src/RspConnection.cpp \
 ../src/RspPacket.cpp \
 ../src/Utils.cpp \
-../src/e_printf.cpp \
 ../src/main.cpp \
-../src/targetCntrlHardware.cpp 
+../src/ServerInfo.cpp \
+../src/TargetControl.cpp \
+../src/TargetControlHardware.cpp 
 
 OBJS += \
-./src/GdbServerSC.o \
-./src/GdbserverCreate.o \
+./src/GdbServer.o \
+./src/MemRange.o \
 ./src/MpHash.o \
 ./src/RspConnection.o \
 ./src/RspPacket.o \
 ./src/Utils.o \
-./src/e_printf.o \
 ./src/main.o \
-./src/targetCntrlHardware.o 
+./src/ServerInfo.o \
+./src/TargetControl.o \
+./src/TargetControlHardware.o 
 
 CPP_DEPS += \
-./src/GdbServerSC.d \
-./src/GdbserverCreate.d \
+./src/GdbServer.d \
+./src/MemRange.d \
 ./src/MpHash.d \
 ./src/RspConnection.d \
 ./src/RspPacket.d \
 ./src/Utils.d \
-./src/e_printf.d \
 ./src/main.d \
-./src/targetCntrlHardware.d 
+./src/ServerInfo.d \
+./src/TargetControl.d \
+./src/TargetControlHardware.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

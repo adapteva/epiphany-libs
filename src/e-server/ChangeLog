@@ -1,3 +1,7 @@
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Bring files into line with Release version.
+
 2014-02-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspOsDataTraffic): Updated format
