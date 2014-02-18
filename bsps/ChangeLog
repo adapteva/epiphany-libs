@@ -1,4 +1,4 @@
-2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* zed_E64G4_512mb/zed_E64G4_512mb.xml: Don't put newline between
 	attributes - to avoid bug in XML parsing!

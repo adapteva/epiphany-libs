@@ -11,32 +11,41 @@ function build-xml() {
 	echo '==============================='
 	echo '============ E-XML ============'
 	echo '==============================='
-	cd src/e-xml/Release
-#	make clean
+	cd src/e-xml/${version}
+	if [ "${cleanit}" = "yes" ]
+	then
+	    make clean
+	fi
 	make all
 	cd ../../../
 }
 
 
 function build-loader() {
-	# Build the Epiphnay Loader library
+	# Build the Epiphany Loader library
 	echo '=================================='
 	echo '============ E-LOADER ============'
 	echo '=================================='
-	cd src/e-loader/Release
-#	make clean
+	cd src/e-loader/${version}
+	if [ "${cleanit}" = "yes" ]
+	then
+	    make clean
+	fi
 	make all
 	cd ../../../
 }
 
 
 function build-hal() {
-	# Build the Epiphnay HAL library
+	# Build the Epiphany HAL library
 	echo '==============================='
 	echo '============ E-HAL ============'
 	echo '==============================='
-	cd src/e-hal/Release
-#	make clean
+	cd src/e-hal/${version}
+	if [ "${cleanit}" = "yes" ]
+	then
+	    make clean
+	fi
 	make all
 	for bsp in ${BSPS}; do
 		cp -f libe-hal.so ../../../bsps/${bsp}
@@ -50,15 +59,18 @@ function build-server() {
 	echo '=================================='
 	echo '============ E-SERVER ============'
 	echo '=================================='
-	cd src/e-server/Release
-#	make clean
+	cd src/e-server/${version}
+	if [ "${cleanit}" = "yes" ]
+	then
+	    make clean
+	fi
 	make CPPFLAGS+="-DREVISION=${REV}" all
 	cd ../../../
 }
 
 
 function build-utils() {
-	# Install the Epiphnay GNU Tools wrappers
+	# Install the Epiphany GNU Tools wrappers
 	echo '================================='
 	echo '============ E-UTILS ============'
 	echo '================================='
@@ -83,7 +95,7 @@ function build-utils() {
 
 
 function build-lib() {
-	# build the Epiphnay Runtime Library
+	# build the Epiphany Runtime Library
 	echo '==============================='
 	echo '============ E-LIB ============'
 	echo '==============================='
@@ -92,8 +104,11 @@ function build-lib() {
 		echo "install the Epiphany GNU tools suite first at ${ESDK}/tools/e-gnu!"
 		exit
 	fi
-	cd src/e-lib/Release
-#	make clean
+	cd src/e-lib/${version}
+	if [ "${cleanit}" = "yes" ]
+	then
+	    make clean
+	fi
 	make all
 	cd ../../../
 }
@@ -115,6 +130,7 @@ function usage() {
 	echo ""
 	echo "        -a  - Build all packages"
 	echo "        -h  - Print this help message"	
+	echo "        -c  - Clean before building any packages after this"
 	echo ""
 	echo "   If no target is selected, all packages will be built."
 	echo ""
@@ -129,6 +145,8 @@ if [[ $# == 0 ]]; then
 	usage
 fi
 
+cleanit="no"
+version="Release"
 
 while [[ $# > 0 ]]; do
 	if   [[ "$1" == "1" || "$1" == "e-xml"    ]]; then
@@ -160,6 +178,12 @@ while [[ $# > 0 ]]; do
 
 	elif [[ "$1" == "-h" ]]; then
 		usage
+
+	elif [[  "$1" == "-c" ]]; then
+		cleanit="yes"
+
+	elif [[  "$1" == "-d" ]]; then
+		version="Debug"
 	fi
 
 	shift
