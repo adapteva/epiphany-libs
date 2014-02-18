@@ -2322,17 +2322,12 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += "</column>\n";
 
 	  // See what adjacent cores we have. Note that empty columns confuse
-	  // GDB!
+	  // GDB! There is traffic on incoming edges, but not outgoing.
+	  inTraffic = intStr (random () % 100, 10, 2);
 	  if (row > 0)
-	    {
-	      inTraffic = intStr (random () % 100, 10, 2);
-	      outTraffic = intStr (random () % 100, 10, 2);
-	    }
+	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
-	    {
-	      inTraffic = "--";
-	      outTraffic = "--";
-	    }
+	    outTraffic = "--";
 		  
 	  osTrafficReply +=
 	    "    <column name=\"North In\">";
@@ -2342,16 +2337,11 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n";
 
+	  inTraffic = intStr (random () % 100, 10, 2);
 	  if (row < maxRow)
-	    {
-	      inTraffic = intStr (random () % 100, 10, 2);
-	      outTraffic = intStr (random () % 100, 10, 2);
-	    }
+	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
-	    {
-	      inTraffic = "--";
-	      outTraffic = "--";
-	    }
+	    outTraffic = "--";
 
 	  osTrafficReply +=
 	    "    <column name=\"South In\">";
@@ -2361,16 +2351,11 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n";
 
+	  inTraffic = intStr (random () % 100, 10, 2);
 	  if (col < maxCol)
-	    {
-	      inTraffic = intStr (random () % 100, 10, 2);
-	      outTraffic = intStr (random () % 100, 10, 2);
-	    }
+	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
-	    {
-	      inTraffic = "--";
-	      outTraffic = "--";
-	    }
+	    outTraffic = "--";
 
 	  osTrafficReply +=
 	    "    <column name=\"East In\">";
@@ -2380,16 +2365,11 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n";
 
+	  inTraffic = intStr (random () % 100, 10, 2);
 	  if (col > 0)
-	    {
-	      inTraffic = intStr (random () % 100, 10, 2);
-	      outTraffic = intStr (random () % 100, 10, 2);
-	    }
+	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
-	    {
-	      inTraffic = "--";
-	      outTraffic = "--";
-	    }
+	    outTraffic = "--";
 
 	  osTrafficReply +=
 	    "    <column name=\"West In\">";

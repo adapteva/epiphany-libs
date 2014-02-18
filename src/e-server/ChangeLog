@@ -1,5 +1,10 @@
 2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspOsDataTraffic): Provide values
+	for incoming traffic on edges.
+
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::rspOsData): Created.
 	(GdbServer::rspOsDataProcesses): Tidy up trace message, no space
 	after commas in list of cores, print cores as 4 char octal.
