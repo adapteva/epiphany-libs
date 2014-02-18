@@ -1988,14 +1988,16 @@ GdbServer::rspTransfer ()
 	       << hex << offset << ", length = 0x" << length << dec << endl;
 	}
 
-      // Sort out what we have
+      // Sort out what we have. Remember substrings are recognized
       if (0 == object.compare ("osdata"))
 	{
-	  if (0 == annex.compare ("process"))
+	  if (0 == annex.compare (""))
+	    rspOsData (offset, length);
+	  else if (0 == string ("processes").find (annex))
 	    rspOsDataProcesses (offset, length);
-	  else if (0 == annex.compare ("load"))
+	  else if (0 == string ("load").find (annex))
 	    rspOsDataLoad (offset, length);
-	  else if (0 == annex.compare ("traffic"))
+	  else if (0 == string ("traffic").find (annex))
 	    rspOsDataTraffic (offset, length);
 	}
     }
@@ -2031,6 +2033,78 @@ GdbServer::rspTransfer ()
 
 
 //-----------------------------------------------------------------------------
+//! Handle an OS info request
+
+//! We need to return a list of all the commands we support
+
+//! @param[in] offset  Offset into the reply to send.
+//! @param[in] length  Length of the reply to send.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspOsData (unsigned int offset,
+		      unsigned int length)
+{
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: qXfer:osdata:read:: offset 0x" << hex
+	   << offset << ", length " << length << dec << endl;
+    }
+
+  // Get the data only for the first part of the reply. The rest of the time
+  // we are just sending the remainder of the string.
+  if (0 == offset)
+    {
+      osInfoReply =
+	"<?xml version=\"1.0\"?>\n"
+	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
+	"<osdata type=\"types\">\n"
+	"  <item>\n"
+	"    <column name=\"Type\">processes</column>\n"
+	"    <column name=\"Description\">Listing of all processes</column>\n"
+	"    <column name=\"Title\">Processes</column>\n"
+	"  </item>\n"
+	"  <item>\n"
+	"    <column name=\"Type\">load</column>\n"
+	"    <column name=\"Description\">Listing of load on all cores</column>\n"
+	"    <column name=\"Title\">Load</column>\n"
+	"  </item>\n"
+	"  <item>\n"
+	"    <column name=\"Type\">traffic</column>\n"
+	"    <column name=\"Description\">Listing of all cmesh traffic</column>\n"
+	"    <column name=\"Title\">Traffic</column>\n"
+	"  </item>\n"
+	"</osdata>";
+    }
+
+  // Send the reply (or part reply) back
+  unsigned int  len = osInfoReply.size ();
+
+  if (si->debugTrapAndRspCon ())
+    {
+      cerr << "RSP trace: OS info length " << len << endl;
+      cerr << osInfoReply << endl;
+    }
+
+  if (offset >= len)
+    pkt->packStr ("l");
+  else
+    {
+      unsigned int pktlen = len - offset;
+      char pkttype = 'l';
+
+      if (pktlen > length)
+	{
+	  /* Will need more packets */
+	  pktlen = length;
+	  pkttype = 'm';
+	}
+
+      pkt->packNStr (&(osInfoReply.c_str ()[offset]), pktlen, pkttype);
+    }
+}	// rspOsData ()
+
+
+//-----------------------------------------------------------------------------
 //! Handle an OS processes request
 
 //! We need to return standard data, at this stage with all the cores. The
@@ -2045,7 +2119,7 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 {
   if (si->debugTrapAndRspCon ())
     {
-      cerr << "RSP trace: qXfer:osdata:read:process offset 0x" << hex
+      cerr << "RSP trace: qXfer:osdata:read:processes offset 0x" << hex
 	   << offset << ", length " << length << dec << endl;
     }
 
@@ -2070,15 +2144,15 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
       for (it = cores.begin (); it != cores.end (); it++)
 	{
 	  if (it != cores.begin ())
-	    osProcessReply += ", ";
+	    osProcessReply += ",";
 
-	  osProcessReply += intStr (*it);
+	  osProcessReply += intStr (*it, 8, 4);
 	}
 
       osProcessReply += "\n"
 	"    </column>\n"
 	"  </item>\n"
-	"  </osdata>";
+	"</osdata>";
     }
 
   // Send the reply (or part reply) back

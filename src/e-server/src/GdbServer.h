@@ -276,6 +276,9 @@ private:
   //! Hash table for matchpoints
   MpHash *mpHash;
 
+  //! String for OS info
+  string  osInfoReply;
+
   //! String for OS processes
   string  osProcessReply;
 
@@ -304,6 +307,8 @@ private:
   void rspQuery ();
   void rspCommand ();
   void rspTransfer ();
+  void rspOsData (unsigned int offset,
+		  unsigned int length);
   void rspOsDataProcesses (unsigned int offset,
 			   unsigned int length);
   void rspOsDataLoad (unsigned int offset,

@@ -1,5 +1,12 @@
 2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspOsData): Created.
+	(GdbServer::rspOsDataProcesses): Tidy up trace message, no space
+	after commas in list of cores, print cores as 4 char octal.
+	* src/GdbServer.h: Add osInforeply and rspOsData.
+
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Debug/src/subdir.mk: Bring files into line with Release version.
 
 2014-02-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
