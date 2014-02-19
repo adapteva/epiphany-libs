@@ -400,7 +400,10 @@ private:
   //! Integer to string conversion
   string  intStr (int  val,
 		  int  base = 10,
-		  int  width = 0);
+		  int  width = 0) const;
+
+  //! CoreId to string conversion
+  string  coreIdStr (uint16_t  coreId) const;
 
 };				// GdbServer()
 

@@ -1,3 +1,13 @@
+2014-02-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspOsDataProcesses):
+	Replace intStr with coreIdStr when presenting core IDs.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::intStr): Declare const.
+	(GdbServer::coreIdStr): Created.
+	* src/GdbServer.h: Declare intStr const, add coreIdStr.
+
 2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspOsDataTraffic): Provide values

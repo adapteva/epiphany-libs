@@ -2146,7 +2146,7 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	  if (it != cores.begin ())
 	    osProcessReply += ",";
 
-	  osProcessReply += intStr (*it, 8, 4);
+	  osProcessReply += coreIdStr (*it);
 	}
 
       osProcessReply += "\n"
@@ -2221,7 +2221,7 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 	  osLoadReply +=
 	    "  <item>\n"
 	    "    <column name=\"coreid\">";
-	  osLoadReply += intStr (*it, 8, 4);
+	  osLoadReply += coreIdStr (*it);
 	  osLoadReply += "</column>\n";
 
 	  osLoadReply +=
@@ -2318,7 +2318,7 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply +=
 	    "  <item>\n"
 	    "    <column name=\"coreid\">";
-	  osTrafficReply += intStr (coreId, 8, 4);
+	  osTrafficReply += coreIdStr (coreId);
 	  osTrafficReply += "</column>\n";
 
 	  // See what adjacent cores we have. Note that empty columns confuse
@@ -4119,7 +4119,7 @@ GdbServer::setfield (uint32_t & x, int _lt, int _rt, uint32_t val)
 string
 GdbServer::intStr (int  val,
 		   int  base,
-		   int  width)
+		   int  width) const
 {
   ostringstream  os;
 
@@ -4127,6 +4127,28 @@ GdbServer::intStr (int  val,
   return os.str ();
 
 }	// intStr ()
+
+
+//! Convenience function to turn a coreID into a string
+
+//! A coreId is represented as a 2 digit decimal value of its row, followed by
+//! a 2 digit decimal value of its column. Thus core (13,3) is 1303 and (7,17)
+//! is 0717.
+
+//! @param[in] val    The value to convert
+//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
+//!                   or 16. Other values will reset the iostream flags.
+//! @param[in] width  The width to pad (with zeros).
+string
+GdbServer::coreIdStr (uint16_t  coreId) const
+{
+  int row = (coreId >> 6) & 0x3f;
+  int col = coreId & 0x3f;
+  string coreStr = intStr (row, 10, 2) + intStr (col, 10, 2);
+
+  return coreStr;
+
+}	// coreIdStr ()
 
 
 // Local Variables:
