@@ -47,6 +47,9 @@ class TargetControl
 {
 public:
 
+  //! Maximum address space of an individual core
+  static const uint32_t  CORE_MEM_SPACE = 0x00100000;
+
   // Epiphany sizes
   static const unsigned int E_BYTE_BYTES   = 1;
   static const unsigned int E_SHORT_BYTES  = 2;

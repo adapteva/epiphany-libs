@@ -38,7 +38,6 @@
 #include "GdbServer.h"
 #include "ServerInfo.h"
 #include "TargetControlHardware.h"
-#include "maddr_defs.h"
 #include "e-xml/src/epiphany_xml.h"
 #include "e-hal/src/epiphany-hal-data.h"
 

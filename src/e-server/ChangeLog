@@ -1,5 +1,16 @@
 2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	Remove last dependencies on maddr_defs.h.
+
+	* src/TargetControl.h (class TargetControl): Define CORE_MEM_SPACE.
+	* src/TargetControlHardware.cpp: Remove include of maddr_defs.h.
+	(TargetControlHardware::showMaps): Trivial layout fix.
+	(TargetControlHardware::convertAddress): Repace CORE_SPACE by
+	CORE_MEM_SPACE.
+	* src/main.cpp: Remove include of maddr_defs.h.
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	Bring list of SCRs up to date, and rationalize division of
 	declarations between GDB server (GDB numbering) and target
 	hardware (memory addresses).

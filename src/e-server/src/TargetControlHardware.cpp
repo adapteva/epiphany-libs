@@ -39,7 +39,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include "maddr_defs.h"
 #include "TargetControlHardware.h"
 
 
@@ -769,8 +768,8 @@ TargetControlHardware::showMaps ()
       uint32_t  minAddr = r.minAddr ();
       uint32_t  maxAddr = r.maxAddr ();
 
-      cout << "  [" << hex << setw (8) << setfill ('0') << minAddr << ", 0x" << maxAddr << "]"
-	   << endl;
+      cout << "  [" << hex << setw (8) << setfill ('0') << minAddr << ", 0x"
+	   << maxAddr << "]" << endl;
     }
 }	// showMaps ()
 
@@ -794,7 +793,7 @@ TargetControlHardware::convertAddress (uint32_t address)
 {
   assert (dsoHandle);
 
-  if (address < CORE_SPACE)
+  if (address < CORE_MEM_SPACE)
     {
       return (((uint32_t) currentCoreId) << 20) | (address & 0x000fffff);
     }
