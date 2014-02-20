@@ -1,3 +1,45 @@
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Remove all instances of "flush", present due to a misunderstanding
+	of output.
+
+	* src/GdbServer.cpp: No using std::flush.
+	(GdbServer::rspServer): Remove flush.
+	(GdbServer::rspClientRequest): Likewise.
+	(GdbServer::rspReportException): Likewise.
+	(GdbServer::rspContinue): Likewise.
+	(GdbServer::targetResume): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::rspFileIOreply): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspReadAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQuery): Likewise.
+	(GdbServer::rspCommand): Likewise.
+	(GdbServer::rspSet): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::targetHalt): Likewise.
+	(GdbServer::putBreakPointInstruction): Likewise.
+	(GdbServer::isTargetExceptionState): Likewise.
+	(GdbServer::isTargetInIldeState): Likewise.
+	(GdbServer::rspVpkt): Likewise.
+	(GdbServer::rspWriteMemBin): Likewise.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::readPc): Likewise.
+	(GdbServer::readLr): Likewise.
+	(GdbServer::readFp): Likewise.
+	(GdbServer::readSp): Likewise.
+	(GdbServer::writePc): Likewise.
+	(GdbServer::writeLr): Likewise.
+	(GdbServer::writeFp): Likewise.
+	(GdbServer::writeSp): Likewise.
+	(GdbServer::rspQThreadExtraInfo): Likewise.
+	(GdbServer::rspThreadSubOperation): Likewise.
+
 2014-02-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspOsDataProcesses):

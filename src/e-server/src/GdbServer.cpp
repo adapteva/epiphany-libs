@@ -41,7 +41,6 @@ using std::cerr;
 using std::cout;
 using std::dec;
 using std::endl;
-using std::flush;
 using std::hex;
 using std::ostringstream;
 using std::setbase;
@@ -176,12 +175,12 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	    }
 	  if (si->debugCtrlCWait())
 	    cerr << dec <<
-	      "check for CTLR-C done" << endl << flush;
+	      "check for CTLR-C done" << endl;
 	}
 
       if (si->debugStopResume ())
 	cerr <<
-	  "-------------- rspClientRequest(): end" << endl << endl << flush;
+	  "-------------- rspClientRequest(): end" << endl << endl;
     }
 }				// rspServer()
 
@@ -227,8 +226,7 @@ GdbServer::rspClientRequest ()
 
     case 'A':
       // Initialization of argv not supported
-      cerr << "Warning: RSP 'A' packet not supported: ignored" << endl <<
-	flush;
+      cerr << "Warning: RSP 'A' packet not supported: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       break;
@@ -236,13 +234,13 @@ GdbServer::rspClientRequest ()
     case 'b':
       // Setting baud rate is deprecated
       cerr << "Warning: RSP 'b' packet is deprecated and not "
-	<< "supported: ignored" << endl << flush;
+	<< "supported: ignored" << endl;
       break;
 
     case 'B':
       // Breakpoints should be set using Z packets
       cerr << "Warning: RSP 'B' packet is deprecated (use 'Z'/'z' "
-	<< "packets instead): ignored" << endl << flush;
+	<< "packets instead): ignored" << endl;
       break;
 
     case 'c':
@@ -258,7 +256,7 @@ GdbServer::rspClientRequest ()
     case 'd':
       // Disable debug using a general query
       cerr << "Warning: RSP 'd' packet is deprecated (define a 'Q' "
-	<< "packet instead: ignored" << endl << flush;
+	<< "packet instead: ignored" << endl;
       break;
 
     case 'D':
@@ -298,7 +296,7 @@ GdbServer::rspClientRequest ()
       // running, so that next time it will be detected as stopped (it is
       // still stalled in reality) and an ack sent back to the client.
       cerr << "Warning: RSP cycle stepping not supported: target "
-	<< "stopped immediately" << endl << flush;
+	<< "stopped immediately" << endl;
       break;
 
     case 'k':
@@ -306,7 +304,7 @@ GdbServer::rspClientRequest ()
       cerr << hex << "GDB client kill request. The multicore server will be detached from the"
 	   << endl
 	   << "specific gdb client. Use target remote :<port> to connect again"
-	   << endl << flush;	//Stop target id supported
+	   << endl;	//Stop target id supported
       //pkt->packStr("OK");
       //rsp->putPkt(pkt);
       //exit(23);
@@ -349,7 +347,7 @@ GdbServer::rspClientRequest ()
     case 'r':
       // Reset the system. Deprecated (use 'R' instead)
       cerr << "Warning: RSP 'r' packet is deprecated (use 'R' "
-	<< "packet instead): ignored" << endl << flush;
+	<< "packet instead): ignored" << endl;
       break;
 
     case 'R':
@@ -371,7 +369,7 @@ GdbServer::rspClientRequest ()
       // Search. This is not well defined in the manual and for now we don't
       // support it. No response is defined.
       cerr << "Warning: RSP 't' packet not supported: ignored"
-	<< endl << flush;
+	<< endl;
       break;
 
     case 'T':
@@ -403,7 +401,7 @@ GdbServer::rspClientRequest ()
 
     default:
       // Unknown commands are ignored
-      cerr << "Warning: Unknown RSP request" << pkt->data << endl << flush;
+      cerr << "Warning: Unknown RSP request" << pkt->data << endl;
       break;
     }
 }				// rspClientRequest()
@@ -421,7 +419,7 @@ GdbServer::rspReportException (unsigned stoppedPC, unsigned threadID,
 {
   if (si->debugStopResume ())
     cerr << "stopped at PC 0x" << hex << stoppedPC << "  EX 0x" << exCause
-	 << dec << endl << flush;
+	 << dec << endl;
 
   // Construct a signal received packet
   if (threadID == 0)
@@ -476,7 +474,7 @@ GdbServer::rspContinue (uint32_t except)
   if ('c' != pkt->data[0])
     {
       cerr << "Warning: Continue with signal not currently supported: "
-	<< "ignored" << endl << flush;
+	<< "ignored" << endl;
       return;
     }
 
@@ -488,7 +486,7 @@ GdbServer::rspContinue (uint32_t except)
   else if (1 != sscanf (pkt->data, "c%x", &addr))
     {
       cerr << "Warning: RSP continue address " << pkt->data
-	<< " not recognized: ignored" << endl << flush;
+	<< " not recognized: ignored" << endl;
       addr = readPc ();		// Default uses current NPC
     }
 
@@ -508,7 +506,7 @@ GdbServer::rspContinue ()
 {
   if (si->debugTrapAndRspCon ())
     cerr << "RSP continue with signal '" << pkt->
-      data << "' received" << endl << flush;
+      data << "' received" << endl;
 
   //return the same exception
   unsigned exCause = TARGET_SIGNAL_TRAP;
@@ -522,8 +520,7 @@ GdbServer::rspContinue ()
   else
     {
       cerr << "WARNING: RSP continue with signal '" << pkt->
-	data << "' received, the server will ignore the continue" << endl <<
-	flush;
+	data << "' received, the server will ignore the continue" << endl;
 
       //check the exception state
       isTargetExceptionState (exCause);
@@ -569,13 +566,13 @@ GdbServer::targetResume ()
   if (si->debugTrapAndRspCon ())
     cerr << dec <<
       " resume CORE_DEBUGCMD " << hex << CORE_DEBUGCMD << " " <<
-      ATDSP_DEBUG_RUN << dec << endl << flush;
+      ATDSP_DEBUG_RUN << dec << endl;
 
   fIsTargetRunning = true;
 
   if (si->debugStopResume ())
     cerr << "resumed"
-	 << endl << flush;
+	 << endl;
 }
 
 
@@ -594,21 +591,20 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
   if ((!fIsTargetRunning && si->debugStopResume ()) || si->debugTranDetail ())
     {
       cerr << dec <<
-	"GdbServer::rspContinue PC 0x" << hex << addr << dec << endl <<
-	flush;
+	"GdbServer::rspContinue PC 0x" << hex << addr << dec << endl;
     }
 
   uint32_t prevPc = 0;
 
   if (!fIsTargetRunning)
     {
-      //cerr << "********* fIsTargetRunning = false **************" << endl << flush;
+      //cerr << "********* fIsTargetRunning = false **************" << endl;
       //check if core in debug state
       if (!isTargetInDebugState ())
 	{
-	  //cerr << "********* isTargetInDebugState = false **************" << endl << flush;
+	  //cerr << "********* isTargetInDebugState = false **************" << endl;
 
-	  //cerr << "Internal Error(DGB server): Core is not in HALT state while the GDB is asking the cont" << endl << flush;
+	  //cerr << "Internal Error(DGB server): Core is not in HALT state while the GDB is asking the cont" << endl;
 	  //pkt->packStr("E01");
 	  //rsp->putPkt(pkt);
 	  //exit(2);
@@ -617,7 +613,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	}
       else
 	{
-	  //cerr << "********* isTargetInDebugState = true **************" << endl << flush;
+	  //cerr << "********* isTargetInDebugState = true **************" << endl;
 
 	  //set PC
 	  writePc (addr);
@@ -634,7 +630,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
   while (true)
     {
-      //cerr << "********* while true **************" << endl << flush;
+      //cerr << "********* while true **************" << endl;
 
       NanoSleepThread (300000000);
 
@@ -643,8 +639,8 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
       //give up control and check for CTRL-C
       if (timeout_me > timeout_limit)
 	{
-	  //cerr << "********* timeout me > limit **************" << endl << flush;
-	  //cerr << " PC << " << hex << readPc() << dec << endl << flush;
+	  //cerr << "********* timeout me > limit **************" << endl;
+	  //cerr << " PC << " << hex << readPc() << dec << endl;
 	  assert (fIsTargetRunning);
 	  break;
 	}
@@ -653,12 +649,12 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
       if (isTargetInDebugState ())
 	{
-	  //cerr << "********* isTargetInDebugState = true **************" << endl << flush;
+	  //cerr << "********* isTargetInDebugState = true **************" << endl;
 
 	  // If it's a breakpoint, then we need to back up one instruction, so
 	  // on restart we execute the actual instruction.
 	  uint32_t c_pc = readPc ();
-	  //cout << "stopped at @pc " << hex << c_pc << dec << endl << flush;
+	  //cout << "stopped at @pc " << hex << c_pc << dec << endl;
 	  prevPc = c_pc - ATDSP_BKPT_INSTLEN;
 
 	  //check if it is trap
@@ -669,20 +665,20 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	  if (valueOfStoppedInstr == ATDSP_BKPT_INSTR)
 	    {
-	      //cerr << "********* valueOfStoppedInstr = ATDSP_BKPT_INSTR **************" << endl << flush;
+	      //cerr << "********* valueOfStoppedInstr = ATDSP_BKPT_INSTR **************" << endl;
 
 	      if (NULL != mpHash->lookup (BP_MEMORY, prevPc))
 		{
 		  writePc (prevPc);
 		  if (si->debugTrapAndRspCon ())
 		    cerr << dec << "set pc back " << hex << prevPc << dec << endl
-		      << flush;
+		     ;
 		}
 
 	      if (si->debugTrapAndRspCon ())
 		cerr <<
 		  dec << "After wait CONT GdbServer::rspContinue PC 0x" <<
-		  hex << prevPc << dec << endl << flush;
+		  hex << prevPc << dec << endl;
 
 	      // report to gdb the target has been stopped
 
@@ -694,17 +690,17 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	    }
 	  else
 	    {			// check if stopped for trap (stdio handling)
-	      //cerr << "********* valueOfStoppedInstr =\\= ATDSP_BKPT_INSTR **************" << endl << flush;
+	      //cerr << "********* valueOfStoppedInstr =\\= ATDSP_BKPT_INSTR **************" << endl;
 
 	      bool stoppedAtTrap =
 		(getfield (valueOfStoppedInstr, 9, 0) == ATDSP_TRAP_INSTR);
 	      if (!stoppedAtTrap)
 		{
-		  //cerr << "********* stoppedAtTrap = false **************" << endl << flush;
+		  //cerr << "********* stoppedAtTrap = false **************" << endl;
 		  //try to go back an look for trap // bug in the design !!!!!!!!!!!!!!
 		  if (si->debugTrapAndRspCon ())
 		    cerr << dec << "missed trap ... looking backward for trap "
-		      << hex << c_pc << dec << endl << flush;
+		      << hex << c_pc << dec << endl;
 
 
 		  if (valueOfStoppedInstr == ATDSP_NOP_INSTR)
@@ -725,8 +721,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 			    {
 			      if (si->debugStopResumeDetail ())
 				cerr << dec <<
-				  "trap found @" << hex << j << dec << endl <<
-				  flush;
+				  "trap found @" << hex << j << dec << endl;
 			      break;
 
 			    }
@@ -738,7 +733,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	      if (stoppedAtTrap)
 		{
-		  //cerr << "********* stoppedAtTrap = true **************" << endl << flush;
+		  //cerr << "********* stoppedAtTrap = true **************" << endl;
 
 		  fIsTargetRunning = false;
 
@@ -748,10 +743,10 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		}
 	      else
 		{
-		  //cerr << "********* stoppedAtTrap = false **************" << endl << flush;
+		  //cerr << "********* stoppedAtTrap = false **************" << endl;
 		  if (si->debugStopResumeDetail ())
 		    cerr << dec << " no trap found, return control to gdb" <<
-		      endl << flush;
+		      endl;
 		  // report to gdb the target has been stopped
 		  rspReportException (readPc () /* PC no trap found */ ,
 				      0 /* all threads */ ,
@@ -782,7 +777,7 @@ GdbServer::rspSuspend ()
 
   if (si->debugTrapAndRspCon ())
     cerr << dec <<
-      "force debug mode" << endl << flush;
+      "force debug mode" << endl;
 
   //probably target suspended
   if (!isTargetInDebugState ())
@@ -831,7 +826,7 @@ GdbServer::rspSuspend ()
 	      //idle
 	      if (getfield (instrOpcode, 8, 0) == IDLE_OPCODE)
 		{
-		  //cerr << "POINT on IDLE " << endl << flush;
+		  //cerr << "POINT on IDLE " << endl;
 		}
 	      else
 		{
@@ -840,7 +835,7 @@ GdbServer::rspSuspend ()
 		}
 	      writePc (reportedPc);
 
-	      //cerr << "SUPEND " << hex << reportedPc << endl << flush;
+	      //cerr << "SUPEND " << hex << reportedPc << endl;
 	    }
 	}
     }
@@ -880,7 +875,7 @@ GdbServer::rspFileIOreply ()
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
 	  " remote io done " << result_io << "error code" <<
-	  host_respond_error_code << endl << flush;
+	  host_respond_error_code << endl;
 
     }
   else if (1 == sscanf (pkt->data, "F%lx", &result_io))
@@ -888,14 +883,14 @@ GdbServer::rspFileIOreply ()
 
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
-	  " remote io done " << result_io << endl << flush;
+	  " remote io done " << result_io << endl;
 
       //write to r0
       writeGpr (0, result_io);
     }
   else
     {
-      cerr << " remote IO operation fail " << endl << flush;
+      cerr << " remote IO operation fail " << endl;
     }
 }
 
@@ -926,8 +921,8 @@ enum TRAP_CODES
 void
 GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 {
-  //cout << "---- stop on PC 0x " << hex << prevPc << dec << endl << flush;
-  //cout << "---- got trap 0x" << hex << valueOfStoppedInstr << dec << endl << flush;
+  //cout << "---- stop on PC 0x " << hex << prevPc << dec << endl;
+  //cout << "---- got trap 0x" << hex << valueOfStoppedInstr << dec << endl;
 
   uint32_t r0, r1, r2, r3;
   char *buf;
@@ -943,14 +938,14 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
-	  " Trap 0 write " << endl << flush;
+	  " Trap 0 write " << endl;
       r0 = readGpr (0);		//chan
       r1 = readGpr (1);		//addr
       r2 = readGpr (2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
-	  " write to chan " << r0 << " bytes " << r2 << endl << flush;
+	  " write to chan " << r0 << " bytes " << r2 << endl;
 
       sprintf ((pkt->data), "Fwrite,%lx,%lx,%lx", (unsigned long) r0,
 	       (unsigned long) r1, (unsigned long) r2);
@@ -961,14 +956,14 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
     case TRAP_READ:
       if (si->debugTrapAndRspCon ())
-	cerr << dec << " Trap 1 read " << endl << flush;	/*read(chan, addr, len) */
+	cerr << dec << " Trap 1 read " << endl;	/*read(chan, addr, len) */
       r0 = readGpr (0);		//chan
       r1 = readGpr (1);		//addr
       r2 = readGpr (2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
-	  " read from chan " << r0 << " bytes " << r2 << endl << flush;
+	  " read from chan " << r0 << " bytes " << r2 << endl;
 
 
       sprintf ((pkt->data), "Fread,%lx,%lx,%lx", (unsigned long) r0,
@@ -984,7 +979,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 2 open, file name located @" << hex << r0 << dec << " (mode)"
-	  << r1 << endl << flush;
+	  << r1 << endl;
 
       for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 	{
@@ -1008,25 +1003,25 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
     case TRAP_EXIT:
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
-	  " Trap 3 exiting .... ??? " << endl << flush;
+	  " Trap 3 exiting .... ??? " << endl;
       r0 = readGpr (0);		//status
-      //cerr << " The remote target got exit() call ... no OS -- ignored" << endl << flush;
+      //cerr << " The remote target got exit() call ... no OS -- ignored" << endl;
       //exit(4);
       rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_PASS:
-      cerr << " Trap 4 PASS " << endl << flush;
+      cerr << " Trap 4 PASS " << endl;
       rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_TRAP);
       break;
     case TRAP_FAIL:
-      cerr << " Trap 5 FAIL " << endl << flush;
+      cerr << " Trap 5 FAIL " << endl;
       rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
       r0 = readGpr (0);		//chan
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
-	  " Trap 6 close: " << r0 << endl << flush;
+	  " Trap 6 close: " << r0 << endl;
       sprintf ((pkt->data), "Fclose,%lx", (unsigned long) r0);
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
@@ -1036,17 +1031,17 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (NULL != si->ttyOut ())
 	{
 
-	  //cerr << " Trap 7 syscall -- ignored" << endl << flush;
+	  //cerr << " Trap 7 syscall -- ignored" << endl;
 	  if (si->debugTrapAndRspCon ())
 	    cerr << dec <<
-	      " Trap 7 " << endl << flush;
+	      " Trap 7 " << endl;
 	  r0 = readGpr (0);	// buf_addr
 	  r1 = readGpr (1);	// fmt_len
 	  r2 = readGpr (2);	// total_len
 
 	  //fprintf(stderr, " TRAP_OTHER %x %x", PARM0,PARM1);
 
-	  //cerr << " buf " << hex << r0 << "  " << r1 << "  " << r2 << dec << endl << flush;
+	  //cerr << " buf " << hex << r0 << "  " << r1 << "  " << r2 << dec << endl;
 
 	  buf = (char *) malloc (r2);
 	  for (unsigned k = 0; k < r2; k++)
@@ -1176,16 +1171,16 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      if (si->debugTrapAndRspCon ())
 		cerr <<
 		  dec << "SYS_fstat fildes " << hex << r0 << " struct stat * "
-		  << r1 << dec << endl << flush;
+		  << r1 << dec << endl;
 	      break;
 
 	    default:
-	      cerr << "ERROR: Trap 7 --- unknown SUBFUN " << r3 << endl << flush;
+	      cerr << "ERROR: Trap 7 --- unknown SUBFUN " << r3 << endl;
 	      break;
 	    }
 	  if (si->debugTrapAndRspCon ())
 	    cerr << "Trap 7: "
-	      << (pkt->data) << endl << flush;
+	      << (pkt->data) << endl;
 
 	  pkt->setLen (strlen (pkt->data));
 	  rsp->putPkt (pkt);
@@ -1214,7 +1209,7 @@ void
 GdbServer::rspReadAllRegs ()
 {
   fTargetControl->startOfBaudMeasurement ();
-  //cerr << "MTIME--- READ all regs START ----" << endl << flush;
+  //cerr << "MTIME--- READ all regs START ----" << endl;
 
   // The GPRs
   {
@@ -1235,7 +1230,7 @@ GdbServer::rspReadAllRegs ()
 
     if (!retSt)
       {
-	cerr << "ERROR read all regs failed" << endl << flush;
+	cerr << "ERROR read all regs failed" << endl;
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
       }
@@ -1249,7 +1244,7 @@ GdbServer::rspReadAllRegs ()
     bool retSt = fTargetControl->readBurst (CORE_CONFIG, buf, sizeof (buf));
     if (!retSt)
       {
-	cerr << "ERROR read all regs failed" << endl << flush;
+	cerr << "ERROR read all regs failed" << endl;
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
       }
@@ -1274,7 +1269,7 @@ GdbServer::rspReadAllRegs ()
     retSt = fTargetControl->readBurst (DMA0_CONFIG, buf, sizeof (buf));
     if (!retSt)
       {
-	cerr << "ERROR read all regs failed" << endl << flush;
+	cerr << "ERROR read all regs failed" << endl;
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
       }
@@ -1427,7 +1422,7 @@ GdbServer::rspReadMem ()
   if (2 != sscanf (pkt->data, "m%x,%x:", &addr, &len))
     {
       cerr << "Warning: Failed to recognize RSP read memory command: "
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1437,7 +1432,7 @@ GdbServer::rspReadMem ()
   if ((len * 2) >= pkt->getBufSize ())
     {
       cerr << "Warning: Memory read " << pkt->data
-	<< " too large for RSP packet: truncated" << endl << flush;
+	<< " too large for RSP packet: truncated" << endl;
       len = (pkt->getBufSize () - 1) / 2;
     }
 
@@ -1504,7 +1499,7 @@ GdbServer::rspWriteMem ()
   if (2 != sscanf (pkt->data, "M%x,%x:", &addr, &len))
     {
       cerr << "Warning: Failed to recognize RSP write memory "
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1518,7 +1513,7 @@ GdbServer::rspWriteMem ()
   if (len * 2 != datLen)
     {
       cerr << "Warning: Write of " << len * 2 << "digits requested, but "
-	<< datLen << " digits supplied: packet ignored" << endl << flush;
+	<< datLen << " digits supplied: packet ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1526,7 +1521,7 @@ GdbServer::rspWriteMem ()
 
   // Write the bytes to memory
   {
-    //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl << flush;
+    //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl;
     if (!fTargetControl->writeBurst (addr, (unsigned char *) symDat, len))
       {
 	pkt->packStr ("E01");
@@ -1562,7 +1557,7 @@ GdbServer::rspReadReg ()
   if (1 != sscanf (pkt->data, "p%x", &regNum))
     {
       cerr << "Warning: Failed to recognize RSP read register command: "
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1590,7 +1585,7 @@ GdbServer::rspReadReg ()
     {
       // Error response if we don't know the register
       cerr << "Warning: Attempt to read unknown register" << regNum
-	<< ": ignored" << endl << flush;
+	<< ": ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1622,7 +1617,7 @@ GdbServer::rspWriteReg ()
   if (2 != sscanf (pkt->data, "P%x=%8s", &regNum, valstr))
     {
       cerr << "Warning: Failed to recognize RSP write register command "
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1649,7 +1644,7 @@ GdbServer::rspWriteReg ()
     {
       // Error response if we don't know the register
       cerr << "Warning: Attempt to write unknown register " << regNum
-	<< ": ignored" << endl << flush;
+	<< ": ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -1667,7 +1662,7 @@ GdbServer::rspWriteReg ()
 void
 GdbServer::rspQuery ()
 {
-  //cerr << "rspQuery " << pkt->data << endl << flush;
+  //cerr << "rspQuery " << pkt->data << endl;
 
   if (0 == strcmp ("qC", pkt->data))
     {
@@ -1686,7 +1681,7 @@ GdbServer::rspQuery ()
   else if (0 == strncmp ("qCRC", pkt->data, strlen ("qCRC")))
     {
       // Return CRC of memory area
-      cerr << "Warning: RSP CRC query not supported" << endl << flush;
+      cerr << "Warning: RSP CRC query not supported" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
     }
@@ -1718,7 +1713,7 @@ GdbServer::rspQuery ()
   else if (0 == strncmp ("qL", pkt->data, strlen ("qL")))
     {
       // Deprecated and replaced by 'qfThreadInfo'
-      cerr << "Warning: RSP qL deprecated: no info returned" << endl << flush;
+      cerr << "Warning: RSP qL deprecated: no info returned" << endl;
       pkt->packStr ("qM001");
       rsp->putPkt (pkt);
     }
@@ -1731,7 +1726,7 @@ GdbServer::rspQuery ()
   else if (0 == strncmp ("qP", pkt->data, strlen ("qP")))
     {
       // Deprecated and replaced by 'qThreadExtraInfo'
-      cerr << "Warning: RSP qP deprecated: no info returned" << endl << flush;
+      cerr << "Warning: RSP qP deprecated: no info returned" << endl;
       pkt->packStr ("");
       rsp->putPkt (pkt);
     }
@@ -1788,7 +1783,7 @@ GdbServer::rspQuery ()
     {
       //Ask the stub if there is a trace experiment running right now
       //For now we support no 'qTStatus' requests
-      //cerr << "Warning: RSP 'qTStatus' not supported: ignored" << endl << flush;
+      //cerr << "Warning: RSP 'qTStatus' not supported: ignored" << endl;
       pkt->packStr ("");
       rsp->putPkt (pkt);
     }
@@ -1796,7 +1791,7 @@ GdbServer::rspQuery ()
     {
       //Querying remote process attach state
       //The remote target doesn't run under any OS suppling the, dteaching and killing in will have a same effect
-      //cerr << "Warning: RSP 'qAttached' not supported: ignored" << endl << flush;
+      //cerr << "Warning: RSP 'qAttached' not supported: ignored" << endl;
       pkt->packStr ("");
       rsp->putPkt (pkt);
     }
@@ -1830,7 +1825,7 @@ GdbServer::rspCommand ()
     {
 
       cerr << dec <<
-	"The debugger sent reset request" << endl << flush;
+	"The debugger sent reset request" << endl;
 
       //reset
       targetSwReset ();
@@ -1843,7 +1838,7 @@ GdbServer::rspCommand ()
 	"The debugger sent HW (platfrom) reset request, please restart other debug clients.\n";
 
       cerr << dec << mess
-	<< endl << flush;
+	<< endl;
 
       //HW reset (ESYS_RESET)
       targetHWReset ();
@@ -1856,7 +1851,7 @@ GdbServer::rspCommand ()
     {
 
       cerr << dec <<
-	"The debugger sent halt request," << endl << flush;
+	"The debugger sent halt request," << endl;
 
       //target halt
       bool isHalted = targetHalt ();
@@ -1871,7 +1866,7 @@ GdbServer::rspCommand ()
 
       cerr 
 << dec <<
-	"The debugger sent start request," << endl << flush;
+	"The debugger sent start request," << endl;
 
       // target start (ILAT set)
       // ILAT set
@@ -1905,7 +1900,7 @@ GdbServer::rspCommand ()
   else
     {
       cerr << "Warning: received remote command " << cmd << ": ignored" <<
-	endl << flush;
+	endl;
     }
 
   pkt->setLen (strlen (pkt->data));
@@ -2478,7 +2473,7 @@ GdbServer::rspSet ()
     }
   else
     {
-      cerr << "Unrecognized RSP set request: ignored" << endl << flush;
+      cerr << "Unrecognized RSP set request: ignored" << endl;
       delete pkt;
     }
 }				// rspSet()
@@ -2517,7 +2512,7 @@ GdbServer::rspStep (uint32_t except)
   if ('s' != pkt->data[0])
     {
       cerr << "Warning: Step with signal not currently supported: "
-	<< "ignored" << endl << flush;
+	<< "ignored" << endl;
       return;
     }
 
@@ -2528,7 +2523,7 @@ GdbServer::rspStep (uint32_t except)
   else if (1 != sscanf (pkt->data, "s%x", &addr))
     {
       cerr << "Warning: RSP step address " << pkt->data
-	<< " not recognized: ignored" << endl << flush;
+	<< " not recognized: ignored" << endl;
       addr = readPc ();		// Default uses current PC
     }
 
@@ -2546,7 +2541,7 @@ void
 GdbServer::rspStep ()
 {
   cerr << "WARNING: RSP step with signal '" << pkt->
-    data << "' received, the server will ignore the step" << endl << flush;
+    data << "' received, the server will ignore the step" << endl;
 
   //return the same exception
   rsp->putPkt (pkt);
@@ -2744,7 +2739,7 @@ GdbServer::targetHalt ()
     }
 
   if (si->debugStopResume ())
-    cerr << "DebugStopResume: Target halted." << flush;
+    cerr << "DebugStopResume: Target halted.";
 
   return true;
 
@@ -2763,7 +2758,7 @@ GdbServer::putBreakPointInstruction (unsigned long bkpt_addr)
   if (si->debugStopResumeDetail ())
     cerr <<
       " put break point " << hex << bkpt_addr << " " << ATDSP_BKPT_INSTR <<
-      dec << endl << flush;
+      dec << endl;
 
 }
 
@@ -2817,7 +2812,7 @@ GdbServer::isTargetExceptionState (unsigned &exCause)
     {
 
       ret = true;
-      //cerr << "Exception " << hex << coreStatus(18,16) << endl << flush;
+      //cerr << "Exception " << hex << coreStatus(18,16) << endl;
 
       exCause = TARGET_SIGNAL_ABRT;
 
@@ -2851,17 +2846,17 @@ GdbServer::isTargetInIldeState ()
   if (getfield (coreStatus, 18, 16) != 0)
     {
       cerr << "EXception " << hex << getfield (coreStatus, 18,
-					       16) << endl << flush;
+					       16) << endl;
     }
 
-  //cerr << " CORE status" << hex << coreStatus << endl << flush;
+  //cerr << " CORE status" << hex << coreStatus << endl;
 
   if ((coreStatus & CORE_IDLE_BIT) == CORE_IDLE_VAL)
     {
 
       ret = true;
 
-      //cerr << " IDLE state " << endl << flush;
+      //cerr << " IDLE state " << endl;
 
       //get instruction and check if we are in ilde
     }
@@ -2936,14 +2931,14 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 {
   if (si->debugStopResumeDetail ())
     cerr << dec <<
-      "GdbServer::rspStep PC 0x" << hex << addr << dec << endl << flush;
+      "GdbServer::rspStep PC 0x" << hex << addr << dec << endl;
 
   //check if core in debug state
   if (!isTargetInDebugState ())
     {
       cerr <<
 	"e-server Internal Error: Assertion failed: The step request can not be acknowledged when the core is not in HALT state (non stopped)"
-	<< endl << flush;
+	<< endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       exit (8);
@@ -2974,8 +2969,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   bool stoppedAtIdleInstr = (getfield (instrOpcode, 8, 0) == IDLE_OPCODE);
   if (stoppedAtIdleInstr)
     {
-      cerr << "POINT on IDLE " << " ADDR " << hex << reportedPc << dec << endl
-	<< flush;
+      cerr << "POINT on IDLE " << " ADDR " << hex << reportedPc << dec << endl;
 
       //check if global ISR enable state
       uint32_t coreStatus = readCoreStatus ();
@@ -3049,7 +3043,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   //check if core in debug state
   if ((addr != pc_))
     {
-      cerr << "e-server Internal Error: PC access failure" << endl << flush;
+      cerr << "e-server Internal Error: PC access failure" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       exit (8);
@@ -3058,7 +3052,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   if (si->debugStopResumeDetail ())
     cerr << dec <<
-      " get PC " << hex << pc_ << endl << flush;
+      " get PC " << hex << pc_ << endl;
 
   //fetch instruction opcode on PC
 
@@ -3072,7 +3066,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   if (si->debugStopResumeDetail ())
     cerr << dec <<
-      " opcode 0x" << hex << instrOpcode << dec << endl << flush;
+      " opcode 0x" << hex << instrOpcode << dec << endl;
 
   uint32_t bkpt_addr = addr + 2;	//put breakpoint to addr + instruction length
 
@@ -3093,7 +3087,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
     }
   if (si->debugTrapAndRspCon ())
     cerr << dec <<
-      "put (SEQ) bkpt on 0x" << hex << bkpt_addr << dec << endl << flush;
+      "put (SEQ) bkpt on 0x" << hex << bkpt_addr << dec << endl;
   putBreakPointInstruction (bkpt_addr);
 
 
@@ -3124,14 +3118,14 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       long jAddr = long (pc_) + ((long (immExt)) <<1);
       bkpt_jump_addr = jAddr;
 
-      //cerr << " calculated Jump based on ImmExt 0x" << hex << immExt << dec << endl << flush;
+      //cerr << " calculated Jump based on ImmExt 0x" << hex << immExt << dec << endl;
     }
 
   //RTI
   if (getfield (instrOpcode, 8, 0) == 0x1d2)
     {
       bkpt_jump_addr = readScrGrp0 (ATDSP_SCR_IRET);
-      //cerr << "RTI " << hex << bkpt_jump_addr << dec << endl << flush;
+      //cerr << "RTI " << hex << bkpt_jump_addr << dec << endl;
     }
 
   //check if jump by reg
@@ -3141,7 +3135,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
     {
       uint8_t regShortNum = getfield (instrOpcode, 12, 10);
       bkpt_jump_addr = readGpr (regShortNum);
-      //cerr << "PC <-< " << regShortNum << endl << flush;
+      //cerr << "PC <-< " << regShortNum << endl;
     }
   //32 bits jump
   if (getfield (instrOpcode, 8, 0) == 0x14f
@@ -3152,7 +3146,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	(getfield (instrExt, 12, 10) << 3) | (getfield (instrOpcode, 12, 10)
 					      << 0);
       bkpt_jump_addr = readGpr (regLongNum);
-      //cerr << "PC <-< " << regLongNum << endl << flush;
+      //cerr << "PC <-< " << regLongNum << endl;
     }
 
   //take care of change of flow
@@ -3161,7 +3155,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
 	  "put bkpt on (change of flow) " << hex << bkpt_jump_addr << dec <<
-	  endl << flush;
+	  endl;
       if (mpHash->lookup (BP_MEMORY, bkpt_jump_addr) == NULL)
 	{
 
@@ -3174,8 +3168,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	}
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
-	  "put (JMP) bkpt on 0x" << hex << bkpt_jump_addr << dec << endl <<
-	  flush;
+	  "put (JMP) bkpt on 0x" << hex << bkpt_jump_addr << dec << endl;
 
       putBreakPointInstruction (bkpt_jump_addr);
 
@@ -3198,7 +3191,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   if (si->debugTrapAndRspCon ())
     cerr << dec <<
-      " resume at PC " << hex << readPc () << endl << flush;
+      " resume at PC " << hex << readPc () << endl;
   if (si->debugStopResumeDetail ())
     {
       uint32_t pcReadVal;
@@ -3206,7 +3199,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       //bool pcReadSt = fTargetControl->readMem32(readPc(), pcReadVal);
 
       cerr << dec <<
-	" opcode << " << pcReadVal << dec << endl << flush;
+	" opcode << " << pcReadVal << dec << endl;
     }
 
 
@@ -3231,7 +3224,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	  || isHitInBreakPointInstruction (bkpt_jump_addr));
   if (si->debugStopResumeDetail ())
     cerr << dec <<
-      "set prevPc after stop 0x" << hex << prevPc << dec << endl << flush;
+      "set prevPc after stop 0x" << hex << prevPc << dec << endl;
   writePc (prevPc);
 
   //remove "hidden" bk
@@ -3247,7 +3240,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   if (si->debugTrapAndRspCon ())
     cerr << dec <<
       "After wait STEP GdbServer::Step 0x" << hex << prevPc << dec << endl
-      << flush;
+     ;
 
   // report to gdb the target has been stopped
   rspReportException (prevPc, 0 /*all threads */ , TARGET_SIGNAL_TRAP);
@@ -3281,13 +3274,13 @@ GdbServer::rspVpkt ()
     {
       // This shouldn't happen, because we've reported non-support via vCont?
       // above
-      cerr << "Warning: RSP vCont not supported: ignored" << endl << flush;
+      cerr << "Warning: RSP vCont not supported: ignored" << endl;
       return;
     }
   else if (0 == strncmp ("vFile:", pkt->data, strlen ("vFile:")))
     {
       // For now we don't support this.
-      cerr << "Warning: RSP vFile not supported: ignored" << endl << flush;
+      cerr << "Warning: RSP vFile not supported: ignored" << endl;
       pkt->packStr ("");
       rsp->putPkt (pkt);
       return;
@@ -3295,8 +3288,7 @@ GdbServer::rspVpkt ()
   else if (0 == strncmp ("vFlashErase:", pkt->data, strlen ("vFlashErase:")))
     {
       // For now we don't support this.
-      cerr << "Warning: RSP vFlashErase not supported: ignored" << endl <<
-	flush;
+      cerr << "Warning: RSP vFlashErase not supported: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3304,8 +3296,7 @@ GdbServer::rspVpkt ()
   else if (0 == strncmp ("vFlashWrite:", pkt->data, strlen ("vFlashWrite:")))
     {
       // For now we don't support this.
-      cerr << "Warning: RSP vFlashWrite not supported: ignored" << endl <<
-	flush;
+      cerr << "Warning: RSP vFlashWrite not supported: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3313,8 +3304,7 @@ GdbServer::rspVpkt ()
   else if (0 == strcmp ("vFlashDone", pkt->data))
     {
       // For now we don't support this.
-      cerr << "Warning: RSP vFlashDone not supported: ignored" << endl <<
-	flush;;
+      cerr << "Warning: RSP vFlashDone not supported: ignored" << endl;;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3325,7 +3315,7 @@ GdbServer::rspVpkt ()
       if (pkt->getLen () > (int) strlen ("vRun;"))
 	{
 	  cerr << "Warning: Unexpected arguments to RSP vRun "
-	    "command: ignored" << endl << flush;
+	    "command: ignored" << endl;
 	}
 
       // Restart the current program. However unlike a "R" packet, "vRun"
@@ -3337,7 +3327,7 @@ GdbServer::rspVpkt ()
   else
     {
       cerr << "Warning: Unknown RSP 'v' packet type " << pkt->data
-	<< ": ignored" << endl << flush;
+	<< ": ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3373,7 +3363,7 @@ GdbServer::rspWriteMemBin ()
   if (2 != sscanf (pkt->data, "X%x,%x:", &addr, &len))
     {
       cerr << "Warning: Failed to recognize RSP write memory command: %s"
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3394,11 +3384,11 @@ GdbServer::rspWriteMemBin ()
 
       cerr << "Warning: Write of " << len << " bytes requested, but "
 	<< newLen << " bytes supplied. " << minLen << " will be written" <<
-	endl << flush;
+	endl;
       len = minLen;
     }
 
-  //cerr << "rspWriteMemBin" << hex << addr << dec << " (" << len << ")" << endl << flush;
+  //cerr << "rspWriteMemBin" << hex << addr << dec << " (" << len << ")" << endl;
   if (!fTargetControl->writeBurst (addr, bindat, len))
     {
       pkt->packStr ("E01");
@@ -3432,7 +3422,7 @@ GdbServer::rspRemoveMatchpoint ()
   if (3 != sscanf (pkt->data, "z%1d,%x,%1d", (int *) &type, &addr, &len))
     {
       cerr << "Warning: RSP matchpoint deletion request not "
-	<< "recognized: ignored" << endl << flush;
+	<< "recognized: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3442,8 +3432,7 @@ GdbServer::rspRemoveMatchpoint ()
   if (ATDSP_BKPT_INSTLEN != len)
     {
       cerr << "Warning: RSP matchpoint deletion length " << len
-	<< " not valid: " << ATDSP_BKPT_INSTLEN << " assumed" << endl <<
-	flush;
+	<< " not valid: " << ATDSP_BKPT_INSTLEN << " assumed" << endl;
       len = ATDSP_BKPT_INSTLEN;
     }
 
@@ -3483,7 +3472,7 @@ GdbServer::rspRemoveMatchpoint ()
 
     default:
       cerr << "Warning: RSP matchpoint type " << type
-	<< " not recognized: ignored" << endl << flush;
+	<< " not recognized: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3511,7 +3500,7 @@ GdbServer::rspInsertMatchpoint ()
   if (3 != sscanf (pkt->data, "Z%1d,%x,%1d", (int *) &type, &addr, &len))
     {
       cerr << "Warning: RSP matchpoint insertion request not "
-	<< "recognized: ignored" << endl << flush;
+	<< "recognized: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3521,8 +3510,7 @@ GdbServer::rspInsertMatchpoint ()
   if (ATDSP_BKPT_INSTLEN != len)
     {
       cerr << "Warning: RSP matchpoint insertion length " << len
-	<< " not valid: " << ATDSP_BKPT_INSTLEN << " assumed" << endl <<
-	flush;
+	<< " not valid: " << ATDSP_BKPT_INSTLEN << " assumed" << endl;
       len = ATDSP_BKPT_INSTLEN;
     }
 
@@ -3566,7 +3554,7 @@ GdbServer::rspInsertMatchpoint ()
 
     default:
       cerr << "Warning: RSP matchpoint type " << type
-	<< "not recognized: ignored" << endl << flush;
+	<< "not recognized: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3658,11 +3646,11 @@ GdbServer::readPc ()
   //bool retSt = fTargetControl->readMem32(CORE_CONFIG + ATDSP_SCR_PC * ATDSP_INST32LEN, val);
 
   //if (fIsMultiCoreSupported && (val < CORE_SPACE*NCORES)) {
-  //      cout << "--" << endl << flush;
+  //      cout << "--" << endl;
   //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
   //}
 
-  //cout << "RE PC 0x" << hex << val << dec << endl << flush;
+  //cout << "RE PC 0x" << hex << val << dec << endl;
   return val;
 }				// readPc()
 
@@ -3684,11 +3672,11 @@ GdbServer::readLr ()
   //bool retSt = fTargetControl->readMem32(CORE_R0 + ATDSP_LR_REGNUM * ATDSP_INST32LEN, val);
 
   //if (fIsMultiCoreSupported && (val < CORE_SPACE*NCORES)) {
-  //      cout << "--" << endl << flush;
+  //      cout << "--" << endl;
   //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
   //}
 
-  //cout << "RE LR 0x" << hex << val << dec << endl << flush;
+  //cout << "RE LR 0x" << hex << val << dec << endl;
   return val;
 }				// readLr()
 
@@ -3710,11 +3698,11 @@ GdbServer::readFp ()
   //bool retSt = fTargetControl->readMem32(CORE_R0 + ATDSP_FP_REGNUM * ATDSP_INST32LEN, val);
 
   //if (val < CORE_SPACE*NCORES) {
-  //      cout << "--" << endl << flush;
+  //      cout << "--" << endl;
   //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
   //}
 
-  //cout << "RE FP 0x" << hex << val << dec << endl << flush;
+  //cout << "RE FP 0x" << hex << val << dec << endl;
   return val;
 }				// readFp()
 
@@ -3736,11 +3724,11 @@ GdbServer::readSp ()
   //bool retSt = fTargetControl->readMem32(CORE_R0 + ATDSP_SP_REGNUM * ATDSP_INST32LEN, val);
 
   //if (val < CORE_SPACE*NCORES) {
-  //      cout << "--" << endl << flush;
+  //      cout << "--" << endl;
   //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
   //}
 
-  //cout << "RE SP 0x" << hex << val << dec << endl << flush;
+  //cout << "RE SP 0x" << hex << val << dec << endl;
   return val;
 }				// readSp()
 
@@ -3755,11 +3743,11 @@ GdbServer::readSp ()
 void
 GdbServer::writePc (uint32_t addr)
 {
-  //cout << "WR PC 0x" << hex << addr << dec << endl << flush;
+  //cout << "WR PC 0x" << hex << addr << dec << endl;
   //if (fIsMultiCoreSupported && (addr >= CHIP_BASE && addr < CHIP_BASE+NCORES*CORE_SPACE)) {
   //      // make address internal
   //      addr = MAKE_ADDRESS_INTERNAL(addr);
-  //      cout << "-- maked PC internal " << hex << addr << dec << endl << flush;
+  //      cout << "-- maked PC internal " << hex << addr << dec << endl;
   //}
   fTargetControl->writeMem32 (CORE_CONFIG + ATDSP_SCR_PC * ATDSP_INST32LEN,
 			      addr);
@@ -3777,7 +3765,7 @@ GdbServer::writePc (uint32_t addr)
 void
 GdbServer::writeLr (uint32_t addr)
 {
-  //cout << "Warning writing to link register: " << hex << addr << dec << endl << flush;
+  //cout << "Warning writing to link register: " << hex << addr << dec << endl;
 
   fTargetControl->writeMem32 (CORE_R0 + ATDSP_LR_REGNUM * ATDSP_INST32LEN,
 			      addr);
@@ -3795,7 +3783,7 @@ GdbServer::writeLr (uint32_t addr)
 void
 GdbServer::writeFp (uint32_t addr)
 {
-  //cout << "Warning writing to frame pointer register: " << hex << addr << dec << endl << flush;
+  //cout << "Warning writing to frame pointer register: " << hex << addr << dec << endl;
 
   fTargetControl->writeMem32 (CORE_R0 + ATDSP_FP_REGNUM * ATDSP_INST32LEN,
 			      addr);
@@ -3813,7 +3801,7 @@ GdbServer::writeFp (uint32_t addr)
 void
 GdbServer::writeSp (uint32_t addr)
 {
-  //cout << "Warning writing to stack pointer register: " << hex << addr << dec << endl << flush;
+  //cout << "Warning writing to stack pointer register: " << hex << addr << dec << endl;
 
   fTargetControl->writeMem32 (CORE_R0 + ATDSP_SP_REGNUM * ATDSP_INST32LEN,
 			      addr);
@@ -4004,7 +3992,7 @@ GdbServer::rspQThreadExtraInfo ()
   if (1 != sscanf (pkt->data, "qThreadExtraInfo,%x", &threadID))
     {
       cerr << "Warning: Failed to recognize RSP qThreadExtraInfo command : "
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       return;
     }
@@ -4049,14 +4037,14 @@ GdbServer::rspThreadSubOperation ()
   if (1 != scanfRet)
     {
       cerr << "Warning: Failed to recognize RSP H command : "
-	<< pkt->data << endl << flush;
+	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
     }
   if (threadID == -1)
     {
-      //cout << "apply for all thread " << endl << flush;
+      //cout << "apply for all thread " << endl;
 
     }
 
