@@ -47,6 +47,109 @@ class TargetControl
 {
 public:
 
+  // Epiphany sizes
+  static const unsigned int E_BYTE_BYTES   = 1;
+  static const unsigned int E_SHORT_BYTES  = 2;
+  static const unsigned int E_WORD_BYTES   = 4;
+  static const unsigned int E_DOUBLE_BYTES = 8;
+  static const unsigned int E_REG_BYTES    = E_WORD_BYTES;
+
+  // Register constants - eCore registers
+  static const uint32_t R0          = 0xf0000;
+  static const uint32_t R63         = 0xf00fc;
+  static const uint32_t CONFIG      = 0xf0400;
+  static const uint32_t STATUS      = 0xf0404;
+  static const uint32_t PC          = 0xf0408;
+  static const uint32_t DEBUGSTATUS = 0xf040c;
+  static const uint32_t LC          = 0xf0414;
+  static const uint32_t LS          = 0xf0418;
+  static const uint32_t LE          = 0xf041c;
+  static const uint32_t IRET        = 0xf0420;
+  static const uint32_t IMASK       = 0xf0424;
+  static const uint32_t ILAT        = 0xf0428;
+  static const uint32_t ILATST      = 0xf042c;
+  static const uint32_t ILATCL      = 0xf0430;
+  static const uint32_t IPEND       = 0xf0434;
+  static const uint32_t FSTATUS     = 0xf0440;
+  static const uint32_t DEBUGCMD    = 0xf0448;
+  static const uint32_t RESETCORE   = 0xf070c;
+
+  // Register constants - event timer registers
+  static const uint32_t CTIMER0 = 0xf0438;
+  static const uint32_t CTIMER1 = 0xf043c;
+
+  // Register constants - processor control registers
+  static const uint32_t MEMSTATUS  = 0xf0604;
+  static const uint32_t MEMPROTECT = 0xf0608;
+
+  // Register constants - DMA registers
+  static const uint32_t DMA0CONFIG  = 0xf0500;
+  static const uint32_t DMA0STRIDE  = 0xf0504;
+  static const uint32_t DMA0COUNT   = 0xf0508;
+  static const uint32_t DMA0SRCADDR = 0xf050c;
+  static const uint32_t DMA0DSTADDR = 0xf0510;
+  static const uint32_t DMA0AUTO0   = 0xf0514;
+  static const uint32_t DMA0AUTO1   = 0xf0518;
+  static const uint32_t DMA0STATUS  = 0xf051c;
+  static const uint32_t DMA1CONFIG  = 0xf0520;
+  static const uint32_t DMA1STRIDE  = 0xf0524;
+  static const uint32_t DMA1COUNT   = 0xf0528;
+  static const uint32_t DMA1SRCADDR = 0xf052c;
+  static const uint32_t DMA1DSTADDR = 0xf0530;
+  static const uint32_t DMA1AUTO0   = 0xf0534;
+  static const uint32_t DMA1AUTO1   = 0xf0538;
+  static const uint32_t DMA1STATUS  = 0xf053c;
+
+  // Register constants - mesh node control registers
+  static const uint32_t MESHCONFIG = 0xf0700;
+  static const uint32_t COREID     = 0xf0704;
+  static const uint32_t MULTICAST  = 0xf0708;
+  static const uint32_t CMESHROUTE = 0xf0710;
+  static const uint32_t XMESHROUTE = 0xf0714;
+  static const uint32_t RMESHROUTE = 0xf0718;
+
+  // Fields in registers. Generically _MASK is the mask for the field and
+  // _SHIFT is the number of places to shift right to remove any less
+  // significant bits. Any other suffices are particular field values.
+  static const unsigned int STATUS_ACTIVE_SHIFT  = 0;
+  static const unsigned int STATUS_GID_SHIFT     = 1;
+  static const unsigned int STATUS_WAND_SHIFT    = 3;
+  static const unsigned int STATUS_AZ_SHIFT      = 4;
+  static const unsigned int STATUS_AN_SHIFT      = 5;
+  static const unsigned int STATUS_AC_SHIFT      = 6;
+  static const unsigned int STATUS_AV_SHIFT      = 7;
+  static const unsigned int STATUS_BZ_SHIFT      = 8;
+  static const unsigned int STATUS_BN_SHIFT      = 9;
+  static const unsigned int STATUS_BV_SHIFT      = 10;
+  static const unsigned int STATUS_AVS_SHIFT     = 12;
+  static const unsigned int STATUS_BIS_SHIFT     = 13;
+  static const unsigned int STATUS_BVS_SHIFT     = 14;
+  static const unsigned int STATUS_BUS_SHIFT     = 15;
+  static const unsigned int STATUS_EXCAUSE_SHIFT = 16;
+
+  static const uint32_t STATUS_ACTIVE_MASK   = 0x00000001;
+  static const uint32_t STATUS_GID_MASK      = 0x00000002;
+  static const uint32_t STATUS_WAND_MASK     = 0x00000008;
+  static const uint32_t STATUS_AZ_MASK       = 0x00000010;
+  static const uint32_t STATUS_AN_MASK       = 0x00000020;
+  static const uint32_t STATUS_AC_MASK       = 0x00000040;
+  static const uint32_t STATUS_AV_MASK       = 0x00000080;
+  static const uint32_t STATUS_BZ_MASK       = 0x00000100;
+  static const uint32_t STATUS_BN_MASK       = 0x00000200;
+  static const uint32_t STATUS_BV_MASK       = 0x00000400;
+  static const uint32_t STATUS_AVS_MASK      = 0x00001000;
+  static const uint32_t STATUS_BIS_MASK      = 0x00002000;
+  static const uint32_t STATUS_BVS_MASK      = 0x00004000;
+  static const uint32_t STATUS_BUS_MASK      = 0x00008000;
+  static const uint32_t STATUS_EXCAUSE_MASK  = 0x000f0000;
+  static const uint32_t STATUS_RESERVED_MASK = 0xfff00804;
+    
+  static const uint32_t STATUS_ACTIVE_ACTIVE = 0x00000001;
+  static const uint32_t STATUS_ACTIVE_IDLE   = 0x00000000;
+  static const uint32_t STATUS_GID_ENABLED   = 0x00000000;
+  static const uint32_t STATUS_GID_DISABLED  = 0x00000002;
+  static const uint32_t STATUS_EXCAUSE_NONE  = 0x00000000;
+
   // Constructor and destructor
   TargetControl ();
   ~TargetControl ();
@@ -88,15 +191,6 @@ public:
   virtual bool stopTrace () = 0;
 
 protected:
-
-  // Epiphany sizes
-  static const unsigned int E_BYTE_BYTES   = 1;
-  static const unsigned int E_SHORT_BYTES  = 2;
-  static const unsigned int E_WORD_BYTES   = 4;
-  static const unsigned int E_DOUBLE_BYTES = 8;
-
-  //! The core we are attached to
-  unsigned int fAttachedCoreId;
 
   virtual string getTargetId () = 0;
   virtual uint32_t convertAddress (uint32_t  address) = 0;

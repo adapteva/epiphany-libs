@@ -1,5 +1,88 @@
 2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	Bring list of SCRs up to date, and rationalize division of
+	declarations between GDB server (GDB numbering) and target
+	hardware (memory addresses).
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Add
+	documentation of what a process and thread mean on Epiphany.
+	Perform sanity checking of GDB register numbering.
+	(GdbServer::targetResume): Use writeReg and GDB register number.
+	(GdbServer::rspSuspend): Use isTargetIdle.
+	(GdbServer::rspFileIOreply): Use writeReg instead of writeGpr.
+	(GdbServer::redirectSdioOnTrap): Use readReg instead of readGpr.
+	(GdbServer::rspReadAllRegs): Rewritten completely using readReg.
+	(GdbServer::rspWriteAllRegs): Rewritten completely using writeReg.
+	(GdbServer::rspReadReg): Rewritten completely using readReg.
+	(GdbServer::rspWriteReg): Rewritten completely using writeReg.
+	(GdbServer::rspCommand): Use writeReg instad of writeScrGrp0.
+	(GdbServer::targetHalt): Use writeReg and readReg with GDB
+	register number instead of writeMem32 and readMem32 with hardware
+	address.
+	(GdbServer::isTargetInDebugState): Use readReg with GDB register
+	number instead ofreadMem32 with hardware address.
+	(GdbServer::isTargetExceptionState): Replace readCoreStatus with
+	readStatus.
+	(GdbServer::isTargetIdle): Renamed from isTargetInIldeState.  Use
+	symbolic names for flags and fields.
+	(GdbServer::rspStep):  Replace readCoreStatus with
+	readStatus, readScrGrp0 and readGpr with readReg.
+	(GdbServer::rspVpkt): remove double semicolon.
+	(GdbServer::rspInsertMatchpoint): Replace MESH_SWRESET by
+	RESETCORE_REGNUM.
+	(GdbServer::targetSwReset): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readReg): Created.
+	(GdbServer::writeReg): Created.
+	(GdbServer::readCoreId): Use readReg with GDB register number
+	instead ofreadMem32 with hardware address.
+	(GdbServer::readStatus): Renamed from readCoreStatus and rewritten
+	to use readReg with GDB register number instead ofreadMem32 with
+	hardware address.
+	(GdbServer::readPc): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writePc): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readLr): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writeLr): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readFp): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writeFp): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readSp): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writeSp): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readGpr): Deleted.
+	(GdbServer::writeGpr): Deleted.
+	(GdbServer::readScrGrp0): Deleted.
+	(GdbServer::writeScrGrp0): Deleted.
+	(GdbServer::readScrDMA): Deleted.
+	(GdbServer::writeScrDMA): Deleted.
+	(GdbServer::regAddr): Created
+	* src/GdbServer.h: Remove include of maddr_defs.h.  Remove
+	declaration of constants ATDSP_NUM_GPRS, ATDSP_NUM_SCRS,
+	ATDSP_NUM_S, ATDSP_R0_REGNUM, ATDSP_RV_REGNUM, ATDSP_SP_REGNUM,
+	ATDSP_PC_REGNUM, ATDSP_SR_REGNUM, ATDSP_FP_REGNUM,
+	ATDSP_LR_REGNUM, ATDSP_IRET_REGNUM, ATDSP_SB_REGNUM,
+	ATDSP_SL_REGNUM, ATDSP_IP_REGNUM. Add declaration of constants
+	NUM_GPRS, NUM_SCRS, NUM_REGS, R0_REGNUM, RV_REGNUM, SB_REGNUM,
+	SL_REGNUM, FP_REGNUM, IP_REGNUM, SP_REGNUM, LR_REGNUM,
+	CONFIG_REGNUM, STATUS_REGNUM, PC_REGNUM, DEBUGSTATUS_REGNUM,
+	IRET_REGNUM, IMASK_REGNUM, ILAT_REGNUM, DEBUGCMD_REGNUM,
+	RESETCORE_REGNUM, COREID_REGNUM.  Add declaration of methods
+	readReg, writeReg.  Remove declaration of methods readGpr, write
+	Gpr, readScrGrp0, writeScrGrp0, readScrDMA, writeScrDMA. Rename
+	methods readCoreStatus as readStatus, isTargetInIldeState as
+	isTargetIdle.
+	* src/TargetControl.h (class TargetControl): Make declaration of
+	Epiphany sizes public and add E_REG_BYTES. Declare addresses of
+	registers and static constants.  Delete fAttachedCoreId (unused).
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	Remove all instances of "flush", present due to a misunderstanding
 	of output.
 

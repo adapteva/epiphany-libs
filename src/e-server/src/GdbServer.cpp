@@ -56,6 +56,22 @@ using std::vector;
 
 //! At this time the stall state of the target is unknown.
 
+//! Logically, there is a mapping as follows
+//! - GDB process -> Epiphany workgroup
+//! - GDB thread -> core within an Epiphany workgroup
+
+//! We maintain a structure mapping processes and threads to workgroups and
+//! cores. Any unallocated cores are held as threads in process 0.
+
+//! We provide some "monitor" commands to deal with this
+//! - monitor workgroup <list of coreids> which returns a process id (pid)
+//! - monitor load <pid> <image>
+
+//! At present the image format must be SREC. Note also that at present we
+//! offer only a subset of the functionality provided by the e-hal
+//! library. All cores in a workgroup must have the same image, and loading
+//! halts (but does not reset) the cores in the workgroup.
+
 
 
 //! Constructor for the GDB RSP server.
@@ -69,6 +85,22 @@ GdbServer::GdbServer (ServerInfo* _si) :
   fTargetControl (NULL),
   fIsTargetRunning (false)
 {
+  // Some sanity checking that numbering has not got misaligned! This is a
+  // consequence of our desire to have properly typed constants.
+  assert (regAddr (R0_REGNUM)      == TargetControl::R0);
+  assert (regAddr (R0_REGNUM + 63) == TargetControl::R63);
+
+  assert (regAddr (CONFIG_REGNUM)      == TargetControl::CONFIG);
+  assert (regAddr (STATUS_REGNUM)      == TargetControl::STATUS);
+  assert (regAddr (PC_REGNUM)          == TargetControl::PC);
+  assert (regAddr (DEBUGSTATUS_REGNUM) == TargetControl::DEBUGSTATUS);
+  assert (regAddr (IRET_REGNUM)        == TargetControl::IRET);
+  assert (regAddr (IMASK_REGNUM)       == TargetControl::IMASK);
+  assert (regAddr (ILAT_REGNUM)        == TargetControl::ILAT);
+  assert (regAddr (DEBUGCMD_REGNUM)    == TargetControl::DEBUGCMD);
+  assert (regAddr (RESETCORE_REGNUM)   == TargetControl::RESETCORE);
+  assert (regAddr (COREID_REGNUM)      == TargetControl::COREID);
+
   pkt = new RspPacket (RSP_PKT_MAX);
   rsp = new RspConnection (si);
   mpHash = new MpHash ();
@@ -561,11 +593,11 @@ void
 GdbServer::targetResume ()
 {
   //write to CORE_DEBUGCMD
-  fTargetControl->writeMem32 (CORE_DEBUGCMD, ATDSP_DEBUG_RUN);
+  (void) writeReg (DEBUGCMD_REGNUM, ATDSP_DEBUG_RUN);
 
   if (si->debugTrapAndRspCon ())
     cerr << dec <<
-      " resume CORE_DEBUGCMD " << hex << CORE_DEBUGCMD << " " <<
+      " resume CORE_DEBUGCMD " << hex << DEBUGCMD_REGNUM << " " <<
       ATDSP_DEBUG_RUN << dec << endl;
 
   fIsTargetRunning = true;
@@ -814,7 +846,7 @@ GdbServer::rspSuspend ()
       else
 	{
 
-	  if (isTargetInIldeState ())
+	  if (isTargetIdle ())
 	    {
 
 	      //fetch instruction opcode on PC
@@ -868,10 +900,10 @@ GdbServer::rspFileIOreply ()
       sscanf (pkt->data, "F%lx,%lx", &result_io, &host_respond_error_code))
     {
       //write to r0
-      writeGpr (0, result_io);
+      writeReg (R0_REGNUM + 0, result_io);
 
       //write to r3 error core
-      writeGpr (3, host_respond_error_code);
+      writeReg (R0_REGNUM + 3, host_respond_error_code);
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
 	  " remote io done " << result_io << "error code" <<
@@ -886,7 +918,7 @@ GdbServer::rspFileIOreply ()
 	  " remote io done " << result_io << endl;
 
       //write to r0
-      writeGpr (0, result_io);
+      writeReg (R0_REGNUM + 0, result_io);
     }
   else
     {
@@ -939,9 +971,9 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 0 write " << endl;
-      r0 = readGpr (0);		//chan
-      r1 = readGpr (1);		//addr
-      r2 = readGpr (2);		//length
+      r0 = readReg (R0_REGNUM + 0);		//chan
+      r1 = readReg (R0_REGNUM + 1);		//addr
+      r2 = readReg (R0_REGNUM + 2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -957,9 +989,9 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
     case TRAP_READ:
       if (si->debugTrapAndRspCon ())
 	cerr << dec << " Trap 1 read " << endl;	/*read(chan, addr, len) */
-      r0 = readGpr (0);		//chan
-      r1 = readGpr (1);		//addr
-      r2 = readGpr (2);		//length
+      r0 = readReg (R0_REGNUM + 0);		//chan
+      r1 = readReg (R0_REGNUM + 1);		//addr
+      r2 = readReg (R0_REGNUM + 2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -973,8 +1005,8 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
       break;
     case TRAP_OPEN:
-      r0 = readGpr (0);		//filepath
-      r1 = readGpr (1);		//flags
+      r0 = readReg (R0_REGNUM + 0);		//filepath
+      r1 = readReg (R0_REGNUM + 1);		//flags
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -1004,7 +1036,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 3 exiting .... ??? " << endl;
-      r0 = readGpr (0);		//status
+      r0 = readReg (R0_REGNUM + 0);		//status
       //cerr << " The remote target got exit() call ... no OS -- ignored" << endl;
       //exit(4);
       rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
@@ -1018,7 +1050,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
-      r0 = readGpr (0);		//chan
+      r0 = readReg (R0_REGNUM + 0);		//chan
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 6 close: " << r0 << endl;
@@ -1035,9 +1067,9 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	  if (si->debugTrapAndRspCon ())
 	    cerr << dec <<
 	      " Trap 7 " << endl;
-	  r0 = readGpr (0);	// buf_addr
-	  r1 = readGpr (1);	// fmt_len
-	  r2 = readGpr (2);	// total_len
+	  r0 = readReg (R0_REGNUM + 0);	// buf_addr
+	  r1 = readReg (R0_REGNUM + 1);	// fmt_len
+	  r2 = readReg (R0_REGNUM + 2);	// total_len
 
 	  //fprintf(stderr, " TRAP_OTHER %x %x", PARM0,PARM1);
 
@@ -1066,10 +1098,10 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       else
 	{
 
-	  r0 = readGpr (0);
-	  r1 = readGpr (1);
-	  r2 = readGpr (2);
-	  r3 = readGpr (3);	//SUBFUN;
+	  r0 = readReg (R0_REGNUM + 0);
+	  r1 = readReg (R0_REGNUM + 1);
+	  r2 = readReg (R0_REGNUM + 2);
+	  r3 = readReg (R0_REGNUM + 3);	//SUBFUN;
 
 	  switch (r3)
 	    {
@@ -1198,107 +1230,44 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 //-----------------------------------------------------------------------------
 //! Handle a RSP read all registers request
 
-//! The registers follow the GDB sequence for ATDSP: GPR0 through GPR63,
-//! followed by the eight status registers (CONFIG, STATUS, PC, DEBUG, IRET,
-//! ILAT, IMASK, IPEND). Each register is returned as a sequence of bytes in
-//! target endian order.
+//! The registers follow the GDB sequence for Epiphany: GPR0 through GPR63,
+//! followed by all the Special Control Registers. Each register is returned
+//! as a sequence of bytes in target endian order.
 
 //! Each byte is packed as a pair of hex digits.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspReadAllRegs ()
 {
-  fTargetControl->startOfBaudMeasurement ();
-  //cerr << "MTIME--- READ all regs START ----" << endl;
+  // Start timing if debugging
+  if (si->debugStopResumeDetail ())
+    fTargetControl->startOfBaudMeasurement ();
 
-  // The GPRs
-  {
-    unsigned char buf[ATDSP_NUM_GPRS * 4];
-    bool retSt = fTargetControl->readBurst (CORE_R0, buf, sizeof (buf));
+  // Get each reg
+  for (unsigned int r = 0; r < NUM_REGS; r++)
+    {
+      uint32_t val;
+      unsigned int pktOffset = r * TargetControl::E_REG_BYTES * 2;
 
-    for (int r = 0; r < ATDSP_NUM_GPRS; r++)
-      {
+      // Not all registers are necessarily supported.
+      if (readReg (r, val))
+	Utils::reg2Hex (val, &(pkt->data[pktOffset]));
+      else
+	for (unsigned int i = 0; i < TargetControl::E_REG_BYTES * 2; i++)
+	  pkt->data[pktOffset + i] = 'X';
+    }
 
-	uint32_t val32;
-
-	val32 =
-	  (buf[r * 4 + 3] << (3 * 8)) | (buf[r * 4 + 2] << (2 * 8)) |
-	  (buf[r * 4 + 1] << (1 * 8)) | (buf[r * 4 + 0] << (0 * 8));
-
-	Utils::reg2Hex (val32, &(pkt->data[r * 8]));
-      }
-
-    if (!retSt)
-      {
-	cerr << "ERROR read all regs failed" << endl;
-	pkt->packStr ("E01");
-	rsp->putPkt (pkt);
-      }
-  }
-
-  // The SCRs
-  {
-
-    unsigned char buf[ATDSP_NUM_SCRS_0 * 4];
-
-    bool retSt = fTargetControl->readBurst (CORE_CONFIG, buf, sizeof (buf));
-    if (!retSt)
-      {
-	cerr << "ERROR read all regs failed" << endl;
-	pkt->packStr ("E01");
-	rsp->putPkt (pkt);
-      }
-
-    for (int r = 0; r < ATDSP_NUM_SCRS_0; r++)
-      {
-
-	uint32_t val32;
-
-	val32 =
-	  (buf[r * 4 + 3] << (3 * 8)) | (buf[r * 4 + 2] << (2 * 8)) |
-	  (buf[r * 4 + 1] << (1 * 8)) | (buf[r * 4 + 0] << (0 * 8));
-
-	Utils::reg2Hex (val32, &(pkt->data[(ATDSP_NUM_GPRS + r) * 8]));
-      }
-
-
-
-
-    assert (ATDSP_NUM_SCRS_0 == ATDSP_NUM_SCRS_1);
-
-    retSt = fTargetControl->readBurst (DMA0_CONFIG, buf, sizeof (buf));
-    if (!retSt)
-      {
-	cerr << "ERROR read all regs failed" << endl;
-	pkt->packStr ("E01");
-	rsp->putPkt (pkt);
-      }
-
-    for (int r = 0; r < ATDSP_NUM_SCRS_1; r++)
-      {
-
-	uint32_t val32;
-
-	val32 =
-	  (buf[r * 4 + 3] << (3 * 8)) | (buf[r * 4 + 2] << (2 * 8)) |
-	  (buf[r * 4 + 1] << (1 * 8)) | (buf[r * 4 + 0] << (0 * 8));
-
-	Utils::reg2Hex (val32,
-			&(pkt->
-			  data[(ATDSP_NUM_GPRS + ATDSP_NUM_SCRS_0 + r) * 8]));
-      }
-  }
-
-  double mes = fTargetControl->endOfBaudMeasurement();
+  // Debugging
   if (si->debugStopResumeDetail ())
     {
-      cerr << "DebugStopResumeDetail: MTIME--- READ all regs DONE "
-	   << "-- milliseconds: " << mes << endl;
+      double mes = fTargetControl->endOfBaudMeasurement();
+      cerr << "DebugStopResumeDetail: readAllRegs time: " << mes << "ms."
+	   << endl;
     }
 
   // Finalize the packet and send it
-  pkt->data[ATDSP_TOTAL_NUM_REGS * 8] = '\0';
-  pkt->setLen (ATDSP_TOTAL_NUM_REGS * 8);
+  pkt->data[NUM_REGS * TargetControl::E_REG_BYTES * 2] = '\0';
+  pkt->setLen (NUM_REGS * TargetControl::E_REG_BYTES * 2);
   rsp->putPkt (pkt);
 
 }	// rspReadAllRegs ()
@@ -1323,29 +1292,9 @@ GdbServer::rspReadAllRegs ()
 void
 GdbServer::rspWriteAllRegs ()
 {
-  // The GPRs
-  for (int r = 0; r < ATDSP_NUM_GPRS; r++)
-    {
-      writeGpr (r, Utils::hex2Reg (&(pkt->data[r * 8])));
-    }
-
-  // The SCRs
-  for (int r = 0; r < ATDSP_NUM_SCRS; r++)
-    {
-      if (r < ATDSP_NUM_SCRS_0)
-	{
-	  writeScrGrp0 (r,
-			Utils::
-			hex2Reg (&(pkt->data[(ATDSP_NUM_GPRS + r) * 8])));
-	}
-      else
-	{
-	  writeScrDMA (r - ATDSP_NUM_SCRS_0,
-		       Utils::
-		       hex2Reg (&(pkt->data[(ATDSP_NUM_GPRS + r) * 8])));
-	}
-
-    }
+  // All registers
+  for (unsigned int r = 0; r < NUM_REGS; r++)
+      (void) writeReg (r, Utils::hex2Reg (&(pkt->data[r * 8])));
 
   // Acknowledge (always OK for now).
   pkt->packStr ("OK");
@@ -1551,50 +1500,37 @@ GdbServer::rspWriteMem ()
 void
 GdbServer::rspReadReg ()
 {
-  int regNum;
+  unsigned int regnum;
+  uint32_t regval;
 
   // Break out the fields from the data
-  if (1 != sscanf (pkt->data, "p%x", &regNum))
+  if (1 != sscanf (pkt->data, "p%x", &regnum))
     {
-      cerr << "Warning: Failed to recognize RSP read register command: "
-	<< pkt->data << endl;
       pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  if (regnum >= NUM_REGS)
+    {
+      pkt->packStr ("E02");
       rsp->putPkt (pkt);
       return;
     }
 
   // Get the relevant register
-  if (regNum < ATDSP_NUM_GPRS)
+  if (!readReg (regnum, regval))
     {
-      Utils::reg2Hex (readGpr (regNum), pkt->data);
-    }
-  else if (regNum < ATDSP_TOTAL_NUM_REGS)
-    {
-      if (regNum < ATDSP_NUM_GPRS + ATDSP_NUM_SCRS_0)
-	{
-	  Utils::reg2Hex (readScrGrp0 (regNum - ATDSP_NUM_GPRS), pkt->data);
-	}
-      else
-	{
-	  Utils::
-	    reg2Hex (readScrDMA (regNum - ATDSP_NUM_GPRS - ATDSP_NUM_SCRS_0),
-		     pkt->data);
-	}
-    }
-  else
-    {
-      // Error response if we don't know the register
-      cerr << "Warning: Attempt to read unknown register" << regNum
-	<< ": ignored" << endl;
-      pkt->packStr ("E01");
+      pkt->packStr ("E03");
       rsp->putPkt (pkt);
       return;
     }
 
+  Utils::reg2Hex (regval, pkt->data);
   pkt->setLen (strlen (pkt->data));
   rsp->putPkt (pkt);
 
-}				// rspReadReg()
+}	// rspReadReg()
 
 
 //-----------------------------------------------------------------------------
@@ -1610,42 +1546,28 @@ GdbServer::rspReadReg ()
 void
 GdbServer::rspWriteReg ()
 {
-  int regNum;
+  unsigned int regnum;
   char valstr[9];		// Allow for EOS on the string
 
   // Break out the fields from the data
-  if (2 != sscanf (pkt->data, "P%x=%8s", &regNum, valstr))
+  if (2 != sscanf (pkt->data, "P%x=%8s", &regnum, valstr))
     {
-      cerr << "Warning: Failed to recognize RSP write register command "
-	<< pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
     }
 
+  if (regnum >= NUM_REGS)
+    {
+      pkt->packStr ("E02");
+      rsp->putPkt (pkt);
+      return;
+    }
+
   // Set the relevant register
-  if (regNum < ATDSP_NUM_GPRS)
+  if (!writeReg (regnum, Utils::hex2Reg (valstr)))
     {
-      writeGpr (regNum, Utils::hex2Reg (valstr));
-    }
-  else if (regNum < ATDSP_TOTAL_NUM_REGS)
-    {
-      if (regNum < ATDSP_NUM_GPRS + ATDSP_NUM_SCRS_0)
-	{
-	  writeScrGrp0 (regNum - ATDSP_NUM_GPRS, Utils::hex2Reg (valstr));
-	}
-      else
-	{
-	  writeScrDMA (regNum - ATDSP_NUM_GPRS - ATDSP_NUM_SCRS_0,
-		       Utils::hex2Reg (valstr));
-	}
-    }
-  else
-    {
-      // Error response if we don't know the register
-      cerr << "Warning: Attempt to write unknown register " << regNum
-	<< ": ignored" << endl;
-      pkt->packStr ("E01");
+      pkt->packStr ("E03");
       rsp->putPkt (pkt);
       return;
     }
@@ -1653,7 +1575,7 @@ GdbServer::rspWriteReg ()
   pkt->packStr ("OK");
   rsp->putPkt (pkt);
 
-}				// rspWriteReg()
+}	// rspWriteReg()
 
 
 //-----------------------------------------------------------------------------
@@ -1870,7 +1792,7 @@ GdbServer::rspCommand ()
 
       // target start (ILAT set)
       // ILAT set
-      writeScrGrp0 (ATDSP_SCR_ILAT, ATDSP_EXCEPT_RESET);
+      writeReg (ILAT_REGNUM, ATDSP_EXCEPT_RESET);
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
@@ -2711,7 +2633,7 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 bool
 GdbServer::targetHalt ()
 {
-  if (!fTargetControl->writeMem32 (CORE_DEBUGCMD, ATDSP_DEBUG_HALT))
+  if (!writeReg (DEBUGCMD_REGNUM, ATDSP_DEBUG_HALT))
     cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
   if (si->debugStopResume ())
@@ -2726,7 +2648,7 @@ GdbServer::targetHalt ()
     {
       cerr << "Warning: Target has not halted after 1 sec " << endl;
       uint32_t val;
-      if (fTargetControl->readMem32 (CORE_DEBUG, val))
+      if (readReg (DEBUGSTATUS_REGNUM, val))
 	{
 	  cerr << "           DEBUG= 0x" << hex << setw (8) << setfill ('0')
 	       << val << setfill (' ') << setw (0) << dec << endl;
@@ -2784,14 +2706,10 @@ bool
 GdbServer::isTargetInDebugState ()
 {
 
-  uint32_t val;
-  fTargetControl->readMem32 (CORE_DEBUG, val);
-  //bool retSt = fTargetControl->readMem32(CORE_DEBUG, val);
+  uint32_t val = readReg (DEBUGSTATUS_REGNUM);
 
-  uint32_t valueOfDebugReg = val;
-
-  bool ret = ((getfield (valueOfDebugReg, 0, 0) == ATDSP_DEBUG_HALT)
-	      && (getfield (valueOfDebugReg, 1, 1) == ATDSP_OUT_TRAN_FALSE));
+  bool ret = ((getfield (val, 0, 0) == ATDSP_DEBUG_HALT)
+	      && (getfield (val, 1, 1) == ATDSP_OUT_TRAN_FALSE));
 
   return ret;
 }
@@ -2806,7 +2724,7 @@ GdbServer::isTargetExceptionState (unsigned &exCause)
   bool ret = false;
 
   //check if idle state
-  uint32_t coreStatus = readCoreStatus ();
+  uint32_t coreStatus = readStatus ();
   uint32_t exStat = getfield (coreStatus, 18, 16);
   if (exStat != 0)
     {
@@ -2836,33 +2754,24 @@ GdbServer::isTargetExceptionState (unsigned &exCause)
 
 //-----------------------------------------------------------------------------
 //! Check is core has been stopped at idle state
+
+//! @return TRUE if core is idle.
+//-----------------------------------------------------------------------------
 bool
-GdbServer::isTargetInIldeState ()
+GdbServer::isTargetIdle ()
 {
-  bool ret = false;
+  uint32_t status = readStatus ();
 
-  //check if idle state
-  uint32_t coreStatus = readCoreStatus ();
-  if (getfield (coreStatus, 18, 16) != 0)
-    {
-      cerr << "EXception " << hex << getfield (coreStatus, 18,
-					       16) << endl;
-    }
+  // Warn if a software exception is pending
+  uint32_t ex = status & TargetControl::STATUS_EXCAUSE_MASK;
+  if (ex != TargetControl::STATUS_EXCAUSE_NONE)
+      cerr << "Warning: Unexpected pending SW exception 0x" << hex
+	   << (ex >> TargetControl::STATUS_EXCAUSE_SHIFT) << "." << endl;
 
-  //cerr << " CORE status" << hex << coreStatus << endl;
+  uint32_t activity = status & TargetControl::STATUS_ACTIVE_MASK;
+  return activity == TargetControl::STATUS_ACTIVE_IDLE;
 
-  if ((coreStatus & CORE_IDLE_BIT) == CORE_IDLE_VAL)
-    {
-
-      ret = true;
-
-      //cerr << " IDLE state " << endl;
-
-      //get instruction and check if we are in ilde
-    }
-
-  return ret;
-}
+}	// isTargetIdle ()
 
 
 //-----------------------------------------------------------------------------
@@ -2972,10 +2881,10 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       cerr << "POINT on IDLE " << " ADDR " << hex << reportedPc << dec << endl;
 
       //check if global ISR enable state
-      uint32_t coreStatus = readCoreStatus ();
+      uint32_t coreStatus = readStatus ();
 
-      uint32_t imaskReg = readScrGrp0 (ATDSP_SCR_IMASK);
-      uint32_t ilatReg = readScrGrp0 (ATDSP_SCR_ILAT);
+      uint32_t imaskReg = readReg (IMASK_REGNUM);
+      uint32_t ilatReg = readReg (ILAT_REGNUM);
 
       //next cycle should be jump to IVT
       if (getfield (coreStatus, 1, 1) == 0 /*global ISR enable */  &&
@@ -3003,13 +2912,13 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	    }
 	  //restore IVT
 	  restoreIVT ();
-	  readCoreStatus ();
-	  //uint32_t coreStatus = readCoreStatus();
+	  readStatus ();
+	  //uint32_t coreStatus = readStatus();
 
-	  readScrGrp0 (ATDSP_SCR_IMASK);
-	  //uint32_t imaskReg = readScrGrp0(ATDSP_SCR_IMASK);
-	  readScrGrp0 (ATDSP_SCR_ILAT);
-	  //uint32_t ilatReg  = readScrGrp0(ATDSP_SCR_ILAT);
+	  readReg (IMASK_REGNUM);
+	  //uint32_t imaskReg = readScrGrp0(IMASK_REGNUM);
+	  readReg (ILAT_REGNUM);
+	  //uint32_t ilatReg  = readScrGrp0(ILAT_REGNUM);
 	}
 
       // report to gdb the target has been stopped
@@ -3124,7 +3033,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   //RTI
   if (getfield (instrOpcode, 8, 0) == 0x1d2)
     {
-      bkpt_jump_addr = readScrGrp0 (ATDSP_SCR_IRET);
+      bkpt_jump_addr = readReg (IRET_REGNUM);
       //cerr << "RTI " << hex << bkpt_jump_addr << dec << endl;
     }
 
@@ -3134,7 +3043,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       || getfield (instrOpcode, 8, 0) == 0x152)
     {
       uint8_t regShortNum = getfield (instrOpcode, 12, 10);
-      bkpt_jump_addr = readGpr (regShortNum);
+      bkpt_jump_addr = readReg (R0_REGNUM + regShortNum);
       //cerr << "PC <-< " << regShortNum << endl;
     }
   //32 bits jump
@@ -3145,7 +3054,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       regLongNum =
 	(getfield (instrExt, 12, 10) << 3) | (getfield (instrOpcode, 12, 10)
 					      << 0);
-      bkpt_jump_addr = readGpr (regLongNum);
+      bkpt_jump_addr = readReg (R0_REGNUM + regLongNum);
       //cerr << "PC <-< " << regLongNum << endl;
     }
 
@@ -3304,7 +3213,7 @@ GdbServer::rspVpkt ()
   else if (0 == strcmp ("vFlashDone", pkt->data))
     {
       // For now we don't support this.
-      cerr << "Warning: RSP vFlashDone not supported: ignored" << endl;;
+      cerr << "Warning: RSP vFlashDone not supported: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3565,14 +3474,14 @@ GdbServer::rspInsertMatchpoint ()
 //! Sotware reset of the processor
 
 //! This is achieved by repeatedly writing 1 (RESET exception) and finally 0
-//! to the  MESH_SWRESET register
+//! to the  RESETCORE_REGNUM register
 void
 GdbServer::targetSwReset ()
 {
   for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
-      fTargetControl->writeMem32 (MESH_SWRESET, 1);
+    (void) writeReg (RESETCORE_REGNUM, 1);
 
-  fTargetControl->writeMem32 (MESH_SWRESET, 0);
+  writeReg (RESETCORE_REGNUM, 0);
 
 }	// targetSWreset()
 
@@ -3591,22 +3500,77 @@ GdbServer::targetHWReset ()
 
 
 //-----------------------------------------------------------------------------
-//! Read the value of the Core ID (a Mesh grp)
+//! Read the value of an Epiphany register from hardware
+
+//! This is just a wrapper for reading memory, since the GPR's are mapped into
+//! core memory
+
+//! @param[in]   regnum  The GDB register number
+//! @param[out]  regval  The value read
+//! @return  True on success, false otherwise
+//-----------------------------------------------------------------------------
+bool
+GdbServer::readReg (unsigned int regnum,
+		   uint32_t& regval) const
+{
+  return fTargetControl->readMem32 (regAddr (regnum), regval);
+
+}	// readReg ()
+
+
+//-----------------------------------------------------------------------------
+//! Read the value of an Epiphany register from hardware
+
+//! This is just a wrapper for reading memory, since the GPR's are mapped into
+//! core memory
+
+//! Overloaded version to return the value directly.
+
+//! @param[in]   regnum  The GDB register number
+//! @return  The value read
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::readReg (unsigned int regnum) const
+{
+  uint32_t regval;
+  (void) fTargetControl->readMem32 (regAddr (regnum), regval);
+  return regval;
+
+}	// readReg ()
+
+
+//-----------------------------------------------------------------------------
+//! Write the value of an Epiphany register to hardware
+
+//! This is just a wrapper for writing memory, since the GPR's are mapped into
+//! core memory
+
+//! @param[in]  regnum  The GDB register number
+//! @param[in]  regval  The value to write
+//! @return  True on success, false otherwise
+//-----------------------------------------------------------------------------
+bool
+GdbServer::writeReg (unsigned int regnum,
+		   uint32_t value) const
+{
+  return  fTargetControl->writeMem32 (regAddr (regnum), value);
+
+}	// writeReg ()
+
+
+//-----------------------------------------------------------------------------
+//! Read the value of the Core ID
 
 //! A convenience routine and internal to external conversion
 
-//! @return  The value of the Status
+//! @return  The value of the Core ID
 //-----------------------------------------------------------------------------
 uint32_t
 GdbServer::readCoreId ()
 {
-  uint32_t val;
+  return readReg (COREID_REGNUM);
 
-  fTargetControl->readMem32 (MESH_COREID, val);
-  //bool retSt = fTargetControl->readMem32(MESH_COREID, val);
-
-  return val;
-}				// readCoreStatus()
+}	// readCoreId ()
 
 
 //-----------------------------------------------------------------------------
@@ -3617,16 +3581,11 @@ GdbServer::readCoreId ()
 //! @return  The value of the Status
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readCoreStatus ()
+GdbServer::readStatus ()
 {
-  uint32_t val;
+  return readReg (STATUS_REGNUM);
 
-  fTargetControl->readMem32 (CORE_CONFIG + ATDSP_SCR_STATUS * ATDSP_INST32LEN,
-			     val);
-  //bool retSt = fTargetControl->readMem32(CORE_CONFIG + ATDSP_SCR_STATUS * ATDSP_INST32LEN, val);
-
-  return val;
-}				// readCoreStatus()
+}	// readStatus ()
 
 
 //-----------------------------------------------------------------------------
@@ -3639,98 +3598,9 @@ GdbServer::readCoreStatus ()
 uint32_t
 GdbServer::readPc ()
 {
-  uint32_t val;
+  return readReg (PC_REGNUM);
 
-  fTargetControl->readMem32 (CORE_CONFIG + ATDSP_SCR_PC * ATDSP_INST32LEN,
-			     val);
-  //bool retSt = fTargetControl->readMem32(CORE_CONFIG + ATDSP_SCR_PC * ATDSP_INST32LEN, val);
-
-  //if (fIsMultiCoreSupported && (val < CORE_SPACE*NCORES)) {
-  //      cout << "--" << endl;
-  //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
-  //}
-
-  //cout << "RE PC 0x" << hex << val << dec << endl;
-  return val;
-}				// readPc()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the Link register (a GR)
-
-//! A convenience routine and internal to external conversion
-
-//! @return  The value of the link register
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readLr ()
-{
-  uint32_t val;
-
-  fTargetControl->readMem32 (CORE_R0 + ATDSP_LR_REGNUM * ATDSP_INST32LEN,
-			     val);
-  //bool retSt = fTargetControl->readMem32(CORE_R0 + ATDSP_LR_REGNUM * ATDSP_INST32LEN, val);
-
-  //if (fIsMultiCoreSupported && (val < CORE_SPACE*NCORES)) {
-  //      cout << "--" << endl;
-  //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
-  //}
-
-  //cout << "RE LR 0x" << hex << val << dec << endl;
-  return val;
-}				// readLr()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the FP register (a GR)
-
-//! A convenience routine and internal to external conversion
-
-//! @return  The value of the frame pointer register
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readFp ()
-{
-  uint32_t val;
-
-  fTargetControl->readMem32 (CORE_R0 + ATDSP_FP_REGNUM * ATDSP_INST32LEN,
-			     val);
-  //bool retSt = fTargetControl->readMem32(CORE_R0 + ATDSP_FP_REGNUM * ATDSP_INST32LEN, val);
-
-  //if (val < CORE_SPACE*NCORES) {
-  //      cout << "--" << endl;
-  //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
-  //}
-
-  //cout << "RE FP 0x" << hex << val << dec << endl;
-  return val;
-}				// readFp()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the SP register (a GR)
-
-//! A convenience routine and internal to external conversion
-
-//! @return  The value of the frame pointer register
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readSp ()
-{
-  uint32_t val;
-
-  fTargetControl->readMem32 (CORE_R0 + ATDSP_SP_REGNUM * ATDSP_INST32LEN,
-			     val);
-  //bool retSt = fTargetControl->readMem32(CORE_R0 + ATDSP_SP_REGNUM * ATDSP_INST32LEN, val);
-
-  //if (val < CORE_SPACE*NCORES) {
-  //      cout << "--" << endl;
-  //      val = MAKE_ADDR_GLOBAL(val, fTargetControl->GetCoreID());
-  //}
-
-  //cout << "RE SP 0x" << hex << val << dec << endl;
-  return val;
-}				// readSp()
+}	// readPc ()
 
 
 //-----------------------------------------------------------------------------
@@ -3743,16 +3613,24 @@ GdbServer::readSp ()
 void
 GdbServer::writePc (uint32_t addr)
 {
-  //cout << "WR PC 0x" << hex << addr << dec << endl;
-  //if (fIsMultiCoreSupported && (addr >= CHIP_BASE && addr < CHIP_BASE+NCORES*CORE_SPACE)) {
-  //      // make address internal
-  //      addr = MAKE_ADDRESS_INTERNAL(addr);
-  //      cout << "-- maked PC internal " << hex << addr << dec << endl;
-  //}
-  fTargetControl->writeMem32 (CORE_CONFIG + ATDSP_SCR_PC * ATDSP_INST32LEN,
-			      addr);
+  writeReg (PC_REGNUM, addr);
 
-}				// writePc()
+}	// writePc ()
+
+
+//-----------------------------------------------------------------------------
+//! Read the value of the Link register (a GR)
+
+//! A convenience routine and internal to external conversion
+
+//! @return  The value of the link register
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::readLr ()
+{
+  return readReg (LR_REGNUM);
+
+}	// readLr ()
 
 
 //-----------------------------------------------------------------------------
@@ -3765,12 +3643,24 @@ GdbServer::writePc (uint32_t addr)
 void
 GdbServer::writeLr (uint32_t addr)
 {
-  //cout << "Warning writing to link register: " << hex << addr << dec << endl;
+  writeReg (LR_REGNUM, addr);
 
-  fTargetControl->writeMem32 (CORE_R0 + ATDSP_LR_REGNUM * ATDSP_INST32LEN,
-			      addr);
+}	// writeLr ()
 
-}				// writeLr()
+
+//-----------------------------------------------------------------------------
+//! Read the value of the FP register (a GR)
+
+//! A convenience routine and internal to external conversion
+
+//! @return  The value of the frame pointer register
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::readFp ()
+{
+  return readReg (FP_REGNUM);
+
+}	// readFp ()
 
 
 //-----------------------------------------------------------------------------
@@ -3783,12 +3673,24 @@ GdbServer::writeLr (uint32_t addr)
 void
 GdbServer::writeFp (uint32_t addr)
 {
-  //cout << "Warning writing to frame pointer register: " << hex << addr << dec << endl;
+  writeReg (FP_REGNUM, addr);
 
-  fTargetControl->writeMem32 (CORE_R0 + ATDSP_FP_REGNUM * ATDSP_INST32LEN,
-			      addr);
+}	// writeFp ()
 
-}				// writeFp()
+
+//-----------------------------------------------------------------------------
+//! Read the value of the SP register (a GR)
+
+//! A convenience routine and internal to external conversion
+
+//! @return  The value of the frame pointer register
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::readSp ()
+{
+  return readReg (SP_REGNUM);
+
+}	// readSp ()
 
 
 //-----------------------------------------------------------------------------
@@ -3801,178 +3703,9 @@ GdbServer::writeFp (uint32_t addr)
 void
 GdbServer::writeSp (uint32_t addr)
 {
-  //cout << "Warning writing to stack pointer register: " << hex << addr << dec << endl;
+  writeReg (SP_REGNUM, addr);
 
-  fTargetControl->writeMem32 (CORE_R0 + ATDSP_SP_REGNUM * ATDSP_INST32LEN,
-			      addr);
-
-}				// writeSp()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of an ATDSP General Purpose Register
-
-//! A convenience function. This is just a wrapper for reading memory, since
-//! the GPR's are mapped into core memory
-
-//! @param[in]  regNum  The GPR to read
-//! @return  The value of the GPR
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readGpr (unsigned int regNum)
-{
-  uint32_t r;
-  if ((int) regNum == ATDSP_LR_REGNUM)
-    {
-      r = readLr ();
-    }
-  else if ((int) regNum == ATDSP_FP_REGNUM)
-    {
-      r = readFp ();
-    }
-  else if ((int) regNum == ATDSP_SP_REGNUM)
-    {
-      r = readSp ();
-    }
-  else
-    {
-      fTargetControl->readMem32 (CORE_R0 + regNum * ATDSP_INST32LEN, r);
-      //bool retSt = fTargetControl->readMem32(CORE_R0 + regNum * ATDSP_INST32LEN, r);
-    }
-
-  return r;
-}				// readGpr()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of an ATDSP General Purpose Register
-
-//! A convenience function. This is just a wrapper for writing memory, since
-//! the GPR's are mapped into core memory
-
-//! @param[in]  regNum  The GPR to write
-//! @param[in]  value   The value to be written
-//-----------------------------------------------------------------------------
-void
-GdbServer::writeGpr (unsigned int regNum, uint32_t value)
-{
-  if ((int) regNum == ATDSP_LR_REGNUM)
-    {
-      writeLr (value);
-    }
-  else if ((int) regNum == ATDSP_FP_REGNUM)
-    {
-      writeFp (value);
-    }
-  else if ((int) regNum == ATDSP_SP_REGNUM)
-    {
-      writeSp (value);
-    }
-  else
-    {
-      fTargetControl->writeMem32 (CORE_R0 + regNum * ATDSP_INST32LEN, value);
-    }
-
-
-}				// writeGpr()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of an ATDSP Special Core Register, group 0
-
-//! A convenience function. This is just a wrapper for reading memory, since
-//! the SPR's are mapped into core memory
-
-//! @param[in]  regNum  The SCR to read
-
-//! @return  The value of the SCR
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readScrGrp0 (unsigned int regNum)
-{
-
-  assert ((int) regNum < ATDSP_NUM_SCRS_0);
-
-  if (regNum == ATDSP_SCR_PC)
-    {
-      return readPc ();
-    }
-  else
-    {
-      uint32_t val;
-      fTargetControl->readMem32 (CORE_CONFIG + regNum * ATDSP_INST32LEN, val);
-      //bool retSt = fTargetControl->readMem32(CORE_CONFIG + regNum * ATDSP_INST32LEN, val);
-      return val;
-    }
-}				// readScrGrp0()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of an ATDSP Special Core Register, DMA group
-
-//! A convenience function. This is just a wrapper for reading memory, since
-//! the SPR's are mapped into core memory
-
-//! @param[in]  regNum  The SCR to read
-
-//! @return  The value of the SCR
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readScrDMA (unsigned int regNum)
-{
-  assert ((int) regNum < ATDSP_NUM_SCRS_1);
-
-  uint32_t val;
-
-  fTargetControl->readMem32 (DMA0_CONFIG + regNum * ATDSP_INST32LEN, val);
-  //bool st = fTargetControl->readMem32(DMA0_CONFIG + regNum * ATDSP_INST32LEN, val);
-
-  return val;
-}				// readScrDMA()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of an ATDSP Special Core Register, group 0
-
-//! A convenience function. This is just a wrapper for writing memory, since
-//! the SPR's are mapped into core memory
-
-//! @param[in]  regNum  The SCR to write
-//! @param[in]  value   The value to be written
-//-----------------------------------------------------------------------------
-void
-GdbServer::writeScrGrp0 (unsigned int regNum, uint32_t value)
-{
-  assert ((int) regNum < ATDSP_NUM_SCRS_0);
-
-  if (regNum == ATDSP_SCR_PC)
-    {
-      writePc (value);
-    }
-  else
-    {
-      fTargetControl->writeMem32 (CORE_CONFIG + regNum * ATDSP_INST32LEN,
-				  value);
-    }
-}				// writeScrGrp0()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of an ATDSP Special Core Register, DMA group
-
-//! A convenience function. This is just a wrapper for writing memory, since
-//! the SPR's are mapped into core memory
-
-//! @param[in]  regNum  The SCR to write
-//! @param[in]  value   The value to be written
-//-----------------------------------------------------------------------------
-void
-GdbServer::writeScrDMA (unsigned int regNum, uint32_t value)
-{
-  assert ((int) regNum < ATDSP_NUM_SCRS_1);
-
-  fTargetControl->writeMem32 (DMA0_CONFIG + regNum * ATDSP_INST32LEN, value);
-}				// writeScrDMA()
+}	// writeSp ()
 
 
 //-----------------------------------------------------------------------------
@@ -4096,6 +3829,128 @@ GdbServer::setfield (uint32_t & x, int _lt, int _rt, uint32_t val)
 
   return;
 }
+
+
+//! Map GDB register number to hardware register memory address
+
+//! @param[in] regnum  GDB register number to look up
+//! @return the (local) hardware address in memory of the register
+uint32_t
+GdbServer::regAddr (unsigned int  regnum) const
+{
+  static const uint32_t regs [NUM_REGS] = {
+    TargetControl::R0,
+    TargetControl::R0 +  1,
+    TargetControl::R0 +  2,
+    TargetControl::R0 +  3,
+    TargetControl::R0 +  4,
+    TargetControl::R0 +  5,
+    TargetControl::R0 +  6,
+    TargetControl::R0 +  7,
+    TargetControl::R0 +  8,
+    TargetControl::R0 +  9,
+    TargetControl::R0 + 10,
+    TargetControl::R0 + 11,
+    TargetControl::R0 + 12,
+    TargetControl::R0 + 13,
+    TargetControl::R0 + 14,
+    TargetControl::R0 + 15,
+    TargetControl::R0 + 16,
+    TargetControl::R0 + 17,
+    TargetControl::R0 + 18,
+    TargetControl::R0 + 19,
+    TargetControl::R0 + 20,
+    TargetControl::R0 + 21,
+    TargetControl::R0 + 22,
+    TargetControl::R0 + 23,
+    TargetControl::R0 + 24,
+    TargetControl::R0 + 25,
+    TargetControl::R0 + 26,
+    TargetControl::R0 + 27,
+    TargetControl::R0 + 28,
+    TargetControl::R0 + 29,
+    TargetControl::R0 + 30,
+    TargetControl::R0 + 31,
+    TargetControl::R0 + 32,
+    TargetControl::R0 + 33,
+    TargetControl::R0 + 34,
+    TargetControl::R0 + 35,
+    TargetControl::R0 + 36,
+    TargetControl::R0 + 37,
+    TargetControl::R0 + 38,
+    TargetControl::R0 + 39,
+    TargetControl::R0 + 40,
+    TargetControl::R0 + 41,
+    TargetControl::R0 + 42,
+    TargetControl::R0 + 43,
+    TargetControl::R0 + 44,
+    TargetControl::R0 + 45,
+    TargetControl::R0 + 46,
+    TargetControl::R0 + 47,
+    TargetControl::R0 + 48,
+    TargetControl::R0 + 49,
+    TargetControl::R0 + 50,
+    TargetControl::R0 + 51,
+    TargetControl::R0 + 52,
+    TargetControl::R0 + 53,
+    TargetControl::R0 + 54,
+    TargetControl::R0 + 55,
+    TargetControl::R0 + 56,
+    TargetControl::R0 + 57,
+    TargetControl::R0 + 58,
+    TargetControl::R0 + 59,
+    TargetControl::R0 + 60,
+    TargetControl::R0 + 61,
+    TargetControl::R0 + 62,
+    TargetControl::R63,
+    TargetControl::CONFIG,
+    TargetControl::STATUS,
+    TargetControl::PC,
+    TargetControl::DEBUGSTATUS,
+    TargetControl::LC,
+    TargetControl::LS,
+    TargetControl::LE,
+    TargetControl::IRET,
+    TargetControl::IMASK,
+    TargetControl::ILAT,
+    TargetControl::ILATST,
+    TargetControl::ILATCL,
+    TargetControl::IPEND,
+    TargetControl::FSTATUS,
+    TargetControl::DEBUGCMD,
+    TargetControl::RESETCORE,
+    TargetControl::CTIMER0,
+    TargetControl::CTIMER1,
+    TargetControl::MEMSTATUS,
+    TargetControl::MEMPROTECT,
+    TargetControl::DMA0CONFIG,
+    TargetControl::DMA0STRIDE,
+    TargetControl::DMA0COUNT,
+    TargetControl::DMA0SRCADDR,
+    TargetControl::DMA0DSTADDR,
+    TargetControl::DMA0AUTO0,
+    TargetControl::DMA0AUTO1,
+    TargetControl::DMA0STATUS,
+    TargetControl::DMA1CONFIG,
+    TargetControl::DMA1STRIDE,
+    TargetControl::DMA1COUNT,
+    TargetControl::DMA1SRCADDR,
+    TargetControl::DMA1DSTADDR,
+    TargetControl::DMA1AUTO0,
+    TargetControl::DMA1AUTO1,
+    TargetControl::DMA1STATUS,
+    TargetControl::MESHCONFIG,
+    TargetControl::COREID,
+    TargetControl::MULTICAST,
+    TargetControl::CMESHROUTE,
+    TargetControl::XMESHROUTE,
+    TargetControl::RMESHROUTE
+  };
+
+  assert (regnum < NUM_REGS);
+  return regs[regnum];
+
+}	// regAddr ()
 
 
 //! Convenience function to turn an integer into a string

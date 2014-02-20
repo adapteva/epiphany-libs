@@ -51,7 +51,6 @@
 #include "MpHash.h"
 #include "RspPacket.h"
 
-#include "maddr_defs.h"
 #include "ServerInfo.h"
 #include "TargetControl.h"
 
@@ -78,14 +77,14 @@ public:
 
 private:
 
-  // The dgbserver will send the resume command to the target after gdb client
-  // kills the debug session
+  // Public architectural constants. Must be consistent with the target
+  // hardware.
+  static const unsigned int NUM_GPRS = 64;
+  static const unsigned int NUM_SCRS = 42;
+  static const unsigned int NUM_REGS = NUM_GPRS + NUM_SCRS;
 
-  // bool fResumeOnDetach;
-
-  //! Definition of GDB target signals.
-
-  //! Data taken from the GDB 6.8 source. Only those we use defined here.
+  //! Definition of GDB target signals. Data taken from the GDBsource. Only
+  //! those we use defined here.
   enum TargetSignal
   {
     // Used some places (e.g. stop_signal) to record the concept that there is
@@ -122,32 +121,9 @@ private:
     E_UNIMPL = 0x4
   };
 
-
-  //! Number of general purpose registers (GPRs).
-  static const int ATDSP_NUM_GPRS = 64;
-
-  //! Number of Special Core Registers (SCRs).
-  static const int ATDSP_NUM_SCRS = 32;
-
-  //! Number of Special Core Registers (SCRs), first group
-  static const int ATDSP_NUM_SCRS_0 = 16;
-
-  //! Number of Special Core Registers (SCRs), DMA group
-  static const int ATDSP_NUM_SCRS_1 = 16;
-
-  //! Number of raw registers used.
-  static const int ATDSP_NUM_REGS = ATDSP_NUM_GPRS + ATDSP_NUM_SCRS;
-
-  //! Total number of pseudo registers (none in this implementation).
-  static const int ATDSP_NUM_PSEUDO_REGS = 0;
-
-  //! Total of registers used.
-  static const int ATDSP_TOTAL_NUM_REGS =
-    ATDSP_NUM_REGS + ATDSP_NUM_PSEUDO_REGS;
-
   //! Maximum size of RSP packet. Enough for all the registers as hex
   //! characters (8 per reg) + 1 byte end marker.
-  static const int RSP_PKT_MAX = ATDSP_TOTAL_NUM_REGS * 8 + 1;
+  static const int RSP_PKT_MAX = NUM_REGS * TargetControl::E_REG_BYTES * 2 + 1;
 
   // Values for the Debug register. The value can be read to determine the
   // state, or written to force the state.
@@ -175,39 +151,29 @@ private:
   //! Location in core memory where the SCRs are mapped:
   static const uint32_t ATDSP_SCR_MEM_BASE = 0x000ff100;
 
-  //! GDB register number for the first GPR. All GPR's form a contiguous
-  //! sequence form here.
-  static const int ATDSP_R0_REGNUM = 0;
+  // Specific GDB register numbers - GPRs
+  static const int R0_REGNUM = 0;
+  static const int RV_REGNUM = 0;
+  static const int SB_REGNUM = 9;
+  static const int SL_REGNUM = 10;
+  static const int FP_REGNUM = 11;
+  static const int IP_REGNUM = 12;
+  static const int SP_REGNUM = 13;
+  static const int LR_REGNUM = 14;
 
-  //! GDB register number for a single word result.
-  static const int ATDSP_RV_REGNUM = ATDSP_R0_REGNUM;
+  // Specific GDB register numbers - SCRs
+  static const int CONFIG_REGNUM = NUM_GPRS;
+  static const int STATUS_REGNUM = NUM_GPRS + 1;
+  static const int PC_REGNUM = NUM_GPRS + 2;
+  static const int DEBUGSTATUS_REGNUM = NUM_GPRS + 3;
+  static const int IRET_REGNUM = NUM_GPRS + 7;
+  static const int IMASK_REGNUM = NUM_GPRS + 8;
+  static const int ILAT_REGNUM = NUM_GPRS + 9;
+  static const int DEBUGCMD_REGNUM = NUM_GPRS + 14;
+  static const int RESETCORE_REGNUM = NUM_GPRS + 15;
+  static const int COREID_REGNUM = NUM_GPRS + 37;
 
-  //! GDB register number for the stack pointer
-  static const int ATDSP_SP_REGNUM = ATDSP_GPR_SP;
-
-  //! GDB register number for the program counter
-  static const int ATDSP_PC_REGNUM = ATDSP_NUM_GPRS + ATDSP_SCR_PC;
-
-  //! GDB register number for the status register
-  static const int ATDSP_SR_REGNUM = ATDSP_NUM_GPRS + ATDSP_SCR_STATUS;
-
-  //! GDB register number for the frame pointer
-  static const int ATDSP_FP_REGNUM = ATDSP_GPR_FP;
-
-  //! GDB register number for the link register
-  static const int ATDSP_LR_REGNUM = ATDSP_GPR_LR;
-
-  //! GDB register number for the interrupt return register
-  static const int ATDSP_IRET_REGNUM = ATDSP_NUM_GPRS + ATDSP_SCR_IRET;
-
-  //! GDB register number for the static base register
-  static const int ATDSP_SB_REGNUM = ATDSP_GPR_SB;
-
-  //! GDB register number for the stack limit register
-  static const int ATDSP_SL_REGNUM = ATDSP_GPR_SL;
-
-  //! GDB register number for the Inter-procedure call register
-  static const int ATDSP_IP_REGNUM = ATDSP_GPR_IP;
+  //! GDB register nu
 
   // Bits in the status register
   static const uint32_t ATDSP_SCR_STATUS_STALLED = 0x00000001;	//!< Stalled
@@ -338,14 +304,16 @@ private:
   void targetSwReset ();
   void targetHWReset ();
 
-  // Convenience wrappers for getting particular registers, which are really
-  // memory mapped and special care of conversion between internal <->
-  // external addresses
+  // Main functions for reading and writing registers
+  bool readReg (unsigned int regnum,
+		uint32_t& regval) const;
+  uint32_t  readReg (unsigned int regnum) const;
+  bool writeReg (unsigned int regNum,
+		 uint32_t value) const;
 
-  //Read the of mesh core status register
-  uint32_t readCoreStatus ();
-  // Read the value of mesh coreID register
+  // Convenience functions for reading and writing various common registers
   uint32_t readCoreId ();
+  uint32_t readStatus ();
 
   uint32_t readPc ();
   void writePc (uint32_t addr);
@@ -353,27 +321,16 @@ private:
   uint32_t readLr ();
   void writeLr (uint32_t addr);
 
-  uint32_t readSp ();
-  void writeSp (uint32_t addr);
-
   uint32_t readFp ();
   void writeFp (uint32_t addr);
 
-
-  uint32_t readGpr (unsigned int gprNum);
-  void writeGpr (unsigned int gprNum, uint32_t value);
-
-  uint32_t readScrGrp0 (unsigned int scrNum);
-  void writeScrGrp0 (unsigned int scrNum, uint32_t value);
-
-  uint32_t readScrDMA (unsigned int scrNum);
-  void writeScrDMA (unsigned int scrNum, uint32_t value);
-
+  uint32_t readSp ();
+  void writeSp (uint32_t addr);
 
   void putBreakPointInstruction (unsigned long);
   bool isHitInBreakPointInstruction (unsigned long);
   bool isTargetInDebugState ();
-  bool isTargetInIldeState ();
+  bool isTargetIdle ();
   bool isTargetExceptionState (unsigned &);
   bool targetHalt ();
 
@@ -396,6 +353,9 @@ private:
   uint32_t getfield (uint32_t x, int _lt, int _rt);
   uint64_t getfield (uint64_t x, int _lt, int _rt);
   void setfield (uint32_t & x, int _lt, int _rt, uint32_t val);
+
+  //! Map GDB register number to hardware register memory address
+  uint32_t regAddr (unsigned int  regnum) const;
 
   //! Integer to string conversion
   string  intStr (int  val,
