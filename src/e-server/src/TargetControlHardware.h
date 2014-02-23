@@ -47,7 +47,8 @@ public:
   // Constructor
   TargetControlHardware (ServerInfo* _si);
 
-  // Functions to access memory. All register access on the ATDSP is via memory
+  // Functions to access memory. All register access on the Epiphany is via
+  // memory
   virtual bool readMem32 (uint32_t addr, uint32_t &);
   virtual bool readMem16 (uint32_t addr, uint16_t &);
   virtual bool readMem8 (uint32_t addr, uint8_t &);

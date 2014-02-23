@@ -1,6 +1,6 @@
 // GDB RSP server class: Declaration.
 
-// Copyright (C) 2008, 2009, Embecosm Limited
+// Copyright (C) 2008, 2009, 2014 Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
 
 // Contributor: Oleg Raikhman <support@adapteva.com>
@@ -23,14 +23,14 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 //-----------------------------------------------------------------------------
-// This RSP server for the Adapteva ATDSP was written by Jeremy Bennett on
+// This RSP server for the Adapteva Epiphany was written by Jeremy Bennett on
 // behalf of Adapteva Inc.
 
 // Implementation is based on the Embecosm Application Note 4 "Howto: GDB
 // Remote Serial Protocol: Writing a RSP Server"
 // (http://www.embecosm.com/download/ean4.html).
 
-// Note that the ATDSP is a little endian architecture.
+// Note that the Epiphany is a little endian architecture.
 
 // Commenting is Doxygen compatible.
 
@@ -125,31 +125,8 @@ private:
   //! characters (8 per reg) + 1 byte end marker.
   static const int RSP_PKT_MAX = NUM_REGS * TargetControl::E_REG_BYTES * 2 + 1;
 
-  // Values for the Debug register. The value can be read to determine the
-  // state, or written to force the state.
-  enum AtdspDebugStates
-  {
-    ATDSP_DEBUG_RUN = 0,	//!< Is running/should run
-    ATDSP_DEBUG_HALT = 1,	//!< Is halted/should halt
-    ATDSP_DEBUG_EMUL_MODE_IN = 2,	//! Enter Emulation mode, can access to all registers
-    ATDSP_DEBUG_EMUL_MODE_OUT = 3,	//! Leave Emulation mode
-  };
-  // Need to check the outstanding transaction status, the core is in the debug state if no pending transaction to external memory
-  enum AtdspOutStandingTransationPendingState
-  {
-    ATDSP_OUT_TRAN_TRUE = 1,
-    ATDSP_OUT_TRAN_FALSE = 0
-  };
-
-
-  //! Number entries in IVT table
-  static const uint32_t ATDSP_NUM_ENTRIES_IN_IVT = 8;
-
-  //! Location in core memory where the GPRs are mapped:
-  static const uint32_t ATDSP_GPR_MEM_BASE = 0x000ff000;
-
-  //! Location in core memory where the SCRs are mapped:
-  static const uint32_t ATDSP_SCR_MEM_BASE = 0x000ff100;
+  //! Number of entries in IVT table
+  static const uint32_t IVT_ENTRIES = 10;
 
   // Specific GDB register numbers - GPRs
   static const int R0_REGNUM = 0;
@@ -175,50 +152,19 @@ private:
 
   //! GDB register nu
 
-  // Bits in the status register
-  static const uint32_t ATDSP_SCR_STATUS_STALLED = 0x00000001;	//!< Stalled
-
-  // 16-bit instructions for ATDSP
-  static const uint16_t ATDSP_NOP_INSTR = 0x01a2;	//!< NOP instruction
-//      static const uint16_t ATDSP_IDLE_INSTR = 0x01b2; //!< IDLE instruction
-  static const uint16_t ATDSP_BKPT_INSTR = 0x01c2;	//!< BKPT instruction
-  static const uint16_t ATDSP_RTI_INSTR = 0x01d2;	//!< RTI instruction
-  static const uint16_t ATDSP_TRAP_INSTR = 0x03e2;	//!< TRAP instruction
-
-  // Instruction lengths
-  static const int ATDSP_INST16LEN = 2;	//!< Short instruction
-  static const int ATDSP_INST32LEN = 4;	//!< Long instruction
+  // 16-bit instruction fields for Epiphany (i.e. LS bytes in instruction)
+  static const uint16_t NOP_INSTR = 0x01a2;	//!< NOP instruction
+  static const uint16_t BKPT_INSTR = 0x01c2;	//!< BKPT instruction
+  static const uint16_t TRAP_INSTR = 0x03e2;	//!< TRAP instruction
 
   //! Size of the breakpoint instruction (in bytes)
-  static const int ATDSP_BKPT_INSTLEN = ATDSP_INST16LEN;
+  static const int BKPT_INSTLEN = 2;
+
   //! Size of the trap instruction (in bytes)
-  static const int ATDSP_TRAP_INSTLEN = ATDSP_BKPT_INSTLEN;
+  static const int TRAP_INSTLEN = 2;
 
-  //! Interrupt vector bits
-  static const uint32_t ATDSP_EXCEPT_RESET = 0x00000001;
-  static const uint32_t ATDSP_EXCEPT_NMI = 0x00000002;
-  static const uint32_t ATDSP_EXCEPT_FPE = 0x00000004;
-  static const uint32_t ATDSP_EXCEPT_IRQH = 0x00000008;
-  static const uint32_t ATDSP_EXCEPT_TIMER = 0x00000010;
-  static const uint32_t ATDSP_EXCEPT_DMA = 0x00000020;
-  static const uint32_t ATDSP_EXCEPT_IRQL = 0x00000040;
-  static const uint32_t ATDSP_EXCEPT_SWI = 0x00000080;
-
-  //! Interrupt vector locations
-  static const uint32_t ATDSP_VECTOR_RESET = 0x00000000;
-  static const uint32_t ATDSP_VECTOR_NMI = 0x00000004;
-  static const uint32_t ATDSP_VECTOR_FPE = 0x00000008;
-  static const uint32_t ATDSP_VECTOR_IRQH = 0x0000000c;
-  static const uint32_t ATDSP_VECTOR_TIMER = 0x00000010;
-  static const uint32_t ATDSP_VECTOR_DMA = 0x00000014;
-  static const uint32_t ATDSP_VECTOR_IRQL = 0x00000018;
-  static const uint32_t ATDSP_VECTOR_SWI = 0x0000001c;
-
-  enum EDebugState
-  { CORE_RUNNING, CORE_ON_DEBUG };
-
-  //! Thread ID used by ATDSP
-  static const int ATDSP_TID = 1;
+  //! Thread ID used by Epiphany
+  static const int E_TID = 1;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -237,7 +183,7 @@ private:
   RspPacket *pkt;
 
   //IVT save buffer
-  unsigned char fIVTSaveBuff[ATDSP_NUM_ENTRIES_IN_IVT * 4];
+  uint8_t fIVTSaveBuff[IVT_ENTRIES * TargetControl::E_INSTR_BYTES];
 
   //! Hash table for matchpoints
   MpHash *mpHash;
@@ -304,6 +250,29 @@ private:
   void targetSwReset ();
   void targetHWReset ();
 
+  // Main functions for reading and writing memory
+  bool readMemBlock (uint32_t  addr,
+		     uint8_t* buf,
+		     size_t  len) const;
+  bool writeMemBlock (uint32_t  addr,
+		     uint8_t* buf,
+		     size_t  len) const;
+  bool  readMem32 (uint32_t  addr,
+		   uint32_t& val) const;
+  uint32_t  readMem32 (uint32_t  addr) const;
+  bool  writeMem32 (uint32_t  addr,
+		    uint32_t val) const;
+  bool  readMem16 (uint32_t  addr,
+		   uint16_t& val) const;
+  uint16_t  readMem16 (uint32_t  addr) const;
+  bool  writeMem16 (uint32_t  addr,
+		    uint16_t val) const;
+  bool  readMem8 (uint32_t  addr,
+		  uint8_t& val) const;
+  uint8_t  readMem8 (uint32_t  addr) const;
+  bool  writeMem8 (uint32_t  addr,
+		   uint8_t val) const;
+
   // Main functions for reading and writing registers
   bool readReg (unsigned int regnum,
 		uint32_t& regval) const;
@@ -314,16 +283,12 @@ private:
   // Convenience functions for reading and writing various common registers
   uint32_t readCoreId ();
   uint32_t readStatus ();
-
   uint32_t readPc ();
   void writePc (uint32_t addr);
-
   uint32_t readLr ();
   void writeLr (uint32_t addr);
-
   uint32_t readFp ();
   void writeFp (uint32_t addr);
-
   uint32_t readSp ();
   void writeSp (uint32_t addr);
 

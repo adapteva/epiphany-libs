@@ -56,6 +56,7 @@ public:
   static const unsigned int E_WORD_BYTES   = 4;
   static const unsigned int E_DOUBLE_BYTES = 8;
   static const unsigned int E_REG_BYTES    = E_WORD_BYTES;
+  static const unsigned int E_INSTR_BYTES  = E_WORD_BYTES;
 
   // Register constants - eCore registers
   static const uint32_t R0          = 0xf0000;
@@ -114,6 +115,8 @@ public:
   // Fields in registers. Generically _MASK is the mask for the field and
   // _SHIFT is the number of places to shift right to remove any less
   // significant bits. Any other suffices are particular field values.
+
+  // STATUS register
   static const unsigned int STATUS_ACTIVE_SHIFT  = 0;
   static const unsigned int STATUS_GID_SHIFT     = 1;
   static const unsigned int STATUS_WAND_SHIFT    = 3;
@@ -152,6 +155,63 @@ public:
   static const uint32_t STATUS_GID_ENABLED   = 0x00000000;
   static const uint32_t STATUS_GID_DISABLED  = 0x00000002;
   static const uint32_t STATUS_EXCAUSE_NONE  = 0x00000000;
+
+  // DEBUGSTATUS register
+  static const int DEBUGSTATUS_HALT_SHIFT       = 0;
+  static const int DEBUGSTATUS_EXT_PEND_SHIFT   = 1;
+  static const int DEBUGSTATUS_MBKPT_FLAG_SHIFT = 2;
+
+  static const uint32_t DEBUGSTATUS_HALT_MASK       = 0x00000001;
+  static const uint32_t DEBUGSTATUS_EXT_PEND_MASK   = 0x00000002;
+  static const uint32_t DEBUGSTATUS_MBKPT_FLAG_MASK = 0x00000004;
+  static const uint32_t DEBUGSTATUS_RESERVED_MASK   = 0xfffffff8;
+
+  static const uint32_t DEBUGSTATUS_HALT_RUNNING      = 0x00000000;
+  static const uint32_t DEBUGSTATUS_HALT_HALTED       = 0x00000001;
+  static const uint32_t DEBUGSTATUS_EXT_PEND_NONE     = 0x00000000;
+  static const uint32_t DEBUGSTATUS_EXT_PEND_PENDING  = 0x00000002;
+  static const uint32_t DEBUGSTATUS_MBKPT_FLAG_NONE   = 0x00000000;
+  static const uint32_t DEBUGSTATUS_MBKPT_FLAG_ACTIVE = 0x00000004;
+
+  // ILAT register
+  static const int ILAT_ILAT_SHIFT = 0;
+
+  static const uint32_t ILAT_ILAT_MASK = 0x000003ff;
+  static const uint32_t ILAT_RESERVED_MASK = 0xfffffc00;
+
+  static const uint32_t ILAT_ILAT_SYNC   = 0x00000001;
+  static const uint32_t ILAT_ILAT_SWE    = 0x00000002;
+  static const uint32_t ILAT_ILAT_PROT   = 0x00000004;
+  static const uint32_t ILAT_ILAT_TIMER0 = 0x00000008;
+  static const uint32_t ILAT_ILAT_TIMER1 = 0x00000010;
+  static const uint32_t ILAT_ILAT_MSG    = 0x00000020;
+  static const uint32_t ILAT_ILAT_DMA0   = 0x00000040;
+  static const uint32_t ILAT_ILAT_DMA1   = 0x00000080;
+  static const uint32_t ILAT_ILAT_WAND   = 0x00000100;
+  static const uint32_t ILAT_ILAT_USER   = 0x00000200;
+
+  // DEBUGCMD register
+  static const int DEBUGCMD_COMMAND_SHIFT = 0;
+
+  static const uint32_t DEBUGCMD_COMMAND_MASK  = 0x00000003;
+  static const uint32_t DEBUGCMD_RESERVED_MASK = 0xfffffffc;
+
+  static const uint32_t DEBUGCMD_COMMAND_RUN      = 0x00000000;
+  static const uint32_t DEBUGCMD_COMMAND_HALT     = 0x00000001;
+  static const uint32_t DEBUGCMD_COMMAND_EMUL_ON  = 0x00000002;  //!< Undoc!
+  static const uint32_t DEBUGCMD_COMMAND_EMUL_OFF = 0x00000003;  //!< Undoc!
+
+  // IVT addresses
+  static const uint32_t IVT_SYNC   = 0x00000000;
+  static const uint32_t IVT_SWE    = 0x00000004;
+  static const uint32_t IVT_PROT   = 0x00000008;
+  static const uint32_t IVT_TIMER0 = 0x0000000c;
+  static const uint32_t IVT_TIMER1 = 0x00000010;
+  static const uint32_t IVT_MSG    = 0x00000014;
+  static const uint32_t IVT_DMA0   = 0x00000018;
+  static const uint32_t IVT_DMA1   = 0x0000001c;
+  static const uint32_t IVT_WAND   = 0x00000020;
+  static const uint32_t IVT_USER   = 0x00000024;
 
   // Constructor and destructor
   TargetControl ();

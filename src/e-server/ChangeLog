@@ -1,5 +1,78 @@
 2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::targetResume): Use TargetControl
+	flags when writing to register, simplify trace messages.
+	(GdbServer::rspContinue): Replace ATDSP_BKPT_INSTR by BKPT_INSTR,
+	ATDSP_BKPT_INSTLEN by BKPT_INSTLEN and ATDSP_TRAP_INSTR by
+	TRAP_INSTR.
+	(GdbServer::rspReadAllRegs): Tidy up commenting.
+	(GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQuery): Replace ATDSP_TID with E_TID.
+	(GdbServer::rspCommand): Use TargetControl ILAT flag values.
+	(GdbServer::targetHalt): Use TargetControl flag falues, rename
+	ATSDP_BKPT_INSTR as BKPT_INSTR.
+	(GdbServer::putBreakPointInstruction): Rename ATSDP_BKPT_INSTR as
+	BKPT_INSTR.
+	(GdbServer::isHitInBreakPointInstruction): Likewise.
+	(GdbServer::isTargetInDebugState): Restructure logic, using
+	TargetControl flag values.
+	(GdbServer::saveIVT): Remove obsolete comments and use
+	TargetControl flag values.
+	(GdbServer::restoreIVT): Likewise.
+	(GdbServer::rspStep): Restructure and include all IVT entries from
+	current architecture, use TargetControl flags, rename
+	ATSDP_BKPT_INSTR as BKPT_INSTR and ATSDP_TRAP_INSTR as TRAP_INSTR,
+	simplify tracing.
+	(GdbServer::rspRemoveMatchpoint):Rename ATSDP_BKPT_INSTR as
+	BKPT_INSTR.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::readMemBlock): Created.
+	(GdbServer::writeMemBlock): Created.
+	(GdbServer::readMem32): Created.
+	(GdbServer::writeMem32): Created.
+	(GdbServer::readMem16): Created.
+	(GdbServer::writeMem16): Created.
+	(GdbServer::readMem8): Created.
+	(GdbServer::writeMem8): Created.
+	(GdbServer::readReg): Add warning.
+	(GdbServer::rspQThreadExtraInfo): Replace ATDSP by Epihany.
+	* src/GdbServer.h: Update copyright notice, replace ATDSP by
+	Epiphany throughout, remove AtdspDebugStates,
+	AtdspOutStandingTransationPendingState, EDebugState,
+	ATDSP_NUM_ENTRIES_IN_IVT, ATDSP_GPR_MEM_BASE,
+	ATDSP_SCR_MEM_BASE. ATDSP_IDLE_INSTR, ATDSP_RTI_INSTR,
+	ATDSP_EXCEPT_RESET, ATDSP_EXCEPT_NMI, ATDSP_EXCEPT_FPE,
+	ATDSP_EXCEPT_IRQH, ATDSP_EXCEPT_TIMER, ATDSP_EXCEPT_DMA,
+	ATDSP_EXCEPT_IRQL, ATDSP_EXCEPT_SWI, ATDSP_VECTOR_RESET,
+	ATDSP_VECTOR_NMI, ATDSP_VECTOR_FPE, ATDSP_VECTOR_IRQH,
+	ATDSP_VECTOR_TIMER, ATDSP_VECTOR_DMA, ATDSP_VECTOR_IRQL and
+	ATDSP_VECTOR_SWI.  Add IVT_ENTRIES.  Replace ATDSP_NOP_INSTR by
+	NOP_INSTR, ATDSP_BKPT_INSTR by BKPT_INSTR, ATDSP_TRAP_INSTR by
+	TRAP_INSTR, ATDSP_BKPT_INSTLEN by BKPT_INSTLEN, ATDSP_TRAP_INSTLEN
+	by TRAP_INSTLEN and ATDSP_TID by E_TID.  Add new methods
+	readMemBlock, writeMemBlock, readMem32 of two versions,
+	writeMem32, readMem16 of two versions, writeMem16, readMem8 of two
+	versions and writeMem8.
+	* src/MpHash.cpp: Update copyright notice, replace ATDSP by
+	Epiphany throughout.
+	* src/MpHash.h: Likewise.
+	* src/RspConnection.cpp: Likewise.
+	* src/RspConnection.h: Likewise.
+	* src/RspPacket.cpp: Likewise.
+	* src/RspPacket.h: Likewise.
+	* src/TargetControl.h: Add E_INSTR_BYTES.
+	* src/TargetControlHardware.h: Replace ATDSP by Epiphany
+	throughout.
+	* src/Utils.cpp: Update copyright notice, replace ATDSP by
+	Epiphany throughout.
+	* src/Utils.h: Likewise.
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	Remove last dependencies on maddr_defs.h.
 
 	* src/TargetControl.h (class TargetControl): Define CORE_MEM_SPACE.

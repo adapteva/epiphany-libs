@@ -586,26 +586,20 @@ GdbServer::NanoSleepThread (unsigned long timeout)
 
 
 //-----------------------------------------------------------------------------
-//! Resume target, writing ATDSP_DEBUG_RUN to core debug register
-//
+//! Resume target execution.
 //-----------------------------------------------------------------------------
 void
 GdbServer::targetResume ()
 {
-  //write to CORE_DEBUGCMD
-  (void) writeReg (DEBUGCMD_REGNUM, ATDSP_DEBUG_RUN);
-
-  if (si->debugTrapAndRspCon ())
-    cerr << dec <<
-      " resume CORE_DEBUGCMD " << hex << DEBUGCMD_REGNUM << " " <<
-      ATDSP_DEBUG_RUN << dec << endl;
+  if (!writeReg (DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN));
+  cerr << "Warning: Failed to resume target." << endl;
 
   fIsTargetRunning = true;
 
-  if (si->debugStopResume ())
-    cerr << "resumed"
-	 << endl;
-}
+  if (si->debugTrapAndRspCon () || si->debugStopResume ())
+    cerr << "Resuming target." << endl;
+
+}	// targetResume ()
 
 
 //-----------------------------------------------------------------------------
@@ -687,7 +681,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  // on restart we execute the actual instruction.
 	  uint32_t c_pc = readPc ();
 	  //cout << "stopped at @pc " << hex << c_pc << dec << endl;
-	  prevPc = c_pc - ATDSP_BKPT_INSTLEN;
+	  prevPc = c_pc - BKPT_INSTLEN;
 
 	  //check if it is trap
 	  uint16_t val_;
@@ -695,9 +689,9 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  //bool retSt = fTargetControl->readMem16(prevPc, val_);
 	  uint16_t valueOfStoppedInstr = val_;
 
-	  if (valueOfStoppedInstr == ATDSP_BKPT_INSTR)
+	  if (valueOfStoppedInstr == BKPT_INSTR)
 	    {
-	      //cerr << "********* valueOfStoppedInstr = ATDSP_BKPT_INSTR **************" << endl;
+	      //cerr << "********* valueOfStoppedInstr = BKPT_INSTR **************" << endl;
 
 	      if (NULL != mpHash->lookup (BP_MEMORY, prevPc))
 		{
@@ -722,10 +716,10 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	    }
 	  else
 	    {			// check if stopped for trap (stdio handling)
-	      //cerr << "********* valueOfStoppedInstr =\\= ATDSP_BKPT_INSTR **************" << endl;
+	      //cerr << "********* valueOfStoppedInstr =\\= BKPT_INSTR **************" << endl;
 
 	      bool stoppedAtTrap =
-		(getfield (valueOfStoppedInstr, 9, 0) == ATDSP_TRAP_INSTR);
+		(getfield (valueOfStoppedInstr, 9, 0) == TRAP_INSTR);
 	      if (!stoppedAtTrap)
 		{
 		  //cerr << "********* stoppedAtTrap = false **************" << endl;
@@ -735,7 +729,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		      << hex << c_pc << dec << endl;
 
 
-		  if (valueOfStoppedInstr == ATDSP_NOP_INSTR)
+		  if (valueOfStoppedInstr == NOP_INSTR)
 		    {		//trap is always padded by nops
 		      for (unsigned j = prevPc - 2; j > prevPc - 20;
 			   j = j - 2 /* length of */ )
@@ -748,7 +742,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 			  stoppedAtTrap =
 			    (getfield (valueOfStoppedInstr, 9, 0) ==
-			     ATDSP_TRAP_INSTR);
+			     TRAP_INSTR);
 			  if (stoppedAtTrap)
 			    {
 			      if (si->debugStopResumeDetail ())
@@ -1276,9 +1270,8 @@ GdbServer::rspReadAllRegs ()
 //-----------------------------------------------------------------------------
 //! Handle a RSP write all registers request
 
-//! The registers follow the GDB sequence for ATDSP: GPR0 through GPR63,
-//! followed by the eight status registers (CONFIG, STATUS, PC, DEBUG, IRET,
-//! ILAT, IMASK, IPEND). Each register is supplied as a sequence of bytes in
+//! The registers follow the GDB sequence for Epiphany: GPR0 through GPR63,
+//! followed by the SCRs. Each register is supplied as a sequence of bytes in
 //! target endian order.
 
 //! Each byte is packed as a pair of hex digits.
@@ -1358,8 +1351,8 @@ GdbServer::rspSetThread ()
 
 //! @todo This implementation writes everything as individual bytes. A more
 //!       efficient implementation would write words (where possible) and
-//!       stream the accesses, since the ATDSP only supports word read/write
-//!       at present.
+//!       stream the accesses, since the Epiphany only supports word
+//!       read/write at present.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspReadMem ()
@@ -1488,10 +1481,7 @@ GdbServer::rspWriteMem ()
 //-----------------------------------------------------------------------------
 //! Read a single register
 
-//! The registers follow the GDB sequence for ATDSP: GPR0 through GPR63,
-//! followed by the eight status registers (CONFIG, STATUS, PC, DEBUG, IRET,
-//! ILAT, IMASK, IPEND). The register is returned as a sequence of bytes in
-//! target endian order.
+//! The register is returned as a sequence of bytes in target endian order.
 
 //! Each byte is packed as a pair of hex digits.
 
@@ -1536,10 +1526,8 @@ GdbServer::rspReadReg ()
 //-----------------------------------------------------------------------------
 //! Write a single register
 
-//! The registers follow the GDB sequence for ATDSP: GPR0 through GPR63,
-//! followed by the eight status registers (CONFIG, STATUS, PC, DEBUG, IRET,
-//! ILAT, IMASK, IPEND). The register is specified as a sequence of bytes in
-//! target endian order.
+//! The register value is specified as a sequence of bytes in target endian
+//! order.
 
 //! Each byte is packed as a pair of hex digits.
 //-----------------------------------------------------------------------------
@@ -1590,9 +1578,9 @@ GdbServer::rspQuery ()
     {
       // Return the current thread ID (unsigned hex). A null response
       // indicates to use the previously selected thread. We use the constant
-      // ATDSP_TID to represent our single thread of control.
+      // E_TID to represent our single thread of control.
 
-      sprintf (pkt->data, "QC%x", ATDSP_TID);
+      sprintf (pkt->data, "QC%x", E_TID);
 
       //TODO thread support - no threads...
       //sprintf(pkt->data, "QC%x", fTargetControl->GetCoreID()+1);
@@ -1610,12 +1598,12 @@ GdbServer::rspQuery ()
   else if (0 == strcmp ("qfThreadInfo", pkt->data))
     {
       // Return info about active threads. We return just the constant
-      // ATDSP_TID to represent our single thread of control.
+      // E_TID to represent our single thread of control.
 
       //example for 2 threads TODO -- thread support
       //sprintf(pkt->data, "m%x,%x", 1, 2);
 
-      sprintf (pkt->data, "m%x", ATDSP_TID);
+      sprintf (pkt->data, "m%x", E_TID);
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -1792,7 +1780,9 @@ GdbServer::rspCommand ()
 
       // target start (ILAT set)
       // ILAT set
-      writeReg (ILAT_REGNUM, ATDSP_EXCEPT_RESET);
+      //! @todo Surely we should be doing this write to ILATST? Probably
+      //        doesn't matter for reset.
+      writeReg (ILAT_REGNUM, TargetControl::ILAT_ILAT_SYNC);
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
@@ -2633,7 +2623,7 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 bool
 GdbServer::targetHalt ()
 {
-  if (!writeReg (DEBUGCMD_REGNUM, ATDSP_DEBUG_HALT))
+  if (!writeReg (DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_HALT))
     cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
   if (si->debugStopResume ())
@@ -2675,11 +2665,11 @@ GdbServer::targetHalt ()
 void
 GdbServer::putBreakPointInstruction (unsigned long bkpt_addr)
 {
-  fTargetControl->writeMem16 (bkpt_addr, ATDSP_BKPT_INSTR);
+  fTargetControl->writeMem16 (bkpt_addr, BKPT_INSTR);
 
   if (si->debugStopResumeDetail ())
     cerr <<
-      " put break point " << hex << bkpt_addr << " " << ATDSP_BKPT_INSTR <<
+      " put break point " << hex << bkpt_addr << " " << BKPT_INSTR <<
       dec << endl;
 
 }
@@ -2695,7 +2685,7 @@ GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
   uint16_t val;
   fTargetControl->readMem16 (bkpt_addr, val);
   //bool st = fTargetControl->readMem16(bkpt_addr, val);
-  return (ATDSP_BKPT_INSTR == val);
+  return (BKPT_INSTR == val);
 
 }
 
@@ -2708,11 +2698,15 @@ GdbServer::isTargetInDebugState ()
 
   uint32_t val = readReg (DEBUGSTATUS_REGNUM);
 
-  bool ret = ((getfield (val, 0, 0) == ATDSP_DEBUG_HALT)
-	      && (getfield (val, 1, 1) == ATDSP_OUT_TRAN_FALSE));
+  uint32_t haltStatus = val & TargetControl::DEBUGSTATUS_HALT_MASK;
+  uint32_t extPendStatus = val & TargetControl::DEBUGSTATUS_EXT_PEND_MASK;
 
-  return ret;
-}
+  bool isHalted = haltStatus == TargetControl::DEBUGSTATUS_HALT_HALTED;
+  bool noPending = extPendStatus == TargetControl::DEBUGSTATUS_EXT_PEND_NONE;
+
+  return isHalted && noPending;
+
+}	// isTargetInDebugState ()
 
 
 //-----------------------------------------------------------------------------
@@ -2777,48 +2771,32 @@ GdbServer::isTargetIdle ()
 //-----------------------------------------------------------------------------
 //! Put bkpt instructions to IVT
 
-// The single step mode can be broken when interrupt is fired. (ISR call)
-// The instructions in IVT should be saved and replaced by BKPT
+//! The single step mode can be broken when interrupt is fired. (ISR call)
+//! The instructions in IVT should be saved and replaced by BKPT
+//-----------------------------------------------------------------------------
 void
 GdbServer::saveIVT ()
 {
-  fTargetControl->readBurst (0, fIVTSaveBuff, sizeof (fIVTSaveBuff));
+  fTargetControl->readBurst (TargetControl::IVT_SYNC, fIVTSaveBuff,
+			     sizeof (fIVTSaveBuff));
 
-  //for (unsigned i=1; i<ATDSP_NUM_ENTRIES_IN_IVT-1; i++) { //skip reset ISR
-  //      uint32_t bkpt_addr = i * ATDSP_INST32LEN;
-  //
-  //      if (mpHash->lookup(BP_MEMORY,bkpt_addr) == NULL) {
-  //              uint16_t val16t;
-  //              bool stvlBpMem = fTargetControl->readMem16(bkpt_addr, val16t);
-  //              uint<16> vlBpMem = val16t;
-  //
-  //              mpHash->add(BP_MEMORY, bkpt_addr, vlBpMem);
-  //
-  //              putBreakPointInstruction(bkpt_addr);
-  //      }
-  //}
-}
+}	// saveIVT ()
 
 
 //-----------------------------------------------------------------------------
 //! Restore bkpt instructions to IVT
 
-// The single step mode can be broken when interrupt is fired, (ISR call)
-// The BKPT instructions in IVT should be restored by real instructions
+//! The single step mode can be broken when interrupt is fired, (ISR call)
+//! The BKPT instructions in IVT should be restored by real instructions
+//-----------------------------------------------------------------------------
 void
 GdbServer::restoreIVT ()
 {
 
-  fTargetControl->writeBurst (0, fIVTSaveBuff, sizeof (fIVTSaveBuff));
-  //remove "hidden" bk
-  //for (unsigned i=1; i<ATDSP_NUM_ENTRIES_IN_IVT-1; i++) { // skip reset ISR
-  //      uint32_t bkpt_addr = i*ATDSP_INST32LEN;
-  //      uint16_t instr_saved;
-  //      if (mpHash->remove(BP_MEMORY, bkpt_addr, &instr_saved)) {
-  //              fTargetControl->writeMem16(bkpt_addr, instr_saved);
-  //      }
-  //}
-}
+  fTargetControl->writeBurst (TargetControl::IVT_SYNC, fIVTSaveBuff,
+			      sizeof (fIVTSaveBuff));
+
+}	// restoreIVT ()
 
 
 //-----------------------------------------------------------------------------
@@ -2891,13 +2869,19 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	  (((~imaskReg) & ilatReg) != 0))
 	{
 
-	  //take care of ISR call
+	  // Take care of ISR call. Put a breakpoint in each IVT slot except
+	  // SYNC (aka RESET)
 	  saveIVT ();
 
-	  for (unsigned i = 1; i < ATDSP_NUM_ENTRIES_IN_IVT; i++)
-	    {			// skip reset ISR
-	      putBreakPointInstruction (i * ATDSP_INST32LEN);
-	    }
+	  putBreakPointInstruction (TargetControl::IVT_SWE);
+	  putBreakPointInstruction (TargetControl::IVT_PROT);
+	  putBreakPointInstruction (TargetControl::IVT_TIMER0);
+	  putBreakPointInstruction (TargetControl::IVT_TIMER1);
+	  putBreakPointInstruction (TargetControl::IVT_MSG);
+	  putBreakPointInstruction (TargetControl::IVT_DMA0);
+	  putBreakPointInstruction (TargetControl::IVT_DMA1);
+	  putBreakPointInstruction (TargetControl::IVT_WAND);
+	  putBreakPointInstruction (TargetControl::IVT_USER);
 
 	  //do step
 
@@ -2922,7 +2906,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	}
 
       // report to gdb the target has been stopped
-      unsigned pc_ = readPc () - ATDSP_BKPT_INSTLEN;
+      unsigned pc_ = readPc () - BKPT_INSTLEN;
       writePc (pc_);
       rspReportException (pc_, 0 /*all threads */ , TARGET_SIGNAL_TRAP);
 
@@ -2930,7 +2914,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
     }
 
   //Execute the instruction trap
-  bool stoppedAtTrap = (getfield (instrOpcode, 9, 0) == ATDSP_TRAP_INSTR);
+  bool stoppedAtTrap = (getfield (instrOpcode, 9, 0) == TRAP_INSTR);
   if (stoppedAtTrap)
     {
 
@@ -2939,7 +2923,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       uint8_t trapNumber = getfield (instrOpcode, 15, 10);
       redirectSdioOnTrap (trapNumber);
       //increment pc by size of TRAP instruction
-      writePc (addr + ATDSP_TRAP_INSTLEN);
+      writePc (addr + TRAP_INSTLEN);
       return;
     }
 
@@ -3082,16 +3066,29 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       putBreakPointInstruction (bkpt_jump_addr);
 
     }
-  //take care of ISR call
+
+  // Take care of ISR call. Put a breakpoint in each IVT slot except
+  // SYNC (aka RESET), but only if it doesn't overwrite the PC
   saveIVT ();
-  for (unsigned i = 1; i < ATDSP_NUM_ENTRIES_IN_IVT; i++)
-    {				//skip reset ISR
-      uint32_t bkpt_addr = i * ATDSP_INST32LEN;
-      if (pc_ != bkpt_addr)
-	{			// don't overwrite the PC
-	  putBreakPointInstruction (bkpt_addr);
-	}
-    }
+
+  if (pc_ != TargetControl::IVT_SWE)
+    putBreakPointInstruction (TargetControl::IVT_SWE);
+  if (pc_ != TargetControl::IVT_PROT)
+    putBreakPointInstruction (TargetControl::IVT_PROT);
+  if (pc_ != TargetControl::IVT_TIMER0)
+    putBreakPointInstruction (TargetControl::IVT_TIMER0);
+  if (pc_ != TargetControl::IVT_TIMER1)
+    putBreakPointInstruction (TargetControl::IVT_TIMER1);
+  if (pc_ != TargetControl::IVT_MSG)
+    putBreakPointInstruction (TargetControl::IVT_MSG);
+  if (pc_ != TargetControl::IVT_DMA0)
+    putBreakPointInstruction (TargetControl::IVT_DMA0);
+  if (pc_ != TargetControl::IVT_DMA1)
+    putBreakPointInstruction (TargetControl::IVT_DMA1);
+  if (pc_ != TargetControl::IVT_WAND)
+    putBreakPointInstruction (TargetControl::IVT_WAND);
+  if (pc_ != TargetControl::IVT_USER)
+    putBreakPointInstruction (TargetControl::IVT_USER);
 
   //do step
 
@@ -3099,26 +3096,13 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   targetResume ();
 
   if (si->debugTrapAndRspCon ())
-    cerr << dec <<
-      " resume at PC " << hex << readPc () << endl;
+    cerr << " resume at PC 0x" << hex << readPc () << endl;
+
   if (si->debugStopResumeDetail ())
-    {
-      uint32_t pcReadVal;
-      fTargetControl->readMem32 (readPc (), pcReadVal);
-      //bool pcReadSt = fTargetControl->readMem32(readPc(), pcReadVal);
+    cerr << " opcode 0x" << hex << readMem32 (readPc ()) << dec << endl;
 
-      cerr << dec <<
-	" opcode << " << pcReadVal << dec << endl;
-    }
-
-
-  while (true)
-    {
-      if (isTargetInDebugState ())
-	{
-	  break;
-	}
-    }
+  while (!isTargetInDebugState ())
+    ;
 
   //restore IVT
   restoreIVT ();
@@ -3126,7 +3110,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   // If it's a breakpoint, then we need to back up one instruction, so
   // on restart we execute the actual instruction.
-  uint32_t prevPc = readPc () - ATDSP_BKPT_INSTLEN;
+  uint32_t prevPc = readPc () - BKPT_INSTLEN;
 
   //always stop on hidden breakpoint or stopped on bkpt @ prev_pc
   assert ((NULL != mpHash->lookup (BP_MEMORY, prevPc))
@@ -3338,11 +3322,11 @@ GdbServer::rspRemoveMatchpoint ()
     }
 
   // Sanity check that the length is that of a BKPT instruction
-  if (ATDSP_BKPT_INSTLEN != len)
+  if (BKPT_INSTLEN != len)
     {
       cerr << "Warning: RSP matchpoint deletion length " << len
-	<< " not valid: " << ATDSP_BKPT_INSTLEN << " assumed" << endl;
-      len = ATDSP_BKPT_INSTLEN;
+	<< " not valid: " << BKPT_INSTLEN << " assumed" << endl;
+      len = BKPT_INSTLEN;
     }
 
   // Sort out the type of matchpoint
@@ -3416,11 +3400,11 @@ GdbServer::rspInsertMatchpoint ()
     }
 
   // Sanity check that the length is that of a BKPT instruction
-  if (ATDSP_BKPT_INSTLEN != len)
+  if (BKPT_INSTLEN != len)
     {
       cerr << "Warning: RSP matchpoint insertion length " << len
-	<< " not valid: " << ATDSP_BKPT_INSTLEN << " assumed" << endl;
-      len = ATDSP_BKPT_INSTLEN;
+	<< " not valid: " << BKPT_INSTLEN << " assumed" << endl;
+      len = BKPT_INSTLEN;
     }
 
   // Sort out the type of matchpoint
@@ -3490,7 +3474,6 @@ GdbServer::targetSwReset ()
 //! HW specific (board) reset
 
 //! The Platform driver is responsible for the actual implementation
-
 //-----------------------------------------------------------------------------
 void
 GdbServer::targetHWReset ()
@@ -3500,10 +3483,211 @@ GdbServer::targetHWReset ()
 
 
 //-----------------------------------------------------------------------------
+//! Read a block of memory from the target
+
+//! @param[in]  addr  The address to read from
+//! @param[out] buf   Where to put the data read
+//! @param[in]  len   The number of bytes to read
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::readMemBlock (uint32_t  addr,
+			 uint8_t* buf,
+			 size_t  len) const
+{
+  return fTargetControl->readBurst (addr, buf, len);
+
+}	// readMemBlock ()
+
+
+//-----------------------------------------------------------------------------
+//! Write a block of memory to the target
+
+//! @param[in] addr  The address to write to
+//! @param[in] buf   Where to get the data to be written
+//! @param[in] len   The number of bytes to read
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::writeMemBlock (uint32_t  addr,
+			  uint8_t* buf,
+			  size_t  len) const
+{
+  return fTargetControl->writeBurst (addr, buf, len);
+
+}	// writeMemBlock ()
+
+
+//-----------------------------------------------------------------------------
+//! Read a 32-bit value from memory in the target
+
+//! In this version the caller is responsible for error handling.
+
+//! @param[in]  addr  The address to read from.
+//! @param[out] val   The value read.
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::readMem32 (uint32_t  addr,
+		      uint32_t& val) const
+{
+  return fTargetControl->readMem32 (addr, val);
+
+}	// readMem32 ()
+
+
+//-----------------------------------------------------------------------------
+//! Read a 32-bit value from memory in the target
+
+//! In this version we print a warning if the read fails.
+
+//! @param[in]  addr  The address to read from.
+//! @return  The value read, undefined if there is a failure.
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::readMem32 (uint32_t  addr) const
+{
+  uint32_t val;
+  if (!fTargetControl->readMem32 (addr, val))
+    cerr << "Warning: readMem32 failed." << endl;
+  return val;
+
+}	// readMem32 ()
+
+
+//-----------------------------------------------------------------------------
+//! Write a 32-bit value to memory in the target
+
+//! The caller is responsible for error handling.
+
+//! @param[in]  addr  The address to write to.
+//! @param[out] val   The value to write.
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::writeMem32 (uint32_t  addr,
+		       uint32_t  val) const
+{
+  return fTargetControl->writeMem32 (addr, val);
+
+}	// writeMem32 ()
+
+
+//-----------------------------------------------------------------------------
+//! Read a 16-bit value from memory in the target
+
+//! In this version the caller is responsible for error handling.
+
+//! @param[in]  addr  The address to read from.
+//! @param[out] val   The value read.
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::readMem16 (uint32_t  addr,
+		      uint16_t& val) const
+{
+  return fTargetControl->readMem16 (addr, val);
+
+}	// readMem16 ()
+
+
+//-----------------------------------------------------------------------------
+//! Read a 16-bit value from memory in the target
+
+//! In this version we print a warning if the read fails.
+
+//! @param[in]  addr  The address to read from.
+//! @return  The value read, undefined if there is a failure.
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::readMem16 (uint32_t  addr) const
+{
+  uint16_t val;
+  if (!fTargetControl->readMem16 (addr, val))
+    cerr << "Warning: readMem16 failed." << endl;
+  return val;
+
+}	// readMem16 ()
+
+
+//-----------------------------------------------------------------------------
+//! Write a 16-bit value to memory in the target
+
+//! The caller is responsible for error handling.
+
+//! @param[in]  addr  The address to write to.
+//! @param[out] val   The value to write.
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::writeMem16 (uint32_t  addr,
+		       uint16_t  val) const
+{
+  return fTargetControl->writeMem16 (addr, val);
+
+}	// writeMem16 ()
+
+
+//-----------------------------------------------------------------------------
+//! Read a 8-bit value from memory in the target
+
+//! In this version the caller is responsible for error handling.
+
+//! @param[in]  addr  The address to read from.
+//! @param[out] val   The value read.
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::readMem8 (uint32_t  addr,
+		      uint8_t& val) const
+{
+  return fTargetControl->readMem8 (addr, val);
+
+}	// readMem8 ()
+
+
+//-----------------------------------------------------------------------------
+//! Read a 8-bit value from memory in the target
+
+//! In this version we print a warning if the read fails.
+
+//! @param[in]  addr  The address to read from.
+//! @return  The value read, undefined if there is a failure.
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::readMem8 (uint32_t  addr) const
+{
+  uint8_t val;
+  if (!fTargetControl->readMem8 (addr, val))
+    cerr << "Warning: readMem8 failed." << endl;
+  return val;
+
+}	// readMem8 ()
+
+
+//-----------------------------------------------------------------------------
+//! Write a 8-bit value to memory in the target
+
+//! The caller is responsible for error handling.
+
+//! @param[in]  addr  The address to write to.
+//! @param[out] val   The value to write.
+//! @return  TRUE on success, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::writeMem8 (uint32_t  addr,
+		       uint8_t  val) const
+{
+  return fTargetControl->writeMem8 (addr, val);
+
+}	// writeMem8 ()
+
+
+//-----------------------------------------------------------------------------
 //! Read the value of an Epiphany register from hardware
 
 //! This is just a wrapper for reading memory, since the GPR's are mapped into
-//! core memory
+//! core memory. In this version the user is responsible for error handling.
 
 //! @param[in]   regnum  The GDB register number
 //! @param[out]  regval  The value read
@@ -3522,7 +3706,7 @@ GdbServer::readReg (unsigned int regnum,
 //! Read the value of an Epiphany register from hardware
 
 //! This is just a wrapper for reading memory, since the GPR's are mapped into
-//! core memory
+//! core memory. In this version, we print a warning if the read fails.
 
 //! Overloaded version to return the value directly.
 
@@ -3533,7 +3717,8 @@ uint32_t
 GdbServer::readReg (unsigned int regnum) const
 {
   uint32_t regval;
-  (void) fTargetControl->readMem32 (regAddr (regnum), regval);
+  if (!fTargetControl->readMem32 (regAddr (regnum), regval))
+    cerr << "Warning: readReg failed." << endl;
   return regval;
 
 }	// readReg ()
@@ -3731,7 +3916,7 @@ GdbServer::rspQThreadExtraInfo ()
     }
 
   char tread_info_str[300];
-  sprintf (tread_info_str, "ATDSP --");
+  sprintf (tread_info_str, "Epiphany --");
   for (unsigned i = 0; i < strlen (tread_info_str); i++)
     {
       sprintf ((pkt->data + 2 * i), "%02x", tread_info_str[i]);
