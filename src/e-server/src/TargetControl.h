@@ -215,7 +215,7 @@ public:
 
   // Constructor and destructor
   TargetControl ();
-  ~TargetControl ();
+  virtual ~TargetControl ();
 
   // Functions to access memory. All register access on the Epiphany is also
   // via memory.

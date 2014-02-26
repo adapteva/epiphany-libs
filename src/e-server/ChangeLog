@@ -1,3 +1,8 @@
+2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/TargetControl.h: Make destructor virtual to
+	allow save deletion of derived classes.
+
 2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::targetResume): Use TargetControl
