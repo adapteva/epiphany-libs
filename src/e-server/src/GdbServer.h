@@ -163,8 +163,11 @@ private:
   //! Size of the trap instruction (in bytes)
   static const int TRAP_INSTLEN = 2;
 
-  //! Thread ID used by Epiphany
-  static const int E_TID = 1;
+  //! Vector of all the core IDs
+  vector <uint16_t> coreIds;
+
+  //! Current thread
+  int  currentThread;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -217,6 +220,8 @@ private:
   void rspReadReg ();
   void rspWriteReg ();
   void rspQuery ();
+  void rspQThreadInfo (bool isFirst);
+  void rspQThreadExtraInfo ();
   void rspCommand ();
   void rspTransfer ();
   void rspOsData (unsigned int offset,
@@ -237,8 +242,6 @@ private:
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
-
-  void rspQThreadExtraInfo ();
   void rspThreadSubOperation ();
   void rspFileIOreply ();
   void rspSuspend ();

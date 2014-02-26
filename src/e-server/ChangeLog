@@ -1,5 +1,23 @@
 2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	Provide useful functionality for thread operations.
+
+	* src/GdbServer.cpp (GdbServer::GdbServer):
+	Initialize currentThread.
+	(GdbServer::rspServer): Initialize coreIds vector.
+	(GdbServer::rspQuery): Replace E_TID by currentThread, call out to
+	custom functions for qfThreadInfo, qsThreadInfo and qThreadExtraInfo.
+	(GdbServer::rspQThreadInfo): Created.
+	(GdbServer::rspQThreadExtraInfo): Return core ID of specified thread.
+	(GdbServer::rspOsDataProcesses): Use member variable coreIds.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspThreadSubOperation): Set currentThread.
+	* src/e-server/src/GdbServer.h: Replace E_TID by currentThread,
+	add vector for CoreIds.  Add newly created functions.
+
+2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/TargetControl.h: Make destructor virtual to
 	allow save deletion of derived classes.
 

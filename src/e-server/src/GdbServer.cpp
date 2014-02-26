@@ -81,6 +81,7 @@ using std::vector;
 
 //! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
+  currentThread (1),
   si (_si),
   fTargetControl (NULL),
   fIsTargetRunning (false)
@@ -156,6 +157,9 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 {
   fTargetControl = _fTargetControl;
   assert (fTargetControl);
+
+  // Initialize info from the target
+  coreIds = fTargetControl->listCoreIds ();
 
   // Loop processing commands forever
   while (true)
@@ -1580,7 +1584,7 @@ GdbServer::rspQuery ()
       // indicates to use the previously selected thread. We use the constant
       // E_TID to represent our single thread of control.
 
-      sprintf (pkt->data, "QC%x", E_TID);
+      sprintf (pkt->data, "QC%x", currentThread);
 
       //TODO thread support - no threads...
       //sprintf(pkt->data, "QC%x", fTargetControl->GetCoreID()+1);
@@ -1597,22 +1601,13 @@ GdbServer::rspQuery ()
     }
   else if (0 == strcmp ("qfThreadInfo", pkt->data))
     {
-      // Return info about active threads. We return just the constant
-      // E_TID to represent our single thread of control.
-
-      //example for 2 threads TODO -- thread support
-      //sprintf(pkt->data, "m%x,%x", 1, 2);
-
-      sprintf (pkt->data, "m%x", E_TID);
-      pkt->setLen (strlen (pkt->data));
-      rsp->putPkt (pkt);
-    }
+      // Return initial info about active threads.
+      rspQThreadInfo (true);
+    }      
   else if (0 == strcmp ("qsThreadInfo", pkt->data))
     {
-      // Return info about more active threads. We have no more, so return the
-      // end of list marker, 'l'
-      pkt->packStr ("l");
-      rsp->putPkt (pkt);
+      // Return more info about active threads.
+      rspQThreadInfo (false);
     }
   else if (0 == strncmp ("qGetTLSAddr:", pkt->data, strlen ("qGetTLSAddr:")))
     {
@@ -1674,16 +1669,7 @@ GdbServer::rspQuery ()
 	   strncmp ("qThreadExtraInfo,", pkt->data,
 		    strlen ("qThreadExtraInfo,")))
     {
-      //TODO --no thread support
-      //rspQThreadExtraInfo();
-
-
-      // Report that we are runnable, but the text must be hex ASCI
-      // digits. For now do this by steam, reusing the original packet
-      sprintf (pkt->data, "%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-	       'R', 'u', 'n', 'n', 'a', 'b', 'l', 'e', 0);
-      pkt->setLen (strlen (pkt->data));
-      rsp->putPkt (pkt);
+      rspQThreadExtraInfo();
     }
   else if (0 == strncmp ("qXfer:", pkt->data, strlen ("qXfer:")))
     {
@@ -1713,6 +1699,81 @@ GdbServer::rspQuery ()
       rsp->putPkt (pkt);
     }
 }				// rspQuery()
+
+
+//-----------------------------------------------------------------------------
+//! Handle a RSP qfThreadInfo/qsThreadInfo request
+
+//! Reuse the incoming packet.
+
+//! @todo We assume we can do everything in the first packet.
+
+//! @param[in] isFirst  TRUE if we were a qfThreadInfo packet.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspQThreadInfo (bool isFirst)
+{
+  if (isFirst)
+    {
+      string reply;
+      vector <uint16_t>::iterator  it;
+
+      for (it = coreIds.begin (); it != coreIds.end (); it++)
+	{
+	  if (it != coreIds.begin ())
+	    reply += ",";
+
+	  reply += coreIdStr (*it);
+	}
+
+      pkt->packNStr (reply.c_str (), reply.size (), 'm');
+    }
+  else
+    pkt->packStr ("l");
+
+  rsp->putPkt (pkt);
+
+}	// rspQThreadInfo ()
+
+
+//-----------------------------------------------------------------------------
+//! Handle a RSP qThreadExtraInfo request
+
+//! Reuse the incoming packet.
+
+//! @todo This should report the Core ID associated with the thread ID. For now
+//!       this is just the currentThread - 1, but we need to fix this.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspQThreadExtraInfo ()
+{
+  unsigned int tid;
+
+  if (1 != sscanf (pkt->data, "qThreadExtraInfo,%x", &tid))
+    {
+      cerr << "Warning: Failed to recognize RSP qThreadExtraInfo command : "
+	<< pkt->data << endl;
+      pkt->packStr ("E01");
+      return;
+    }
+
+  char* buf = &(pkt->data[0]);
+  string res = "Core: ";
+  res += coreIdStr (tid - 1);
+  res += ": Runnable";
+
+  // Put each char as its ASCII representation
+  for (string::iterator it = res.begin (); it != res.end (); it++)
+    {
+      sprintf (buf, "%02x", *it);
+      buf += 2;
+    }
+
+  sprintf (buf, "00");
+  pkt->setLen (strlen (pkt->data));
+  rsp->putPkt (pkt);
+
+}	// rspQThreadExtraInfo ()
 
 
 //-----------------------------------------------------------------------------
@@ -2045,12 +2106,11 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	"    <column name=\"cores\">\n"
 	"      ";
 
-      vector <uint16_t> cores = fTargetControl->listCoreIds ();
       vector <uint16_t>::iterator  it;
 
-      for (it = cores.begin (); it != cores.end (); it++)
+      for (it = coreIds.begin (); it != coreIds.end (); it++)
 	{
-	  if (it != cores.begin ())
+	  if (it != coreIds.begin ())
 	    osProcessReply += ",";
 
 	  osProcessReply += coreIdStr (*it);
@@ -2120,10 +2180,9 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
 	"<osdata type=\"load\">\n";
 
-      vector <uint16_t> cores = fTargetControl->listCoreIds ();
       vector <uint16_t>::iterator  it;
 
-      for (it = cores.begin (); it != cores.end (); it++)
+      for (it = coreIds.begin (); it != coreIds.end (); it++)
 	{
 	  osLoadReply +=
 	    "  <item>\n"
@@ -2211,10 +2270,9 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 
       unsigned int maxRow = fTargetControl->getNumRows () - 1;
       unsigned int maxCol = fTargetControl->getNumCols () - 1;
-      vector <uint16_t> cores = fTargetControl->listCoreIds ();
       vector <uint16_t>::iterator  it;
 
-      for (it = cores.begin (); it != cores.end (); it++)
+      for (it = coreIds.begin (); it != coreIds.end (); it++)
 	{
 	  uint16_t coreId = *it;
 	  unsigned int row = (coreId >> 6) & 0x3f;
@@ -3894,63 +3952,25 @@ GdbServer::writeSp (uint32_t addr)
 
 
 //-----------------------------------------------------------------------------
-//! Handle a RSP qThreadExtraInfo query
-
-//! Syntax is:
-
-//!   qThreadExtraInfo<threadID>:
-
-//!
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspQThreadExtraInfo ()
-{
-  unsigned int threadID;
-
-  if (1 != sscanf (pkt->data, "qThreadExtraInfo,%x", &threadID))
-    {
-      cerr << "Warning: Failed to recognize RSP qThreadExtraInfo command : "
-	<< pkt->data << endl;
-      pkt->packStr ("E01");
-      return;
-    }
-
-  char tread_info_str[300];
-  sprintf (tread_info_str, "Epiphany --");
-  for (unsigned i = 0; i < strlen (tread_info_str); i++)
-    {
-      sprintf ((pkt->data + 2 * i), "%02x", tread_info_str[i]);
-    }
-
-  sprintf ((pkt->data + 2 * strlen (tread_info_str)), "%02x", char (0));
-
-  pkt->setLen (strlen (pkt->data));
-  rsp->putPkt (pkt);
-
-  return;
-}
-
-
-//-----------------------------------------------------------------------------
-//! Handle a RSP Set thread for subsequent operations (`m', `M', `g', `G', et.al.).
-//! c depends on the operation to be performed: it should be `c' for step and continue operations, `g' for other operations.
-//! The thread designator thread-id has the format and interpretation described in thread-id syntax.
+//! Handle a RSP Set thread for subsequent operations.
 
 //! Syntax is:
 
 //!   H<op><threadID>:
 
-//! The response is the bytes, lowest address first, encoded as pairs of hex
-//! digits.
+//! The operator specifies the operations to which the action relates:
+//! - 'c' for step and continue operations
+//! - 'g' for all other operations.
 
-//!       at present.
+//! @todo Currently no checking for a valid thread and no separate recordng
+//!       for 'c' and 'g'.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspThreadSubOperation ()
 {
-  int threadID;
+  int tid;
 
-  int scanfRet = sscanf (pkt->data + 2, "%x", &threadID);
+  int scanfRet = sscanf (pkt->data + 2, "%x", &tid);
 
   if (1 != scanfRet)
     {
@@ -3960,18 +3980,15 @@ GdbServer::rspThreadSubOperation ()
       rsp->putPkt (pkt);
       return;
     }
-  if (threadID == -1)
-    {
-      //cout << "apply for all thread " << endl;
 
-    }
+  currentThread = tid;
 
   pkt->packStr ("OK");
   rsp->putPkt (pkt);
 
   return;
-}
 
+}	// rspThreadSubOperation ()
 
 
 // These functions replace the intrinsic SystemC bitfield operators.
