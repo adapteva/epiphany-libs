@@ -81,7 +81,8 @@ using std::vector;
 
 //! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
-  currentThread (1),
+  currentCThread (0),
+  currentGThread (0),
   si (_si),
   fTargetControl (NULL),
   fIsTargetRunning (false)
@@ -119,47 +120,18 @@ GdbServer::~GdbServer ()
 }	// ~GdbServer ()
 
 
-//! Attach to the target
-
-//! If not already halted, the target will be halted.
-
-//! @todo What should we really do if the target fails to halt?
-
-//! @note  The target should *not* be reset when attaching.
-void
-GdbServer::rspAttach ()
-{
-  bool isHalted = targetHalt ();
-
-  if (!isHalted)
-      rspReportException (0, 0 /*all threads */ , TARGET_SIGNAL_HUP);
-
-}	// rspAttach ()
-
-
-//! Detach from hardware.
-
-//! For now a null function.
-
-//! @todo Leave emulation mode?
-void
-GdbServer::rspDetach ()
-{
-}	// rspDetach ()
-
-
+//-----------------------------------------------------------------------------
 //! Listen for RSP requests
 
 //! @param[in] _fTargetControl  Pointer to the target API for the actual
 //!                             target.
+//-----------------------------------------------------------------------------
 void
 GdbServer::rspServer (TargetControl* _fTargetControl)
 {
   fTargetControl = _fTargetControl;
-  assert (fTargetControl);
-
-  // Initialize info from the target
-  coreIds = fTargetControl->listCoreIds ();
+  
+  initThreads ();			// Set up the core to thread maps
 
   // Loop processing commands forever
   while (true)
@@ -219,6 +191,77 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	  "-------------- rspClientRequest(): end" << endl << endl;
     }
 }				// rspServer()
+
+
+//-----------------------------------------------------------------------------
+//! Initialize core to thread mapping
+
+//! Epiphany GDB uses a hard mapping of thread ID to cores. We can only
+//! provide this mapping once a connection identifies the cores available.
+
+//! The mapping is:
+
+//!   threadID = (core row + 1) * 100 + core column + 1
+
+//! This means that in decimal the thread ID will read off the core number as
+//! decimal row, column, counting from 1. The addition of 1 is needed, because
+//! threadId 0 has a special meaning, so cannot be used.
+//-----------------------------------------------------------------------------
+void
+GdbServer::initThreads ()
+{
+  assert (fTargetControl);		// Just in case of a stupid connection
+
+  // Initialize info from the target
+  vector <uint16_t> coreIds = fTargetControl->listCoreIds ();
+
+  // Initialize a bi-directional mapping
+  vector <uint16_t>::iterator  it;
+  for (it = coreIds.begin (); it!= coreIds.end (); it++)
+    {
+      uint16_t coreId = *it;
+      int row = coreId >> 6;
+      int col = coreId & 0x3f;
+      int threadId = (row + 1) * 100 + col + 1;
+
+      // Oh for bi-directional maps
+      core2thread [coreId] = threadId;
+      thread2core [threadId] = coreId;
+    }
+}	// initThreads ()
+
+  
+//-----------------------------------------------------------------------------
+//! Attach to the target
+
+//! If not already halted, the target will be halted.
+
+//! @todo What should we really do if the target fails to halt?
+
+//! @note  The target should *not* be reset when attaching.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspAttach ()
+{
+  bool isHalted = targetHalt ();
+
+  if (!isHalted)
+      rspReportException (0, 0 /*all threads */ , TARGET_SIGNAL_HUP);
+
+}	// rspAttach ()
+
+
+//-----------------------------------------------------------------------------
+//! Detach from hardware.
+
+//! For now a null function.
+
+//! @todo Leave emulation mode?
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspDetach ()
+{
+}	// rspDetach ()
 
 
 //-----------------------------------------------------------------------------
@@ -1301,21 +1344,13 @@ GdbServer::rspWriteAllRegs ()
 
 
 //! Set the thread number of subsequent operations.
-
-//! The thread number corresponds to the local core ID, but we can't use it
-//! exactly, because then we would have thread ID '0' which means "any
-//! thread", so the thread ID is core ID + 1.
-
-//! We store this locally, but also pass it on to the target hardware. If we
-//! have a thread ID which corresponds to an invalid core, then we return an
-//! error.
 void
 GdbServer::rspSetThread ()
 {
   char  c;
-  int  threadId;
+  int  tid;
 
-  if (2 != sscanf (pkt->data, "H%c%d:", &c, &threadId))
+  if (2 != sscanf (pkt->data, "H%c%x:", &c, &tid))
     {
       cerr << "Warning: Failed to recognize RSP set thread command: "
 	   << pkt->data << endl;
@@ -1324,20 +1359,22 @@ GdbServer::rspSetThread ()
       return;
     }
   
-  if ((c == 'c' && fTargetControl->setThreadExecute (threadId))
-      || (c == 'g' && fTargetControl->setThreadGeneral (threadId)))
+  switch (c)
     {
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-    }
-  else
-    {
+    case 'c': currentCThread = tid; break;
+    case 'g': currentGThread = tid; break;
+
+    default:
       cerr << "Warning: Failed RSP set thread command: "
 	   << pkt->data << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
     }
+
+  pkt->packStr ("OK");
+  rsp->putPkt (pkt);
+
 }	// rspSetThread ()
 
 
@@ -1581,10 +1618,10 @@ GdbServer::rspQuery ()
   if (0 == strcmp ("qC", pkt->data))
     {
       // Return the current thread ID (unsigned hex). A null response
-      // indicates to use the previously selected thread. We use the constant
-      // E_TID to represent our single thread of control.
+      // indicates to use the previously selected thread. We use the G thread,
+      // since C thread should be handled by vCont anyway.
 
-      sprintf (pkt->data, "QC%x", currentThread);
+      sprintf (pkt->data, "QC%x", currentGThread);
 
       //TODO thread support - no threads...
       //sprintf(pkt->data, "QC%x", fTargetControl->GetCoreID()+1);
@@ -1715,17 +1752,18 @@ GdbServer::rspQThreadInfo (bool isFirst)
 {
   if (isFirst)
     {
-      string reply;
-      vector <uint16_t>::iterator  it;
+      ostringstream  os;
+      map <int, uint16_t>::iterator  it;
 
-      for (it = coreIds.begin (); it != coreIds.end (); it++)
+      for (it = thread2core.begin (); it != thread2core.end (); it++)
 	{
-	  if (it != coreIds.begin ())
-	    reply += ",";
+	  if (it != thread2core.begin ())
+	    os << ",";
 
-	  reply += coreIdStr (*it);
+	  os << hex << it->first;
 	}
 
+      string reply = os.str ();
       pkt->packNStr (reply.c_str (), reply.size (), 'm');
     }
   else
@@ -1759,7 +1797,7 @@ GdbServer::rspQThreadExtraInfo ()
 
   char* buf = &(pkt->data[0]);
   string res = "Core: ";
-  res += coreIdStr (tid - 1);
+  res += coreIdStr (thread2core[tid]);
   res += ": Runnable";
 
   // Put each char as its ASCII representation
@@ -2106,14 +2144,14 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	"    <column name=\"cores\">\n"
 	"      ";
 
-      vector <uint16_t>::iterator  it;
+      map <uint16_t, int>::iterator  it;
 
-      for (it = coreIds.begin (); it != coreIds.end (); it++)
+      for (it = core2thread.begin (); it != core2thread.end (); it++)
 	{
-	  if (it != coreIds.begin ())
+	  if (it != core2thread.begin ())
 	    osProcessReply += ",";
 
-	  osProcessReply += coreIdStr (*it);
+	  osProcessReply += coreIdStr (it->first);
 	}
 
       osProcessReply += "\n"
@@ -2180,14 +2218,14 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
 	"<osdata type=\"load\">\n";
 
-      vector <uint16_t>::iterator  it;
+      map <uint16_t, int>::iterator  it;
 
-      for (it = coreIds.begin (); it != coreIds.end (); it++)
+      for (it = core2thread.begin (); it != core2thread.end (); it++)
 	{
 	  osLoadReply +=
 	    "  <item>\n"
 	    "    <column name=\"coreid\">";
-	  osLoadReply += coreIdStr (*it);
+	  osLoadReply += coreIdStr (it->first);
 	  osLoadReply += "</column>\n";
 
 	  osLoadReply +=
@@ -2270,11 +2308,11 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 
       unsigned int maxRow = fTargetControl->getNumRows () - 1;
       unsigned int maxCol = fTargetControl->getNumCols () - 1;
-      vector <uint16_t>::iterator  it;
+      map <uint16_t, int>::iterator  it;
 
-      for (it = coreIds.begin (); it != coreIds.end (); it++)
+      for (it = core2thread.begin (); it != core2thread.end (); it++)
 	{
-	  uint16_t coreId = *it;
+	  uint16_t coreId = it->first;
 	  unsigned int row = (coreId >> 6) & 0x3f;
 	  unsigned int col = coreId & 0x3f;
 	  string inTraffic;
@@ -3949,46 +3987,6 @@ GdbServer::writeSp (uint32_t addr)
   writeReg (SP_REGNUM, addr);
 
 }	// writeSp ()
-
-
-//-----------------------------------------------------------------------------
-//! Handle a RSP Set thread for subsequent operations.
-
-//! Syntax is:
-
-//!   H<op><threadID>:
-
-//! The operator specifies the operations to which the action relates:
-//! - 'c' for step and continue operations
-//! - 'g' for all other operations.
-
-//! @todo Currently no checking for a valid thread and no separate recordng
-//!       for 'c' and 'g'.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspThreadSubOperation ()
-{
-  int tid;
-
-  int scanfRet = sscanf (pkt->data + 2, "%x", &tid);
-
-  if (1 != scanfRet)
-    {
-      cerr << "Warning: Failed to recognize RSP H command : "
-	<< pkt->data << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-
-  currentThread = tid;
-
-  pkt->packStr ("OK");
-  rsp->putPkt (pkt);
-
-  return;
-
-}	// rspThreadSubOperation ()
 
 
 // These functions replace the intrinsic SystemC bitfield operators.

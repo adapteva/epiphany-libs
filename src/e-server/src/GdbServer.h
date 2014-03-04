@@ -38,7 +38,7 @@
 #define GDB_SERVER__H
 
 #include <string>
-#include <vector>
+#include <map>
 
 //! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
 #include <inttypes.h>
@@ -56,7 +56,7 @@
 
 
 using std::string;
-using std::vector;
+using std::map;
 
 
 //! Class implementing a GDB RSP server.
@@ -163,11 +163,15 @@ private:
   //! Size of the trap instruction (in bytes)
   static const int TRAP_INSTLEN = 2;
 
-  //! Vector of all the core IDs
-  vector <uint16_t> coreIds;
+  //! Map from core to thread
+  map <uint16_t, int> core2thread;
 
-  //! Current thread
-  int  currentThread;
+  //! Map from thread to core
+  map <int, uint16_t> thread2core;
+
+  //! Current thread for continue/step
+  int  currentCThread;
+  int  currentGThread;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -202,6 +206,11 @@ private:
 
   //! String for OS mesh traffic
   string  osTrafficReply;
+
+  // Helper functions for setting up a connection
+  void initThreads ();
+  void rspAttach ();
+  void rspDetach ();
 
   // Main RSP request handler
   void rspClientRequest ();
@@ -242,12 +251,8 @@ private:
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
-  void rspThreadSubOperation ();
   void rspFileIOreply ();
   void rspSuspend ();
-
-  void rspAttach ();
-  void rspDetach ();
 
   // Convenience functions to control and report on the CPU
   void targetSwReset ();

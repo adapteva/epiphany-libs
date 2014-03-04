@@ -1,3 +1,24 @@
+2014-03-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::~GdbServer):
+	Initialize both current thread variables.
+	(GdbServer::rspAttach): Move after rspServer.
+	(GdbServer::rspDetach): Likewise.
+	(GdbServer::rspServer): Move thread initialization into separate
+	function.
+	(GdbServer::initThreads): Created.
+	(GdbServer::rspSetThread): Just set current thread as appropriate.
+	(GdbServer::rspQuery): Use currentGThread for qC.
+	(GdbServer::rspQThreadInfo): Get cores from thread to core map.
+	(GdbServer::rspQThreadExtraInfo): Use thread to core map.
+	(GdbServer::rspOsDataProcesses): Get cores from thread to core map.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspThreadSubOperation): Deleted (unused).
+	* src/GdbServer.h: Add current threads for G and C
+	use and maps between thread ID and core ID.  Remove
+	rspThreadSubOperation.
+
 2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Provide useful functionality for thread operations.
@@ -13,7 +34,7 @@
 	(GdbServer::rspOsDataLoad): Likewise.
 	(GdbServer::rspOsDataTraffic): Likewise.
 	(GdbServer::rspThreadSubOperation): Set currentThread.
-	* src/e-server/src/GdbServer.h: Replace E_TID by currentThread,
+	* src/GdbServer.h: Replace E_TID by currentThread,
 	add vector for CoreIds.  Add newly created functions.
 
 2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
