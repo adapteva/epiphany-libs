@@ -138,6 +138,7 @@ usage_full (ostream& s)
   s << "  -d target-wr" << endl;
   s << "  -d ctrl-c-wait" << endl;
   s << "  -d tran-detail" << endl;
+  s << "  -d hw-detail" << endl;
   s << endl;
   s << "    Enable specified class of debug messages. Use multiple times for"
     << endl;
@@ -407,6 +408,8 @@ main (int argc, char *argv[])
 		si->debugCtrlCWait (true);
 	      else if (0 == strcasecmp (argv[n], "tran-detail"))
 		si->debugTranDetail (true);
+	      else if (0 == strcasecmp (argv[n], "hw-detail"))
+		si->debugHwDetail (true);
 	      else
 		{
 		  cerr << "WARNING: Unrecognized debug flag " << argv[n]

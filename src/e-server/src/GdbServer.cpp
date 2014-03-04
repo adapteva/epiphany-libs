@@ -560,13 +560,13 @@ GdbServer::rspContinue (uint32_t except)
   // Get an address if we have one
   if (0 == strcmp ("c", pkt->data))
     {
-      addr = readPc ();		// Default uses current PC
+      addr = readPc (cCore ());		// Default uses current PC
     }
   else if (1 != sscanf (pkt->data, "c%x", &addr))
     {
       cerr << "Warning: RSP continue address " << pkt->data
 	<< " not recognized: ignored" << endl;
-      addr = readPc ();		// Default uses current NPC
+      addr = readPc (cCore ());		// Default uses current NPC
     }
 
   rspContinue (addr, TARGET_SIGNAL_NONE);
@@ -607,7 +607,7 @@ GdbServer::rspContinue ()
     }
 
   //get PC
-  uint32_t reportedPc = readPc ();
+  uint32_t reportedPc = readPc (cCore ());
 
   // report to gdb the target has been stopped
   rspReportException (reportedPc, 0 /* all threads */ , exCause);
@@ -638,7 +638,7 @@ GdbServer::NanoSleepThread (unsigned long timeout)
 void
 GdbServer::targetResume ()
 {
-  if (!writeReg (DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN));
+  if (!writeReg (cCore (), DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN));
   cerr << "Warning: Failed to resume target." << endl;
 
   fIsTargetRunning = true;
@@ -689,7 +689,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  //cerr << "********* isTargetInDebugState = true **************" << endl;
 
 	  //set PC
-	  writePc (addr);
+	  writePc (cCore (), addr);
 
 	  //resume
 	  targetResume ();
@@ -726,14 +726,13 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	  // If it's a breakpoint, then we need to back up one instruction, so
 	  // on restart we execute the actual instruction.
-	  uint32_t c_pc = readPc ();
+	  uint32_t c_pc = readPc (cCore ());
 	  //cout << "stopped at @pc " << hex << c_pc << dec << endl;
 	  prevPc = c_pc - BKPT_INSTLEN;
 
 	  //check if it is trap
 	  uint16_t val_;
-	  fTargetControl->readMem16 (prevPc, val_);
-	  //bool retSt = fTargetControl->readMem16(prevPc, val_);
+	  readMem16 (gCore (), prevPc, val_);
 	  uint16_t valueOfStoppedInstr = val_;
 
 	  if (valueOfStoppedInstr == BKPT_INSTR)
@@ -742,7 +741,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	      if (NULL != mpHash->lookup (BP_MEMORY, prevPc))
 		{
-		  writePc (prevPc);
+		  writePc (cCore (), prevPc);
 		  if (si->debugTrapAndRspCon ())
 		    cerr << dec << "set pc back " << hex << prevPc << dec << endl
 		     ;
@@ -783,8 +782,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 			{
 			  //check if it is trap
 
-			  fTargetControl->readMem16 (j, val_);
-			  //bool rSt = fTargetControl->readMem16(j, val_);
+			  readMem16 (cCore (), j, val_);
 			  valueOfStoppedInstr = val_;
 
 			  stoppedAtTrap =
@@ -821,7 +819,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		    cerr << dec << " no trap found, return control to gdb" <<
 		      endl;
 		  // report to gdb the target has been stopped
-		  rspReportException (readPc () /* PC no trap found */ ,
+		  rspReportException (readPc (cCore ()) /* PC no trap found */ ,
 				      0 /* all threads */ ,
 				      TARGET_SIGNAL_TRAP);
 		}
@@ -874,7 +872,7 @@ GdbServer::rspSuspend ()
     {
 
       //get PC
-      reportedPc = readPc ();
+      reportedPc = readPc (cCore ());
 
       //check the exception state
       bool isExState = isTargetExceptionState (exCause);
@@ -892,8 +890,7 @@ GdbServer::rspSuspend ()
 
 	      //fetch instruction opcode on PC
 	      uint16_t val16;
-	      fTargetControl->readMem16 (reportedPc, val16);
-	      //bool st1 = fTargetControl->readMem16(reportedPc, val16);
+	      readMem16 (cCore (), reportedPc, val16);
 	      uint16_t instrOpcode = val16;
 
 	      //idle
@@ -906,7 +903,7 @@ GdbServer::rspSuspend ()
 
 		  reportedPc = reportedPc - 2;
 		}
-	      writePc (reportedPc);
+	      writePc (cCore (), reportedPc);
 
 	      //cerr << "SUPEND " << hex << reportedPc << endl;
 	    }
@@ -941,10 +938,10 @@ GdbServer::rspFileIOreply ()
       sscanf (pkt->data, "F%lx,%lx", &result_io, &host_respond_error_code))
     {
       //write to r0
-      writeReg (R0_REGNUM + 0, result_io);
+      writeReg (gCore (), R0_REGNUM + 0, result_io);
 
       //write to r3 error core
-      writeReg (R0_REGNUM + 3, host_respond_error_code);
+      writeReg (gCore (), R0_REGNUM + 3, host_respond_error_code);
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
 	  " remote io done " << result_io << "error code" <<
@@ -959,7 +956,7 @@ GdbServer::rspFileIOreply ()
 	  " remote io done " << result_io << endl;
 
       //write to r0
-      writeReg (R0_REGNUM + 0, result_io);
+      writeReg (gCore (), R0_REGNUM + 0, result_io);
     }
   else
     {
@@ -1012,9 +1009,9 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 0 write " << endl;
-      r0 = readReg (R0_REGNUM + 0);		//chan
-      r1 = readReg (R0_REGNUM + 1);		//addr
-      r2 = readReg (R0_REGNUM + 2);		//length
+      r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
+      r1 = readReg (gCore (), R0_REGNUM + 1);		//addr
+      r2 = readReg (gCore (), R0_REGNUM + 2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -1030,9 +1027,9 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
     case TRAP_READ:
       if (si->debugTrapAndRspCon ())
 	cerr << dec << " Trap 1 read " << endl;	/*read(chan, addr, len) */
-      r0 = readReg (R0_REGNUM + 0);		//chan
-      r1 = readReg (R0_REGNUM + 1);		//addr
-      r2 = readReg (R0_REGNUM + 2);		//length
+      r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
+      r1 = readReg (gCore (), R0_REGNUM + 1);		//addr
+      r2 = readReg (gCore (), R0_REGNUM + 2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -1046,8 +1043,8 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
       break;
     case TRAP_OPEN:
-      r0 = readReg (R0_REGNUM + 0);		//filepath
-      r1 = readReg (R0_REGNUM + 1);		//flags
+      r0 = readReg (gCore (), R0_REGNUM + 0);		//filepath
+      r1 = readReg (gCore (), R0_REGNUM + 1);		//flags
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -1057,8 +1054,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 	{
 	  uint8_t val_;
-	  fTargetControl->readMem8 (r0 + k, val_);
-	  //bool retSt = fTargetControl->readMem8(r0+k, val_);
+	  readMem8 (gCore (), r0 + k, val_);
 	  if (val_ == '\0')
 	    {
 	      break;
@@ -1077,21 +1073,21 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 3 exiting .... ??? " << endl;
-      r0 = readReg (R0_REGNUM + 0);		//status
+      r0 = readReg (gCore (), R0_REGNUM + 0);		//status
       //cerr << " The remote target got exit() call ... no OS -- ignored" << endl;
       //exit(4);
-      rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (readPc (cCore ()), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_PASS:
       cerr << " Trap 4 PASS " << endl;
-      rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_TRAP);
+      rspReportException (readPc (cCore ()), 0 /*all threads */ , TARGET_SIGNAL_TRAP);
       break;
     case TRAP_FAIL:
       cerr << " Trap 5 FAIL " << endl;
-      rspReportException (readPc (), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (readPc (cCore ()), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
-      r0 = readReg (R0_REGNUM + 0);		//chan
+      r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 6 close: " << r0 << endl;
@@ -1108,9 +1104,9 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	  if (si->debugTrapAndRspCon ())
 	    cerr << dec <<
 	      " Trap 7 " << endl;
-	  r0 = readReg (R0_REGNUM + 0);	// buf_addr
-	  r1 = readReg (R0_REGNUM + 1);	// fmt_len
-	  r2 = readReg (R0_REGNUM + 2);	// total_len
+	  r0 = readReg (gCore (), R0_REGNUM + 0);	// buf_addr
+	  r1 = readReg (gCore (), R0_REGNUM + 1);	// fmt_len
+	  r2 = readReg (gCore (), R0_REGNUM + 2);	// total_len
 
 	  //fprintf(stderr, " TRAP_OTHER %x %x", PARM0,PARM1);
 
@@ -1121,8 +1117,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	    {
 	      uint8_t val_;
 
-	      fTargetControl->readMem8 (r0 + k, val_);
-	      //bool retSt = fTargetControl->readMem8(r0+k, val_);
+	      readMem8 (gCore (), r0 + k, val_);
 	      buf[k] = val_;
 	    }
 
@@ -1139,10 +1134,10 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       else
 	{
 
-	  r0 = readReg (R0_REGNUM + 0);
-	  r1 = readReg (R0_REGNUM + 1);
-	  r2 = readReg (R0_REGNUM + 2);
-	  r3 = readReg (R0_REGNUM + 3);	//SUBFUN;
+	  r0 = readReg (gCore (), R0_REGNUM + 0);
+	  r1 = readReg (gCore (), R0_REGNUM + 1);
+	  r2 = readReg (gCore (), R0_REGNUM + 2);
+	  r3 = readReg (gCore (), R0_REGNUM + 3);	//SUBFUN;
 
 	  switch (r3)
 	    {
@@ -1160,8 +1155,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 		{
 		  uint8_t val_;
-		  fTargetControl->readMem8 (r0 + k, val_);
-		  //bool retSt = fTargetControl->readMem8(r0+k, val_);
+		  readMem8 (gCore (), r0 + k, val_);
 		  if (val_ == '\0')
 		    {
 		      break;
@@ -1206,8 +1200,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 		{
 		  uint8_t val_;
-		  fTargetControl->readMem8 (r0 + k, val_);
-		  //bool retSt = fTargetControl->readMem8(r0+k, val_);
+		  readMem8 (gCore (), r0 + k, val_);
 		  if (val_ == '\0')
 		    {
 		      break;
@@ -1223,8 +1216,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 		{
 		  uint8_t val_;
-		  fTargetControl->readMem8 (r0 + k, val_);
-		  //bool retSt = fTargetControl->readMem8(r0+k, val_);
+		  readMem8 (gCore (), r0 + k, val_);
 		  if (val_ == '\0')
 		    {
 		      break;
@@ -1291,7 +1283,7 @@ GdbServer::rspReadAllRegs ()
       unsigned int pktOffset = r * TargetControl::E_REG_BYTES * 2;
 
       // Not all registers are necessarily supported.
-      if (readReg (r, val))
+      if (readReg (gCore (), r, val))
 	Utils::reg2Hex (val, &(pkt->data[pktOffset]));
       else
 	for (unsigned int i = 0; i < TargetControl::E_REG_BYTES * 2; i++)
@@ -1334,7 +1326,7 @@ GdbServer::rspWriteAllRegs ()
 {
   // All registers
   for (unsigned int r = 0; r < NUM_REGS; r++)
-      (void) writeReg (r, Utils::hex2Reg (&(pkt->data[r * 8])));
+      (void) writeReg (gCore (), r, Utils::hex2Reg (&(pkt->data[r * 8])));
 
   // Acknowledge (always OK for now).
   pkt->packStr ("OK");
@@ -1428,7 +1420,7 @@ GdbServer::rspReadMem ()
     char buf[len];
 
     bool retReadOp =
-      fTargetControl->readBurst (addr, (unsigned char *) buf, len);
+      readMemBlock (gCore (), addr, (unsigned char *) buf, len);
 
     if (!retReadOp)
       {
@@ -1505,7 +1497,7 @@ GdbServer::rspWriteMem ()
   // Write the bytes to memory
   {
     //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl;
-    if (!fTargetControl->writeBurst (addr, (unsigned char *) symDat, len))
+    if (!writeMemBlock (gCore (), addr, (unsigned char *) symDat, len))
       {
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
@@ -1550,7 +1542,7 @@ GdbServer::rspReadReg ()
     }
 
   // Get the relevant register
-  if (!readReg (regnum, regval))
+  if (!readReg (gCore (), regnum, regval))
     {
       pkt->packStr ("E03");
       rsp->putPkt (pkt);
@@ -1594,7 +1586,7 @@ GdbServer::rspWriteReg ()
     }
 
   // Set the relevant register
-  if (!writeReg (regnum, Utils::hex2Reg (valstr)))
+  if (!writeReg (gCore (), regnum, Utils::hex2Reg (valstr)))
     {
       pkt->packStr ("E03");
       rsp->putPkt (pkt);
@@ -1622,10 +1614,6 @@ GdbServer::rspQuery ()
       // since C thread should be handled by vCont anyway.
 
       sprintf (pkt->data, "QC%x", currentGThread);
-
-      //TODO thread support - no threads...
-      //sprintf(pkt->data, "QC%x", fTargetControl->GetCoreID()+1);
-
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -1881,12 +1869,12 @@ GdbServer::rspCommand ()
       // ILAT set
       //! @todo Surely we should be doing this write to ILATST? Probably
       //        doesn't matter for reset.
-      writeReg (ILAT_REGNUM, TargetControl::ILAT_ILAT_SYNC);
+      writeReg (cCore (), ILAT_REGNUM, TargetControl::ILAT_ILAT_SYNC);
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
 
-      uint32_t val = readCoreId ();
+      uint32_t val = readCoreId (gCore ());
 
       char buf[256];
       sprintf (buf, "0x%x\n", val);
@@ -2497,7 +2485,7 @@ GdbServer::rspSet ()
 void
 GdbServer::rspRestart ()
 {
-  writePc (0);
+  writePc (cCore (), 0);
 
 }				// rspRestart()
 
@@ -2526,13 +2514,13 @@ GdbServer::rspStep (uint32_t except)
 
   if (0 == strcmp ("s", pkt->data))
     {
-      addr = readPc ();		// Default uses current PC
+      addr = readPc (cCore ());		// Default uses current PC
     }
   else if (1 != sscanf (pkt->data, "s%x", &addr))
     {
       cerr << "Warning: RSP step address " << pkt->data
 	<< " not recognized: ignored" << endl;
-      addr = readPc ();		// Default uses current PC
+      addr = readPc (cCore ());		// Default uses current PC
     }
 
   rspStep (addr, TARGET_SIGNAL_NONE);
@@ -2719,7 +2707,7 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 bool
 GdbServer::targetHalt ()
 {
-  if (!writeReg (DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_HALT))
+  if (!writeReg (cCore (), DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_HALT))
     cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
   if (si->debugStopResume ())
@@ -2734,7 +2722,7 @@ GdbServer::targetHalt ()
     {
       cerr << "Warning: Target has not halted after 1 sec " << endl;
       uint32_t val;
-      if (readReg (DEBUGSTATUS_REGNUM, val))
+      if (readReg (cCore (), DEBUGSTATUS_REGNUM, val))
 	{
 	  cerr << "           DEBUG= 0x" << hex << setw (8) << setfill ('0')
 	       << val << setfill (' ') << setw (0) << dec << endl;
@@ -2761,7 +2749,7 @@ GdbServer::targetHalt ()
 void
 GdbServer::putBreakPointInstruction (unsigned long bkpt_addr)
 {
-  fTargetControl->writeMem16 (bkpt_addr, BKPT_INSTR);
+  writeMem16 (cCore (), bkpt_addr, BKPT_INSTR);
 
   if (si->debugStopResumeDetail ())
     cerr <<
@@ -2779,8 +2767,7 @@ bool
 GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
 {
   uint16_t val;
-  fTargetControl->readMem16 (bkpt_addr, val);
-  //bool st = fTargetControl->readMem16(bkpt_addr, val);
+  readMem16 (cCore (), bkpt_addr, val);
   return (BKPT_INSTR == val);
 
 }
@@ -2792,7 +2779,7 @@ bool
 GdbServer::isTargetInDebugState ()
 {
 
-  uint32_t val = readReg (DEBUGSTATUS_REGNUM);
+  uint32_t val = readReg (cCore (), DEBUGSTATUS_REGNUM);
 
   uint32_t haltStatus = val & TargetControl::DEBUGSTATUS_HALT_MASK;
   uint32_t extPendStatus = val & TargetControl::DEBUGSTATUS_EXT_PEND_MASK;
@@ -2814,7 +2801,7 @@ GdbServer::isTargetExceptionState (unsigned &exCause)
   bool ret = false;
 
   //check if idle state
-  uint32_t coreStatus = readStatus ();
+  uint32_t coreStatus = readStatus (cCore ());
   uint32_t exStat = getfield (coreStatus, 18, 16);
   if (exStat != 0)
     {
@@ -2850,7 +2837,7 @@ GdbServer::isTargetExceptionState (unsigned &exCause)
 bool
 GdbServer::isTargetIdle ()
 {
-  uint32_t status = readStatus ();
+  uint32_t status = readStatus (cCore ());
 
   // Warn if a software exception is pending
   uint32_t ex = status & TargetControl::STATUS_EXCAUSE_MASK;
@@ -2873,8 +2860,8 @@ GdbServer::isTargetIdle ()
 void
 GdbServer::saveIVT ()
 {
-  fTargetControl->readBurst (TargetControl::IVT_SYNC, fIVTSaveBuff,
-			     sizeof (fIVTSaveBuff));
+  readMemBlock (cCore (), TargetControl::IVT_SYNC, fIVTSaveBuff,
+		sizeof (fIVTSaveBuff));
 
 }	// saveIVT ()
 
@@ -2889,8 +2876,8 @@ void
 GdbServer::restoreIVT ()
 {
 
-  fTargetControl->writeBurst (TargetControl::IVT_SYNC, fIVTSaveBuff,
-			      sizeof (fIVTSaveBuff));
+  writeMemBlock (cCore (), TargetControl::IVT_SYNC, fIVTSaveBuff,
+		 sizeof (fIVTSaveBuff));
 
 }	// restoreIVT ()
 
@@ -2928,7 +2915,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
     }
 
   //get PC
-  unsigned reportedPc = readPc ();
+  unsigned reportedPc = readPc (cCore ());
 
   unsigned exCause;
 
@@ -2944,8 +2931,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   //fetch instruction opcode on PC
   uint16_t val16;
-  fTargetControl->readMem16 (reportedPc, val16);
-  //bool st1 = fTargetControl->readMem16(reportedPc, val16);
+  readMem16 (cCore (), reportedPc, val16);
   uint16_t instrOpcode = val16;
 
   //Skip/Care Idle instruction
@@ -2955,10 +2941,10 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       cerr << "POINT on IDLE " << " ADDR " << hex << reportedPc << dec << endl;
 
       //check if global ISR enable state
-      uint32_t coreStatus = readStatus ();
+      uint32_t coreStatus = readStatus (cCore ());
 
-      uint32_t imaskReg = readReg (IMASK_REGNUM);
-      uint32_t ilatReg = readReg (ILAT_REGNUM);
+      uint32_t imaskReg = readReg (cCore (), IMASK_REGNUM);
+      uint32_t ilatReg = readReg (cCore (), ILAT_REGNUM);
 
       //next cycle should be jump to IVT
       if (getfield (coreStatus, 1, 1) == 0 /*global ISR enable */  &&
@@ -2992,18 +2978,15 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	    }
 	  //restore IVT
 	  restoreIVT ();
-	  readStatus ();
-	  //uint32_t coreStatus = readStatus();
+	  readStatus (cCore ());
 
-	  readReg (IMASK_REGNUM);
-	  //uint32_t imaskReg = readScrGrp0(IMASK_REGNUM);
-	  readReg (ILAT_REGNUM);
-	  //uint32_t ilatReg  = readScrGrp0(ILAT_REGNUM);
+	  readReg (cCore (), IMASK_REGNUM);
+	  readReg (cCore (), ILAT_REGNUM);
 	}
 
       // report to gdb the target has been stopped
-      unsigned pc_ = readPc () - BKPT_INSTLEN;
-      writePc (pc_);
+      unsigned pc_ = readPc (cCore ()) - BKPT_INSTLEN;
+      writePc (cCore (), pc_);
       rspReportException (pc_, 0 /*all threads */ , TARGET_SIGNAL_TRAP);
 
       return;
@@ -3019,15 +3002,15 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       uint8_t trapNumber = getfield (instrOpcode, 15, 10);
       redirectSdioOnTrap (trapNumber);
       //increment pc by size of TRAP instruction
-      writePc (addr + TRAP_INSTLEN);
+      writePc (cCore (), addr + TRAP_INSTLEN);
       return;
     }
 
   //set PC
-  writePc (addr);
+  writePc (cCore (), addr);
 
   //fetch PC
-  uint32_t pc_ = readPc ();
+  uint32_t pc_ = readPc (cCore ());
 
   //check if core in debug state
   if ((addr != pc_))
@@ -3045,12 +3028,10 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   //fetch instruction opcode on PC
 
-  fTargetControl->readMem16 (pc_, val16);
-  //st1 = fTargetControl->readMem16(pc_, val16);
+  readMem16 (cCore (), pc_, val16);
   instrOpcode = val16;
 
-  fTargetControl->readMem16 (pc_ + 2, val16);
-  //bool st2 = fTargetControl->readMem16(pc_+2, val16);
+  readMem16 (cCore (), pc_ + 2, val16);
   uint16_t instrExt = val16;
 
   if (si->debugStopResumeDetail ())
@@ -3070,8 +3051,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   if (mpHash->lookup (BP_MEMORY, bkpt_addr) == NULL)
     {
       uint16_t bpVal_;
-      fTargetControl->readMem16 (bkpt_addr, bpVal_);
-      //bool st1 = fTargetControl->readMem16(bkpt_addr, bpVal_);
+      readMem16 (cCore (), bkpt_addr, bpVal_);
       mpHash->add (BP_MEMORY, bkpt_addr, bpVal_);
     }
   if (si->debugTrapAndRspCon ())
@@ -3113,7 +3093,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   //RTI
   if (getfield (instrOpcode, 8, 0) == 0x1d2)
     {
-      bkpt_jump_addr = readReg (IRET_REGNUM);
+      bkpt_jump_addr = readReg (cCore (), IRET_REGNUM);
       //cerr << "RTI " << hex << bkpt_jump_addr << dec << endl;
     }
 
@@ -3123,7 +3103,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       || getfield (instrOpcode, 8, 0) == 0x152)
     {
       uint8_t regShortNum = getfield (instrOpcode, 12, 10);
-      bkpt_jump_addr = readReg (R0_REGNUM + regShortNum);
+      bkpt_jump_addr = readReg (cCore (), R0_REGNUM + regShortNum);
       //cerr << "PC <-< " << regShortNum << endl;
     }
   //32 bits jump
@@ -3134,7 +3114,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
       regLongNum =
 	(getfield (instrExt, 12, 10) << 3) | (getfield (instrOpcode, 12, 10)
 					      << 0);
-      bkpt_jump_addr = readReg (R0_REGNUM + regLongNum);
+      bkpt_jump_addr = readReg (cCore (), R0_REGNUM + regLongNum);
       //cerr << "PC <-< " << regLongNum << endl;
     }
 
@@ -3149,8 +3129,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 	{
 
 	  uint16_t val16t;
-	  fTargetControl->readMem16 (bkpt_jump_addr, val16t);
-	  //bool stvlBpMem = fTargetControl->readMem16(bkpt_jump_addr, val16t);
+	  readMem16 (cCore (), bkpt_jump_addr, val16t);
 	  uint16_t vlBpMem = val16t;
 
 	  mpHash->add (BP_MEMORY, bkpt_jump_addr, vlBpMem);
@@ -3192,10 +3171,11 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   targetResume ();
 
   if (si->debugTrapAndRspCon ())
-    cerr << " resume at PC 0x" << hex << readPc () << endl;
+    cerr << " resume at PC 0x" << hex << readPc (cCore ()) << endl;
 
   if (si->debugStopResumeDetail ())
-    cerr << " opcode 0x" << hex << readMem32 (readPc ()) << dec << endl;
+    cerr << " opcode 0x" << hex << readMem32 (cCore (), readPc (cCore ()))
+	 << dec << endl;
 
   while (!isTargetInDebugState ())
     ;
@@ -3206,7 +3186,7 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
 
   // If it's a breakpoint, then we need to back up one instruction, so
   // on restart we execute the actual instruction.
-  uint32_t prevPc = readPc () - BKPT_INSTLEN;
+  uint32_t prevPc = readPc (cCore ()) - BKPT_INSTLEN;
 
   //always stop on hidden breakpoint or stopped on bkpt @ prev_pc
   assert ((NULL != mpHash->lookup (BP_MEMORY, prevPc))
@@ -3214,16 +3194,16 @@ GdbServer::rspStep (uint32_t addr, uint32_t except)
   if (si->debugStopResumeDetail ())
     cerr << dec <<
       "set prevPc after stop 0x" << hex << prevPc << dec << endl;
-  writePc (prevPc);
+  writePc (cCore (), prevPc);
 
   //remove "hidden" bk
   uint16_t instr_saved;
   assert (mpHash->remove (BP_MEMORY, bkpt_addr, &instr_saved));	//should be in cache
-  fTargetControl->writeMem16 (bkpt_addr, instr_saved);
+  writeMem16 (cCore (), bkpt_addr, instr_saved);
   if (bkpt_jump_addr != bkpt_addr)
     {
       assert (mpHash->remove (BP_MEMORY, bkpt_jump_addr, &instr_saved));	//should be in cache
-      fTargetControl->writeMem16 (bkpt_jump_addr, instr_saved);
+      writeMem16 (cCore (), bkpt_jump_addr, instr_saved);
     }
 
   if (si->debugTrapAndRspCon ())
@@ -3378,7 +3358,7 @@ GdbServer::rspWriteMemBin ()
     }
 
   //cerr << "rspWriteMemBin" << hex << addr << dec << " (" << len << ")" << endl;
-  if (!fTargetControl->writeBurst (addr, bindat, len))
+  if (!writeMemBlock (gCore (), addr, bindat, len))
     {
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
@@ -3432,7 +3412,7 @@ GdbServer::rspRemoveMatchpoint ()
       //Memory breakpoint - replace the original instruction.
       if (mpHash->remove (type, addr, &instr))
 	{
-	  fTargetControl->writeMem16 (addr, instr);
+	  writeMem16 (cCore (), addr, instr);
 	}
 
       pkt->packStr ("OK");
@@ -3511,8 +3491,7 @@ GdbServer::rspInsertMatchpoint ()
     case BP_MEMORY:
       // Memory breakpoint - substitute a BKPT instruction
 
-      fTargetControl->readMem16 (addr, bpMemVal);
-      //bpMemValSt= fTargetControl->readMem16(addr, bpMemVal);
+      readMem16 (cCore (), addr, bpMemVal);
       mpHash->add (type, addr, bpMemVal);
 
       putBreakPointInstruction (addr);
@@ -3559,9 +3538,9 @@ void
 GdbServer::targetSwReset ()
 {
   for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
-    (void) writeReg (RESETCORE_REGNUM, 1);
+    (void) writeReg (cCore (), RESETCORE_REGNUM, 1);
 
-  writeReg (RESETCORE_REGNUM, 0);
+  writeReg (cCore (), RESETCORE_REGNUM, 0);
 
 }	// targetSWreset()
 
@@ -3581,17 +3560,19 @@ GdbServer::targetHWReset ()
 //-----------------------------------------------------------------------------
 //! Read a block of memory from the target
 
-//! @param[in]  addr  The address to read from
-//! @param[out] buf   Where to put the data read
-//! @param[in]  len   The number of bytes to read
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from
+//! @param[out] buf     Where to put the data read
+//! @param[in]  len     The number of bytes to read
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMemBlock (uint32_t  addr,
+GdbServer::readMemBlock (uint16_t  coreId,
+			 uint32_t  addr,
 			 uint8_t* buf,
 			 size_t  len) const
 {
-  return fTargetControl->readBurst (addr, buf, len);
+  return fTargetControl->readBurst (coreId, addr, buf, len);
 
 }	// readMemBlock ()
 
@@ -3599,17 +3580,19 @@ GdbServer::readMemBlock (uint32_t  addr,
 //-----------------------------------------------------------------------------
 //! Write a block of memory to the target
 
-//! @param[in] addr  The address to write to
-//! @param[in] buf   Where to get the data to be written
-//! @param[in] len   The number of bytes to read
+//! @param[in] coreId  The core to write to
+//! @param[in] addr    The address to write to
+//! @param[in] buf     Where to get the data to be written
+//! @param[in] len     The number of bytes to read
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMemBlock (uint32_t  addr,
+GdbServer::writeMemBlock (uint16_t  coreId,
+			  uint32_t  addr,
 			  uint8_t* buf,
 			  size_t  len) const
 {
-  return fTargetControl->writeBurst (addr, buf, len);
+  return fTargetControl->writeBurst (coreId, addr, buf, len);
 
 }	// writeMemBlock ()
 
@@ -3619,15 +3602,17 @@ GdbServer::writeMemBlock (uint32_t  addr,
 
 //! In this version the caller is responsible for error handling.
 
-//! @param[in]  addr  The address to read from.
-//! @param[out] val   The value read.
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from.
+//! @param[out] val     The value read.
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMem32 (uint32_t  addr,
+GdbServer::readMem32 (uint16_t  coreId,
+		      uint32_t  addr,
 		      uint32_t& val) const
 {
-  return fTargetControl->readMem32 (addr, val);
+  return fTargetControl->readMem32 (coreId, addr, val);
 
 }	// readMem32 ()
 
@@ -3637,14 +3622,16 @@ GdbServer::readMem32 (uint32_t  addr,
 
 //! In this version we print a warning if the read fails.
 
-//! @param[in]  addr  The address to read from.
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from.
 //! @return  The value read, undefined if there is a failure.
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readMem32 (uint32_t  addr) const
+GdbServer::readMem32 (uint16_t  coreId,
+		      uint32_t  addr) const
 {
   uint32_t val;
-  if (!fTargetControl->readMem32 (addr, val))
+  if (!fTargetControl->readMem32 (coreId, addr, val))
     cerr << "Warning: readMem32 failed." << endl;
   return val;
 
@@ -3656,15 +3643,17 @@ GdbServer::readMem32 (uint32_t  addr) const
 
 //! The caller is responsible for error handling.
 
-//! @param[in]  addr  The address to write to.
-//! @param[out] val   The value to write.
+//! @param[in] coreId  The core to write to
+//! @param[in]  addr   The address to write to.
+//! @param[out] val    The value to write.
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMem32 (uint32_t  addr,
+GdbServer::writeMem32 (uint16_t  coreId,
+		       uint32_t  addr,
 		       uint32_t  val) const
 {
-  return fTargetControl->writeMem32 (addr, val);
+  return fTargetControl->writeMem32 (coreId, addr, val);
 
 }	// writeMem32 ()
 
@@ -3674,15 +3663,17 @@ GdbServer::writeMem32 (uint32_t  addr,
 
 //! In this version the caller is responsible for error handling.
 
-//! @param[in]  addr  The address to read from.
-//! @param[out] val   The value read.
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from.
+//! @param[out] val     The value read.
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMem16 (uint32_t  addr,
+GdbServer::readMem16 (uint16_t  coreId,
+		      uint32_t  addr,
 		      uint16_t& val) const
 {
-  return fTargetControl->readMem16 (addr, val);
+  return fTargetControl->readMem16 (coreId, addr, val);
 
 }	// readMem16 ()
 
@@ -3692,14 +3683,16 @@ GdbServer::readMem16 (uint32_t  addr,
 
 //! In this version we print a warning if the read fails.
 
-//! @param[in]  addr  The address to read from.
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from.
 //! @return  The value read, undefined if there is a failure.
 //-----------------------------------------------------------------------------
 uint16_t
-GdbServer::readMem16 (uint32_t  addr) const
+GdbServer::readMem16 (uint16_t  coreId,
+		      uint32_t  addr) const
 {
   uint16_t val;
-  if (!fTargetControl->readMem16 (addr, val))
+  if (!fTargetControl->readMem16 (coreId, addr, val))
     cerr << "Warning: readMem16 failed." << endl;
   return val;
 
@@ -3711,15 +3704,17 @@ GdbServer::readMem16 (uint32_t  addr) const
 
 //! The caller is responsible for error handling.
 
-//! @param[in]  addr  The address to write to.
-//! @param[out] val   The value to write.
+//! @param[in] coreId  The core to write to
+//! @param[in]  addr   The address to write to.
+//! @param[out] val    The value to write.
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMem16 (uint32_t  addr,
+GdbServer::writeMem16 (uint16_t  coreId,
+		       uint32_t  addr,
 		       uint16_t  val) const
 {
-  return fTargetControl->writeMem16 (addr, val);
+  return fTargetControl->writeMem16 (coreId, addr, val);
 
 }	// writeMem16 ()
 
@@ -3729,15 +3724,17 @@ GdbServer::writeMem16 (uint32_t  addr,
 
 //! In this version the caller is responsible for error handling.
 
-//! @param[in]  addr  The address to read from.
-//! @param[out] val   The value read.
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from.
+//! @param[out] val     The value read.
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMem8 (uint32_t  addr,
-		      uint8_t& val) const
+GdbServer::readMem8 (uint16_t  coreId,
+		     uint32_t  addr,
+		     uint8_t& val) const
 {
-  return fTargetControl->readMem8 (addr, val);
+  return fTargetControl->readMem8 (coreId, addr, val);
 
 }	// readMem8 ()
 
@@ -3747,14 +3744,16 @@ GdbServer::readMem8 (uint32_t  addr,
 
 //! In this version we print a warning if the read fails.
 
-//! @param[in]  addr  The address to read from.
+//! @param[in]  coreId  The core to read from
+//! @param[in]  addr    The address to read from.
 //! @return  The value read, undefined if there is a failure.
 //-----------------------------------------------------------------------------
 uint8_t
-GdbServer::readMem8 (uint32_t  addr) const
+GdbServer::readMem8 (uint16_t  coreId,
+		     uint32_t  addr) const
 {
   uint8_t val;
-  if (!fTargetControl->readMem8 (addr, val))
+  if (!fTargetControl->readMem8 (coreId, addr, val))
     cerr << "Warning: readMem8 failed." << endl;
   return val;
 
@@ -3766,15 +3765,17 @@ GdbServer::readMem8 (uint32_t  addr) const
 
 //! The caller is responsible for error handling.
 
-//! @param[in]  addr  The address to write to.
-//! @param[out] val   The value to write.
+//! @param[in] coreId  The core to write to
+//! @param[in]  addr   The address to write to.
+//! @param[out] val    The value to write.
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMem8 (uint32_t  addr,
-		       uint8_t  val) const
+GdbServer::writeMem8 (uint16_t  coreId,
+		      uint32_t  addr,
+		      uint8_t   val) const
 {
-  return fTargetControl->writeMem8 (addr, val);
+  return fTargetControl->writeMem8 (coreId, addr, val);
 
 }	// writeMem8 ()
 
@@ -3785,15 +3786,17 @@ GdbServer::writeMem8 (uint32_t  addr,
 //! This is just a wrapper for reading memory, since the GPR's are mapped into
 //! core memory. In this version the user is responsible for error handling.
 
+//! @param[in]   coreId  The core to read from
 //! @param[in]   regnum  The GDB register number
 //! @param[out]  regval  The value read
 //! @return  True on success, false otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readReg (unsigned int regnum,
-		   uint32_t& regval) const
+GdbServer::readReg (uint16_t     coreId,
+		    unsigned int regnum,
+		    uint32_t&    regval) const
 {
-  return fTargetControl->readMem32 (regAddr (regnum), regval);
+  return fTargetControl->readMem32 (coreId, regAddr (regnum), regval);
 
 }	// readReg ()
 
@@ -3806,14 +3809,16 @@ GdbServer::readReg (unsigned int regnum,
 
 //! Overloaded version to return the value directly.
 
+//! @param[in]   coreId  The core to read from
 //! @param[in]   regnum  The GDB register number
 //! @return  The value read
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readReg (unsigned int regnum) const
+GdbServer::readReg (uint16_t     coreId,
+		    unsigned int regnum) const
 {
   uint32_t regval;
-  if (!fTargetControl->readMem32 (regAddr (regnum), regval))
+  if (!fTargetControl->readMem32 (coreId, regAddr (regnum), regval))
     cerr << "Warning: readReg failed." << endl;
   return regval;
 
@@ -3826,15 +3831,17 @@ GdbServer::readReg (unsigned int regnum) const
 //! This is just a wrapper for writing memory, since the GPR's are mapped into
 //! core memory
 
+//! @param[in]  coreId  The core to write to
 //! @param[in]  regnum  The GDB register number
 //! @param[in]  regval  The value to write
 //! @return  True on success, false otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeReg (unsigned int regnum,
-		   uint32_t value) const
+GdbServer::writeReg (uint16_t  coreId,
+		     unsigned int regnum,
+		     uint32_t value) const
 {
-  return  fTargetControl->writeMem32 (regAddr (regnum), value);
+  return  fTargetControl->writeMem32 (coreId, regAddr (regnum), value);
 
 }	// writeReg ()
 
@@ -3844,12 +3851,13 @@ GdbServer::writeReg (unsigned int regnum,
 
 //! A convenience routine and internal to external conversion
 
+//! @param[in]  coreId  The core to read from
 //! @return  The value of the Core ID
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readCoreId ()
+GdbServer::readCoreId (uint16_t coreId) const
 {
-  return readReg (COREID_REGNUM);
+  return readReg (coreId, COREID_REGNUM);
 
 }	// readCoreId ()
 
@@ -3859,12 +3867,13 @@ GdbServer::readCoreId ()
 
 //! A convenience routine and internal to external conversion
 
+//! @param[in]  coreId  The core to read from
 //! @return  The value of the Status
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readStatus ()
+GdbServer::readStatus (uint16_t  coreId) const
 {
-  return readReg (STATUS_REGNUM);
+  return readReg (coreId, STATUS_REGNUM);
 
 }	// readStatus ()
 
@@ -3874,12 +3883,13 @@ GdbServer::readStatus ()
 
 //! A convenience routine and internal to external conversion
 
+//! @param[in]  coreId  The core to read from
 //! @return  The value of the PC
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readPc ()
+GdbServer::readPc (uint16_t  coreId) const
 {
-  return readReg (PC_REGNUM);
+  return readReg (coreId, PC_REGNUM);
 
 }	// readPc ()
 
@@ -3889,12 +3899,14 @@ GdbServer::readPc ()
 
 //! A convenience function and internal to external conversion
 
-//! @param[in]  The address to write into the PC
+//! @param[in] coreId  The core to write to
+//! @param[in] addr    The address to write into the PC
 //-----------------------------------------------------------------------------
 void
-GdbServer::writePc (uint32_t addr)
+GdbServer::writePc (uint16_t  coreId,
+		    uint32_t addr)
 {
-  writeReg (PC_REGNUM, addr);
+  writeReg (coreId, PC_REGNUM, addr);
 
 }	// writePc ()
 
@@ -3904,12 +3916,13 @@ GdbServer::writePc (uint32_t addr)
 
 //! A convenience routine and internal to external conversion
 
+//! @param[in]  coreId  The core to read from
 //! @return  The value of the link register
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readLr ()
+GdbServer::readLr (uint16_t  coreId) const
 {
-  return readReg (LR_REGNUM);
+  return readReg (coreId, LR_REGNUM);
 
 }	// readLr ()
 
@@ -3919,12 +3932,14 @@ GdbServer::readLr ()
 
 //! A convenience function and internal to external conversion
 
-//! @param[in]  The address to write into the Link register
+//! @param[in] coreId  The core to write to
+//! @param[in] addr    The address to write into the Link register
 //-----------------------------------------------------------------------------
 void
-GdbServer::writeLr (uint32_t addr)
+GdbServer::writeLr (uint16_t  coreId,
+		    uint32_t  addr)
 {
-  writeReg (LR_REGNUM, addr);
+  writeReg (coreId, LR_REGNUM, addr);
 
 }	// writeLr ()
 
@@ -3934,12 +3949,13 @@ GdbServer::writeLr (uint32_t addr)
 
 //! A convenience routine and internal to external conversion
 
+//! @param[in]  coreId  The core to read from
 //! @return  The value of the frame pointer register
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readFp ()
+GdbServer::readFp (uint16_t  coreId) const
 {
-  return readReg (FP_REGNUM);
+  return readReg (coreId, FP_REGNUM);
 
 }	// readFp ()
 
@@ -3949,12 +3965,14 @@ GdbServer::readFp ()
 
 //! A convenience function and internal to external conversion
 
-//! @param[in]  The address to write into the Frame pointer register
+//! @param[in] coreId  The core to write to
+//! @param[in] addr    The address to write into the Frame pointer register
 //-----------------------------------------------------------------------------
 void
-GdbServer::writeFp (uint32_t addr)
+GdbServer::writeFp (uint16_t  coreId,
+		    uint32_t addr)
 {
-  writeReg (FP_REGNUM, addr);
+  writeReg (coreId, FP_REGNUM, addr);
 
 }	// writeFp ()
 
@@ -3964,12 +3982,13 @@ GdbServer::writeFp (uint32_t addr)
 
 //! A convenience routine and internal to external conversion
 
+//! @param[in]  coreId  The core to read from
 //! @return  The value of the frame pointer register
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readSp ()
+GdbServer::readSp (uint16_t  coreId) const
 {
-  return readReg (SP_REGNUM);
+  return readReg (coreId, SP_REGNUM);
 
 }	// readSp ()
 
@@ -3979,14 +3998,46 @@ GdbServer::readSp ()
 
 //! A convenience function and internal to external conversion
 
-//! @param[in]  The address to write into the Stack pointer register
+//! @param[in] coreId  The core to write to
+//! @param[in] addr    The address to write into the Stack pointer register
 //-----------------------------------------------------------------------------
 void
-GdbServer::writeSp (uint32_t addr)
+GdbServer::writeSp (uint16_t  coreId,
+		    uint32_t addr)
 {
-  writeReg (SP_REGNUM, addr);
+  writeReg (coreId, SP_REGNUM, addr);
 
 }	// writeSp ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the core used for step and continue
+
+//! This is assumed to be a valid value.
+
+//! @return  A coreID
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::cCore ()
+{
+  return thread2core[currentCThread];
+
+}	// cCore ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the core used for general access
+
+//! This is assumed to be a valid value.
+
+//! @return  A coreID
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::gCore ()
+{
+  return thread2core[currentGThread];
+
+}	// cCore ()
 
 
 // These functions replace the intrinsic SystemC bitfield operators.

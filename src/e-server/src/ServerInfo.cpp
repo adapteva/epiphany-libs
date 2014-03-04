@@ -278,6 +278,28 @@ ServerInfo::debugTranDetail () const
 }	// debugTranDetail ()
 
 
+//! Enable or disable the hardware detail debug flag
+void
+ServerInfo::debugHwDetail (const bool  enable)
+{
+  if (enable)
+    debugFlags |= ServerInfo::DEBUG_HW_DETAIL;
+  else
+    debugFlags &= ~ServerInfo::DEBUG_HW_DETAIL;
+
+}	// debugHwDetail ()
+
+
+//! Determine if hardware detail debug is enabled.
+bool
+ServerInfo::debugHwDetail () const
+{
+  return (debugFlags & ServerInfo::DEBUG_HW_DETAIL)
+    == ServerInfo::DEBUG_HW_DETAIL;
+
+}	// debugHwDetail ()
+
+
 //! Set the show memory map flag
 void
 ServerInfo::showMemoryMap (const bool _showMemoryMapFlag)

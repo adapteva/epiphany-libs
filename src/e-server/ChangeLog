@@ -1,5 +1,95 @@
 2014-03-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspContinue): Pass
+	core when reading registers, memory or core ID.
+	(GdbServer::targetResume): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::rspFileIOreply): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspReadAllRegs): Likewise.
+	(GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQuery): Likewise.
+	(GdbServer::rspCommand): Likewise.
+	(GdbServer::rspSet): Likewise.
+	(GdbServer::rspRestart): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::targetHalt): Likewise.
+	(GdbServer::putBreakPointInstruction): Likewise.
+	(GdbServer::isHitInBreakPointInstruction): Likewise.
+	(GdbServer::isTargetInDebugState): Likewise.
+	(GdbServer::isTargetExceptionState): Likewise.
+	(GdbServer::isTargetIdle): Likewise.
+	(GdbServer::saveIVT): Likewise.
+	(GdbServer::restoreIVT): Likewise.
+	(GdbServer::rspWriteMemBin): Likewise.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::targetSwReset): Likewise.
+	(GdbServer::targetHWReset): Likewise.
+	(GdbServer::readMemBlock): Pass coreId as argument.
+	(GdbServer::writeMemBlock): Likewise.
+	(GdbServer::readMem32): Likewise.
+	(GdbServer::writeMem32): Likewise.
+	(GdbServer::readMem16): Likewise.
+	(GdbServer::writeMem16): Likewise.
+	(GdbServer::readMem8): Likewise.
+	(GdbServer::writeMem8): Likewise.
+	(GdbServer::readReg): Likewise.
+	(GdbServer::writeReg): Likewise.
+	(GdbServer::readCoreId): Likewise.
+	(GdbServer::readStatus): Likewise.
+	(GdbServer::readPc): Likewise.
+	(GdbServer::writePc): Likewise.
+	(GdbServer::readLr): Likewise.
+	(GdbServer::writeLr): Likewise.
+	(GdbServer::readFp): Likewise.
+	(GdbServer::writeFp): Likewise.
+	(GdbServer::readSp): Likewise.
+	(GdbServer::writeSp): Likewise.
+	(GdbServer::cCore): Created.
+	(GdbServer::gCore): Created.
+	* src/GdbServer.h: Change prototypes of headers to include coreId.
+	* src/LoaderServer.h: Deleted.
+	* src/ServerInfo.cpp (ServerInfo::debugTranDetail): Created
+	(ServerInfo::debugHwDetail): Created.
+	* src/ServerInfo.h: Add new debug category and functions.
+	* src/TargetControl.h: Add core ID to functions accessing memory.
+	* src/TargetControlHardware.cpp: No need for target_param.h
+	(TargetControlHardware::TargetControlHardware): Remove concept of
+	current core/thread.
+	(TargetControlHardware::readMem32): Add coreId as parameter.
+	(TargetControlHardware::readMem16): Likewise.
+	(TargetControlHardware::readMem8): Likewise.
+	(TargetControlHardware::writeMem32): Likewise.
+	(TargetControlHardware::writeMem16): Likewise.
+	(TargetControlHardware::writeMem8): Likewise.
+	(TargetControlHardware::readBurst): Likewise.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::setThreadGeneral): Deleted.
+	(TargetControlHardware::setThreadExecute): Deleted.
+	(TargetControlHardware::initMaps): Remove current core ID.
+	(TargetControlHardware::convertAddress): Take relative core ID as
+	argument.
+	(TargetControlHardware::readMem): Add coreId as parameter.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::initPlatform): Add debug messaging.
+	(TargetControlHardware::closePlatform): Add debug messaging.
+	(TargetControlHardware::writeTo): Add debug messaging.
+	(TargetControlHardware::readFrom): Add debug messaging.
+	(TargetControlHardware::hwReset): Add debug messaging.
+	(TargetControlHardware::getDescription): Add debug messaging.
+	* src/TargetControlHardware.h: Change prototypes to use coreId,
+	incorporate values from target_param.h.
+	* src/main.cpp (usage_full): Describe hw-detail debug flag.
+	(main): Add hw-detail debug flag.
+	* src/target_param.h: Deleted.
+
+2014-03-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::~GdbServer):
 	Initialize both current thread variables.
 	(GdbServer::rspAttach): Move after rspServer.

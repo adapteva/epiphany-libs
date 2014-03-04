@@ -259,46 +259,68 @@ private:
   void targetHWReset ();
 
   // Main functions for reading and writing memory
-  bool readMemBlock (uint32_t  addr,
+  bool readMemBlock (uint16_t  coreId,
+		     uint32_t  addr,
 		     uint8_t* buf,
 		     size_t  len) const;
-  bool writeMemBlock (uint32_t  addr,
-		     uint8_t* buf,
-		     size_t  len) const;
-  bool  readMem32 (uint32_t  addr,
+  bool writeMemBlock (uint16_t  coreId,
+		      uint32_t  addr,
+		      uint8_t* buf,
+		      size_t  len) const;
+  bool  readMem32 (uint16_t  coreId,
+		   uint32_t  addr,
 		   uint32_t& val) const;
-  uint32_t  readMem32 (uint32_t  addr) const;
-  bool  writeMem32 (uint32_t  addr,
+  uint32_t  readMem32 (uint16_t  coreId,
+		       uint32_t  addr) const;
+  bool  writeMem32 (uint16_t  coreId,
+		    uint32_t  addr,
 		    uint32_t val) const;
-  bool  readMem16 (uint32_t  addr,
+  bool  readMem16 (uint16_t  coreId,
+		   uint32_t  addr,
 		   uint16_t& val) const;
-  uint16_t  readMem16 (uint32_t  addr) const;
-  bool  writeMem16 (uint32_t  addr,
+  uint16_t  readMem16 (uint16_t  coreId,
+		       uint32_t  addr) const;
+  bool  writeMem16 (uint16_t  coreId,
+		    uint32_t  addr,
 		    uint16_t val) const;
-  bool  readMem8 (uint32_t  addr,
+  bool  readMem8 (uint16_t  coreId,
+		  uint32_t  addr,
 		  uint8_t& val) const;
-  uint8_t  readMem8 (uint32_t  addr) const;
-  bool  writeMem8 (uint32_t  addr,
+  uint8_t  readMem8 (uint16_t  coreId,
+		     uint32_t  addr) const;
+  bool  writeMem8 (uint16_t  coreId,
+		   uint32_t  addr,
 		   uint8_t val) const;
 
   // Main functions for reading and writing registers
-  bool readReg (unsigned int regnum,
+  bool readReg (uint16_t  coreId,
+		unsigned int regnum,
 		uint32_t& regval) const;
-  uint32_t  readReg (unsigned int regnum) const;
-  bool writeReg (unsigned int regNum,
+  uint32_t  readReg (uint16_t  coreId,
+		     unsigned int regnum) const;
+  bool writeReg (uint16_t  coreId,
+		 unsigned int regNum,
 		 uint32_t value) const;
 
   // Convenience functions for reading and writing various common registers
-  uint32_t readCoreId ();
-  uint32_t readStatus ();
-  uint32_t readPc ();
-  void writePc (uint32_t addr);
-  uint32_t readLr ();
-  void writeLr (uint32_t addr);
-  uint32_t readFp ();
-  void writeFp (uint32_t addr);
-  uint32_t readSp ();
-  void writeSp (uint32_t addr);
+  uint32_t readCoreId (uint16_t  coreId) const;
+  uint32_t readStatus (uint16_t  coreId) const;
+  uint32_t readPc (uint16_t  coreId) const;
+  void writePc (uint16_t  coreId,
+		uint32_t addr);
+  uint32_t readLr (uint16_t  coreId) const;
+  void writeLr (uint16_t  coreId,
+		uint32_t addr);
+  uint32_t readFp (uint16_t  coreId) const;
+  void writeFp (uint16_t  coreId,
+		uint32_t addr);
+  uint32_t readSp (uint16_t  coreId) const;
+  void writeSp (uint16_t  coreId,
+		uint32_t  addr);
+
+  // Accessors for the core IDs of threads
+  uint16_t cCore ();
+  uint16_t gCore ();
 
   void putBreakPointInstruction (unsigned long);
   bool isHitInBreakPointInstruction (unsigned long);

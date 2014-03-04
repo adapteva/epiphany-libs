@@ -22,8 +22,6 @@
 // with this program (see the file COPYING).  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#include "target_param.h"
-
 #include <cassert>
 #include <cerrno>
 #include <cstring>
@@ -60,21 +58,20 @@ TargetControlHardware::TargetControlHardware (ServerInfo*   _si) :
   TargetControl (),
   si (_si),
   dsoHandle (NULL),
-  numCores (0),
-  currentCoreId (0),
-  threadIdGeneral (0),
-  threadIdExecute (0)
+  numCores (0)
 {
 }	// TargetControlHardware ()
 
 
 bool
-TargetControlHardware::readMem32 (uint32_t addr, uint32_t & data)
+TargetControlHardware::readMem32 (uint16_t coreId,
+				  uint32_t addr,
+				  uint32_t& data)
 {
   bool retSt = false;
   uint32_t data32;
 
-  retSt = readMem (addr, data32, 4);
+  retSt = readMem (coreId, addr, data32, 4);
   data = data32;
 
   return retSt;
@@ -82,12 +79,14 @@ TargetControlHardware::readMem32 (uint32_t addr, uint32_t & data)
 
 
 bool
-TargetControlHardware::readMem16 (uint32_t addr, uint16_t & data)
+TargetControlHardware::readMem16 (uint16_t coreId,
+				  uint32_t addr,
+				  uint16_t & data)
 {
   bool retSt = false;
   uint32_t data32;
 
-  retSt = readMem (addr, data32, 2);
+  retSt = readMem (coreId, addr, data32, 2);
   data = data32 & 0x0000ffff;
 
   return retSt;
@@ -95,12 +94,14 @@ TargetControlHardware::readMem16 (uint32_t addr, uint16_t & data)
 
 
 bool
-TargetControlHardware::readMem8 (uint32_t addr, uint8_t & data)
+TargetControlHardware::readMem8 (uint16_t coreId, 
+				 uint32_t addr,
+				 uint8_t & data)
 {
   bool retSt = false;
   uint32_t data32;
 
-  retSt = readMem (addr, data32, 1);
+  retSt = readMem (coreId, addr, data32, 1);
   data = data32 & 0x000000ff;
 
   return retSt;
@@ -108,38 +109,44 @@ TargetControlHardware::readMem8 (uint32_t addr, uint8_t & data)
 
 
 bool
-TargetControlHardware::writeMem32 (uint32_t addr, uint32_t value)
+TargetControlHardware::writeMem32 (uint16_t coreId,
+				   uint32_t addr,
+				   uint32_t value)
 {
   bool retSt = false;
   uint32_t data32 = value;
 
-  retSt = writeMem (addr, data32, 4);
+  retSt = writeMem (coreId, addr, data32, 4);
 
   return retSt;
 }
 
 
 bool
-TargetControlHardware::writeMem16 (uint32_t addr, uint16_t value)
+TargetControlHardware::writeMem16 (uint16_t coreId,
+				   uint32_t addr,
+				   uint16_t value)
 {
   bool retSt = false;
   uint32_t data32 = 0;
 
   data32 = value & 0x0000ffff;
-  retSt = writeMem (addr, data32, 2);
+  retSt = writeMem (coreId, addr, data32, 2);
 
   return retSt;
 }
 
 
 bool
-TargetControlHardware::writeMem8 (uint32_t addr, uint8_t value)
+TargetControlHardware::writeMem8 (uint16_t coreId,
+				  uint32_t addr,
+				  uint8_t value)
 {
   bool retSt = false;
   uint32_t data32 = 0;
 
   data32 = value & 0x000000ff;
-  retSt = writeMem (addr, data32, 1);
+  retSt = writeMem (coreId, addr, data32, 1);
 
   return retSt;
 }
@@ -149,12 +156,14 @@ TargetControlHardware::writeMem8 (uint32_t addr, uint8_t value)
 
 // burst read
 bool
-TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
+TargetControlHardware::readBurst (uint16_t coreId,
+				  uint32_t addr,
+				  uint8_t *buf,
 				  size_t buff_size)
 {
   bool ret = true;
 
-  uint32_t fullAddr = convertAddress (addr);
+  uint32_t fullAddr = convertAddress (coreId, addr);
 
   // cerr << "READ burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
 
@@ -165,15 +174,15 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 	  // struct timeval start_time;
 	  // StartOfBaudMeasurement(start_time);
 	  for (unsigned k = 0;
-	       k < buff_size / (MAX_NUM_READ_PACKETS * E_WORD_BYTES); k++)
+	       k < buff_size / (MAX_BURST_READ_BYTES); k++)
 	    {
 	      int res =
-		readFrom (fullAddr + k * MAX_NUM_READ_PACKETS * E_WORD_BYTES,
+		readFrom (fullAddr + k * MAX_BURST_READ_BYTES,
 			      (void *) (buf +
-					k * MAX_NUM_READ_PACKETS * E_WORD_BYTES),
-			      (MAX_NUM_READ_PACKETS * E_WORD_BYTES));
+					k * MAX_BURST_READ_BYTES),
+			      (MAX_BURST_READ_BYTES));
 
-	      if (res != (MAX_NUM_READ_PACKETS * E_WORD_BYTES))
+	      if (res != (MAX_BURST_READ_BYTES))
 		{
 		  cerr << "ERROR (" << res <<
 		    "): memory read failed for full address " << hex <<
@@ -182,7 +191,7 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 		}
 	    }
 
-	  unsigned trailSize = (buff_size % (MAX_NUM_READ_PACKETS * E_WORD_BYTES));
+	  unsigned trailSize = (buff_size % (MAX_BURST_READ_BYTES));
 	  if (trailSize != 0)
 	    {
 	      unsigned int res =
@@ -205,7 +214,7 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 	{
 	  for (unsigned i = 0; i < buff_size; i++)
 	    {
-	      ret = ret && readMem8 (fullAddr + i, buf[i]);
+	      ret = ret && readMem8 (coreId, fullAddr + i, buf[i]);
 	    }
 	}
     }
@@ -228,20 +237,21 @@ TargetControlHardware::readBurst (uint32_t addr, uint8_t *buf,
 //! @param[in] bufSize  Number of bytes of data to write
 //! @return  TRUE on success, FALSE otherwise.
 bool
-TargetControlHardware::writeBurst (uint32_t addr,
+TargetControlHardware::writeBurst (uint16_t coreId,
+				   uint32_t addr,
 				   uint8_t *buf,
 				   size_t bufSize)
 {
   if (bufSize == 0)
     return true;
 
-  uint32_t fullAddr = convertAddress (addr);
+  uint32_t fullAddr = convertAddress (coreId, addr);
 
   if (si->debugTargetWr ())
     {
       cerr << "DebugTargetWr: Write burst to 0x" << hex << setw (8)
 	   << setfill ('0') << addr << " (0x" << fullAddr << "), size "
-	   << setfill (' ') << setw (0) << dec << bufSize << "bytes." << endl;
+	   << setfill (' ') << setw (0) << dec << bufSize << " bytes." << endl;
     }
   
   if ((bufSize == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
@@ -308,12 +318,12 @@ TargetControlHardware::writeBurst (uint32_t addr,
       assert ((MAX_NUM_WRITE_PACKETS % E_DOUBLE_BYTES) == 0);
 
       // Break up into maximum size packets
-      size_t numMaxBurst = bufSize / (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
+      size_t numMaxBurst = bufSize / MAX_BURST_WRITE_BYTES;
 
       for (unsigned k = 0; k < numMaxBurst; k++)
 	{
 	  // Send a maximal packet
-	  size_t  cBufSize = (MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES);
+	  size_t  cBufSize = (MAX_BURST_WRITE_BYTES);
 
 	  if (si->debugTargetWr ())
 	    {
@@ -512,70 +522,6 @@ TargetControlHardware::getNumCols ()
 }	// numCols ();
 
 
-//! Set the thread for general access
-
-//! @see threadIdGeneral for meanings of threadId
-
-//! @param[in] threadId  The thread ID to use for general access
-//! @return  TRUE if the threadId was valid, FALSE otherwise.
-bool
-TargetControlHardware::setThreadGeneral (int  threadId)
-{
-  switch (threadId)
-    {
-    case -1:
-      return  false;		// Meaningless for access
-
-    case 0:
-      return  true;		// Pick the current thread
-
-    default:
-      uint16_t relCoreId = (uint16_t) (threadId - 1);
-      map <uint16_t, uint16_t>::iterator it = coreMap.find (relCoreId);
-
-      if (it == coreMap.end ())
-	return false;
-      else
-	{
-	  threadIdGeneral = threadId;
-	  currentCoreId = it->second;
-	  return true;
-	}
-    }
-}	// setThreadGeneral ()
-
-
-//! Set the thread for execution
-
-//! @see threadIdGeneral for meanings of threadId
-
-//! @param[in] threadId  The thread ID to use for execution
-//! @return  TRUE if the threadId was valid, FALSE otherwise.
-bool
-TargetControlHardware::setThreadExecute (int  threadId)
-{
-  switch (threadId)
-    {
-    case -1:
-    case 0:
-      threadIdExecute = threadId;
-      return  true;		// Meaningless for access
-
-    default:
-      uint16_t relCoreId = (uint16_t) (threadId - 1);
-      map <uint16_t, uint16_t>::iterator it = coreMap.find (relCoreId);
-
-      if (it == coreMap.end ())
-	return false;
-      else
-	{
-	  threadIdExecute = threadId;
-	  return true;
-	}
-    }
-}	// setThreadExecute ()
-
-
 //! Initialize the hardware platform
 
 //! This involves setting up the shared object functions first, then calling
@@ -695,9 +641,6 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
 	}
     }
 
-  // Set a default core corresponding to relative core (0,0)
-  currentCoreId = coreMap[0];
-
   // Populate external memory map set
   for (unsigned int  bankNum = 0; bankNum < platform->num_banks; bankNum++)
     {
@@ -787,15 +730,20 @@ TargetControlHardware::getTargetId ()
 //! Convert a local address to a global one.
 
 //! If we have a local address, then convert it to a global address based on
-//! the current thread being used.
+//! the core to be targeted.
+
+//! @param[in] relCoreId  Relative core ID of core we want the address for.
+//! @param[in] address    The address to convert (may be local or global)
+//! @return  The global address
 uint32_t
-TargetControlHardware::convertAddress (uint32_t address)
+TargetControlHardware::convertAddress (uint16_t relCoreId,
+				       uint32_t address)
 {
-  assert (dsoHandle);
+  uint16_t absCoreId = coreMap [relCoreId];
 
   if (address < CORE_MEM_SPACE)
     {
-      return (((uint32_t) currentCoreId) << 20) | (address & 0x000fffff);
+      return (((uint32_t) absCoreId) << 20) | (address & 0x000fffff);
     }
 
   // Validate any global address if requested
@@ -808,8 +756,8 @@ TargetControlHardware::convertAddress (uint32_t address)
 	return address;			// External memory
       else
 	{
-	  uint16_t absRow = currentCoreId >> 6;
-	  uint16_t absCol = currentCoreId & 0x3f;
+	  uint16_t absRow = absCoreId >> 6;
+	  uint16_t absCol = absCoreId & 0x3f;
 
 	  cerr << "ERROR: core ID (" << absRow << ", " << absCol 
 	       << "): invalid address 0x" << hex << setw (8) << setfill ('0') << address
@@ -824,7 +772,9 @@ TargetControlHardware::convertAddress (uint32_t address)
 
 
 bool
-TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
+TargetControlHardware::readMem (uint16_t coreId,
+				uint32_t addr,
+				uint32_t & data,
 				unsigned burst_size)
 {
   bool retSt = false;
@@ -832,7 +782,7 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
   //struct timeval start_t;
   // StartOfBaudMeasurement(start_t);
 
-  uint32_t fullAddr = convertAddress (addr);
+  uint32_t fullAddr = convertAddress (coreId, addr);
   // bool iSAligned = (fullAddr == ());
   if (fullAddr || si->checkHwAddr())
     {
@@ -876,11 +826,13 @@ TargetControlHardware::readMem (uint32_t addr, uint32_t & data,
 
 
 bool
-TargetControlHardware::writeMem (uint32_t addr, uint32_t data,
+TargetControlHardware::writeMem (uint16_t coreId,
+				 uint32_t addr,
+				 uint32_t data,
 				 unsigned burst_size)
 {
   bool retSt = false;
-  uint32_t fullAddr = convertAddress (addr);
+  uint32_t fullAddr = convertAddress (coreId, addr);
 
   // bool iSAligned = (fullAddr == ());
   if (fullAddr || si->checkHwAddr())
@@ -935,6 +887,10 @@ int
 TargetControlHardware::initPlatform (platform_definition_t* platform,
 				     unsigned int           verbose)
 {
+  if (si->debugHwDetail ())
+      cerr << "DebugHwDetail: initPlatform (" << (void *) platform << ", "
+	   << verbose << ")" << endl;
+  
   return (*initPlatformFunc) (platform, verbose);
 
 }	// initPlatform ()
@@ -946,6 +902,9 @@ TargetControlHardware::initPlatform (platform_definition_t* platform,
 int
 TargetControlHardware::closePlatform ()
 {
+  if (si->debugHwDetail ())
+      cerr << "DebugHwDetail: closePlatform ()" << endl;
+  
   return (*closePlatformFunc) ();
 
 }	// closePlatform ()
@@ -962,6 +921,10 @@ TargetControlHardware::writeTo (unsigned int  address,
 				void*         buf,
 				size_t        burstSize)
 {
+  if (si->debugHwDetail ())
+      cerr << "DebugHwDetail: writeTo (" << address << ", " << (void *) buf
+	   << ", " << burstSize << ")" << endl;
+  
   return (*writeToFunc) (address, buf, burstSize);
 
 }	// writeTo ()
@@ -978,6 +941,10 @@ TargetControlHardware::readFrom (unsigned  address,
 				 void*     buf,
 				 size_t    burstSize)
 {
+  if (si->debugHwDetail ())
+      cerr << "DebugHwDetail: readFrom (" << (void *) address << ", "
+	   << (void *) buf << ", " << burstSize << ")" << endl;
+
   return (*readFromFunc) (address, buf, burstSize);
 
 }	// readFrom ()
@@ -989,6 +956,9 @@ TargetControlHardware::readFrom (unsigned  address,
 int
 TargetControlHardware::hwReset ()
 {
+  if (si->debugHwDetail ())
+      cerr << "DebugHwDetail: hwReset ()" << endl;
+
   return (*hwResetFunc) ();
 
 }	// hwReset ()
@@ -1001,6 +971,10 @@ TargetControlHardware::hwReset ()
 int
 TargetControlHardware::getDescription (char** targetIdp)
 {
+  if (si->debugHwDetail ())
+      cerr << "DebugHwDetail: getDescription (" << (void *) targetIdp << ")"
+	   << endl;
+
   return (*getDescriptionFunc) (targetIdp);
 
 }	// getDescription ()

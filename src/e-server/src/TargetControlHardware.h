@@ -49,28 +49,24 @@ public:
 
   // Functions to access memory. All register access on the Epiphany is via
   // memory
-  virtual bool readMem32 (uint32_t addr, uint32_t &);
-  virtual bool readMem16 (uint32_t addr, uint16_t &);
-  virtual bool readMem8 (uint32_t addr, uint8_t &);
+  virtual bool readMem32 (uint16_t coreId, uint32_t addr, uint32_t &);
+  virtual bool readMem16 (uint16_t coreId, uint32_t addr, uint16_t &);
+  virtual bool readMem8 (uint16_t coreId, uint32_t addr, uint8_t &);
 
-  virtual bool writeMem32 (uint32_t addr, uint32_t value);
-  virtual bool writeMem16 (uint32_t addr, uint16_t value);
-  virtual bool writeMem8 (uint32_t addr, uint8_t value);
+  virtual bool writeMem32 (uint16_t coreId, uint32_t addr, uint32_t value);
+  virtual bool writeMem16 (uint16_t coreId, uint32_t addr, uint16_t value);
+  virtual bool writeMem8 (uint16_t coreId, uint32_t addr, uint8_t value);
 
   // Burst write and read
-  virtual bool writeBurst (uint32_t addr, uint8_t *buf,
+  virtual bool writeBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
 			   size_t buff_size);
-  virtual bool readBurst (uint32_t addr, uint8_t *buf,
+  virtual bool readBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
 			  size_t buff_size);
 
   // Functions to access data about the target
   virtual vector <uint16_t>  listCoreIds ();
   virtual unsigned int  getNumRows ();
   virtual unsigned int  getNumCols ();
-
-  // Functions to deal with threads (which correspond to cores)
-  virtual bool setThreadGeneral (int threadId);
-  virtual bool setThreadExecute (int threadId);
 
   // Initialization functions
   void  initHwPlatform (platform_definition_t* platform);
@@ -90,10 +86,24 @@ public:
 protected:
 
   virtual string getTargetId ();
-  virtual uint32_t convertAddress (uint32_t  address);
+  virtual uint32_t convertAddress (uint16_t relCoreId, uint32_t  address);
 
 
 private:
+
+  //! Maximum number of double word packets in a write burst
+  static const int MAX_NUM_WRITE_PACKETS = 256;
+
+  //! Maximum number of word packets in a read burst
+  static const int MAX_NUM_READ_PACKETS = 64;
+
+  //! Maximum number of bytes in a write burst
+  static const int MAX_BURST_WRITE_BYTES =
+    MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES;
+
+  //! Maximum number of bytes in a read burst
+  static const int MAX_BURST_READ_BYTES =
+    MAX_NUM_READ_PACKETS * E_WORD_BYTES;
 
   //! Local pointer to server info
   ServerInfo* si;
@@ -144,8 +154,14 @@ private:
   static void breakSignalHandler (int signum);
 
   // Read and write from target
-  bool readMem (uint32_t addr, uint32_t & data, unsigned burst_size);
-  bool writeMem (uint32_t addr, uint32_t data, unsigned burst_size);
+  bool readMem (uint16_t coreId,
+		uint32_t addr,
+		uint32_t& data,
+		unsigned burst_size);
+  bool writeMem (uint16_t coreId,
+		 uint32_t addr,
+		 uint32_t data,
+		 unsigned burst_size);
 
   // Wrappers for dynamically loaded functions
   int initPlatform (platform_definition_t* platform,
