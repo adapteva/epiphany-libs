@@ -353,7 +353,7 @@ GdbServer::rspClientRequest ()
       rspFileIOreply ();
 
       //always resume -- (continue c or s command)
-      targetResume ();
+      targetResume (cCore ());
 
       break;
 
@@ -452,10 +452,8 @@ GdbServer::rspClientRequest ()
       break;
 
     case 'T':
-      // Is the thread alive. We are bare metal, so don't have a thread
-      // context. The answer is always "OK".
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
+      // Is the thread alive.
+      rspIsThreadAlive ();
       break;
 
     case 'v':
@@ -602,7 +600,7 @@ GdbServer::rspContinue ()
 	data << "' received, the server will ignore the continue" << endl;
 
       //check the exception state
-      isTargetExceptionState (exCause);
+      exCause = getException (cCore ());
       //bool isExState= isTargetExceptionState(exCause);
     }
 
@@ -634,11 +632,13 @@ GdbServer::NanoSleepThread (unsigned long timeout)
 
 //-----------------------------------------------------------------------------
 //! Resume target execution.
+
+//! @param[in] coreId  The core to resume.
 //-----------------------------------------------------------------------------
 void
-GdbServer::targetResume ()
+GdbServer::targetResume (uint16_t coreId)
 {
-  if (!writeReg (cCore (), DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN));
+  if (!writeReg (coreId, DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN));
   cerr << "Warning: Failed to resume target." << endl;
 
   fIsTargetRunning = true;
@@ -663,17 +663,14 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 {
   if ((!fIsTargetRunning && si->debugStopResume ()) || si->debugTranDetail ())
     {
-      cerr << dec <<
-	"GdbServer::rspContinue PC 0x" << hex << addr << dec << endl;
+      cerr << "GdbServer::rspContinue PC 0x" << hex << addr << dec << endl;
     }
 
   uint32_t prevPc = 0;
 
   if (!fIsTargetRunning)
     {
-      //cerr << "********* fIsTargetRunning = false **************" << endl;
-      //check if core in debug state
-      if (!isTargetInDebugState ())
+      if (!isCoreHalted (cCore ()))
 	{
 	  //cerr << "********* isTargetInDebugState = false **************" << endl;
 
@@ -692,7 +689,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  writePc (cCore (), addr);
 
 	  //resume
-	  targetResume ();
+	  targetResume (cCore ());
 	}
     }
 
@@ -720,7 +717,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
       //check the value of debug register
 
-      if (isTargetInDebugState ())
+      if (isCoreHalted (cCore ()))
 	{
 	  //cerr << "********* isTargetInDebugState = true **************" << endl;
 
@@ -851,7 +848,7 @@ GdbServer::rspSuspend ()
       "force debug mode" << endl;
 
   //probably target suspended
-  if (!isTargetInDebugState ())
+  if (!isCoreHalted (cCore ()))
     {
 
       isHalted = targetHalt ();
@@ -875,9 +872,9 @@ GdbServer::rspSuspend ()
       reportedPc = readPc (cCore ());
 
       //check the exception state
-      bool isExState = isTargetExceptionState (exCause);
+      exCause = getException (cCore ());
 
-      if (isExState)
+      if (exCause != TARGET_SIGNAL_NONE)
 	{
 	  //stopped due to some exception -- just report to gdb
 
@@ -894,7 +891,7 @@ GdbServer::rspSuspend ()
 	      uint16_t instrOpcode = val16;
 
 	      //idle
-	      if (getfield (instrOpcode, 8, 0) == IDLE_OPCODE)
+	      if (getfield (instrOpcode, 8, 0) == IDLE_INSTR)
 		{
 		  //cerr << "POINT on IDLE " << endl;
 		}
@@ -1129,7 +1126,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	  printfWrapper (res_buf, fmt, buf + r1 + 1);
 	  fprintf (si->ttyOut (), "%s", res_buf);
 
-	  targetResume ();
+	  targetResume (cCore ());
 	}
       else
 	{
@@ -2500,7 +2497,7 @@ GdbServer::rspRestart ()
 //!                    this way.
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspStep (uint32_t except)
+GdbServer::rspStep (TargetSignal except)
 {
   uint32_t addr;		// The address to step from, if any
 
@@ -2543,6 +2540,252 @@ GdbServer::rspStep ()
   rsp->putPkt (pkt);
 
 }				// rspStep()
+
+
+//-----------------------------------------------------------------------------
+//! Generic processing of a step request
+
+//! The signal may be TARGET_SIGNAL_NONE if there is no exception to be
+//! handled.
+
+//! @todo Currently the exception is ignored.
+
+//! The single step flag is set in the debug registers which has the effect of
+//! unstalling the processor for one instruction.
+
+//! Flush the SCR cache
+
+//! @param[in] addr  Address from which to step
+//! @param[in] sig   The GDB signal to use
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspStep (uint32_t addr,
+		    TargetSignal sig)
+{
+  uint16_t  coreId = cCore ();
+  assert (isCoreHalted (coreId));
+
+  if (si->debugStopResumeDetail ())
+    cerr << dec << "DebugStopResumeDetail: rspStep (" << (void *) addr
+	 << ", " << sig << ")" << endl;
+
+  TargetSignal exSig = getException (coreId);
+  if (exSig != TARGET_SIGNAL_NONE)
+    {
+      // Already stopped due to some exception. Just report to GDB.
+
+      // @todo This is commented as being during to a silicon problem
+      rspReportException (addr, core2thread[coreId], exSig);
+      return;
+    }
+
+  // Set the PC to the given address
+  writePc (coreId, addr);
+  assert (readPc (coreId) == addr);	// Do we really need this?
+
+  uint16_t instr16 = readMem16 (coreId, addr);
+  uint16_t opcode = getOpcode10 (instr16);
+
+  // IDLE and TRAP need special treatment
+  if (IDLE_INSTR == opcode)
+    {
+      if (si->debugStopResumeDetail ())
+	cerr << dec << "DebugStopResumeDetail: IDLE found at "
+	     << (void *) addr << "." << endl;
+
+      //check if global ISR enable state
+      uint32_t coreStatus = readStatus (coreId);
+
+      uint32_t imaskReg = readReg (coreId, IMASK_REGNUM);
+      uint32_t ilatReg = readReg (coreId, ILAT_REGNUM);
+
+      //next cycle should be jump to IVT
+      if (((coreStatus & TargetControl::STATUS_GID_MASK)
+	   == TargetControl::STATUS_GID_ENABLED)
+	  && (((~imaskReg) & ilatReg) != 0))
+	{
+	  // Interrupts globally enabled, and at least one individual
+	  // interrupt is active and enabled.
+
+	  // Next cycle should be jump to IVT. Take care of ISR call. Put a
+	  // breakpoint in each IVT slot except SYNC (aka RESET)
+	  saveIVT (coreId);
+
+	  insertBkptInstr (TargetControl::IVT_SWE);
+	  insertBkptInstr (TargetControl::IVT_PROT);
+	  insertBkptInstr (TargetControl::IVT_TIMER0);
+	  insertBkptInstr (TargetControl::IVT_TIMER1);
+	  insertBkptInstr (TargetControl::IVT_MSG);
+	  insertBkptInstr (TargetControl::IVT_DMA0);
+	  insertBkptInstr (TargetControl::IVT_DMA1);
+	  insertBkptInstr (TargetControl::IVT_WAND);
+	  insertBkptInstr (TargetControl::IVT_USER);
+
+	  // Resume which should hit the breakpoint in the IVT.
+	  targetResume (coreId);
+
+	  while (!isCoreHalted (coreId))
+	    ;
+
+	  //restore IVT
+	  restoreIVT (coreId);
+
+	  // @todo The old code had reads of STATUS, IMASK and ILAT regs here
+	  //       which it did nothing with. Why?
+
+	  // Report to gdb the target has been stopped.
+	  addr = readPc (coreId) - BKPT_INSTLEN;
+	  writePc (coreId, addr);
+	  rspReportException (addr, core2thread[coreId], TARGET_SIGNAL_TRAP);
+	  return;
+	}
+      else
+	{
+	  cerr << "ERROR: IDLE instruction at step, with no interrupt." << endl;
+	  rspReportException (addr, core2thread[coreId], TARGET_SIGNAL_NONE);
+	  return;
+	}
+    }
+  else if (TRAP_INSTR == opcode)
+    {
+      if (si->debugStopResumeDetail ())
+	cerr << dec << "DebugStopResumeDetail: TRAP found at "
+	     << (void *) addr << "." << endl;
+
+      // TRAP instruction triggers I/O
+      fIsTargetRunning = false;
+      redirectSdioOnTrap (getTrap (instr16));
+      writePc (coreId, addr + TRAP_INSTLEN);
+      return;
+    }
+
+  // Ordinary instructions to be stepped.
+  uint16_t instrExt = readMem16 (coreId, addr + 2);
+  uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
+
+  if (si->debugStopResumeDetail ())
+    cerr << "DebugStopResumeDetail: instr16: " << (void *) ((uint32_t) instr16)
+	 << ", instr32: " << (void *) instr32 << "." << endl;
+
+  // put sequential breakpoint
+  uint32_t bkptAddr = is32BitsInstr (instr16) ? addr + 4 : addr + 2;
+  uint16_t bkptVal = readMem16 (coreId, bkptAddr);
+  insertBkptInstr (bkptAddr);
+
+  if (si->debugStopResumeDetail ())
+    cerr << "DebugStopResumeDetail: Step (sequential) bkpt at "
+	 << (void *) bkptAddr << ", existing value "
+	 << (void *) ((uint32_t) bkptVal) << "." << endl;
+
+
+  uint32_t bkptJumpAddr;
+  uint16_t bkptJumpVal;
+
+  if (   getJump (coreId, instr16, addr, bkptJumpAddr)
+      || getJump (coreId, instr32, addr, bkptJumpAddr))
+    {
+      // Put breakpoint to jump target
+      bkptJumpVal = readMem16 (coreId, bkptJumpAddr);
+      insertBkptInstr (bkptJumpAddr);
+
+      if (si->debugStopResumeDetail ())
+	cerr << "DebugStopResumeDetail: Step (branch) bkpt at "
+	     << (void *) bkptJumpAddr << ", existing value "
+	     << (void *) ((uint32_t) bkptJumpVal) << "." << endl;
+    }
+  else
+    {
+      bkptJumpAddr = bkptAddr;
+      bkptJumpVal  = bkptVal;
+    }
+
+  // Take care of ISR call. Put a breakpoint in each IVT slot except
+  // SYNC (aka RESET), but only if it doesn't overwrite the PC
+  saveIVT (coreId);
+
+  if (addr != TargetControl::IVT_SWE)
+    insertBkptInstr (TargetControl::IVT_SWE);
+  if (addr != TargetControl::IVT_PROT)
+    insertBkptInstr (TargetControl::IVT_PROT);
+  if (addr != TargetControl::IVT_TIMER0)
+    insertBkptInstr (TargetControl::IVT_TIMER0);
+  if (addr != TargetControl::IVT_TIMER1)
+    insertBkptInstr (TargetControl::IVT_TIMER1);
+  if (addr != TargetControl::IVT_MSG)
+    insertBkptInstr (TargetControl::IVT_MSG);
+  if (addr != TargetControl::IVT_DMA0)
+    insertBkptInstr (TargetControl::IVT_DMA0);
+  if (addr != TargetControl::IVT_DMA1)
+    insertBkptInstr (TargetControl::IVT_DMA1);
+  if (addr != TargetControl::IVT_WAND)
+    insertBkptInstr (TargetControl::IVT_WAND);
+  if (addr != TargetControl::IVT_USER)
+    insertBkptInstr (TargetControl::IVT_USER);
+
+  // Resume until halt
+  targetResume (coreId);
+
+  while (!isCoreHalted (coreId))
+    ;
+
+  addr = readPc (coreId);		// PC where we stopped
+
+  if (si->debugStopResumeDetail ())
+    cerr << "DebugStopResumeDetail: Step halted at " << (void *) addr << endl;
+
+  restoreIVT (coreId);
+
+  // If it's a breakpoint, then we need to back up one instruction, so
+  // on restart we execute the actual instruction.
+  addr -= BKPT_INSTLEN;
+  writePc (coreId, addr);
+
+  if ((addr != bkptAddr) || (addr != bkptJumpAddr))
+    cerr << "Warning: Step stopped at " << (void *) addr << ", expected "
+	 << (void *) bkptAddr << " or " << (void *) bkptJumpAddr << "."
+	 << endl;
+
+  // Remove temporary breakpoint(s)
+  writeMem16 (coreId, bkptAddr, bkptVal);
+  if (bkptAddr != bkptJumpAddr)
+    writeMem16 (coreId, bkptJumpAddr, bkptJumpVal);
+
+  // report to GDB the target has been stopped
+  rspReportException (addr, coreId, TARGET_SIGNAL_TRAP);
+
+}	// rspStep()
+
+
+//---------------------------------------------------------------------------
+//! Handle a RSP 'T' packet
+
+//! We have no concept of "dead" threads, because a core is always alive. So
+//! for any valid thread, we return OK.
+
+//! @todo Do we need to handle -1 (all threads) and 0 (any thread).
+//---------------------------------------------------------------------------
+void
+GdbServer::rspIsThreadAlive ()
+{
+  unsigned int tid;
+
+  if (1 != sscanf (pkt->data, "T%x", &tid))
+    {
+      cerr << "Warning: Failed to recognize RSP 'T' command : "
+	   << pkt->data << endl;
+      pkt->packStr ("E02");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  if (thread2core.find (tid) == thread2core.end ())
+    pkt->packStr ("E01");
+  else
+    pkt->packStr ("OK");
+
+  rsp->putPkt (pkt);
+
+}	// isThreadAlive ()
 
 
 //---------------------------------------------------------------------------
@@ -2699,36 +2942,38 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 }	// printf_wrappper ()
 
 
+//-----------------------------------------------------------------------------
 //! Halt the target
 
 //! Done by putting the processor into debug mode.
 
 //! @return  TRUE if we halt successfully, FALSE otherwise.
+//-----------------------------------------------------------------------------
 bool
 GdbServer::targetHalt ()
 {
-  if (!writeReg (cCore (), DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_HALT))
+  if (!writeReg (cCore (), DEBUGCMD_REGNUM,
+		 TargetControl::DEBUGCMD_COMMAND_HALT))
     cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
   if (si->debugStopResume ())
       cerr << "DebugStopResume: Write HALT to DEBUGCMD" << endl;
 
-  if (!isTargetInDebugState ())
+  if (!isCoreHalted (cCore ()))
     {
       sleep (1);
     }
 
-  if (!isTargetInDebugState ())
+  if (!isCoreHalted (cCore ()))
     {
       cerr << "Warning: Target has not halted after 1 sec " << endl;
       uint32_t val;
       if (readReg (cCore (), DEBUGSTATUS_REGNUM, val))
-	{
-	  cerr << "           DEBUG= 0x" << hex << setw (8) << setfill ('0')
-	       << val << setfill (' ') << setw (0) << dec << endl;
-	}
+	cerr << "         - core ID = " << coreIdStr (cCore ())
+	     << ", DEBUGSTATUS = 0x" << hex << setw (8) << setfill ('0')
+	     << val << setfill (' ') << setw (0) << dec << endl;
       else
-	cerr << "            Unable to access DEBUG register." << endl;
+	cerr << "         - unable to access DEBUG register." << endl;
 
       return false;
 
@@ -2743,20 +2988,20 @@ GdbServer::targetHalt ()
 
 
 //---------------------------------------------------------------------------
-//! Put Breakpoint instruction
-//
+//! Insert a breakpoint instruction.
+
+//! @param [in] addr  Where to put the breakpoint
 //-----------------------------------------------------------------------------
 void
-GdbServer::putBreakPointInstruction (unsigned long bkpt_addr)
+GdbServer::insertBkptInstr (unsigned long addr)
 {
-  writeMem16 (cCore (), bkpt_addr, BKPT_INSTR);
+  writeMem16 (cCore (), addr, BKPT_INSTR);
 
   if (si->debugStopResumeDetail ())
-    cerr <<
-      " put break point " << hex << bkpt_addr << " " << BKPT_INSTR <<
-      dec << endl;
+    cerr << "DebugStopResumeDetail: insert breakpoint at " << (void *) addr
+	 << endl;
 
-}
+}	// putBkptInstr
 
 
 //---------------------------------------------------------------------------
@@ -2774,12 +3019,17 @@ GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
 
 
 //-----------------------------------------------------------------------------
-//! Check is core has been stopped at debug state
+//! Check if core is halted.
+
+//! @param[in] coreId  The core to inspect
+//! @return  TRUE if the core is both halted and has no pending load or
+//!          fetch. FALSE otherwise.
+//-----------------------------------------------------------------------------
 bool
-GdbServer::isTargetInDebugState ()
+GdbServer::isCoreHalted (uint16_t  coreId)
 {
 
-  uint32_t val = readReg (cCore (), DEBUGSTATUS_REGNUM);
+  uint32_t val = readReg (coreId, DEBUGSTATUS_REGNUM);
 
   uint32_t haltStatus = val & TargetControl::DEBUGSTATUS_HALT_MASK;
   uint32_t extPendStatus = val & TargetControl::DEBUGSTATUS_EXT_PEND_MASK;
@@ -2789,44 +3039,41 @@ GdbServer::isTargetInDebugState ()
 
   return isHalted && noPending;
 
-}	// isTargetInDebugState ()
+}	// isCoreHalted ()
 
 
 //-----------------------------------------------------------------------------
 //! Check is core has been stopped at exception state
-bool
-GdbServer::isTargetExceptionState (unsigned &exCause)
+
+//! @param[in] coreId  The core to check.
+//! @return  The GDB signal corresponding to any exception.
+//-----------------------------------------------------------------------------
+GdbServer::TargetSignal
+GdbServer::getException (uint16_t coreId)
 {
+  uint32_t coreStatus = readStatus (coreId);
+  uint32_t exbits = coreStatus & TargetControl::STATUS_EXCAUSE_MASK;
 
-  bool ret = false;
-
-  //check if idle state
-  uint32_t coreStatus = readStatus (cCore ());
-  uint32_t exStat = getfield (coreStatus, 18, 16);
-  if (exStat != 0)
+  switch (exbits)
     {
+    case TargetControl::STATUS_EXCAUSE_NONE:
+      return TARGET_SIGNAL_NONE;
 
-      ret = true;
-      //cerr << "Exception " << hex << coreStatus(18,16) << endl;
+    case TargetControl::STATUS_EXCAUSE_LDST:
+      return TARGET_SIGNAL_BUS;
 
-      exCause = TARGET_SIGNAL_ABRT;
+    case TargetControl::STATUS_EXCAUSE_FPU:
+      return TARGET_SIGNAL_FPE;
 
-      if (exStat == E_UNALIGMENT_LS)
-	{
-	  exCause = TARGET_SIGNAL_BUS;
-	}
-      if (exStat == E_FPU)
-	{
-	  exCause = TARGET_SIGNAL_FPE;
-	}
-      if (exStat == E_UNIMPL)
-	{
-	  exCause = TARGET_SIGNAL_ILL;
-	}
+    case TargetControl::STATUS_EXCAUSE_UNIMPL:
+      return TARGET_SIGNAL_ILL;
+
+    default:
+      // @todo Can we get this? Corresponds to STATUS_EXCAUSE_LSTALL or
+      //       STATUS_EXCAUSE_FSTALL being set.
+      return TARGET_SIGNAL_ABRT;
     }
-
-  return ret;
-}
+}	// getException ()
 
 
 //-----------------------------------------------------------------------------
@@ -2852,368 +3099,38 @@ GdbServer::isTargetIdle ()
 
 
 //-----------------------------------------------------------------------------
-//! Put bkpt instructions to IVT
+//! Put bkpt instructions into IVT
 
 //! The single step mode can be broken when interrupt is fired. (ISR call)
 //! The instructions in IVT should be saved and replaced by BKPT
+
+//! @param[in] coreId  The core to save the IVT for.
 //-----------------------------------------------------------------------------
 void
-GdbServer::saveIVT ()
+GdbServer::saveIVT (uint16_t coreId)
 {
-  readMemBlock (cCore (), TargetControl::IVT_SYNC, fIVTSaveBuff,
+  readMemBlock (coreId, TargetControl::IVT_SYNC, fIVTSaveBuff,
 		sizeof (fIVTSaveBuff));
 
 }	// saveIVT ()
 
 
 //-----------------------------------------------------------------------------
-//! Restore bkpt instructions to IVT
+//! Restore instructions to IVT
 
 //! The single step mode can be broken when interrupt is fired, (ISR call)
 //! The BKPT instructions in IVT should be restored by real instructions
+
+//! @param[in] coreId  The core to restore the IVT for.
 //-----------------------------------------------------------------------------
 void
-GdbServer::restoreIVT ()
+GdbServer::restoreIVT (uint16_t coreId)
 {
 
-  writeMemBlock (cCore (), TargetControl::IVT_SYNC, fIVTSaveBuff,
+  writeMemBlock (coreId, TargetControl::IVT_SYNC, fIVTSaveBuff,
 		 sizeof (fIVTSaveBuff));
 
 }	// restoreIVT ()
-
-
-//-----------------------------------------------------------------------------
-//! Generic processing of a step request
-
-//! The signal may be TARGET_SIGNAL_NONE if there is no exception to be
-//! handled. Currently the exception is ignored.
-
-//! The single step flag is set in the debug registers which has the effect of
-//! unstalling the processor for one instruction.
-
-//! Flush the SCR cache
-
-//! @param[in] addr    Address from which to step
-//! @param[in] except  The exception to use (if any)
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspStep (uint32_t addr, uint32_t except)
-{
-  if (si->debugStopResumeDetail ())
-    cerr << dec <<
-      "GdbServer::rspStep PC 0x" << hex << addr << dec << endl;
-
-  //check if core in debug state
-  if (!isTargetInDebugState ())
-    {
-      cerr <<
-	"e-server Internal Error: Assertion failed: The step request can not be acknowledged when the core is not in HALT state (non stopped)"
-	<< endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      exit (8);
-    }
-
-  //get PC
-  unsigned reportedPc = readPc (cCore ());
-
-  unsigned exCause;
-
-  //check the exception state
-  bool isExState = isTargetExceptionState (exCause);
-
-  if (isExState)
-    {
-      //stopped due to some exception -- just report to gdb and return -- - can't step --the silicon problem
-      rspReportException (reportedPc, 0 /*all threads */ , exCause);
-      return;
-    }
-
-  //fetch instruction opcode on PC
-  uint16_t val16;
-  readMem16 (cCore (), reportedPc, val16);
-  uint16_t instrOpcode = val16;
-
-  //Skip/Care Idle instruction
-  bool stoppedAtIdleInstr = (getfield (instrOpcode, 8, 0) == IDLE_OPCODE);
-  if (stoppedAtIdleInstr)
-    {
-      cerr << "POINT on IDLE " << " ADDR " << hex << reportedPc << dec << endl;
-
-      //check if global ISR enable state
-      uint32_t coreStatus = readStatus (cCore ());
-
-      uint32_t imaskReg = readReg (cCore (), IMASK_REGNUM);
-      uint32_t ilatReg = readReg (cCore (), ILAT_REGNUM);
-
-      //next cycle should be jump to IVT
-      if (getfield (coreStatus, 1, 1) == 0 /*global ISR enable */  &&
-	  (((~imaskReg) & ilatReg) != 0))
-	{
-
-	  // Take care of ISR call. Put a breakpoint in each IVT slot except
-	  // SYNC (aka RESET)
-	  saveIVT ();
-
-	  putBreakPointInstruction (TargetControl::IVT_SWE);
-	  putBreakPointInstruction (TargetControl::IVT_PROT);
-	  putBreakPointInstruction (TargetControl::IVT_TIMER0);
-	  putBreakPointInstruction (TargetControl::IVT_TIMER1);
-	  putBreakPointInstruction (TargetControl::IVT_MSG);
-	  putBreakPointInstruction (TargetControl::IVT_DMA0);
-	  putBreakPointInstruction (TargetControl::IVT_DMA1);
-	  putBreakPointInstruction (TargetControl::IVT_WAND);
-	  putBreakPointInstruction (TargetControl::IVT_USER);
-
-	  //do step
-
-	  //resume
-	  targetResume ();
-	  while (true)
-	    {
-	      if (isTargetInDebugState ())
-		{
-		  break;
-		}
-	    }
-	  //restore IVT
-	  restoreIVT ();
-	  readStatus (cCore ());
-
-	  readReg (cCore (), IMASK_REGNUM);
-	  readReg (cCore (), ILAT_REGNUM);
-	}
-
-      // report to gdb the target has been stopped
-      unsigned pc_ = readPc (cCore ()) - BKPT_INSTLEN;
-      writePc (cCore (), pc_);
-      rspReportException (pc_, 0 /*all threads */ , TARGET_SIGNAL_TRAP);
-
-      return;
-    }
-
-  //Execute the instruction trap
-  bool stoppedAtTrap = (getfield (instrOpcode, 9, 0) == TRAP_INSTR);
-  if (stoppedAtTrap)
-    {
-
-      fIsTargetRunning = false;
-
-      uint8_t trapNumber = getfield (instrOpcode, 15, 10);
-      redirectSdioOnTrap (trapNumber);
-      //increment pc by size of TRAP instruction
-      writePc (cCore (), addr + TRAP_INSTLEN);
-      return;
-    }
-
-  //set PC
-  writePc (cCore (), addr);
-
-  //fetch PC
-  uint32_t pc_ = readPc (cCore ());
-
-  //check if core in debug state
-  if ((addr != pc_))
-    {
-      cerr << "e-server Internal Error: PC access failure" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      exit (8);
-    }
-
-
-  if (si->debugStopResumeDetail ())
-    cerr << dec <<
-      " get PC " << hex << pc_ << endl;
-
-  //fetch instruction opcode on PC
-
-  readMem16 (cCore (), pc_, val16);
-  instrOpcode = val16;
-
-  readMem16 (cCore (), pc_ + 2, val16);
-  uint16_t instrExt = val16;
-
-  if (si->debugStopResumeDetail ())
-    cerr << dec <<
-      " opcode 0x" << hex << instrOpcode << dec << endl;
-
-  uint32_t bkpt_addr = addr + 2;	//put breakpoint to addr + instruction length
-
-  bool is32 = is32BitsInstr (instrOpcode);
-  if (is32)
-    {
-      bkpt_addr += 2;		//this is extension: 4 bytes instruction
-    }
-
-  //put sequential breakpoint
-
-  if (mpHash->lookup (BP_MEMORY, bkpt_addr) == NULL)
-    {
-      uint16_t bpVal_;
-      readMem16 (cCore (), bkpt_addr, bpVal_);
-      mpHash->add (BP_MEMORY, bkpt_addr, bpVal_);
-    }
-  if (si->debugTrapAndRspCon ())
-    cerr << dec <<
-      "put (SEQ) bkpt on 0x" << hex << bkpt_addr << dec << endl;
-  putBreakPointInstruction (bkpt_addr);
-
-
-  //put breakpoint to jump target in case of change of flow
-  uint32_t bkpt_jump_addr = bkpt_addr;
-
-  //check if jump by value
-  if (getfield (instrOpcode, 2, 0) == 0)
-    {
-      uint32_t immExt = 0;
-      setfield (immExt, 7, 0, getfield (instrOpcode, 15, 8));
-      if (is32)
-	{
-	  setfield (immExt, 23, 8, getfield (instrExt, 15, 0));
-	  if (getfield (immExt, 23, 23) == 1)
-	    {
-	      setfield (immExt, 31, 24, 0xff);
-	    }
-	}
-      else
-	{
-	  if (getfield (immExt, 7, 7) == 1)
-	    {
-	      setfield (immExt, 31, 8, 0xffffff);
-	    }
-	}
-
-      long jAddr = long (pc_) + ((long (immExt)) <<1);
-      bkpt_jump_addr = jAddr;
-
-      //cerr << " calculated Jump based on ImmExt 0x" << hex << immExt << dec << endl;
-    }
-
-  //RTI
-  if (getfield (instrOpcode, 8, 0) == 0x1d2)
-    {
-      bkpt_jump_addr = readReg (cCore (), IRET_REGNUM);
-      //cerr << "RTI " << hex << bkpt_jump_addr << dec << endl;
-    }
-
-  //check if jump by reg
-  //16 bits jump
-  if (getfield (instrOpcode, 8, 0) == 0x142
-      || getfield (instrOpcode, 8, 0) == 0x152)
-    {
-      uint8_t regShortNum = getfield (instrOpcode, 12, 10);
-      bkpt_jump_addr = readReg (cCore (), R0_REGNUM + regShortNum);
-      //cerr << "PC <-< " << regShortNum << endl;
-    }
-  //32 bits jump
-  if (getfield (instrOpcode, 8, 0) == 0x14f
-      || getfield (instrOpcode, 8, 0) == 0x15f)
-    {
-      uint8_t regLongNum;
-      regLongNum =
-	(getfield (instrExt, 12, 10) << 3) | (getfield (instrOpcode, 12, 10)
-					      << 0);
-      bkpt_jump_addr = readReg (cCore (), R0_REGNUM + regLongNum);
-      //cerr << "PC <-< " << regLongNum << endl;
-    }
-
-  //take care of change of flow
-  if (bkpt_jump_addr != bkpt_addr)
-    {
-      if (si->debugStopResumeDetail ())
-	cerr << dec <<
-	  "put bkpt on (change of flow) " << hex << bkpt_jump_addr << dec <<
-	  endl;
-      if (mpHash->lookup (BP_MEMORY, bkpt_jump_addr) == NULL)
-	{
-
-	  uint16_t val16t;
-	  readMem16 (cCore (), bkpt_jump_addr, val16t);
-	  uint16_t vlBpMem = val16t;
-
-	  mpHash->add (BP_MEMORY, bkpt_jump_addr, vlBpMem);
-	}
-      if (si->debugStopResumeDetail ())
-	cerr << dec <<
-	  "put (JMP) bkpt on 0x" << hex << bkpt_jump_addr << dec << endl;
-
-      putBreakPointInstruction (bkpt_jump_addr);
-
-    }
-
-  // Take care of ISR call. Put a breakpoint in each IVT slot except
-  // SYNC (aka RESET), but only if it doesn't overwrite the PC
-  saveIVT ();
-
-  if (pc_ != TargetControl::IVT_SWE)
-    putBreakPointInstruction (TargetControl::IVT_SWE);
-  if (pc_ != TargetControl::IVT_PROT)
-    putBreakPointInstruction (TargetControl::IVT_PROT);
-  if (pc_ != TargetControl::IVT_TIMER0)
-    putBreakPointInstruction (TargetControl::IVT_TIMER0);
-  if (pc_ != TargetControl::IVT_TIMER1)
-    putBreakPointInstruction (TargetControl::IVT_TIMER1);
-  if (pc_ != TargetControl::IVT_MSG)
-    putBreakPointInstruction (TargetControl::IVT_MSG);
-  if (pc_ != TargetControl::IVT_DMA0)
-    putBreakPointInstruction (TargetControl::IVT_DMA0);
-  if (pc_ != TargetControl::IVT_DMA1)
-    putBreakPointInstruction (TargetControl::IVT_DMA1);
-  if (pc_ != TargetControl::IVT_WAND)
-    putBreakPointInstruction (TargetControl::IVT_WAND);
-  if (pc_ != TargetControl::IVT_USER)
-    putBreakPointInstruction (TargetControl::IVT_USER);
-
-  //do step
-
-  //resume
-  targetResume ();
-
-  if (si->debugTrapAndRspCon ())
-    cerr << " resume at PC 0x" << hex << readPc (cCore ()) << endl;
-
-  if (si->debugStopResumeDetail ())
-    cerr << " opcode 0x" << hex << readMem32 (cCore (), readPc (cCore ()))
-	 << dec << endl;
-
-  while (!isTargetInDebugState ())
-    ;
-
-  //restore IVT
-  restoreIVT ();
-
-
-  // If it's a breakpoint, then we need to back up one instruction, so
-  // on restart we execute the actual instruction.
-  uint32_t prevPc = readPc (cCore ()) - BKPT_INSTLEN;
-
-  //always stop on hidden breakpoint or stopped on bkpt @ prev_pc
-  assert ((NULL != mpHash->lookup (BP_MEMORY, prevPc))
-	  || isHitInBreakPointInstruction (bkpt_jump_addr));
-  if (si->debugStopResumeDetail ())
-    cerr << dec <<
-      "set prevPc after stop 0x" << hex << prevPc << dec << endl;
-  writePc (cCore (), prevPc);
-
-  //remove "hidden" bk
-  uint16_t instr_saved;
-  assert (mpHash->remove (BP_MEMORY, bkpt_addr, &instr_saved));	//should be in cache
-  writeMem16 (cCore (), bkpt_addr, instr_saved);
-  if (bkpt_jump_addr != bkpt_addr)
-    {
-      assert (mpHash->remove (BP_MEMORY, bkpt_jump_addr, &instr_saved));	//should be in cache
-      writeMem16 (cCore (), bkpt_jump_addr, instr_saved);
-    }
-
-  if (si->debugTrapAndRspCon ())
-    cerr << dec <<
-      "After wait STEP GdbServer::Step 0x" << hex << prevPc << dec << endl
-     ;
-
-  // report to gdb the target has been stopped
-  rspReportException (prevPc, 0 /*all threads */ , TARGET_SIGNAL_TRAP);
-}				// rspStep()
 
 
 //-----------------------------------------------------------------------------
@@ -3494,7 +3411,7 @@ GdbServer::rspInsertMatchpoint ()
       readMem16 (cCore (), addr, bpMemVal);
       mpHash->add (type, addr, bpMemVal);
 
-      putBreakPointInstruction (addr);
+      insertBkptInstr (addr);
 
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
@@ -4013,14 +3930,30 @@ GdbServer::writeSp (uint16_t  coreId,
 //-----------------------------------------------------------------------------
 //! Get the core used for step and continue
 
-//! This is assumed to be a valid value.
+//! This is assumed to be a valid value. But we can't yield a single core for
+//! values of -1 (gives a warning), while for 0 we just return the first core.
 
 //! @return  A coreID
 //-----------------------------------------------------------------------------
 uint16_t
 GdbServer::cCore ()
 {
-  return thread2core[currentCThread];
+  uint16_t coreId;
+
+  switch (currentCThread)
+    {
+    case -1:
+      cerr << "Warning: Cannot give a single 'c' core for thread -1" << endl;
+      coreId = thread2core.begin ()->first;
+
+    case 0:
+      coreId = thread2core.begin ()->first;
+
+    default:
+      coreId = thread2core[currentCThread];
+    }
+
+  return coreId;
 
 }	// cCore ()
 
@@ -4035,9 +3968,465 @@ GdbServer::cCore ()
 uint16_t
 GdbServer::gCore ()
 {
-  return thread2core[currentGThread];
+  uint16_t coreId;
+
+  switch (currentGThread)
+    {
+    case -1:
+      cerr << "Warning: Cannot give a single 'g' core for thread -1" << endl;
+      coreId = thread2core.begin ()->first;
+
+    case 0:
+      coreId = thread2core.begin ()->first;
+
+    default:
+      coreId = thread2core[currentGThread];
+    }
+
+  return coreId;
 
 }	// cCore ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 1-bit plus 4-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode1_4 (uint32_t  instr)
+{
+  return instr & 0x0200000f;
+
+}	// getOpcode1_4 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 1-bit plus 5-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode1_5 (uint32_t  instr)
+{
+  return instr & 0x1000001f;
+
+}	// getOpcode15 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 2-bit plus 4-bit opcode field from a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::getOpcode2_4 (uint16_t  instr)
+{
+  return instr & 0x030f;
+
+}	// getOpcode24 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 2-bit plus 4-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode2_4 (uint32_t  instr)
+{
+  return instr & 0x0060000f;
+
+}	// getOpcode24 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 4-bit opcode field from a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::getOpcode4 (uint16_t  instr)
+{
+  return instr & 0x000f;
+
+}	// getOpcode4 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 4-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode4 (uint32_t  instr)
+{
+  return instr & 0x0000000f;
+
+}	// getOpcode4 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 4-bit plus 2-bit + 4-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode4_2_4 (uint32_t  instr)
+{
+  return instr & 0x000f030f;
+
+}	// getOpcode4_2_4 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 4-bit plus 5-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode4_5 (uint32_t  instr)
+{
+  return instr & 0x000f001f;
+
+}	// getOpcode4_5 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 4-bit plus 7-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode4_7 (uint32_t  instr)
+{
+  return instr & 0x000f007f;
+
+}	// getOpcode4_7 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 4-bit plus 10-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode4_10 (uint32_t  instr)
+{
+  return instr & 0x000f03ff;
+
+}	// getOpcode4_10 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 5-bit opcode field from a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::getOpcode5 (uint16_t  instr)
+{
+  return instr & 0x001f;
+
+}	// getOpcode5 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 5-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode5 (uint32_t  instr)
+{
+  return instr & 0x0000001f;
+
+}	// getOpcode5 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 7-bit opcode field from a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::getOpcode7 (uint16_t  instr)
+{
+  return instr & 0x007f;
+
+}	// getOpcode7 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 7-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode7 (uint32_t  instr)
+{
+  return instr & 0x0000007f;
+
+}	// getOpcode7 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 10-bit opcode field from a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::getOpcode10 (uint16_t  instr)
+{
+  return instr & 0x03ff;
+
+}	// getOpcode10 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 10-bit opcode field from a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The opcode
+//-----------------------------------------------------------------------------
+uint32_t
+GdbServer::getOpcode10 (uint32_t  instr)
+{
+  return instr & 0x000003ff;
+
+}	// getOpcode10 ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the Rd field for a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The register number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getRd (uint16_t  instr)
+{
+  return (uint8_t) ((instr & 0xe000) >> 13);
+
+}	// getRd ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the Rd field for a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The register number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getRd (uint32_t  instr)
+{
+  uint8_t lo = (uint8_t) ((instr & 0x0000e000) >> 13);
+  uint8_t hi = (uint8_t) ((instr & 0xe0000000) >> 29);
+  return  (hi << 3) | lo;
+
+}	// getRd ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the Rm field for a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The register number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getRm (uint16_t  instr)
+{
+  return (uint8_t) ((instr & 0x0380) >> 7);
+
+}	// getRm ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the Rm field for a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The register number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getRm (uint32_t  instr)
+{
+  uint8_t lo = (uint8_t) ((instr & 0x00000380) >>  7);
+  uint8_t hi = (uint8_t) ((instr & 0x03800000) >> 23);
+  return  (hi << 3) | lo;
+
+}	// getRm ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the Rn field for a 16-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The register number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getRn (uint16_t  instr)
+{
+  return (uint8_t) ((instr & 0x1c00) >> 10);
+
+}	// getRn ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the Rn field for a 32-bit instruction
+
+//! @param[in] instr  The instruction
+//! @return  The register number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getRn (uint32_t  instr)
+{
+  uint8_t lo = (uint8_t) ((instr & 0x00001c00) >> 10);
+  uint8_t hi = (uint8_t) ((instr & 0x1c000000) >> 26);
+  return  (hi << 3) | lo;
+
+}	// getRn ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the trap number from a TRAP instruction
+
+//! @param[in] instr  The TRAP instruction
+//! @return  The trap number
+//-----------------------------------------------------------------------------
+uint8_t
+GdbServer::getTrap (uint16_t  instr)
+{
+  return (uint8_t) ((instr & 0xfc00) >> 10);
+
+}	// getTrap ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the offset from a 16-bit branch instruction
+
+//! @param[in] instr  The branch instruction
+//! @return  The (signed) branch offset in bytes
+//-----------------------------------------------------------------------------
+int32_t
+GdbServer::getBranchOffset (uint16_t  instr)
+{
+  int32_t raw = (int32_t) (instr >> 8);
+  return ((raw ^ 0x80) - 0x80) << 1;		// Sign extend and double
+
+}	// getBranchOffset ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the offset from a 32-bit branch instruction
+
+//! @param[in] instr  The branch instruction
+//! @return  The (signed) branch offset in bytes
+//-----------------------------------------------------------------------------
+int32_t
+GdbServer::getBranchOffset (uint32_t  instr)
+{
+  int32_t raw = (int32_t) (instr >> 8);
+  return ((raw ^ 0x800000) - 0x800000) << 1;	// Sign extend and double
+
+}	// getBranchOffset ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 16-bit jump destination
+
+//! Possibilites are a branch (immediate offset), jump (register address) or
+//! return-from-interrupt (implicit register address).
+
+//! @param[in]  coreId    The core we are looking at
+//! @param[in]  instr     16-bit instruction
+//! @param[in]  addr      Address of instruction being examined
+//! @param[out] destAddr  Destination address
+//! @return  TRUE if this was a 16-bit jump destination
+//-----------------------------------------------------------------------------
+bool
+GdbServer::getJump (uint16_t  coreId,
+		    uint16_t  instr,
+		    uint32_t  addr,
+		    uint32_t& destAddr)
+{
+  if (0x0000 == getOpcode4 (instr))
+    {
+      // Bcc
+      int32_t offset = getBranchOffset (instr);
+      destAddr = addr + offset;
+      return true;
+    }
+  else if (   (0x142 == getOpcode10 (instr))
+	   || (0x152 == getOpcode10 (instr)))
+    {
+      // JR or JALR
+      uint8_t rn = getRn (instr);
+      destAddr = readReg (coreId, R0_REGNUM + rn);
+      return true;
+    }
+  else if (0x1d2 == getOpcode10 (instr))
+    {
+      // RTI
+      destAddr = readReg (coreId, IRET_REGNUM);
+      return true;
+    }
+  else
+    return false;
+
+}	// getJump ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a 32-bit jump destination
+
+//! Possibilites are a branch (immediate offset) or jump (register address)
+
+//! @param[in]  coreId    The core we are looking at
+//! @param[in]  instr     32-bit instruction
+//! @param[in]  addr      Address of instruction being examined
+//! @param[out] destAddr  Destination address
+//! @return  TRUE if this was a 16-bit jump destination
+//-----------------------------------------------------------------------------
+bool
+GdbServer::getJump (uint16_t  coreId,
+		    uint32_t  instr,
+		    uint32_t  addr,
+		    uint32_t& destAddr)
+{
+  if (0x00000008 == getOpcode4 (instr))
+    {
+      // Bcc
+      int32_t offset = getBranchOffset (instr);
+      destAddr = addr + offset;
+      return true;
+    }
+  else if (   (0x0002014f == getOpcode4_10 (instr))
+	   || (0x0002015f == getOpcode4_10 (instr)))
+    {
+      // JR or JALR
+      uint8_t rn = getRn (instr);
+      destAddr = readReg (coreId, R0_REGNUM + rn);
+      return true;
+    }
+  else
+    return false;
+
+}	// getJump ()
 
 
 // These functions replace the intrinsic SystemC bitfield operators.

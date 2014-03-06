@@ -611,9 +611,11 @@ RspConnection::getRspChar ()
 }				// getRspChar()
 
 
+//-----------------------------------------------------------------------------
 //! Check if there is an out-of-band BREAK command on the serial link.
 
 //! @return  TRUE if we got a BREAK, FALSE otherwise.
+//-----------------------------------------------------------------------------
 bool
 RspConnection::getBreakCommand ()
 {
@@ -647,36 +649,33 @@ RspConnection::getBreakCommand ()
 	  if (EINTR == errno)
 	    break;		// Retry
 	  else
-	    {
-	      cerr << "Warning: getBreakCommand: read for BREAK: "
-		   << strerror(errno) << endl;
-	      return false;
-	    }
-
+	    return false;	// Not necessarily serious could be temporary
+				// unavailable resource.
 	case 0:
-	  return false;	// No break character there
+	  return false;		// No break character there
 
 	default:
 	  gotChar = true;
 	}
     }
 
-  /* Set socket to blocking */
+  // Set socket to blocking
 
   if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
     {
       cerr << "Error: fcntl get" << strerror (errno) << endl;
-      return -1;
+      return false;
     }
 
 
   if (fcntl (clientFd, F_SETFL, flags & (~O_NONBLOCK)) < 0)
     {
       cerr << "Error: fcntl set blocking" << strerror (errno) << endl;
-      return -1;
+      return false;
     }
 
-
+  // @todo Not sure this is really right. What other characters are we
+  //       throwing away if it is not 0x03?
   return (gotChar && (c == 0x03));
 }
 

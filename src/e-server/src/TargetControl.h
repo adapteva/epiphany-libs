@@ -150,11 +150,16 @@ public:
   static const uint32_t STATUS_EXCAUSE_MASK  = 0x000f0000;
   static const uint32_t STATUS_RESERVED_MASK = 0xfff00804;
     
-  static const uint32_t STATUS_ACTIVE_ACTIVE = 0x00000001;
-  static const uint32_t STATUS_ACTIVE_IDLE   = 0x00000000;
-  static const uint32_t STATUS_GID_ENABLED   = 0x00000000;
-  static const uint32_t STATUS_GID_DISABLED  = 0x00000002;
-  static const uint32_t STATUS_EXCAUSE_NONE  = 0x00000000;
+  static const uint32_t STATUS_ACTIVE_ACTIVE  = 0x00000001;
+  static const uint32_t STATUS_ACTIVE_IDLE    = 0x00000000;
+  static const uint32_t STATUS_GID_ENABLED    = 0x00000000;
+  static const uint32_t STATUS_GID_DISABLED   = 0x00000002;
+  static const uint32_t STATUS_EXCAUSE_NONE   = 0x00000000;
+  static const uint32_t STATUS_EXCAUSE_LDST   = 0x00010000;
+  static const uint32_t STATUS_EXCAUSE_FPU    = 0x00020000;
+  static const uint32_t STATUS_EXCAUSE_UNIMPL = 0x00030000;
+  static const uint32_t STATUS_EXCAUSE_LSTALL = 0x00040000;
+  static const uint32_t STATUS_EXCAUSE_FSTALL = 0x00080000;
 
   // DEBUGSTATUS register
   static const int DEBUGSTATUS_HALT_SHIFT       = 0;

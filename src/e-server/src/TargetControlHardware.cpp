@@ -152,82 +152,164 @@ TargetControlHardware::writeMem8 (uint16_t coreId,
 }
 
 
-// see target driver
+//! Read up to 4 bytes from memory
 
-// burst read
+//! @todo Appears to be no requirement for alignment. Is this true?
+
+//! @param[in]  coreId  Relative core ID to read from.
+//! @param[in]  addr    Address (local or global) to read from.
+//! @param[out] data    Where to put the result.
+//! @param[in]  len     Size of data to read (in bytes)
+//! @return  TRUE on success, FALSE otherwise.
+bool
+TargetControlHardware::readMem (uint16_t  coreId,
+				uint32_t  addr,
+				uint32_t& data,
+				size_t    len)
+{
+  assert (len <= E_WORD_BYTES);
+
+  uint32_t fullAddr = convertAddress (coreId, addr);
+  unsigned char buf[E_DOUBLE_BYTES];	// May read a double word
+
+  size_t res = readFrom (fullAddr, (void *) buf, len);
+  if (res != len)
+    {
+      cerr << "Warning: readMem failed for addr " << (void *) addr
+	   << ", length " << len << ", result " << res << endl;
+      return false;
+    }
+  else
+    {
+      // pack returned data
+      data = 0;
+      for (unsigned i = 0; i < len; i++)
+	data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
+
+      if (si->debugTargetWr ())
+	cerr << "DebugTargetWr: readMem (" << coreId << ", " << (void *) addr
+	     << ", " << (void *) data << ", " << len << ") -> " << data << endl;
+      
+      return true;
+    }
+}	// readMem ()
+
+
+//! Write up to 4 bytes to memory
+
+//! @todo Appears to be no requirement for alignment. Is this true?
+
+//! @param[in] coreId  Relative core ID to read from.
+//! @param[in] addr    Address (local or global) to read from.
+//! @param[in] data    The data to write
+//! @param[in] len     Size of data to read (in bytes)
+//! @return  TRUE on success, FALSE otherwise.
+bool
+TargetControlHardware::writeMem (uint16_t  coreId,
+				 uint32_t  addr,
+				 uint32_t  data,
+				 size_t    len)
+{
+  assert (len <= E_WORD_BYTES);
+
+  uint32_t fullAddr = convertAddress (coreId, addr);
+  char buf[8];
+
+  for (unsigned i = 0; i < len; i++)
+    buf[i] = (data >> (i * 8)) & 0xff;
+
+  if (si->debugTargetWr ())
+    cerr << "DebugTargetWr: writeMem (" << coreId << ", " << (void *) addr
+	 << ", " << (void *) data << ", " << len << ")" << endl;
+
+  size_t res = writeTo (fullAddr, (void *) buf, len);
+  if (res != len)
+    {
+      cerr << "Warning: writeMem failed for addr " << (void *) addr
+	   << ", length " << len << ", result " << res << endl;
+      return false;
+    }
+
+  return true;
+
+}	// writeMem ()
+
+
+//! Burst read
+
+//! @todo This only seems to do a burst read for word aligned blocks. Why not
+//!       for all blocks, as with writeBurst?
+
+//! @param[in]  coreId  The relative core to read from.
+//! @param[in]  addr    The address (local or global) to read from.
+//! @param[out] buf     Where to put the results.
 bool
 TargetControlHardware::readBurst (uint16_t coreId,
 				  uint32_t addr,
 				  uint8_t *buf,
-				  size_t buff_size)
+				  size_t burstSize)
 {
-  bool ret = true;
-
   uint32_t fullAddr = convertAddress (coreId, addr);
 
-  // cerr << "READ burst " << hex << fullAddr << " Size " << dec << buff_size << endl;
+  if (si->debugTargetWr ())
+    cerr << "DebugTargetWr: readBurst (" << coreId << ", " << (void *) addr
+	 << ", " << (void *) buf << ", " << burstSize << ")" << endl;
+      
 
-  if (fullAddr || !si->checkHwAddr())
+  if ((fullAddr % E_WORD_BYTES) == 0)
     {
-      if ((fullAddr % E_WORD_BYTES) == 0)
+      // Read aligned in blocks
+      // @todo Why not for large unaligned blocks as well, cf writeBurst
+      for (unsigned k = 0; k < burstSize / (MAX_BURST_READ_BYTES); k++)
 	{
-	  // struct timeval start_time;
-	  // StartOfBaudMeasurement(start_time);
-	  for (unsigned k = 0;
-	       k < buff_size / (MAX_BURST_READ_BYTES); k++)
+	  uint32_t startAddr = fullAddr + k * MAX_BURST_READ_BYTES;
+	  uint8_t* startBuf = buf + k * MAX_BURST_READ_BYTES;
+	  size_t res = readFrom (startAddr, (void *) startBuf,
+				 MAX_BURST_READ_BYTES);
+
+	  if (res != MAX_BURST_READ_BYTES)
 	    {
-	      int res =
-		readFrom (fullAddr + k * MAX_BURST_READ_BYTES,
-			      (void *) (buf +
-					k * MAX_BURST_READ_BYTES),
-			      (MAX_BURST_READ_BYTES));
-
-	      if (res != (MAX_BURST_READ_BYTES))
-		{
-		  cerr << "ERROR (" << res <<
-		    "): memory read failed for full address " << hex <<
-		    fullAddr << dec << endl;
-		  ret = false;
-		}
+	      cerr << "ERROR: Maximal read burst failed for full address "
+		   << (void *) fullAddr << ", burst size " << burstSize
+		   << ", result " << res << endl;
+	      return false;
 	    }
-
-	  unsigned trailSize = (buff_size % (MAX_BURST_READ_BYTES));
-	  if (trailSize != 0)
-	    {
-	      unsigned int res =
-		readFrom (fullAddr + buff_size - trailSize,
-			      (void *) (buf + buff_size - trailSize),
-			      trailSize);
-
-	      if (res != trailSize)
-		{
-		  cerr << "ERROR (" << res <<
-		    "): memory read failed for full address " << hex <<
-		    fullAddr << dec << endl;
-		  ret = false;
-		}
-	    }
-
-	  // cerr << " done nbytesToSend " << buff_size << " msec " << EndOfBaudMeasurement(start_time) << endl;
 	}
-      else
+
+      unsigned trailSize = burstSize % MAX_BURST_READ_BYTES;
+      if (trailSize != 0)
 	{
-	  for (unsigned i = 0; i < buff_size; i++)
+	  size_t res = readFrom (fullAddr + burstSize - trailSize,
+				 (void *) (buf + burstSize - trailSize),
+				 trailSize);
+
+	  if (res != trailSize)
 	    {
-	      ret = ret && readMem8 (coreId, fullAddr + i, buf[i]);
+	      cerr << "ERROR: Trailing read burst failed for full address "
+		   << (void *) fullAddr << ", burst size " << burstSize
+		   << ", result " << res << endl;
+	      return false;
 	    }
 	}
     }
   else
     {
-      cerr << "WARNING (READ_BURST ignored): The address " << hex << addr <<
-	" is not in the valid range for target " << this->
-	getTargetId () << dec << endl;
-      ret = false;
+      // Unaligned read a byte at a time
+      for (unsigned i = 0; i < burstSize; i++)
+	{
+	  if (!readMem8 (coreId, fullAddr + i, buf[i]))
+	    {
+	      cerr << "ERROR: Unaligned read burst failed for full address "
+		   << (void *) fullAddr << ", burst size " << burstSize
+		   << ", byte " << i << endl;
+	      return false;
+	    }
+	}
     }
 
-  return ret;
-}
+  return true;
+
+}	// readBurst ()
 
 
 //! Burst write
@@ -359,9 +441,9 @@ TargetControlHardware::writeBurst (uint16_t coreId,
 	  if (si->debugTargetWr ())
 	    {
 	      cerr << "DebugTargetWr: Last double word write burst "
-		   << " to full address 0x" << hex << setw (8) << setfill ('0')
+		   << "to full address 0x" << hex << setw (8) << setfill ('0')
 		   << fullAddr << setfill (' ') << setw (0) << dec
-		   << ", size " << lastDoubleSize << "bytes." << endl;
+		   << ", size " << lastDoubleSize << " bytes." << endl;
 	    }
 
 	  size_t res = writeTo (fullAddr, buf, lastDoubleSize);
@@ -771,113 +853,6 @@ TargetControlHardware::convertAddress (uint16_t relCoreId,
 }	// convertAddress ()
 
 
-bool
-TargetControlHardware::readMem (uint16_t coreId,
-				uint32_t addr,
-				uint32_t & data,
-				unsigned burst_size)
-{
-  bool retSt = false;
-
-  //struct timeval start_t;
-  // StartOfBaudMeasurement(start_t);
-
-  uint32_t fullAddr = convertAddress (coreId, addr);
-  // bool iSAligned = (fullAddr == ());
-  if (fullAddr || si->checkHwAddr())
-    {
-      // supported only word size or smaller
-      assert (burst_size <= 4);
-      char buf[8];
-      unsigned int res = readFrom (fullAddr, (void *) buf, burst_size);
-
-      if (res != burst_size)
-	{
-	  cerr << "ERROR (" << res << "): mem read failed for addr " << hex <<
-	    addr << dec << endl;
-	}
-      else
-	{
-	  // pack returned data
-	  for (unsigned i = 0; i < burst_size; i++)
-	    {
-	      data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
-	    }
-	  if (si->debugTargetWr ())
-	    {
-	      cerr << "TARGET READ (" << burst_size << ") " << hex << fullAddr
-		<< " >> " << data << dec << endl;
-	    }
-	}
-      retSt = (res == burst_size);
-    }
-  else
-    {
-      cerr << "WARNING (READ_MEM ignored): The address " << hex << addr <<
-	" is not in the valid range for target " << this->
-	getTargetId () << dec << endl;
-    }
-
-  // double mes = EndOfBaudMeasurement(start_t);
-  // cerr << "--- READ milliseconds: " << mes << endl;
-
-  return retSt;
-}
-
-
-bool
-TargetControlHardware::writeMem (uint16_t coreId,
-				 uint32_t addr,
-				 uint32_t data,
-				 unsigned burst_size)
-{
-  bool retSt = false;
-  uint32_t fullAddr = convertAddress (coreId, addr);
-
-  // bool iSAligned = (fullAddr == ());
-  if (fullAddr || si->checkHwAddr())
-    {
-      assert (burst_size <= 4);
-      char buf[8];
-
-      for (unsigned i = 0; i < burst_size; i++)
-	{
-	  buf[i] = (data >> (i * 8)) & 0xff;
-	}
-
-      // struct timeval start_t;
-      // StartOfBaudMeasurement(start_t);
-
-      unsigned int res = writeTo (fullAddr, (void *) buf, burst_size);
-
-      // double mes = EndOfBaudMeasurement(start_t);
-      // cerr << "--- WRITE (writeMem)(" << burst_size << ") milliseconds: " << mes << endl;
-
-      if (si->debugTargetWr ())
-	{
-	  cerr << "TARGET WRITE (" << burst_size << ") " << hex << fullAddr <<
-	    " >> " << data << dec << endl;
-	}
-
-      if (res != burst_size)
-	{
-	  cerr << "ERROR (" << res << "): mem write failed for addr " << hex
-	    << fullAddr << dec << endl;
-	}
-
-      retSt = (res == burst_size);
-    }
-  else
-    {
-      cerr << "WARNING (WRITE_MEM ignored): The address " << hex << addr <<
-	" is not in the valid range for target " << this->
-	getTargetId () << dec << endl;
-    }
-
-  return retSt;
-}
-
-
 //! Wrapper for the dynamically linked platform initialization
 
 //! @param[in] platform  The description of the platform
@@ -916,14 +891,14 @@ TargetControlHardware::closePlatform ()
 //! @param[in] buf        The data to write.
 //! @param[in] burstSize  The number of bytes to write.
 //! @return  The number of bytes written.
-int
+size_t
 TargetControlHardware::writeTo (unsigned int  address,
 				void*         buf,
 				size_t        burstSize)
 {
   if (si->debugHwDetail ())
-      cerr << "DebugHwDetail: writeTo (" << address << ", " << (void *) buf
-	   << ", " << burstSize << ")" << endl;
+    cerr << "DebugHwDetail: writeTo (" << (void *) address << ", "
+	 << (void *) buf << ", " << burstSize << ")" << endl;
   
   return (*writeToFunc) (address, buf, burstSize);
 
@@ -936,7 +911,7 @@ TargetControlHardware::writeTo (unsigned int  address,
 //! @param[out] buf        The data read.
 //! @param[in]  burstSize  The number of bytes to read.
 //! @return  The number of bytes read.
-int
+size_t
 TargetControlHardware::readFrom (unsigned  address,
 				 void*     buf,
 				 size_t    burstSize)

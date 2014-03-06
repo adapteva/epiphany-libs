@@ -111,7 +111,6 @@ private:
 
   enum SPECIAL_INSTR_OPCODES
   {
-    IDLE_OPCODE = 0x1b2
   };
 
   enum EPIPHANY_EX_CASE
@@ -153,7 +152,8 @@ private:
   //! GDB register nu
 
   // 16-bit instruction fields for Epiphany (i.e. LS bytes in instruction)
-  static const uint16_t NOP_INSTR = 0x01a2;	//!< NOP instruction
+  static const uint16_t NOP_INSTR  = 0x01a2;	//!< NOP instruction
+  static const uint16_t IDLE_INSTR = 0x01b2;	//!< IDLE instruction
   static const uint16_t BKPT_INSTR = 0x01c2;	//!< BKPT instruction
   static const uint16_t TRAP_INSTR = 0x03e2;	//!< TRAP instruction
 
@@ -244,9 +244,10 @@ private:
   void rspSet ();
   void rspRestart ();
   void rspStep ();
-  void rspStep (uint32_t except);
-  void rspStep (uint32_t addr, uint32_t except);
-  void targetResume ();
+  void rspStep (TargetSignal except);
+  void rspStep (uint32_t addr, TargetSignal except);
+  void rspIsThreadAlive ();
+  void targetResume (uint16_t coreId);
   void rspVpkt ();
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
@@ -322,15 +323,15 @@ private:
   uint16_t cCore ();
   uint16_t gCore ();
 
-  void putBreakPointInstruction (unsigned long);
+  void insertBkptInstr (unsigned long);
   bool isHitInBreakPointInstruction (unsigned long);
-  bool isTargetInDebugState ();
+  bool isCoreHalted (uint16_t coreId);
   bool isTargetIdle ();
-  bool isTargetExceptionState (unsigned &);
+  TargetSignal getException (uint16_t  coreId);
   bool targetHalt ();
 
-  void saveIVT ();
-  void restoreIVT ();
+  void saveIVT (uint16_t coreId);
+  void restoreIVT (uint16_t coreId);
 
   //! Thread control
   void NanoSleepThread (unsigned long timeout);
@@ -341,6 +342,41 @@ private:
 
   //! Wrapper to avoid external memory problems. 
   void printfWrapper (char *result_str, const char *fmt, const char *args_buf);
+
+  //! Extraction opcode fields.
+  uint32_t  getOpcode1_4 (uint32_t  instr);
+  uint32_t  getOpcode1_5 (uint32_t  instr);
+  uint16_t  getOpcode2_4 (uint16_t  instr);
+  uint32_t  getOpcode2_4 (uint32_t  instr);
+  uint16_t  getOpcode4 (uint16_t  instr);
+  uint32_t  getOpcode4 (uint32_t  instr);
+  uint32_t  getOpcode4_2_4 (uint32_t  instr);
+  uint32_t  getOpcode4_5 (uint32_t  instr);
+  uint32_t  getOpcode4_7 (uint32_t  instr);
+  uint32_t  getOpcode4_10 (uint32_t  instr);
+  uint16_t  getOpcode5 (uint16_t  instr);
+  uint32_t  getOpcode5 (uint32_t  instr);
+  uint16_t  getOpcode7 (uint16_t  instr);
+  uint32_t  getOpcode7 (uint32_t  instr);
+  uint16_t  getOpcode10 (uint16_t  instr);
+  uint32_t  getOpcode10 (uint32_t  instr);
+  uint8_t  getRd (uint16_t  instr);
+  uint8_t  getRd (uint32_t  instr);
+  uint8_t  getRm (uint16_t  instr);
+  uint8_t  getRm (uint32_t  instr);
+  uint8_t  getRn (uint16_t  instr);
+  uint8_t  getRn (uint32_t  instr);
+  uint8_t  getTrap (uint16_t  instr);
+  int32_t  getBranchOffset (uint16_t  instr);
+  int32_t  getBranchOffset (uint32_t  instr);
+  bool  getJump (uint16_t  coreId,
+		 uint16_t  instr,
+		 uint32_t  addr,
+		 uint32_t& destAddr);
+  bool  getJump (uint16_t  coreId,
+		 uint32_t  instr,
+		 uint32_t  addr,
+		 uint32_t& destAddr);
 
   // YS - provide the SystemC equivalent to the bit range selection operator.
   uint8_t getfield (uint8_t x, int _lt, int _rt);

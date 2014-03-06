@@ -57,6 +57,16 @@ public:
   virtual bool writeMem16 (uint16_t coreId, uint32_t addr, uint16_t value);
   virtual bool writeMem8 (uint16_t coreId, uint32_t addr, uint8_t value);
 
+  // Read and write single words from target
+  bool readMem (uint16_t  coreId,
+		uint32_t  addr,
+		uint32_t& data,
+		size_t    len);
+  bool writeMem (uint16_t coreId,
+		 uint32_t addr,
+		 uint32_t data,
+		 size_t   len);
+
   // Burst write and read
   virtual bool writeBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
 			   size_t buff_size);
@@ -92,17 +102,17 @@ protected:
 private:
 
   //! Maximum number of double word packets in a write burst
-  static const int MAX_NUM_WRITE_PACKETS = 256;
+  static const size_t MAX_NUM_WRITE_PACKETS = 256;
 
   //! Maximum number of word packets in a read burst
-  static const int MAX_NUM_READ_PACKETS = 64;
+  static const size_t MAX_NUM_READ_PACKETS = 64;
 
   //! Maximum number of bytes in a write burst
-  static const int MAX_BURST_WRITE_BYTES =
+  static const size_t MAX_BURST_WRITE_BYTES =
     MAX_NUM_WRITE_PACKETS * E_DOUBLE_BYTES;
 
   //! Maximum number of bytes in a read burst
-  static const int MAX_BURST_READ_BYTES =
+  static const size_t MAX_BURST_READ_BYTES =
     MAX_NUM_READ_PACKETS * E_WORD_BYTES;
 
   //! Local pointer to server info
@@ -153,26 +163,16 @@ private:
   // Handler for the BREAK signal
   static void breakSignalHandler (int signum);
 
-  // Read and write from target
-  bool readMem (uint16_t coreId,
-		uint32_t addr,
-		uint32_t& data,
-		unsigned burst_size);
-  bool writeMem (uint16_t coreId,
-		 uint32_t addr,
-		 uint32_t data,
-		 unsigned burst_size);
-
   // Wrappers for dynamically loaded functions
   int initPlatform (platform_definition_t* platform,
 		    unsigned int           verbose);
   int closePlatform ();
-  int writeTo (unsigned int  address,
-	       void*         buf,
-	       size_t        burstSize);
-  int readFrom (unsigned  address,
-		void*     buf,
-		size_t    burstSize);
+  size_t writeTo (unsigned int  address,
+		  void*         buf,
+		  size_t        burstSize);
+  size_t readFrom (unsigned  address,
+		   void*     buf,
+		   size_t    burstSize);
   int hwReset ();
   int getDescription (char** targetIdp);
 

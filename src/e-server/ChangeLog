@@ -1,3 +1,72 @@
+2014-03-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Work in progress. Commit fixes some thread handling problems.
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Pass core ID to
+	targetResume, call new function rspIsThreadAlive for 'T' packet.
+	(GdbServer::rspContinue): Pass core ID to getException.
+	(GdbServer::targetResume): Take core ID as argument, and pass when
+	resuming or testing for halt.
+	(GdbServer::rspSuspend): Simplified handling of exception signals,
+	pass core ID when resuming.
+	(GdbServer::redirectSdioOnTrap): Pass core ID when resuming.
+	(GdbServer::rspStep): Signal argument is of type TargetSignal,
+	rewrite for simplification and clarity.
+	(GdbServer::rspIsThreadAlive): Created.
+	(GdbServer::targetHalt): Pass CoreID to when halting and testing
+	for halt. Consistent trace messaging.
+	(GdbServer::insertBkptInstr): Renamed from
+	putBreakPointInstruction, cleaner trace message.
+	(GdbServer::isCoreHalted): rename from IsTargetInDebugState, take
+	coreID as argument and use when reading reg.
+	(GdbServer::isTargetExceptionState): Replaced by getException.
+	(GdbServer::getException): Rewrite of isTargetExceptionState to
+	take core ID as argument and return signal.
+	(GdbServer::saveIVT): Take core ID as argument and use when
+	reading memory.
+	(GdbServer::restoreIVT): Take core ID as argument and use when
+	writing memory.
+	(GdbServer::rspVpkt): Return S05 for attach.
+	(GdbServer::rspInsertMatchpoint): Rename putBreakPointInstruction
+	as insertBkptInstr.
+	(GdbServer::cCore): Deal with 0 and -1 as threads
+	(GdbServer::gCore): Likewise.
+	(GdbServer::getOpcode1_4): Created.
+	(GdbServer::getOpcode1_5): Created.
+	(GdbServer::getOpcode2_4): Created.
+	(GdbServer::getOpcode4): Created.
+	(GdbServer::getOpcode4_2_4): Created.
+	(GdbServer::getOpcode4_5): Created.
+	(GdbServer::getOpcode4_7): Created.
+	(GdbServer::getOpcode4_10): Created.
+	(GdbServer::getOpcode5): Created.
+	(GdbServer::getOpcode7): Created.
+	(GdbServer::getOpcode10): Created.
+	(GdbServer::getRd): Created.
+	(GdbServer::getRm): Created.
+	(GdbServer::getRn): Created.
+	(GdbServer::getTrap): Created.
+	(GdbServer::getBranchOffset): Created.
+	(GdbServer::getJump): Created.
+	* src/GdbServer.h: Remove SPECIAL_INSTR_OPCODES and add IDLE_INSTR
+	as constant.  Change rspStep prototypes to use TargetSignal for
+	exceptions. Rename putBreakPointInstruction as insertBkptInstr.
+	Replace isTargetExceptionState by getException.  Pass core ID to
+	isCoreHalted, getException, saveIVT, restoreIVT.  Add declarations
+	of instruction field access methods.
+	* src/RspConnection.cpp (RspConnection::getBreakCommand): Remove
+	warning messave if signal interrupts read. Always return bool as result.
+	* src/TargetControl.h: Add status exception causes.
+	* src/TargetControlHardware.cpp (TargetControlHardware::writeMem8):
+	(TargetControlHardware::readMem): Rewritten for clarity. Pass
+	coreID when converting address.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::readBurst): Likewise.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::writeTo): Better trace message.
+	* src/TargetControlHardware.h: Change size constants and
+	parameters to type size_t consistently.
+
 2014-03-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspContinue): Pass
