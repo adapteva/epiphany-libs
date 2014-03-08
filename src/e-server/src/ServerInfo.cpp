@@ -300,6 +300,28 @@ ServerInfo::debugHwDetail () const
 }	// debugHwDetail ()
 
 
+//! Enable or disable the timing debug flag
+void
+ServerInfo::debugTiming (const bool  enable)
+{
+  if (enable)
+    debugFlags |= ServerInfo::DEBUG_HW_DETAIL;
+  else
+    debugFlags &= ~ServerInfo::DEBUG_HW_DETAIL;
+
+}	// debugTiming ()
+
+
+//! Determine if timing debug is enabled.
+bool
+ServerInfo::debugTiming () const
+{
+  return (debugFlags & ServerInfo::DEBUG_HW_DETAIL)
+    == ServerInfo::DEBUG_HW_DETAIL;
+
+}	// debugTiming ()
+
+
 //! Set the show memory map flag
 void
 ServerInfo::showMemoryMap (const bool _showMemoryMapFlag)

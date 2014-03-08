@@ -216,8 +216,8 @@ private:
   void rspClientRequest ();
 
   // Handle the various RSP requests
-  void rspReportException (unsigned stoppedPC, unsigned threadID,
-			   unsigned exCause);
+  void rspReportException (uint32_t stoppedPC, int threadID,
+			   TargetSignal exCause);
   void rspContinue ();
   void rspContinue (uint32_t except);
   void rspContinue (uint32_t addr, uint32_t except);

@@ -1,3 +1,27 @@
+2014-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): Make debug depend on
+	TranDetail.
+	(GdbServer::rspReportException): Consistent debug message format.
+	(GdbServer::rspContinue): Use TargetSignal for exceptions.
+	(GdbServer::targetResume): Coding error - only print warning
+	message if write fails.
+	(GdbServer::rspSuspend): Use TargetSignal for exceptions.
+	(GdbServer::rspReadMem): Make timing depend on debugTiming flag.
+	(GdbServer::targetHalt): Minor grammar fix in debug message,
+	fuller error message, improved logic on retry.
+	(GdbServer::isCoreHalted): Add commented out test logic pro tem.
+	* src/GdbServer.h: Pass signals as TargetSignal.
+	* src/ServerInfo.cpp (ServerInfo::debugHwDetail): New functions
+	for debugTiming flag.
+	(ServerInfo::debugTiming): Created.
+	* src/ServerInfo.h: Add new DebugTiming
+	* src/TargetControlHardware.cpp (TargetControlHardware::readMem):
+	Fuller debug message.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/main.cpp (usage_full): Add new debugTiming flag.
+	(main): Likewise.
+
 2014-03-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Work in progress. Commit fixes some thread handling problems.

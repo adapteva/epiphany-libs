@@ -139,6 +139,7 @@ usage_full (ostream& s)
   s << "  -d ctrl-c-wait" << endl;
   s << "  -d tran-detail" << endl;
   s << "  -d hw-detail" << endl;
+  s << "  -d timing" << endl;
   s << endl;
   s << "    Enable specified class of debug messages. Use multiple times for"
     << endl;
@@ -401,7 +402,10 @@ main (int argc, char *argv[])
 	      else if (0 == strcasecmp (argv[n], "trap-and-rsp-con"))
 		si->debugTrapAndRspCon (true);
 	      else if (0 == strcasecmp (argv[n], "stop-resume-detail"))
-		si->debugStopResumeDetail (true);
+		{
+		  si->debugStopResume (true);		// Implied
+		  si->debugStopResumeDetail (true);
+		}
 	      else if (0 == strcasecmp (argv[n], "target-wr"))
 		si->debugTargetWr (true);
 	      else if (0 == strcasecmp (argv[n], "ctrl-c-wait"))
@@ -410,6 +414,8 @@ main (int argc, char *argv[])
 		si->debugTranDetail (true);
 	      else if (0 == strcasecmp (argv[n], "hw-detail"))
 		si->debugHwDetail (true);
+	      else if (0 == strcasecmp (argv[n], "timing"))
+		si->debugTiming (true);
 	      else
 		{
 		  cerr << "WARNING: Unrecognized debug flag " << argv[n]

@@ -62,6 +62,8 @@ public:
   bool  debugTranDetail () const;
   void  debugHwDetail (const bool  enable);
   bool  debugHwDetail () const;
+  void  debugTiming (const bool  enable);
+  bool  debugTiming () const;
 
   // Flag accessors
   void showMemoryMap (const bool _showMemoryMapFlag);
@@ -84,6 +86,7 @@ private:
   static const unsigned int DEBUG_CTRL_C_WAIT        = 0x0010;
   static const unsigned int DEBUG_TRAN_DETAIL        = 0x0020;
   static const unsigned int DEBUG_HW_DETAIL          = 0x0040;
+  static const unsigned int DEBUG_TIMING             = 0x0080;
 
   //! Maximum permissible port number
   static const unsigned int MAX_PORT_NUM = 0xffff;

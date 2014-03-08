@@ -157,8 +157,8 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 
 
       // Get a RSP client request
-      if (si->debugStopResume())
-	cerr << dec << "DebugStopResume: Getting RSP client request." << endl;
+      if (si->debugTranDetail ())
+	cerr << "DebugTranDetail: Getting RSP client request." << endl;
 
       rspClientRequest ();
 
@@ -186,11 +186,10 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	      "check for CTLR-C done" << endl;
 	}
 
-      if (si->debugStopResume ())
-	cerr <<
-	  "-------------- rspClientRequest(): end" << endl << endl;
+      if (si->debugTranDetail ())
+	cerr << "DebugTranDetail: RSP client request complete" << endl;
     }
-}				// rspServer()
+}	// rspServer()
 
 
 //-----------------------------------------------------------------------------
@@ -491,15 +490,16 @@ GdbServer::rspClientRequest ()
 //! TODO no thread support -- always report as S packet
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspReportException (unsigned stoppedPC, unsigned threadID,
-			       unsigned exCause)
+GdbServer::rspReportException (uint32_t stoppedPC, int threadId,
+			       TargetSignal exCause)
 {
   if (si->debugStopResume ())
-    cerr << "stopped at PC 0x" << hex << stoppedPC << "  EX 0x" << exCause
-	 << dec << endl;
+    cerr << "DebugStopResume: Report exception at PC " << (void *) stoppedPC
+	 << " for thread " << threadId << " with GDB signal " << exCause
+	 << endl;
 
   // Construct a signal received packet
-  if (threadID == 0)
+  if (threadId == 0)
     {
       pkt->data[0] = 'S';
     }
@@ -511,9 +511,9 @@ GdbServer::rspReportException (unsigned stoppedPC, unsigned threadID,
   pkt->data[1] = Utils::hex2Char (exCause >> 4);
   pkt->data[2] = Utils::hex2Char (exCause % 16);
 
-  if (threadID != 0)
+  if (threadId != 0)
     {
-      sprintf ((pkt->data), "T05thread:%d;", threadID);
+      sprintf ((pkt->data), "T05thread:%d;", threadId);
 
     }
   else
@@ -586,7 +586,7 @@ GdbServer::rspContinue ()
       data << "' received" << endl;
 
   //return the same exception
-  unsigned exCause = TARGET_SIGNAL_TRAP;
+  TargetSignal exCause = TARGET_SIGNAL_TRAP;
 
   if ((0 == strcmp ("C03", pkt->data)))
     {				//get continue with signal after reporting QUIT/exit, silently ignore
@@ -638,8 +638,8 @@ GdbServer::NanoSleepThread (unsigned long timeout)
 void
 GdbServer::targetResume (uint16_t coreId)
 {
-  if (!writeReg (coreId, DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN));
-  cerr << "Warning: Failed to resume target." << endl;
+  if (!writeReg (coreId, DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN))
+    cerr << "Warning: Failed to resume target." << endl;
 
   fIsTargetRunning = true;
 
@@ -838,7 +838,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 void
 GdbServer::rspSuspend ()
 {
-  unsigned exCause = TARGET_SIGNAL_TRAP;
+  TargetSignal exCause = TARGET_SIGNAL_TRAP;
   uint32_t reportedPc;
 
   bool isHalted;
@@ -1408,9 +1408,12 @@ GdbServer::rspReadMem ()
       len = (pkt->getBufSize () - 1) / 2;
     }
 
-  fTargetControl->startOfBaudMeasurement ();
-  cerr << "MTIME--- READ mem START -- " << hex << addr << dec << " (" << len
-       << ")" << endl;
+  if (si->debugTiming ())
+    {
+      fTargetControl->startOfBaudMeasurement ();
+      cerr << "DebugTiming: rspReadMem START, address " << (void *) addr
+	   << ", length " << len << endl;
+    }
 
   // Write the bytes to memory
   {
@@ -1438,8 +1441,12 @@ GdbServer::rspReadMem ()
 
 
   }
-  double mes = fTargetControl->endOfBaudMeasurement();
-  cerr << "MTIME--- READ mem END -- milliseconds: " << mes << endl;
+
+  if (si->debugTiming ())
+    {
+      double mes = fTargetControl->endOfBaudMeasurement();
+      cerr << "DebugTiming: rspReadMem END, " << mes << "  ms." << endl;
+    }
 
   pkt->data[off * 2] = '\0';	// End of string
   pkt->setLen (strlen (pkt->data));
@@ -2957,30 +2964,30 @@ GdbServer::targetHalt ()
     cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
   if (si->debugStopResume ())
-      cerr << "DebugStopResume: Write HALT to DEBUGCMD" << endl;
+      cerr << "DebugStopResume: Wrote HALT to DEBUGCMD" << endl;
 
   if (!isCoreHalted (cCore ()))
     {
       sleep (1);
-    }
 
-  if (!isCoreHalted (cCore ()))
-    {
-      cerr << "Warning: Target has not halted after 1 sec " << endl;
-      uint32_t val;
-      if (readReg (cCore (), DEBUGSTATUS_REGNUM, val))
-	cerr << "         - core ID = " << coreIdStr (cCore ())
-	     << ", DEBUGSTATUS = 0x" << hex << setw (8) << setfill ('0')
-	     << val << setfill (' ') << setw (0) << dec << endl;
-      else
-	cerr << "         - unable to access DEBUG register." << endl;
+      // Try again, then give up
+      if (!isCoreHalted (cCore ()))
+	{
+	  cerr << "Warning: Target has not halted after 1 sec " << endl;
+	  uint32_t val;
+	  if (readReg (cCore (), DEBUGSTATUS_REGNUM, val))
+	    cerr << "         - core ID = " << coreIdStr (cCore ())
+		 << ", DEBUGSTATUS = 0x" << hex << setw (8) << setfill ('0')
+		 << val << setfill (' ') << setw (0) << dec << endl;
+	  else
+	    cerr << "         - unable to access DEBUG register." << endl;
 
-      return false;
-
+	  return false;
+	}
     }
 
   if (si->debugStopResume ())
-    cerr << "DebugStopResume: Target halted.";
+    cerr << "DebugStopResume: Target halted." << endl;
 
   return true;
 
@@ -3028,6 +3035,13 @@ GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
 bool
 GdbServer::isCoreHalted (uint16_t  coreId)
 {
+  // uint32_t pc = readReg (coreId, PC_REGNUM);
+  // uint16_t instr16 = readMem16 (coreId, pc);
+  // uint16_t instrExt = readMem16 (coreId, pc + 2);
+  // uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
+  // cerr << "PC (core " << coreId << ") = " << (void *) pc << ", instr16 "
+  //      << (void *) ((uint32_t) instr16) << ", instr32 " << (void *) instr32
+  //      << "." << endl;
 
   uint32_t val = readReg (coreId, DEBUGSTATUS_REGNUM);
 

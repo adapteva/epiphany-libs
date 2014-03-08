@@ -188,7 +188,8 @@ TargetControlHardware::readMem (uint16_t  coreId,
 
       if (si->debugTargetWr ())
 	cerr << "DebugTargetWr: readMem (" << coreId << ", " << (void *) addr
-	     << ", " << (void *) data << ", " << len << ") -> " << data << endl;
+	     << ":" << (void *) fullAddr << ", " << (void *) data << ", "
+	     << len << ") -> " << (void *) data << endl;
       
       return true;
     }
@@ -226,7 +227,8 @@ TargetControlHardware::writeMem (uint16_t  coreId,
   if (res != len)
     {
       cerr << "Warning: writeMem failed for addr " << (void *) addr
-	   << ", length " << len << ", result " << res << endl;
+	   << ":" << (void *) fullAddr << ", length " << len << ", result "
+	   << res << endl;
       return false;
     }
 
