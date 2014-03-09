@@ -145,6 +145,7 @@ private:
   static const int IRET_REGNUM = NUM_GPRS + 7;
   static const int IMASK_REGNUM = NUM_GPRS + 8;
   static const int ILAT_REGNUM = NUM_GPRS + 9;
+  static const int FSTATUS_REGNUM = NUM_GPRS + 13;
   static const int DEBUGCMD_REGNUM = NUM_GPRS + 14;
   static const int RESETCORE_REGNUM = NUM_GPRS + 15;
   static const int COREID_REGNUM = NUM_GPRS + 37;
@@ -326,7 +327,8 @@ private:
   void insertBkptInstr (unsigned long);
   bool isHitInBreakPointInstruction (unsigned long);
   bool isCoreHalted (uint16_t coreId);
-  bool isTargetIdle ();
+  bool isCoreIdle (uint16_t  coreId);
+  bool isCoreGIntsEnabled (uint16_t  coreId);
   TargetSignal getException (uint16_t  coreId);
   bool targetHalt ();
 

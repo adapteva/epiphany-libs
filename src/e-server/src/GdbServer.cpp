@@ -243,9 +243,20 @@ void
 GdbServer::rspAttach ()
 {
   bool isHalted = targetHalt ();
+  uint16_t coreId = cCore ();
 
+  if (isCoreIdle (coreId))
+    {
+      cerr << "Warning: Core " << coreId << "idle on attach: forcing active."
+	   << endl;
+      uint32_t status = readReg (coreId, STATUS_REGNUM);
+      status &= ~TargetControl::STATUS_ACTIVE_MASK;
+      status |= TargetControl::STATUS_ACTIVE_ACTIVE;
+      writeReg (coreId, FSTATUS_REGNUM, status);
+    }
+	
   if (!isHalted)
-      rspReportException (0, 0 /*all threads */ , TARGET_SIGNAL_HUP);
+      rspReportException (0, -1 /*all threads */ , TARGET_SIGNAL_HUP);
 
 }	// rspAttach ()
 
@@ -882,7 +893,7 @@ GdbServer::rspSuspend ()
       else
 	{
 
-	  if (isTargetIdle ())
+	  if (isCoreIdle (cCore ()))
 	    {
 
 	      //fetch instruction opcode on PC
@@ -1787,10 +1798,22 @@ GdbServer::rspQThreadExtraInfo ()
       return;
     }
 
+  // Data about thread
+  uint16_t coreId = thread2core[tid];
+  bool isHalted = isCoreHalted (coreId);
+  bool isIdle = isCoreIdle (coreId);
+  bool isGIntsEnabled = isCoreGIntsEnabled (coreId);
+
   char* buf = &(pkt->data[0]);
   string res = "Core: ";
-  res += coreIdStr (thread2core[tid]);
-  res += ": Runnable";
+  res += coreIdStr (coreId);
+  if (isIdle)
+    res += isHalted ? ": idle, halted" : ": idle";
+  else
+    res += isHalted ? ": halted" : ": running";
+
+  res += ", gints ";
+  res += isGIntsEnabled ? "enabled" : "disabled";
 
   // Put each char as its ASCII representation
   for (string::iterator it = res.begin (); it != res.end (); it++)
@@ -2747,7 +2770,7 @@ GdbServer::rspStep (uint32_t addr,
   addr -= BKPT_INSTLEN;
   writePc (coreId, addr);
 
-  if ((addr != bkptAddr) || (addr != bkptJumpAddr))
+  if ((addr != bkptAddr) && (addr != bkptJumpAddr))
     cerr << "Warning: Step stopped at " << (void *) addr << ", expected "
 	 << (void *) bkptAddr << " or " << (void *) bkptJumpAddr << "."
 	 << endl;
@@ -3035,18 +3058,10 @@ GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
 bool
 GdbServer::isCoreHalted (uint16_t  coreId)
 {
-  // uint32_t pc = readReg (coreId, PC_REGNUM);
-  // uint16_t instr16 = readMem16 (coreId, pc);
-  // uint16_t instrExt = readMem16 (coreId, pc + 2);
-  // uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
-  // cerr << "PC (core " << coreId << ") = " << (void *) pc << ", instr16 "
-  //      << (void *) ((uint32_t) instr16) << ", instr32 " << (void *) instr32
-  //      << "." << endl;
-
-  uint32_t val = readReg (coreId, DEBUGSTATUS_REGNUM);
-
-  uint32_t haltStatus = val & TargetControl::DEBUGSTATUS_HALT_MASK;
-  uint32_t extPendStatus = val & TargetControl::DEBUGSTATUS_EXT_PEND_MASK;
+  uint32_t debugstatus = readReg (coreId, DEBUGSTATUS_REGNUM);
+  uint32_t haltStatus = debugstatus & TargetControl::DEBUGSTATUS_HALT_MASK;
+  uint32_t extPendStatus =
+    debugstatus & TargetControl::DEBUGSTATUS_EXT_PEND_MASK;
 
   bool isHalted = haltStatus == TargetControl::DEBUGSTATUS_HALT_HALTED;
   bool noPending = extPendStatus == TargetControl::DEBUGSTATUS_EXT_PEND_NONE;
@@ -3054,6 +3069,46 @@ GdbServer::isCoreHalted (uint16_t  coreId)
   return isHalted && noPending;
 
 }	// isCoreHalted ()
+
+
+//-----------------------------------------------------------------------------
+//! Check if core is idle.
+
+//! @param[in] coreId  The core to inspect
+//! @return  TRUE if the core is idle, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::isCoreIdle (uint16_t  coreId)
+{
+  uint32_t status = readReg (coreId, STATUS_REGNUM);
+  uint32_t idleStatus = status & TargetControl::STATUS_ACTIVE_MASK;
+
+  // Warn if a software exception is pending
+  uint32_t ex = status & TargetControl::STATUS_EXCAUSE_MASK;
+  if (ex != TargetControl::STATUS_EXCAUSE_NONE)
+      cerr << "Warning: Unexpected pending SW exception 0x" << hex
+	   << (ex >> TargetControl::STATUS_EXCAUSE_SHIFT) << "." << endl;
+
+  return idleStatus == TargetControl::STATUS_ACTIVE_IDLE;
+
+}	// isCoreIdle ()
+
+
+//-----------------------------------------------------------------------------
+//! Check if global interrupts are enabled for core.
+
+//! @param[in] coreId  The core to inspect
+//! @return  TRUE if the core has global interrupts enabled, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::isCoreGIntsEnabled (uint16_t  coreId)
+{
+  uint32_t status = readReg (coreId, STATUS_REGNUM);
+  uint32_t gidStatus = status & TargetControl::STATUS_GID_MASK;
+
+  return gidStatus == TargetControl::STATUS_GID_ENABLED;
+
+}	// isCoreGIntsEnabled ()
 
 
 //-----------------------------------------------------------------------------
@@ -3088,28 +3143,6 @@ GdbServer::getException (uint16_t coreId)
       return TARGET_SIGNAL_ABRT;
     }
 }	// getException ()
-
-
-//-----------------------------------------------------------------------------
-//! Check is core has been stopped at idle state
-
-//! @return TRUE if core is idle.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::isTargetIdle ()
-{
-  uint32_t status = readStatus (cCore ());
-
-  // Warn if a software exception is pending
-  uint32_t ex = status & TargetControl::STATUS_EXCAUSE_MASK;
-  if (ex != TargetControl::STATUS_EXCAUSE_NONE)
-      cerr << "Warning: Unexpected pending SW exception 0x" << hex
-	   << (ex >> TargetControl::STATUS_EXCAUSE_SHIFT) << "." << endl;
-
-  uint32_t activity = status & TargetControl::STATUS_ACTIVE_MASK;
-  return activity == TargetControl::STATUS_ACTIVE_IDLE;
-
-}	// isTargetIdle ()
 
 
 //-----------------------------------------------------------------------------

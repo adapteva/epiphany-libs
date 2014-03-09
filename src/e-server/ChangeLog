@@ -1,3 +1,19 @@
+2014-03-09  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspAttach): Force
+	core out of idle state if necessary.
+	(GdbServer::rspSuspend): Replace isTargetIdle by isCoreIdle for
+	consistency.
+	(GdbServer::rspQThreadExtraInfo): Add info about idle, halted and
+	GID state.
+	(GdbServer::rspStep): Correct test for expected breakpoint destination.
+	(GdbServer::isCoreHalted): Remove test commenting.
+	(GdbServer::isCoreIdle): Created.
+	(GdbServer::isCoreGIntsEnabled): Created.
+	(GdbServer::isTargetIdle): Renamed as isCoreIdle for consistency.
+	* src/GdbServer.h: Add FSTATUS register number,
+	rename isTargetIdle by isCoreIlde, add isCoreGIntsEnabled.
+
 2014-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspServer): Make debug depend on
