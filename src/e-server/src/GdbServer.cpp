@@ -30,6 +30,8 @@
 #include <vector>
 
 #include <fcntl.h>
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 #include <unistd.h>
 
 #include "GdbServer.h"
@@ -99,6 +101,7 @@ GdbServer::GdbServer (ServerInfo* _si) :
   assert (regAddr (IRET_REGNUM)        == TargetControl::IRET);
   assert (regAddr (IMASK_REGNUM)       == TargetControl::IMASK);
   assert (regAddr (ILAT_REGNUM)        == TargetControl::ILAT);
+  assert (regAddr (FSTATUS_REGNUM)      == TargetControl::FSTATUS);
   assert (regAddr (DEBUGCMD_REGNUM)    == TargetControl::DEBUGCMD);
   assert (regAddr (RESETCORE_REGNUM)   == TargetControl::RESETCORE);
   assert (regAddr (COREID_REGNUM)      == TargetControl::COREID);
@@ -131,7 +134,7 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 {
   fTargetControl = _fTargetControl;
   
-  initThreads ();			// Set up the core to thread maps
+  initProcesses ();		// Set up the processes and core to thread maps
 
   // Loop processing commands forever
   while (true)
@@ -193,7 +196,13 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 
 
 //-----------------------------------------------------------------------------
-//! Initialize core to thread mapping
+//! Initialize core to process mapping
+
+//! Processes correspond to GDB work groups. For now, they are set up by the
+//! "monitor workgroup" command, which returns a process ID.
+
+//! We start by mapping all threads to process ID IDLE_PID. This can be
+//! thought of as the "idle process".
 
 //! Epiphany GDB uses a hard mapping of thread ID to cores. We can only
 //! provide this mapping once a connection identifies the cores available.
@@ -207,9 +216,14 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 //! threadId 0 has a special meaning, so cannot be used.
 //-----------------------------------------------------------------------------
 void
-GdbServer::initThreads ()
+GdbServer::initProcesses ()
 {
   assert (fTargetControl);		// Just in case of a stupid connection
+
+  // Create the idle process
+  mIdleProcess = new ProcessInfo (IDLE_PID);
+  mProcesses.insert (mIdleProcess);
+  mNextPid = IDLE_PID + 1;
 
   // Initialize info from the target
   vector <uint16_t> coreIds = fTargetControl->listCoreIds ();
@@ -226,8 +240,11 @@ GdbServer::initThreads ()
       // Oh for bi-directional maps
       core2thread [coreId] = threadId;
       thread2core [threadId] = coreId;
+
+      // Add to idle process
+      mIdleProcess->addThread (threadId);
     }
-}	// initThreads ()
+}	// initProcesses ()
 
   
 //-----------------------------------------------------------------------------
@@ -247,8 +264,8 @@ GdbServer::rspAttach ()
 
   if (isCoreIdle (coreId))
     {
-      cerr << "Warning: Core " << coreId << "idle on attach: forcing active."
-	   << endl;
+      cerr << "Warning: Core " << coreIdStr (coreId)
+	   << " idle on attach: forcing active." << endl;
       uint32_t status = readReg (coreId, STATUS_REGNUM);
       status &= ~TargetControl::STATUS_ACTIVE_MASK;
       status |= TargetControl::STATUS_ACTIVE_ACTIVE;
@@ -446,11 +463,11 @@ GdbServer::rspClientRequest ()
 
     case 's':
       // Single step one machine instruction.
-      rspStep (TARGET_SIGNAL_NONE);
+      rspStep ();
       break;
 
     case 'S':
-      // Single step one machine instruction.
+      // Single step one machine instruction with signal
       rspStep ();
       break;
 
@@ -2151,28 +2168,35 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
       osProcessReply =
 	"<?xml version=\"1.0\"?>\n"
 	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
-	"<osdata type=\"processes\">\n"
-	"  <item>\n"
-	"    <column name=\"pid\">1</column>\n"
-	"    <column name=\"user\">root</column>\n"
-	"    <column name=\"command\"></column>\n"
-	"    <column name=\"cores\">\n"
-	"      ";
+	"<osdata type=\"processes\">\n";
 
-      map <uint16_t, int>::iterator  it;
+	// Iterate through all processes
+	for (set <ProcessInfo>::iterator pit = mProcesses.begin ();
+	     pit != mProcesses.end (); pit++)
+	  {
+	    ProcessInfo *process = *pit;
+	    osProcessReply"  <item>\n"
+	    "    <column name=\"pid\">" + it->pid () + "</column>\n"
+	    "    <column name=\"user\">root</column>\n"
+	    "    <column name=\"command\"></column>\n"
+	    "    <column name=\"cores\">\n"
+	    "      ";
 
-      for (it = core2thread.begin (); it != core2thread.end (); it++)
-	{
-	  if (it != core2thread.begin ())
-	    osProcessReply += ",";
+	    for (set <int>::iterator tit = process->threadBegin ();
+		 tit != process->threadEnd (); tit++)
+	      {
+		if (tit != process->threadbegin ())
+		  osProcessReply += ",";
 
-	  osProcessReply += coreIdStr (it->first);
-	}
+		osProcessReply += coreIdStr (thread2core (*tit));
+	      }
 
-      osProcessReply += "\n"
-	"    </column>\n"
-	"  </item>\n"
-	"</osdata>";
+	    osProcessReply += "\n"
+	    "    </column>\n"
+	    "  </item>\n";
+	  }
+
+      osProcessReply += "</osdata>";
     }
 
   // Send the reply (or part reply) back
@@ -2520,54 +2544,52 @@ GdbServer::rspRestart ()
 //-----------------------------------------------------------------------------
 //! Handle a RSP step request
 
-//! This version is typically used for the 's' packet, to continue without
-//! signal, in which case TARGET_SIGNAL_NONE is passed in as the exception to use.
-
-//! @param[in] except  The exception to use. Only TARGET_SIGNAL_NONE should be set
-//!                    this way.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspStep (TargetSignal except)
-{
-  uint32_t addr;		// The address to step from, if any
-
-  // Reject all except 's' packets
-  if ('s' != pkt->data[0])
-    {
-      cerr << "Warning: Step with signal not currently supported: "
-	<< "ignored" << endl;
-      return;
-    }
-
-  if (0 == strcmp ("s", pkt->data))
-    {
-      addr = readPc (cCore ());		// Default uses current PC
-    }
-  else if (1 != sscanf (pkt->data, "s%x", &addr))
-    {
-      cerr << "Warning: RSP step address " << pkt->data
-	<< " not recognized: ignored" << endl;
-      addr = readPc (cCore ());		// Default uses current PC
-    }
-
-  rspStep (addr, TARGET_SIGNAL_NONE);
-
-}				// rspStep()
-
-
-//-----------------------------------------------------------------------------
-//! Handle a RSP step with signal request
-
-//! @todo Currently null. Will use the underlying generic step function.
+//! This may be a 's' packet with optional address or 'S' packet with signal
+//! and optional address.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspStep ()
 {
-  cerr << "WARNING: RSP step with signal '" << pkt->
-    data << "' received, the server will ignore the step" << endl;
+  bool haveAddrP;			// Were we given an address
+  uint32_t addr;
+  TargetSignal sig;
 
-  //return the same exception
-  rsp->putPkt (pkt);
+  // Break out the arguments
+  if ('s' == pkt->data[0])
+    {
+      // Plain step
+      sig = TARGET_SIGNAL_NONE;
+      // No warning if defective format
+      haveAddrP = 1 == sscanf (pkt->data, "s%" SCNx32, &addr);
+    }
+  else
+    {
+      // Step with signal
+      unsigned int sigval;
+      int n = sscanf (pkt->data, "S%x;%" SCNx32, &sigval, &addr);
+      switch (n)
+	{
+	case 1:
+	  sig = (TargetSignal) sigval;
+	  haveAddrP = false;
+	  break;
+
+	case 2:
+	  sig = (TargetSignal) sigval;
+	  haveAddrP = true;
+	  break;
+
+	default:
+	  // Defective format
+	  cerr << "Warning: Unrecognized step with signal '" << pkt->data
+	       << "': Defaults used." << endl;
+	  sig = TARGET_SIGNAL_NONE;
+	  haveAddrP = false;
+	  break;
+	}
+    }
+
+  rspStep (haveAddrP, addr, sig);
 
 }				// rspStep()
 
@@ -2578,22 +2600,29 @@ GdbServer::rspStep ()
 //! The signal may be TARGET_SIGNAL_NONE if there is no exception to be
 //! handled.
 
-//! @todo Currently the exception is ignored.
-
 //! The single step flag is set in the debug registers which has the effect of
-//! unstalling the processor for one instruction.
+//! unstalling the processor(s) for one instruction.
 
-//! Flush the SCR cache
+//! @todo If the current C thread is -1, we need to set up all cores, then
+//!       unstall then, wait for one to halt, then stall them.
 
-//! @param[in] addr  Address from which to step
-//! @param[in] sig   The GDB signal to use
+//! @param[in] haveAddrP  Were we supplied with an address (if not use PC)
+//! @param[in] addr       Address from which to step
+//! @param[in] sig        The GDB signal to use
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspStep (uint32_t addr,
+GdbServer::rspStep (bool         haveAddrP,
+		    uint32_t     addr,
 		    TargetSignal sig)
 {
-  uint16_t  coreId = cCore ();
+  uint16_t  coreId = cCore ();		// Rude message if current thread is -1
   assert (isCoreHalted (coreId));
+
+  if (!haveAddrP)
+    {
+      // @todo This should be done on a per-core basis for thread -1
+      addr = readPc (coreId);
+    }
 
   if (si->debugStopResumeDetail ())
     cerr << dec << "DebugStopResumeDetail: rspStep (" << (void *) addr

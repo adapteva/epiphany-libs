@@ -1,3 +1,23 @@
+2014-03-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Add ProcessInfo target.
+	* Release/src/subdir.mk: Likewise.
+	* src/GdbServer.cpp (GdbServer::GdbServer): Assert for FSTATUS
+	(GdbServer::rspServer): Rename initThreads as initProcesses.
+	(GdbServer::initProcesses): Renamed from initThreads and add
+	process set up.
+	(GdbServer::initThreads): Renamed as initProcesses.
+	(GdbServer::rspAttach): Correctly report core on attach.
+	(GdbServer::rspClientRequest): Call rspStep () for both 's' and 'S'.
+	(GdbServer::rspOsDataProcesses): Report all processes.
+	(GdbServer::rspStep): No argument form handles both 's' and
+	'S'. Generic form pass in address and signal and whether address
+	was provided (can't get PC until know which threads are to be started).
+	* src/GdbServer.h: Add data structures for processes. Remove one
+	unused rspStep version and change prototype of full version.
+	* src/ProcessInfo.cpp: Created.
+	* src/ProcessInfo.h: Created.
+
 2014-03-09  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspAttach): Force

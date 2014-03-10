@@ -47,8 +47,9 @@
 #include <assert.h>
 #include <string.h>
 
-#include "RspConnection.h"
 #include "MpHash.h"
+#include "ProcessInfo.h"
+#include "RspConnection.h"
 #include "RspPacket.h"
 
 #include "ServerInfo.h"
@@ -164,6 +165,18 @@ private:
   //! Size of the trap instruction (in bytes)
   static const int TRAP_INSTLEN = 2;
 
+  //! Number of the idle process
+  static const int IDLE_PID = 1;
+
+  //! Set of processes
+  set <ProcessInfo *> mProcesses;
+
+  //! The idle process
+  ProcessInfo * mIdleProcess;
+
+  //! Next process ID to use
+  int  mNextPid;
+
   //! Map from core to thread
   map <uint16_t, int> core2thread;
 
@@ -209,7 +222,7 @@ private:
   string  osTrafficReply;
 
   // Helper functions for setting up a connection
-  void initThreads ();
+  void initProcesses ();
   void rspAttach ();
   void rspDetach ();
 
@@ -245,8 +258,7 @@ private:
   void rspSet ();
   void rspRestart ();
   void rspStep ();
-  void rspStep (TargetSignal except);
-  void rspStep (uint32_t addr, TargetSignal except);
+  void rspStep (bool haveAddrP, uint32_t addr, TargetSignal except);
   void rspIsThreadAlive ();
   void targetResume (uint16_t coreId);
   void rspVpkt ();

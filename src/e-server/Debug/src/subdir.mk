@@ -7,6 +7,7 @@ CPP_SRCS += \
 ../src/GdbServer.cpp \
 ../src/MemRange.cpp \
 ../src/MpHash.cpp \
+../src/ProcessInfo.cpp \
 ../src/RspConnection.cpp \
 ../src/RspPacket.cpp \
 ../src/Utils.cpp \
@@ -19,6 +20,7 @@ OBJS += \
 ./src/GdbServer.o \
 ./src/MemRange.o \
 ./src/MpHash.o \
+./src/ProcessInfo.o \
 ./src/RspConnection.o \
 ./src/RspPacket.o \
 ./src/Utils.o \
@@ -31,6 +33,7 @@ CPP_DEPS += \
 ./src/GdbServer.d \
 ./src/MemRange.d \
 ./src/MpHash.d \
+./src/ProcessInfo.d \
 ./src/RspConnection.d \
 ./src/RspPacket.d \
 ./src/Utils.d \
