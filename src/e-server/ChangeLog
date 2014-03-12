@@ -1,5 +1,14 @@
 2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/CoreId.cpp (operator<<): Use 2 chars for column as well as row.
+	* src/GdbServer.cpp (GdbServer::regAddr): Increment reg addresses
+	by 4 bytes.
+	* src/GdbServer.h: Make regnums unsigned ints
+	* src/TargetControlHardware.cpp (TargetControlHardware::readMem):
+	Slightly simpler formula to map buf to data.
+
+2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Debug/src/subdir.mk: Added CoreId.
 	* Release/src/subdir.mk: Likewise.
 	* src/CoreId.cpp: Created,

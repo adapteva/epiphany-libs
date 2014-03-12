@@ -186,8 +186,8 @@ TargetControlHardware::readMem (CoreId  coreId,
     {
       // pack returned data
       data = 0;
-      for (unsigned i = 0; i < len; i++)
-	data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
+      for (unsigned int i = len; i > 0; i--)
+	data = (data << 8) | ((uint32_t) buf[i - 1]);
 
       if (si->debugTargetWr ())
 	cerr << "DebugTargetWr: readMem (" << coreId << ", 0x"

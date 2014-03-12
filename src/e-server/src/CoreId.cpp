@@ -143,7 +143,8 @@ operator<< (ostream& os, const CoreId& coreId)
   int width = os.width ();
   char fill = os.fill ();
 
-  os << setw (2) << setfill ('0') <<  coreId.row () << coreId.col ();
+  os << setfill ('0') << setw (2) <<  coreId.row () << setw (2)
+     << coreId.col ();
 
   os.width (width);
   os.fill (fill);

@@ -129,27 +129,27 @@ private:
   static const uint32_t IVT_ENTRIES = 10;
 
   // Specific GDB register numbers - GPRs
-  static const int R0_REGNUM = 0;
-  static const int RV_REGNUM = 0;
-  static const int SB_REGNUM = 9;
-  static const int SL_REGNUM = 10;
-  static const int FP_REGNUM = 11;
-  static const int IP_REGNUM = 12;
-  static const int SP_REGNUM = 13;
-  static const int LR_REGNUM = 14;
+  static const unsigned int R0_REGNUM = 0;
+  static const unsigned int RV_REGNUM = 0;
+  static const unsigned int SB_REGNUM = 9;
+  static const unsigned int SL_REGNUM = 10;
+  static const unsigned int FP_REGNUM = 11;
+  static const unsigned int IP_REGNUM = 12;
+  static const unsigned int SP_REGNUM = 13;
+  static const unsigned int LR_REGNUM = 14;
 
   // Specific GDB register numbers - SCRs
-  static const int CONFIG_REGNUM = NUM_GPRS;
-  static const int STATUS_REGNUM = NUM_GPRS + 1;
-  static const int PC_REGNUM = NUM_GPRS + 2;
-  static const int DEBUGSTATUS_REGNUM = NUM_GPRS + 3;
-  static const int IRET_REGNUM = NUM_GPRS + 7;
-  static const int IMASK_REGNUM = NUM_GPRS + 8;
-  static const int ILAT_REGNUM = NUM_GPRS + 9;
-  static const int FSTATUS_REGNUM = NUM_GPRS + 13;
-  static const int DEBUGCMD_REGNUM = NUM_GPRS + 14;
-  static const int RESETCORE_REGNUM = NUM_GPRS + 15;
-  static const int COREID_REGNUM = NUM_GPRS + 37;
+  static const unsigned int CONFIG_REGNUM = NUM_GPRS;
+  static const unsigned int STATUS_REGNUM = NUM_GPRS + 1;
+  static const unsigned int PC_REGNUM = NUM_GPRS + 2;
+  static const unsigned int DEBUGSTATUS_REGNUM = NUM_GPRS + 3;
+  static const unsigned int IRET_REGNUM = NUM_GPRS + 7;
+  static const unsigned int IMASK_REGNUM = NUM_GPRS + 8;
+  static const unsigned int ILAT_REGNUM = NUM_GPRS + 9;
+  static const unsigned int FSTATUS_REGNUM = NUM_GPRS + 13;
+  static const unsigned int DEBUGCMD_REGNUM = NUM_GPRS + 14;
+  static const unsigned int RESETCORE_REGNUM = NUM_GPRS + 15;
+  static const unsigned int COREID_REGNUM = NUM_GPRS + 37;
 
   //! GDB register nu
 
