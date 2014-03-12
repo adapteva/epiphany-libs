@@ -182,7 +182,8 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	  else
 	    {
 	      //continue
-	      rspContinue (0, 0);	//the args are ignored by continue command in this mode
+	      rspContinue (0, 0);	// The args are ignored by continue
+					// command in this mode
 	    }
 	  if (si->debugCtrlCWait())
 	    cerr << dec <<
@@ -225,12 +226,10 @@ GdbServer::initProcesses ()
   mProcesses.insert (mIdleProcess);
   mNextPid = IDLE_PID + 1;
 
-  // Initialize info from the target
-  vector <CoreId> coreIds = fTargetControl->listCoreIds ();
-
-  // Initialize a bi-directional mapping
-  vector <CoreId>::iterator  it;
-  for (it = coreIds.begin (); it!= coreIds.end (); it++)
+  // Initialize a bi-directional mapping from the target
+  for (vector <CoreId>::iterator it = fTargetControl->coreIdBegin ();
+       it!= fTargetControl->coreIdEnd ();
+       it++)
     {
       CoreId coreId = *it;
       int threadId = (coreId.row () + 1) * 100 + coreId.col () + 1;
@@ -257,8 +256,8 @@ GdbServer::initProcesses ()
 void
 GdbServer::rspAttach ()
 {
-  bool isHalted = targetHalt ();
   CoreId coreId = cCore ();
+  bool isHalted = targetHalt (coreId);
 
   if (isCoreIdle (coreId))
     {
@@ -324,7 +323,7 @@ GdbServer::rspClientRequest ()
 
     case '?':
       // Return last signal ID
-      rspReportException (0 /*PC ??? */ , 0 /*all threads */ ,
+      rspReportException (0 /*PC ??? */ , -1 /*all threads */ ,
 			  TARGET_SIGNAL_TRAP);
       break;
 
@@ -516,18 +515,16 @@ GdbServer::rspClientRequest ()
 //! TODO no thread support -- always report as S packet
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspReportException (uint32_t stoppedPC, CoreId coreId,
+GdbServer::rspReportException (uint32_t stoppedPC, int threadId,
 			       TargetSignal exCause)
 {
-  int threadId = core2thread [coreId];
-
   if (si->debugStopResume ())
     cerr << "DebugStopResume: Report exception at PC " << stoppedPC
 	 << " for thread " << threadId << " with GDB signal " << exCause
 	 << endl;
 
   // Construct a signal received packet
-  if (threadId == 0)
+  if (threadId == -1)
     {
       pkt->data[0] = 'S';
     }
@@ -539,7 +536,7 @@ GdbServer::rspReportException (uint32_t stoppedPC, CoreId coreId,
   pkt->data[1] = Utils::hex2Char (exCause >> 4);
   pkt->data[2] = Utils::hex2Char (exCause % 16);
 
-  if (threadId != 0)
+  if (threadId != -1)
     {
       sprintf ((pkt->data), "T05thread:%d;", threadId);
 
@@ -556,7 +553,7 @@ GdbServer::rspReportException (uint32_t stoppedPC, CoreId coreId,
   //core in Debug state (bkpt) .. report to gdb
   fIsTargetRunning = false;
 
-}				// rspReportException()
+}	// rspReportException()
 
 
 //-----------------------------------------------------------------------------
@@ -636,7 +633,7 @@ GdbServer::rspContinue ()
   uint32_t reportedPc = readPc (cCore ());
 
   // report to gdb the target has been stopped
-  rspReportException (reportedPc, 0 /* all threads */ , exCause);
+  rspReportException (reportedPc, -1 /* all threads */ , exCause);
 
 }				// rspContinue()
 
@@ -779,7 +776,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	      // report to gdb the target has been stopped
 
-	      rspReportException (prevPc, 0 /*all threads */ ,
+	      rspReportException (prevPc, -1 /*all threads */ ,
 				  TARGET_SIGNAL_TRAP);
 
 
@@ -845,7 +842,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		      endl;
 		  // report to gdb the target has been stopped
 		  rspReportException (readPc (cCore ()) /* PC no trap found */ ,
-				      0 /* all threads */ ,
+				      -1 /* all threads */ ,
 				      TARGET_SIGNAL_TRAP);
 		}
 	    }
@@ -868,6 +865,7 @@ GdbServer::rspSuspend ()
 {
   TargetSignal exCause = TARGET_SIGNAL_TRAP;
   uint32_t reportedPc;
+  CoreId coreId = cCore ();
 
   bool isHalted;
 
@@ -876,23 +874,13 @@ GdbServer::rspSuspend ()
       "force debug mode" << endl;
 
   //probably target suspended
-  if (!isCoreHalted (cCore ()))
-    {
-
-      isHalted = targetHalt ();
-    }
+  if (!isCoreHalted (coreId))
+    isHalted = targetHalt (coreId);
   else
-    {
-      isHalted = true;
-    }
+    isHalted = true;
 
   if (!isHalted)
-    {
-
-      exCause = TARGET_SIGNAL_HUP;
-
-
-    }
+    exCause = TARGET_SIGNAL_HUP;
   else
     {
 
@@ -936,7 +924,7 @@ GdbServer::rspSuspend ()
     }
 
   // report to gdb the target has been stopped
-  rspReportException (reportedPc, 0 /*all threads */ , exCause);
+  rspReportException (reportedPc, -1 /*all threads */ , exCause);
 }
 
 
@@ -1101,15 +1089,15 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       r0 = readReg (gCore (), R0_REGNUM + 0);		//status
       //cerr << " The remote target got exit() call ... no OS -- ignored" << endl;
       //exit(4);
-      rspReportException (readPc (cCore ()), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (readPc (cCore ()), -1 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_PASS:
       cerr << " Trap 4 PASS " << endl;
-      rspReportException (readPc (cCore ()), 0 /*all threads */ , TARGET_SIGNAL_TRAP);
+      rspReportException (readPc (cCore ()), -1 /*all threads */ , TARGET_SIGNAL_TRAP);
       break;
     case TRAP_FAIL:
       cerr << " Trap 5 FAIL " << endl;
-      rspReportException (readPc (cCore ()), 0 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (readPc (cCore ()), -1 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
       r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
@@ -1864,89 +1852,79 @@ GdbServer::rspCommand ()
 
   if (strcmp ("swreset", cmd) == 0)
     {
-
-      cerr << dec <<
-	"The debugger sent reset request" << endl;
-
-      //reset
+      cout << "INFO: Software reset" << endl;
       targetSwReset ();
-
+      pkt->packHexstr ("Software reset issued\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
     }
   else if (strcmp ("hwreset", cmd) == 0)
     {
-
-      char mess[] =
-	"The debugger sent HW (platfrom) reset request, please restart other debug clients.\n";
-
-      cerr << dec << mess
-	<< endl;
-
-      //HW reset (ESYS_RESET)
+      cout << "INFO: Hardware reset" << endl;
       targetHWReset ();
-
-      //FIXME ???
-      Utils::ascii2Hex (pkt->data, mess);
-
+      pkt->packHexstr ("Hardware reset issued: restart debug client (s)\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
     }
   else if (strcmp ("halt", cmd) == 0)
     {
+      cout << "INFO: Halting all cores" << endl;
+      bool allHalted = true;
 
-      cerr << dec <<
-	"The debugger sent halt request," << endl;
+      for (map <CoreId, int>::iterator it = core2thread.begin ();
+	   it != core2thread.end ();
+	   it++)
+	allHalted &= targetHalt (it->first);
 
-      //target halt
-      bool isHalted = targetHalt ();
-      if (!isHalted)
+      if (allHalted)
+	pkt->packHexstr ("All cores halted\n");
+      else
 	{
-	  rspReportException (0, 0 /*all threads */ , TARGET_SIGNAL_HUP);
+	  cout << "INFO: - some cores failed to halt" << endl;
+	  pkt->packHexstr ("Some cores halted\n");
 	}
-
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
     }
   else if (strcmp ("run", cmd) == 0)
     {
-
-      cerr 
-<< dec <<
-	"The debugger sent start request," << endl;
-
-      // target start (ILAT set)
-      // ILAT set
-      //! @todo Surely we should be doing this write to ILATST? Probably
-      //        doesn't matter for reset.
-      writeReg (cCore (), ILAT_REGNUM, TargetControl::ILAT_ILAT_SYNC);
+      // Not at all sure what this is meant to do. Send a rude message for
+      // now. Perhaps it was about taking cores out of IDLE?
+      pkt->packHexstr ("monitor run no longer supported\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
+      CoreId absCCoreId = readCoreId (cCore ());
+      CoreId absGCoreId = readCoreId (gCore ());
+      CoreId relCCoreId = fTargetControl->abs2rel (absCCoreId);
+      CoreId relGCoreId = fTargetControl->abs2rel (absGCoreId);
+      std::ostringstream  oss;
 
-      uint32_t val = readCoreId (gCore ());
+      oss << "Continue core ID: " << absCCoreId << " (absolute), "
+	  << relCCoreId << " (relative)" << endl;
+      pkt->packHexstr (oss.str ().c_str ());
+      oss << "General  core ID: " << absGCoreId << " (absolute), "
+	  << relGCoreId << " (relative)" << endl;
+      pkt->packHexstr (oss.str ().c_str ());
 
-      char buf[256];
-      sprintf (buf, "0x%x\n", val);
-
-      Utils::ascii2Hex (pkt->data, buf);
-
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
     }
   else if (strcmp ("help", cmd) == 0)
     {
-
-      Utils::ascii2Hex (pkt->data,
-			(char *)
-			"monitor commands: hwreset, coreid, swreset, halt, run, help\n");
-
-    }
-  else if (strcmp ("help-hidden", cmd) == 0)
-    {
-
-      Utils::ascii2Hex (pkt->data, (char *) "link,spi\n");
-
+      pkt->packHexstr ("monitor commands: hwreset, coreid, swreset, halt, "
+		       "run, help\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
     }
   else
     {
-      cerr << "Warning: received remote command " << cmd << ": ignored" <<
-	endl;
+      cerr << "Warning: Remote command " << cmd << ": ignored" << endl;
+      pkt->packStr ("E01");
     }
 
-  pkt->setLen (strlen (pkt->data));
   rsp->putPkt (pkt);
 
 }				// rspCommand()
@@ -2177,7 +2155,7 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	    ProcessInfo *process = *pit;
 	    osProcessReply += "  <item>\n"
 	    "    <column name=\"pid\">";
-	    osProcessReply += process->pid ();
+	    osProcessReply += intStr (process->pid ());
 	    osProcessReply += "</column>\n"
 	    "    <column name=\"user\">root</column>\n"
 	    "    <column name=\"command\"></column>\n"
@@ -2808,7 +2786,7 @@ GdbServer::rspStep (bool         haveAddrP,
     writeMem16 (coreId, bkptJumpAddr, bkptJumpVal);
 
   // report to GDB the target has been stopped
-  rspReportException (addr, coreId, TARGET_SIGNAL_TRAP);
+  rspReportException (addr, core2thread[coreId], TARGET_SIGNAL_TRAP);
 
 }	// rspStep()
 
@@ -3000,33 +2978,34 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 
 
 //-----------------------------------------------------------------------------
-//! Halt the target
+//! Halt a target core.
 
-//! Done by putting the processor into debug mode.
+//! Done by putting the core into debug mode.
 
+//! @param[in] coreId  The core to halt.
 //! @return  TRUE if we halt successfully, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::targetHalt ()
+GdbServer::targetHalt (CoreId coreId)
 {
-  if (!writeReg (cCore (), DEBUGCMD_REGNUM,
+  if (!writeReg (coreId, DEBUGCMD_REGNUM,
 		 TargetControl::DEBUGCMD_COMMAND_HALT))
     cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
 
   if (si->debugStopResume ())
       cerr << "DebugStopResume: Wrote HALT to DEBUGCMD" << endl;
 
-  if (!isCoreHalted (cCore ()))
+  if (!isCoreHalted (coreId))
     {
       sleep (1);
 
       // Try again, then give up
-      if (!isCoreHalted (cCore ()))
+      if (!isCoreHalted (coreId))
 	{
 	  cerr << "Warning: Target has not halted after 1 sec " << endl;
 	  uint32_t val;
-	  if (readReg (cCore (), DEBUGSTATUS_REGNUM, val))
-	    cerr << "         - core ID = " << cCore ()
+	  if (readReg (coreId, DEBUGSTATUS_REGNUM, val))
+	    cerr << "         - core ID = " << coreId
 		 << ", DEBUGSTATUS = 0x" << hex << setw (8) << setfill ('0')
 		 << val << setfill (' ') << setw (0) << dec << endl;
 	  else
@@ -3845,10 +3824,11 @@ GdbServer::writeReg (CoreId  coreId,
 //! @param[in]  coreId  The core to read from
 //! @return  The value of the Core ID
 //-----------------------------------------------------------------------------
-uint32_t
+CoreId
 GdbServer::readCoreId (CoreId coreId) const
 {
-  return readReg (coreId, COREID_REGNUM);
+  CoreId *res = new CoreId (readReg (coreId, COREID_REGNUM));
+  return *res;
 
 }	// readCoreId ()
 

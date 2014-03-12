@@ -1,5 +1,39 @@
 2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::initProcesses): Use Target
+	hardware iterators
+	(GdbServer::rspAttach): -1 to indicate all threads for exception.
+	(GdbServer::rspClientRequest): Likewise.
+	(GdbServer::rspReportException): Likewise.
+	(GdbServer::rspContinue): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspCommand): General cleanup, and proper return of
+	results.
+	(GdbServer::rspOsDataProcesses): Correctly print the process ID.
+	(GdbServer::rspStep): -1 to indicate all threads for exception.
+	(GdbServer::targetHalt): Take a core ID argument.
+	(GdbServer::readCoreId): Return a core ID
+	* src/GdbServer.h: Change prototype of rspReportException,
+	readCoreId and targetHalt.
+	* src/RspPacket.cpp (RspPacket::packHexstr): Created.
+	* src/RspPacket.h: Add new method.
+	* src/TargetControl.h: Replace listCoreIds by iterator and add
+	abs2rel.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::listCoreIds): Deleted.
+	(TargetControlHardware::coreIdBegin): Created.
+	(TargetControlHardware::coreIdEnd): Likewise.
+	(TargetControlHardware::abs2rel): Likewise.
+	(TargetControlHardware::initMaps): Initialize abs2relCore, replace
+	coreMap by rel2absCore.
+	(TargetControlHardware::showMaps): Replace coreMap by rel2absCore.
+	(TargetControlHardware::convertAddress): Likewise.
+	* src/TargetControlHardware.h: Replace listCoreIds by iterator and
+	add abs2rel, replace coreMap by rel2absCore.
+
+2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/CoreId.cpp (operator<<): Use 2 chars for column as well as row.
 	* src/GdbServer.cpp (GdbServer::regAddr): Increment reg addresses
 	by 4 bytes.

@@ -230,7 +230,7 @@ private:
   void rspClientRequest ();
 
   // Handle the various RSP requests
-  void rspReportException (uint32_t stoppedPC, CoreId coreId,
+  void rspReportException (uint32_t stoppedPC, int threadId,
 			   TargetSignal exCause);
   void rspContinue ();
   void rspContinue (uint32_t except);
@@ -317,7 +317,7 @@ private:
 		 uint32_t value) const;
 
   // Convenience functions for reading and writing various common registers
-  uint32_t readCoreId (CoreId  coreId) const;
+  CoreId readCoreId (CoreId  coreId) const;
   uint32_t readStatus (CoreId  coreId) const;
   uint32_t readPc (CoreId  coreId) const;
   void writePc (CoreId  coreId,
@@ -342,7 +342,7 @@ private:
   bool isCoreIdle (CoreId  coreId);
   bool isCoreGIntsEnabled (CoreId  coreId);
   TargetSignal getException (CoreId  coreId);
-  bool targetHalt ();
+  bool targetHalt (CoreId  coreId);
 
   void saveIVT (CoreId coreId);
   void restoreIVT (CoreId coreId);

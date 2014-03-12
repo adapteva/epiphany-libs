@@ -242,9 +242,11 @@ public:
 			  size_t buff_size) = 0;
 
   // Functions to access data about the target
-  virtual vector <CoreId>  listCoreIds () = 0;
+  virtual vector <CoreId>::iterator coreIdBegin () = 0;
+  virtual vector <CoreId>::iterator coreIdEnd () = 0;
   virtual unsigned int  getNumRows () = 0;
   virtual unsigned int  getNumCols () = 0;
+  virtual CoreId abs2rel (CoreId absCoreId) = 0;
 
   // Control functions
   virtual void platformReset ();

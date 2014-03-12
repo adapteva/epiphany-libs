@@ -57,20 +57,13 @@
 #include "Utils.h"
 
 
-using
-  std::ostream;
-using
-  std::cerr;
-using
-  std::dec;
-using
-  std::endl;
-using
-  std::hex;
-using
-  std::setfill;
-using
-  std::setw;
+using std::ostream;
+using std::cerr;
+using std::dec;
+using std::endl;
+using std::hex;
+using std::setfill;
+using std::setw;
 
 
 //-----------------------------------------------------------------------------
@@ -159,6 +152,43 @@ RspPacket::packNStr (const char *str,
 
 }	// packNStr ()
   
+
+//-----------------------------------------------------------------------------
+//! Pack a const string as a hex encoded string into a packet for qRcmd.
+
+//! The reply to qRcmd packets can be O followed by hex encoded ASCII.
+
+//! @param  str  The string to copy into the data packet before sending
+//-----------------------------------------------------------------------------
+void
+RspPacket::packHexstr (const char *str)
+{
+  int  slen = strlen (str);
+
+  // Construct the packet to send, so long as string is not too big, otherwise
+  // truncate. Add EOS at the end for convenient debug printout
+  if (slen >= (bufSize / 2 - 1))
+    {
+      cerr << "Warning: String \"" << str
+		<< "\" too large for RSP packet: truncated\n" << endl;
+      slen = bufSize / 2 - 1;
+    }
+
+  // Construct the string the hard way
+  data[0] = 'O';
+  for (int i = 0; i < slen; i++)
+    {
+      int nybble_hi = str[i] >> 4;
+      int nybble_lo = str[i] & 0x0f;
+
+      data[i * 2 + 1] = nybble_hi + (nybble_hi > 9 ? 'a' - 10 : '0');
+      data[i * 2 + 2] = nybble_lo + (nybble_lo > 9 ? 'a' - 10 : '0');
+    }
+  len       = slen * 2 + 1;
+  data[len] = 0;
+
+}	// packHexstr ()
+
 
 //-----------------------------------------------------------------------------
 //! Get the data buffer size

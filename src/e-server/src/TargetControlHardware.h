@@ -74,9 +74,11 @@ public:
 			  size_t buff_size);
 
   // Functions to access data about the target
-  virtual vector <CoreId>  listCoreIds ();
+  virtual vector <CoreId>::iterator  coreIdBegin ();
+  virtual vector <CoreId>::iterator  coreIdEnd ();
   virtual unsigned int  getNumRows ();
   virtual unsigned int  getNumCols ();
+  virtual CoreId abs2rel (CoreId absCoreId);
 
   // Initialization functions
   void  initHwPlatform (platform_definition_t* platform);
@@ -125,7 +127,10 @@ private:
   vector <CoreId> relCoreIds; 
 
   //! Map of relative to absolute core ID
-  map <CoreId, CoreId> coreMap;
+  map <CoreId, CoreId>  rel2absCore;
+
+  //! Reverse map of absolute to relative core ID
+  map <CoreId, CoreId>  abs2relCore;
 
   //! Map of memory range to absolute core ID
   map <MemRange, CoreId, MemRange> coreMemMap;

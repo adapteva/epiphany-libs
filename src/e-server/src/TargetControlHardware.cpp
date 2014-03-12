@@ -585,13 +585,24 @@ TargetControlHardware::breakSignalHandler (int signum)
 }
 
 
-//! Return a vector of all the (relative) CoreIds we know about.
-vector <CoreId>
-TargetControlHardware::listCoreIds ()
+//! Return an interator to the start of the vector of all the (relative)
+//! CoreIds we know about.
+vector <CoreId>::iterator
+TargetControlHardware::coreIdBegin ()
 {
-  return relCoreIds;
+  return relCoreIds.begin ();
 
-}	// listCoreIds ()
+}	// coreIdBegin ()
+
+
+//! Return an interator to the end of the vector of all the (relative)
+//! CoreIds we know about.
+vector <CoreId>::iterator
+TargetControlHardware::coreIdEnd ()
+{
+  return relCoreIds.end ();
+
+}	// coreIdEnd ()
 
 
 //! Return the number of rows
@@ -610,6 +621,21 @@ TargetControlHardware::getNumCols ()
   return  numCols;
 
 }	// numCols ();
+
+
+//! Map an absolute CoreId to a relative CoreId
+
+//! Users who read the CoreId register (which has an absolute value) may want
+//! to know the relative core ID corresponding
+
+//! @param[in] absCoreId  The absolute Core ID to map.
+//! @return  The relative CoreId
+CoreId
+TargetControlHardware::abs2rel (CoreId  absCoreId)
+{
+  return abs2relCore[absCoreId];
+
+}	// abs2rel ();
 
 
 //! Initialize the hardware platform
@@ -682,7 +708,8 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
   numCols = 0;
 
   relCoreIds.clear ();
-  coreMap.clear ();
+  rel2absCore.clear ();
+  abs2relCore.clear ();
   coreMemMap.clear ();
   reverseCoreMemMap.clear ();
   extMemSet.clear ();
@@ -707,9 +734,10 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
 	      CoreId relId (row, col);
 	      relCoreIds.push_back (relId);
 
-	      // Set up the relative to absolute core ID map entry
+	      // Set up the relative to/from absolute core ID maps
 	      CoreId absId (chip.yid + row, chip.xid + col);
-	      coreMap[relId] = absId;
+	      rel2absCore[relId] = absId;
+	      abs2relCore[absId] = relId;
 
 	      // Set up the memory map to and from absolute core ID map
 	      // entries.
@@ -758,8 +786,8 @@ TargetControlHardware::showMaps ()
   // Iterate over all the cores
   cout << "Core details:" << endl;
 
-  for (map <CoreId, CoreId>::iterator it = coreMap.begin ();
-       it != coreMap.end ();
+  for (map <CoreId, CoreId>::iterator it = rel2absCore.begin ();
+       it != rel2absCore.end ();
        it++)
     {
       CoreId relId = it->first;
@@ -823,7 +851,7 @@ uint32_t
 TargetControlHardware::convertAddress (CoreId relCoreId,
 				       uint32_t address)
 {
-  CoreId absCoreId = coreMap [relCoreId];
+  CoreId absCoreId = rel2absCore [relCoreId];
 
   if (address < CORE_MEM_SPACE)
     {

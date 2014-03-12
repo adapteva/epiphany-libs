@@ -75,6 +75,9 @@ public:
 		 int         n,
 		 char        prefix);
 
+  // Pack a hex encoded string into a packet
+  void  packHexstr (const char *str);
+
   // Accessors
   int getBufSize ();
   int getLen ();
