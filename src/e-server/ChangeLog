@@ -1,3 +1,16 @@
+2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Added CoreId.
+	* Release/src/subdir.mk: Likewise.
+	* src/CoreId.cpp: Created,
+	* src/CoreId.h: Created
+	* src/GdbServer.cpp: Replace uint32_t addresses by CoreId
+	throughout.
+	* src/GdbServer.h: Likewise.
+	* src/TargetControl.h: Likewise.
+	* src/TargetControlHardware.cpp: Likewise.
+	* src/TargetControlHardware.h: Likewise.
+
 2014-03-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* Debug/src/subdir.mk: Add ProcessInfo target.

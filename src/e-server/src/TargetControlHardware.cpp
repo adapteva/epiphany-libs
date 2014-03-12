@@ -28,6 +28,7 @@
 #include <iostream>
 #include <iomanip>
 #include <map>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -46,7 +47,9 @@ using std::dec;
 using std::endl;
 using std::hex;
 using std::map;
+using std::ostringstream;
 using std::pair;
+using std::setbase;
 using std::setfill;
 using std::setw;
 
@@ -64,7 +67,7 @@ TargetControlHardware::TargetControlHardware (ServerInfo*   _si) :
 
 
 bool
-TargetControlHardware::readMem32 (uint16_t coreId,
+TargetControlHardware::readMem32 (CoreId coreId,
 				  uint32_t addr,
 				  uint32_t& data)
 {
@@ -79,7 +82,7 @@ TargetControlHardware::readMem32 (uint16_t coreId,
 
 
 bool
-TargetControlHardware::readMem16 (uint16_t coreId,
+TargetControlHardware::readMem16 (CoreId coreId,
 				  uint32_t addr,
 				  uint16_t & data)
 {
@@ -94,7 +97,7 @@ TargetControlHardware::readMem16 (uint16_t coreId,
 
 
 bool
-TargetControlHardware::readMem8 (uint16_t coreId, 
+TargetControlHardware::readMem8 (CoreId coreId, 
 				 uint32_t addr,
 				 uint8_t & data)
 {
@@ -109,7 +112,7 @@ TargetControlHardware::readMem8 (uint16_t coreId,
 
 
 bool
-TargetControlHardware::writeMem32 (uint16_t coreId,
+TargetControlHardware::writeMem32 (CoreId coreId,
 				   uint32_t addr,
 				   uint32_t value)
 {
@@ -123,7 +126,7 @@ TargetControlHardware::writeMem32 (uint16_t coreId,
 
 
 bool
-TargetControlHardware::writeMem16 (uint16_t coreId,
+TargetControlHardware::writeMem16 (CoreId coreId,
 				   uint32_t addr,
 				   uint16_t value)
 {
@@ -138,7 +141,7 @@ TargetControlHardware::writeMem16 (uint16_t coreId,
 
 
 bool
-TargetControlHardware::writeMem8 (uint16_t coreId,
+TargetControlHardware::writeMem8 (CoreId coreId,
 				  uint32_t addr,
 				  uint8_t value)
 {
@@ -162,7 +165,7 @@ TargetControlHardware::writeMem8 (uint16_t coreId,
 //! @param[in]  len     Size of data to read (in bytes)
 //! @return  TRUE on success, FALSE otherwise.
 bool
-TargetControlHardware::readMem (uint16_t  coreId,
+TargetControlHardware::readMem (CoreId  coreId,
 				uint32_t  addr,
 				uint32_t& data,
 				size_t    len)
@@ -175,7 +178,7 @@ TargetControlHardware::readMem (uint16_t  coreId,
   size_t res = readFrom (fullAddr, (void *) buf, len);
   if (res != len)
     {
-      cerr << "Warning: readMem failed for addr " << (void *) addr
+      cerr << "Warning: readMem failed for addr 0x" << intStr (addr, 16, 8)
 	   << ", length " << len << ", result " << res << endl;
       return false;
     }
@@ -187,9 +190,10 @@ TargetControlHardware::readMem (uint16_t  coreId,
 	data = (data & (~(0xff << (i * 8)))) | (buf[i] << (i * 8));
 
       if (si->debugTargetWr ())
-	cerr << "DebugTargetWr: readMem (" << coreId << ", " << (void *) addr
-	     << ":" << (void *) fullAddr << ", " << (void *) data << ", "
-	     << len << ") -> " << (void *) data << endl;
+	cerr << "DebugTargetWr: readMem (" << coreId << ", 0x"
+	     << intStr (addr, 16, 8) << ":0x" << intStr (fullAddr, 16, 8)
+	     << ", 0x" <<  intStr (data, 16, 8) << ", " << len << ") -> "
+	     << intStr (data, 16, 8) << endl;
       
       return true;
     }
@@ -206,7 +210,7 @@ TargetControlHardware::readMem (uint16_t  coreId,
 //! @param[in] len     Size of data to read (in bytes)
 //! @return  TRUE on success, FALSE otherwise.
 bool
-TargetControlHardware::writeMem (uint16_t  coreId,
+TargetControlHardware::writeMem (CoreId  coreId,
 				 uint32_t  addr,
 				 uint32_t  data,
 				 size_t    len)
@@ -220,15 +224,16 @@ TargetControlHardware::writeMem (uint16_t  coreId,
     buf[i] = (data >> (i * 8)) & 0xff;
 
   if (si->debugTargetWr ())
-    cerr << "DebugTargetWr: writeMem (" << coreId << ", " << (void *) addr
-	 << ", " << (void *) data << ", " << len << ")" << endl;
+    cerr << "DebugTargetWr: writeMem (" << coreId << ", 0x"
+	 << intStr (addr, 16, 8) << ", 0x" << intStr (data, 16, 8)
+	 << ", " << len << ")" << endl;
 
   size_t res = writeTo (fullAddr, (void *) buf, len);
   if (res != len)
     {
-      cerr << "Warning: writeMem failed for addr " << (void *) addr
-	   << ":" << (void *) fullAddr << ", length " << len << ", result "
-	   << res << endl;
+      cerr << "Warning: writeMem failed for addr 0x" << intStr (addr, 16, 8)
+	   << ":0x" << intStr (fullAddr, 16, 8) << ", length " << len
+	   << ", result " << res << endl;
       return false;
     }
 
@@ -246,7 +251,7 @@ TargetControlHardware::writeMem (uint16_t  coreId,
 //! @param[in]  addr    The address (local or global) to read from.
 //! @param[out] buf     Where to put the results.
 bool
-TargetControlHardware::readBurst (uint16_t coreId,
+TargetControlHardware::readBurst (CoreId coreId,
 				  uint32_t addr,
 				  uint8_t *buf,
 				  size_t burstSize)
@@ -254,8 +259,9 @@ TargetControlHardware::readBurst (uint16_t coreId,
   uint32_t fullAddr = convertAddress (coreId, addr);
 
   if (si->debugTargetWr ())
-    cerr << "DebugTargetWr: readBurst (" << coreId << ", " << (void *) addr
-	 << ", " << (void *) buf << ", " << burstSize << ")" << endl;
+    cerr << "DebugTargetWr: readBurst (" << coreId << ", "
+	 << intStr (addr, 16, 8) << ", " << (void *) buf << ", "
+	 << burstSize << ")" << endl;
       
 
   if ((fullAddr % E_WORD_BYTES) == 0)
@@ -271,8 +277,8 @@ TargetControlHardware::readBurst (uint16_t coreId,
 
 	  if (res != MAX_BURST_READ_BYTES)
 	    {
-	      cerr << "ERROR: Maximal read burst failed for full address "
-		   << (void *) fullAddr << ", burst size " << burstSize
+	      cerr << "ERROR: Maximal read burst failed for full address 0x"
+		   << intStr (fullAddr, 16, 8) << ", burst size " << burstSize
 		   << ", result " << res << endl;
 	      return false;
 	    }
@@ -287,8 +293,8 @@ TargetControlHardware::readBurst (uint16_t coreId,
 
 	  if (res != trailSize)
 	    {
-	      cerr << "ERROR: Trailing read burst failed for full address "
-		   << (void *) fullAddr << ", burst size " << burstSize
+	      cerr << "ERROR: Trailing read burst failed for full address 0x"
+		   << intStr (fullAddr, 16, 8) << ", burst size " << burstSize
 		   << ", result " << res << endl;
 	      return false;
 	    }
@@ -302,7 +308,7 @@ TargetControlHardware::readBurst (uint16_t coreId,
 	  if (!readMem8 (coreId, fullAddr + i, buf[i]))
 	    {
 	      cerr << "ERROR: Unaligned read burst failed for full address "
-		   << (void *) fullAddr << ", burst size " << burstSize
+		   << intStr (fullAddr, 16, 8) << ", burst size " << burstSize
 		   << ", byte " << i << endl;
 	      return false;
 	    }
@@ -321,7 +327,7 @@ TargetControlHardware::readBurst (uint16_t coreId,
 //! @param[in] bufSize  Number of bytes of data to write
 //! @return  TRUE on success, FALSE otherwise.
 bool
-TargetControlHardware::writeBurst (uint16_t coreId,
+TargetControlHardware::writeBurst (CoreId coreId,
 				   uint32_t addr,
 				   uint8_t *buf,
 				   size_t bufSize)
@@ -580,7 +586,7 @@ TargetControlHardware::breakSignalHandler (int signum)
 
 
 //! Return a vector of all the (relative) CoreIds we know about.
-vector <uint16_t>
+vector <CoreId>
 TargetControlHardware::listCoreIds ()
 {
   return relCoreIds;
@@ -698,19 +704,17 @@ TargetControlHardware::initMaps (platform_definition_t* platform)
 	      assert (col < (0x1 << 6));	// Max 6 bits
 
 	      // Record the relative core ID.
-	      uint16_t relId = (row << 6) | col;
+	      CoreId relId (row, col);
 	      relCoreIds.push_back (relId);
 
 	      // Set up the relative to absolute core ID map entry
-	      uint16_t absRow = chip.yid + row;
-	      uint16_t absCol = chip.xid + col;
-	      uint16_t absId = (absRow << 6) | absCol;
+	      CoreId absId (chip.yid + row, chip.xid + col);
 	      coreMap[relId] = absId;
 
 	      // Set up the memory map to and from absolute core ID map
 	      // entries.
-	      uint32_t  minAddr = (((uint32_t) absRow) << 26)
-		| (((uint32_t) absCol) << 20);
+	      uint32_t  minAddr = ((uint32_t) absId.row () << 26)
+		| ((uint32_t) absId.col () << 20);
 	      uint32_t  maxAddr = minAddr + chip.core_memory_size - 1;
 	      uint32_t  minRegAddr = minAddr + 0xf0000;
 	      uint32_t  maxRegAddr = minAddr + 0xf1000 - 1;
@@ -754,17 +758,12 @@ TargetControlHardware::showMaps ()
   // Iterate over all the cores
   cout << "Core details:" << endl;
 
-  for (map <uint16_t, uint16_t>::iterator it = coreMap.begin ();
+  for (map <CoreId, CoreId>::iterator it = coreMap.begin ();
        it != coreMap.end ();
        it++)
     {
-      uint16_t relId = it->first;
-      uint16_t absId = it->second;
-
-      uint16_t relRow = relId >> 6;
-      uint16_t relCol = relId & 0x3f;
-      uint16_t absRow = absId >> 6;
-      uint16_t absCol = absId & 0x3f;
+      CoreId relId = it->first;
+      CoreId absId = it->second;
 
       // We really can't have a core without a memory map, but do a sanity
       // check.
@@ -775,8 +774,9 @@ TargetControlHardware::showMaps ()
       uint32_t  minRegAddr = r.minRegAddr ();
       uint32_t  maxRegAddr = r.maxRegAddr ();
 
-      cout << "  relative -> absolute core ID (" << relRow << ", " << relCol
-	   << ") ->  (" << absRow << ", " << absCol << ")" << endl;
+      cout << "  relative -> absolute core ID (" << relId.row () << ", "
+	   << relId.col () << ") ->  (" << absId.row () << ", " << absId.col ()
+	   << ")" << endl;
       cout << "    memory range   [0x" << hex << setw (8) << setfill ('0')
 	   << minAddr << ", 0x" << maxAddr << "]" << endl;
       cout << "    register range [0x" << minRegAddr << ", 0x" << maxRegAddr
@@ -820,14 +820,14 @@ TargetControlHardware::getTargetId ()
 //! @param[in] address    The address to convert (may be local or global)
 //! @return  The global address
 uint32_t
-TargetControlHardware::convertAddress (uint16_t relCoreId,
+TargetControlHardware::convertAddress (CoreId relCoreId,
 				       uint32_t address)
 {
-  uint16_t absCoreId = coreMap [relCoreId];
+  CoreId absCoreId = coreMap [relCoreId];
 
   if (address < CORE_MEM_SPACE)
     {
-      return (((uint32_t) absCoreId) << 20) | (address & 0x000fffff);
+      return (((uint32_t) absCoreId.coreId ()) << 20) | (address & 0x000fffff);
     }
 
   // Validate any global address if requested
@@ -840,12 +840,10 @@ TargetControlHardware::convertAddress (uint16_t relCoreId,
 	return address;			// External memory
       else
 	{
-	  uint16_t absRow = absCoreId >> 6;
-	  uint16_t absCol = absCoreId & 0x3f;
-
-	  cerr << "ERROR: core ID (" << absRow << ", " << absCol 
-	       << "): invalid address 0x" << hex << setw (8) << setfill ('0') << address
-	       << setfill (' ') << setw (0) << dec << "." << endl;
+	  cerr << "ERROR: core ID (" << absCoreId.row () << ", "
+	       << absCoreId.col () << "): invalid address 0x" << hex
+	       << setw (8) << setfill ('0') << address << setfill (' ')
+	       << setw (0) << dec << "." << endl;
 	  exit (EXIT_FAILURE);
 	}
     }
@@ -899,7 +897,7 @@ TargetControlHardware::writeTo (unsigned int  address,
 				size_t        burstSize)
 {
   if (si->debugHwDetail ())
-    cerr << "DebugHwDetail: writeTo (" << (void *) address << ", "
+    cerr << "DebugHwDetail: writeTo (0x" << intStr (address, 16, 8) << ", "
 	 << (void *) buf << ", " << burstSize << ")" << endl;
   
   return (*writeToFunc) (address, buf, burstSize);
@@ -919,7 +917,7 @@ TargetControlHardware::readFrom (unsigned  address,
 				 size_t    burstSize)
 {
   if (si->debugHwDetail ())
-      cerr << "DebugHwDetail: readFrom (" << (void *) address << ", "
+    cerr << "DebugHwDetail: readFrom (0x" << intStr (address, 16, 8) << ", "
 	   << (void *) buf << ", " << burstSize << ")" << endl;
 
   return (*readFromFunc) (address, buf, burstSize);
@@ -949,8 +947,8 @@ int
 TargetControlHardware::getDescription (char** targetIdp)
 {
   if (si->debugHwDetail ())
-      cerr << "DebugHwDetail: getDescription (" << (void *) targetIdp << ")"
-	   << endl;
+    cerr << "DebugHwDetail: getDescription (" << (void *) targetIdp << ")"
+	 << endl;
 
   return (*getDescriptionFunc) (targetIdp);
 
@@ -982,6 +980,27 @@ TargetControlHardware::findSharedFunc (const char *funcName)
   return funcPtr;
 
 }	// loadSharedFunc ()
+
+
+//-----------------------------------------------------------------------------
+//! Convenience function to turn an integer into a string
+
+//! @param[in] val    The value to convert
+//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
+//!                   or 16. Other values will reset the iostream flags.
+//! @param[in] width  The width to pad (with zeros).
+//-----------------------------------------------------------------------------
+string
+TargetControlHardware::intStr (int  val,
+			       int  base,
+			       int  width) const
+{
+  ostringstream  os;
+
+  os << setbase (base) << setfill ('0') << setw (width) << val;
+  return os.str ();
+
+}	// intStr ()
 
 
 // Local Variables:

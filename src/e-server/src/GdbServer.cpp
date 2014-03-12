@@ -226,16 +226,14 @@ GdbServer::initProcesses ()
   mNextPid = IDLE_PID + 1;
 
   // Initialize info from the target
-  vector <uint16_t> coreIds = fTargetControl->listCoreIds ();
+  vector <CoreId> coreIds = fTargetControl->listCoreIds ();
 
   // Initialize a bi-directional mapping
-  vector <uint16_t>::iterator  it;
+  vector <CoreId>::iterator  it;
   for (it = coreIds.begin (); it!= coreIds.end (); it++)
     {
-      uint16_t coreId = *it;
-      int row = coreId >> 6;
-      int col = coreId & 0x3f;
-      int threadId = (row + 1) * 100 + col + 1;
+      CoreId coreId = *it;
+      int threadId = (coreId.row () + 1) * 100 + coreId.col () + 1;
 
       // Oh for bi-directional maps
       core2thread [coreId] = threadId;
@@ -260,12 +258,12 @@ void
 GdbServer::rspAttach ()
 {
   bool isHalted = targetHalt ();
-  uint16_t coreId = cCore ();
+  CoreId coreId = cCore ();
 
   if (isCoreIdle (coreId))
     {
-      cerr << "Warning: Core " << coreIdStr (coreId)
-	   << " idle on attach: forcing active." << endl;
+      cerr << "Warning: Core " << coreId << " idle on attach: forcing active."
+	   << endl;
       uint32_t status = readReg (coreId, STATUS_REGNUM);
       status &= ~TargetControl::STATUS_ACTIVE_MASK;
       status |= TargetControl::STATUS_ACTIVE_ACTIVE;
@@ -518,11 +516,13 @@ GdbServer::rspClientRequest ()
 //! TODO no thread support -- always report as S packet
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspReportException (uint32_t stoppedPC, int threadId,
+GdbServer::rspReportException (uint32_t stoppedPC, CoreId coreId,
 			       TargetSignal exCause)
 {
+  int threadId = core2thread [coreId];
+
   if (si->debugStopResume ())
-    cerr << "DebugStopResume: Report exception at PC " << (void *) stoppedPC
+    cerr << "DebugStopResume: Report exception at PC " << stoppedPC
 	 << " for thread " << threadId << " with GDB signal " << exCause
 	 << endl;
 
@@ -573,8 +573,8 @@ GdbServer::rspReportException (uint32_t stoppedPC, int threadId,
 void
 GdbServer::rspContinue (uint32_t except)
 {
-  uint32_t addr;		// Address to continue from, if any
-
+  uint32_t     addr;		// Address to continue from, if any
+  uint32_t  hexAddr;		// Address supplied in packet
   // Reject all except 'c' packets
   if ('c' != pkt->data[0])
     {
@@ -585,10 +585,10 @@ GdbServer::rspContinue (uint32_t except)
 
   // Get an address if we have one
   if (0 == strcmp ("c", pkt->data))
-    {
-      addr = readPc (cCore ());		// Default uses current PC
-    }
-  else if (1 != sscanf (pkt->data, "c%x", &addr))
+    addr = readPc (cCore ());		// Default uses current PC
+  else if (1 == sscanf (pkt->data, "c%" SCNx32, &hexAddr))
+    addr = hexAddr;
+  else
     {
       cerr << "Warning: RSP continue address " << pkt->data
 	<< " not recognized: ignored" << endl;
@@ -664,7 +664,7 @@ GdbServer::NanoSleepThread (unsigned long timeout)
 //! @param[in] coreId  The core to resume.
 //-----------------------------------------------------------------------------
 void
-GdbServer::targetResume (uint16_t coreId)
+GdbServer::targetResume (CoreId coreId)
 {
   if (!writeReg (coreId, DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN))
     cerr << "Warning: Failed to resume target." << endl;
@@ -802,7 +802,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 		  if (valueOfStoppedInstr == NOP_INSTR)
 		    {		//trap is always padded by nops
-		      for (unsigned j = prevPc - 2; j > prevPc - 20;
+		      for (uint32_t j = prevPc - 2; j > prevPc - 20;
 			   j = j - 2 /* length of */ )
 			{
 			  //check if it is trap
@@ -1439,7 +1439,7 @@ GdbServer::rspReadMem ()
   if (si->debugTiming ())
     {
       fTargetControl->startOfBaudMeasurement ();
-      cerr << "DebugTiming: rspReadMem START, address " << (void *) addr
+      cerr << "DebugTiming: rspReadMem START, address " << addr
 	   << ", length " << len << endl;
     }
 
@@ -1773,7 +1773,7 @@ GdbServer::rspQThreadInfo (bool isFirst)
   if (isFirst)
     {
       ostringstream  os;
-      map <int, uint16_t>::iterator  it;
+      map <int, CoreId>::iterator  it;
 
       for (it = thread2core.begin (); it != thread2core.end (); it++)
 	{
@@ -1816,14 +1816,14 @@ GdbServer::rspQThreadExtraInfo ()
     }
 
   // Data about thread
-  uint16_t coreId = thread2core[tid];
+  CoreId coreId = thread2core[tid];
   bool isHalted = isCoreHalted (coreId);
   bool isIdle = isCoreIdle (coreId);
   bool isGIntsEnabled = isCoreGIntsEnabled (coreId);
 
   char* buf = &(pkt->data[0]);
   string res = "Core: ";
-  res += coreIdStr (coreId);
+  res += coreId;
   if (isIdle)
     res += isHalted ? ": idle, halted" : ": idle";
   else
@@ -2171,12 +2171,14 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	"<osdata type=\"processes\">\n";
 
 	// Iterate through all processes
-	for (set <ProcessInfo>::iterator pit = mProcesses.begin ();
+	for (set <ProcessInfo *>::iterator pit = mProcesses.begin ();
 	     pit != mProcesses.end (); pit++)
 	  {
 	    ProcessInfo *process = *pit;
-	    osProcessReply"  <item>\n"
-	    "    <column name=\"pid\">" + it->pid () + "</column>\n"
+	    osProcessReply += "  <item>\n"
+	    "    <column name=\"pid\">";
+	    osProcessReply += process->pid ();
+	    osProcessReply += "</column>\n"
 	    "    <column name=\"user\">root</column>\n"
 	    "    <column name=\"command\"></column>\n"
 	    "    <column name=\"cores\">\n"
@@ -2185,10 +2187,10 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	    for (set <int>::iterator tit = process->threadBegin ();
 		 tit != process->threadEnd (); tit++)
 	      {
-		if (tit != process->threadbegin ())
+		if (tit != process->threadBegin ())
 		  osProcessReply += ",";
 
-		osProcessReply += coreIdStr (thread2core (*tit));
+		osProcessReply += thread2core [*tit];
 	      }
 
 	    osProcessReply += "\n"
@@ -2257,14 +2259,14 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
 	"<osdata type=\"load\">\n";
 
-      map <uint16_t, int>::iterator  it;
+      map <CoreId, int>::iterator  it;
 
       for (it = core2thread.begin (); it != core2thread.end (); it++)
 	{
 	  osLoadReply +=
 	    "  <item>\n"
 	    "    <column name=\"coreid\">";
-	  osLoadReply += coreIdStr (it->first);
+	  osLoadReply += it->first;
 	  osLoadReply += "</column>\n";
 
 	  osLoadReply +=
@@ -2347,26 +2349,24 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 
       unsigned int maxRow = fTargetControl->getNumRows () - 1;
       unsigned int maxCol = fTargetControl->getNumCols () - 1;
-      map <uint16_t, int>::iterator  it;
+      map <CoreId, int>::iterator  it;
 
       for (it = core2thread.begin (); it != core2thread.end (); it++)
 	{
-	  uint16_t coreId = it->first;
-	  unsigned int row = (coreId >> 6) & 0x3f;
-	  unsigned int col = coreId & 0x3f;
+	  CoreId coreId = it->first;
 	  string inTraffic;
 	  string outTraffic;
 
 	  osTrafficReply +=
 	    "  <item>\n"
 	    "    <column name=\"coreid\">";
-	  osTrafficReply += coreIdStr (coreId);
+	  osTrafficReply += coreId;
 	  osTrafficReply += "</column>\n";
 
 	  // See what adjacent cores we have. Note that empty columns confuse
 	  // GDB! There is traffic on incoming edges, but not outgoing.
 	  inTraffic = intStr (random () % 100, 10, 2);
-	  if (row > 0)
+	  if (coreId.row () > 0)
 	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
@@ -2380,7 +2380,7 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += "</column>\n";
 
 	  inTraffic = intStr (random () % 100, 10, 2);
-	  if (row < maxRow)
+	  if (coreId.row ()< maxRow)
 	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
@@ -2394,7 +2394,7 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += "</column>\n";
 
 	  inTraffic = intStr (random () % 100, 10, 2);
-	  if (col < maxCol)
+	  if (coreId.col () < maxCol)
 	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
@@ -2408,7 +2408,7 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += "</column>\n";
 
 	  inTraffic = intStr (random () % 100, 10, 2);
-	  if (col > 0)
+	  if (coreId.col () > 0)
 	    outTraffic = intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
@@ -2615,7 +2615,7 @@ GdbServer::rspStep (bool         haveAddrP,
 		    uint32_t     addr,
 		    TargetSignal sig)
 {
-  uint16_t  coreId = cCore ();		// Rude message if current thread is -1
+  CoreId  coreId = cCore ();		// Rude message if current thread is -1
   assert (isCoreHalted (coreId));
 
   if (!haveAddrP)
@@ -2625,8 +2625,8 @@ GdbServer::rspStep (bool         haveAddrP,
     }
 
   if (si->debugStopResumeDetail ())
-    cerr << dec << "DebugStopResumeDetail: rspStep (" << (void *) addr
-	 << ", " << sig << ")" << endl;
+    cerr << dec << "DebugStopResumeDetail: rspStep (" << addr << ", " << sig
+	 << ")" << endl;
 
   TargetSignal exSig = getException (coreId);
   if (exSig != TARGET_SIGNAL_NONE)
@@ -2649,8 +2649,8 @@ GdbServer::rspStep (bool         haveAddrP,
   if (IDLE_INSTR == opcode)
     {
       if (si->debugStopResumeDetail ())
-	cerr << dec << "DebugStopResumeDetail: IDLE found at "
-	     << (void *) addr << "." << endl;
+	cerr << dec << "DebugStopResumeDetail: IDLE found at " << addr << "."
+	     << endl;
 
       //check if global ISR enable state
       uint32_t coreStatus = readStatus (coreId);
@@ -2708,8 +2708,8 @@ GdbServer::rspStep (bool         haveAddrP,
   else if (TRAP_INSTR == opcode)
     {
       if (si->debugStopResumeDetail ())
-	cerr << dec << "DebugStopResumeDetail: TRAP found at "
-	     << (void *) addr << "." << endl;
+	cerr << dec << "DebugStopResumeDetail: TRAP found at " << addr << "."
+	     << endl;
 
       // TRAP instruction triggers I/O
       fIsTargetRunning = false;
@@ -2723,8 +2723,8 @@ GdbServer::rspStep (bool         haveAddrP,
   uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
 
   if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: instr16: " << (void *) ((uint32_t) instr16)
-	 << ", instr32: " << (void *) instr32 << "." << endl;
+    cerr << "DebugStopResumeDetail: instr16: 0x" << intStr (instr16, 16, 4)
+	 << ", instr32: 0x" << intStr (instr32, 16, 8) << "." << endl;
 
   // put sequential breakpoint
   uint32_t bkptAddr = is32BitsInstr (instr16) ? addr + 4 : addr + 2;
@@ -2732,9 +2732,8 @@ GdbServer::rspStep (bool         haveAddrP,
   insertBkptInstr (bkptAddr);
 
   if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: Step (sequential) bkpt at "
-	 << (void *) bkptAddr << ", existing value "
-	 << (void *) ((uint32_t) bkptVal) << "." << endl;
+    cerr << "DebugStopResumeDetail: Step (sequential) bkpt at " << bkptAddr
+	 << ", existing value " << intStr (bkptVal, 16, 4) << "." << endl;
 
 
   uint32_t bkptJumpAddr;
@@ -2748,9 +2747,9 @@ GdbServer::rspStep (bool         haveAddrP,
       insertBkptInstr (bkptJumpAddr);
 
       if (si->debugStopResumeDetail ())
-	cerr << "DebugStopResumeDetail: Step (branch) bkpt at "
-	     << (void *) bkptJumpAddr << ", existing value "
-	     << (void *) ((uint32_t) bkptJumpVal) << "." << endl;
+	cerr << "DebugStopResumeDetail: Step (branch) bkpt at " << bkptJumpAddr
+	     << ", existing value " << intStr (bkptJumpVal, 16, 4) << "."
+	     << endl;
     }
   else
     {
@@ -2790,7 +2789,7 @@ GdbServer::rspStep (bool         haveAddrP,
   addr = readPc (coreId);		// PC where we stopped
 
   if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: Step halted at " << (void *) addr << endl;
+    cerr << "DebugStopResumeDetail: Step halted at " << addr << endl;
 
   restoreIVT (coreId);
 
@@ -2800,9 +2799,8 @@ GdbServer::rspStep (bool         haveAddrP,
   writePc (coreId, addr);
 
   if ((addr != bkptAddr) && (addr != bkptJumpAddr))
-    cerr << "Warning: Step stopped at " << (void *) addr << ", expected "
-	 << (void *) bkptAddr << " or " << (void *) bkptJumpAddr << "."
-	 << endl;
+    cerr << "Warning: Step stopped at " << addr << ", expected " << bkptAddr
+	 << " or " << bkptJumpAddr << "." << endl;
 
   // Remove temporary breakpoint(s)
   writeMem16 (coreId, bkptAddr, bkptVal);
@@ -3028,7 +3026,7 @@ GdbServer::targetHalt ()
 	  cerr << "Warning: Target has not halted after 1 sec " << endl;
 	  uint32_t val;
 	  if (readReg (cCore (), DEBUGSTATUS_REGNUM, val))
-	    cerr << "         - core ID = " << coreIdStr (cCore ())
+	    cerr << "         - core ID = " << cCore ()
 		 << ", DEBUGSTATUS = 0x" << hex << setw (8) << setfill ('0')
 		 << val << setfill (' ') << setw (0) << dec << endl;
 	  else
@@ -3052,12 +3050,12 @@ GdbServer::targetHalt ()
 //! @param [in] addr  Where to put the breakpoint
 //-----------------------------------------------------------------------------
 void
-GdbServer::insertBkptInstr (unsigned long addr)
+GdbServer::insertBkptInstr (uint32_t addr)
 {
   writeMem16 (cCore (), addr, BKPT_INSTR);
 
   if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: insert breakpoint at " << (void *) addr
+    cerr << "DebugStopResumeDetail: insert breakpoint at " << addr
 	 << endl;
 
 }	// putBkptInstr
@@ -3068,7 +3066,7 @@ GdbServer::insertBkptInstr (unsigned long addr)
 //
 //-----------------------------------------------------------------------------
 bool
-GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
+GdbServer::isHitInBreakPointInstruction (uint32_t bkpt_addr)
 {
   uint16_t val;
   readMem16 (cCore (), bkpt_addr, val);
@@ -3085,7 +3083,7 @@ GdbServer::isHitInBreakPointInstruction (unsigned long bkpt_addr)
 //!          fetch. FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::isCoreHalted (uint16_t  coreId)
+GdbServer::isCoreHalted (CoreId  coreId)
 {
   uint32_t debugstatus = readReg (coreId, DEBUGSTATUS_REGNUM);
   uint32_t haltStatus = debugstatus & TargetControl::DEBUGSTATUS_HALT_MASK;
@@ -3107,7 +3105,7 @@ GdbServer::isCoreHalted (uint16_t  coreId)
 //! @return  TRUE if the core is idle, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::isCoreIdle (uint16_t  coreId)
+GdbServer::isCoreIdle (CoreId  coreId)
 {
   uint32_t status = readReg (coreId, STATUS_REGNUM);
   uint32_t idleStatus = status & TargetControl::STATUS_ACTIVE_MASK;
@@ -3130,7 +3128,7 @@ GdbServer::isCoreIdle (uint16_t  coreId)
 //! @return  TRUE if the core has global interrupts enabled, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::isCoreGIntsEnabled (uint16_t  coreId)
+GdbServer::isCoreGIntsEnabled (CoreId  coreId)
 {
   uint32_t status = readReg (coreId, STATUS_REGNUM);
   uint32_t gidStatus = status & TargetControl::STATUS_GID_MASK;
@@ -3147,7 +3145,7 @@ GdbServer::isCoreGIntsEnabled (uint16_t  coreId)
 //! @return  The GDB signal corresponding to any exception.
 //-----------------------------------------------------------------------------
 GdbServer::TargetSignal
-GdbServer::getException (uint16_t coreId)
+GdbServer::getException (CoreId coreId)
 {
   uint32_t coreStatus = readStatus (coreId);
   uint32_t exbits = coreStatus & TargetControl::STATUS_EXCAUSE_MASK;
@@ -3183,7 +3181,7 @@ GdbServer::getException (uint16_t coreId)
 //! @param[in] coreId  The core to save the IVT for.
 //-----------------------------------------------------------------------------
 void
-GdbServer::saveIVT (uint16_t coreId)
+GdbServer::saveIVT (CoreId coreId)
 {
   readMemBlock (coreId, TargetControl::IVT_SYNC, fIVTSaveBuff,
 		sizeof (fIVTSaveBuff));
@@ -3200,7 +3198,7 @@ GdbServer::saveIVT (uint16_t coreId)
 //! @param[in] coreId  The core to restore the IVT for.
 //-----------------------------------------------------------------------------
 void
-GdbServer::restoreIVT (uint16_t coreId)
+GdbServer::restoreIVT (CoreId coreId)
 {
 
   writeMemBlock (coreId, TargetControl::IVT_SYNC, fIVTSaveBuff,
@@ -3378,10 +3376,10 @@ GdbServer::rspRemoveMatchpoint ()
   MpType type;			// What sort of matchpoint
   uint32_t addr;		// Address specified
   uint16_t instr;		// Instruction value found
-  int len;			// Matchpoint length (not used)
+  unsigned int len;		// Matchpoint length
 
   // Break out the instruction
-  if (3 != sscanf (pkt->data, "z%1d,%x,%1d", (int *) &type, &addr, &len))
+  if (3 != sscanf (pkt->data, "z%1d,%x,%1ud", (int *) &type, &addr, &len))
     {
       cerr << "Warning: RSP matchpoint deletion request not "
 	<< "recognized: ignored" << endl;
@@ -3456,10 +3454,10 @@ GdbServer::rspInsertMatchpoint ()
 {
   MpType type;			// What sort of matchpoint
   uint32_t addr;		// Address specified
-  int len;			// Matchpoint length (not used)
+  unsigned int len;		// Matchpoint length (not used)
 
   // Break out the instruction
-  if (3 != sscanf (pkt->data, "Z%1d,%x,%1d", (int *) &type, &addr, &len))
+  if (3 != sscanf (pkt->data, "Z%1d,%x,%1ud", (int *) &type, &addr, &len))
     {
       cerr << "Warning: RSP matchpoint insertion request not "
 	<< "recognized: ignored" << endl;
@@ -3560,7 +3558,7 @@ GdbServer::targetHWReset ()
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMemBlock (uint16_t  coreId,
+GdbServer::readMemBlock (CoreId  coreId,
 			 uint32_t  addr,
 			 uint8_t* buf,
 			 size_t  len) const
@@ -3580,7 +3578,7 @@ GdbServer::readMemBlock (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMemBlock (uint16_t  coreId,
+GdbServer::writeMemBlock (CoreId  coreId,
 			  uint32_t  addr,
 			  uint8_t* buf,
 			  size_t  len) const
@@ -3601,7 +3599,7 @@ GdbServer::writeMemBlock (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMem32 (uint16_t  coreId,
+GdbServer::readMem32 (CoreId  coreId,
 		      uint32_t  addr,
 		      uint32_t& val) const
 {
@@ -3620,7 +3618,7 @@ GdbServer::readMem32 (uint16_t  coreId,
 //! @return  The value read, undefined if there is a failure.
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readMem32 (uint16_t  coreId,
+GdbServer::readMem32 (CoreId  coreId,
 		      uint32_t  addr) const
 {
   uint32_t val;
@@ -3642,7 +3640,7 @@ GdbServer::readMem32 (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMem32 (uint16_t  coreId,
+GdbServer::writeMem32 (CoreId  coreId,
 		       uint32_t  addr,
 		       uint32_t  val) const
 {
@@ -3662,7 +3660,7 @@ GdbServer::writeMem32 (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMem16 (uint16_t  coreId,
+GdbServer::readMem16 (CoreId  coreId,
 		      uint32_t  addr,
 		      uint16_t& val) const
 {
@@ -3681,7 +3679,7 @@ GdbServer::readMem16 (uint16_t  coreId,
 //! @return  The value read, undefined if there is a failure.
 //-----------------------------------------------------------------------------
 uint16_t
-GdbServer::readMem16 (uint16_t  coreId,
+GdbServer::readMem16 (CoreId  coreId,
 		      uint32_t  addr) const
 {
   uint16_t val;
@@ -3703,7 +3701,7 @@ GdbServer::readMem16 (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMem16 (uint16_t  coreId,
+GdbServer::writeMem16 (CoreId  coreId,
 		       uint32_t  addr,
 		       uint16_t  val) const
 {
@@ -3723,7 +3721,7 @@ GdbServer::writeMem16 (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readMem8 (uint16_t  coreId,
+GdbServer::readMem8 (CoreId  coreId,
 		     uint32_t  addr,
 		     uint8_t& val) const
 {
@@ -3742,7 +3740,7 @@ GdbServer::readMem8 (uint16_t  coreId,
 //! @return  The value read, undefined if there is a failure.
 //-----------------------------------------------------------------------------
 uint8_t
-GdbServer::readMem8 (uint16_t  coreId,
+GdbServer::readMem8 (CoreId  coreId,
 		     uint32_t  addr) const
 {
   uint8_t val;
@@ -3764,7 +3762,7 @@ GdbServer::readMem8 (uint16_t  coreId,
 //! @return  TRUE on success, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeMem8 (uint16_t  coreId,
+GdbServer::writeMem8 (CoreId  coreId,
 		      uint32_t  addr,
 		      uint8_t   val) const
 {
@@ -3785,7 +3783,7 @@ GdbServer::writeMem8 (uint16_t  coreId,
 //! @return  True on success, false otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::readReg (uint16_t     coreId,
+GdbServer::readReg (CoreId     coreId,
 		    unsigned int regnum,
 		    uint32_t&    regval) const
 {
@@ -3807,7 +3805,7 @@ GdbServer::readReg (uint16_t     coreId,
 //! @return  The value read
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readReg (uint16_t     coreId,
+GdbServer::readReg (CoreId     coreId,
 		    unsigned int regnum) const
 {
   uint32_t regval;
@@ -3830,7 +3828,7 @@ GdbServer::readReg (uint16_t     coreId,
 //! @return  True on success, false otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::writeReg (uint16_t  coreId,
+GdbServer::writeReg (CoreId  coreId,
 		     unsigned int regnum,
 		     uint32_t value) const
 {
@@ -3848,7 +3846,7 @@ GdbServer::writeReg (uint16_t  coreId,
 //! @return  The value of the Core ID
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readCoreId (uint16_t coreId) const
+GdbServer::readCoreId (CoreId coreId) const
 {
   return readReg (coreId, COREID_REGNUM);
 
@@ -3864,7 +3862,7 @@ GdbServer::readCoreId (uint16_t coreId) const
 //! @return  The value of the Status
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readStatus (uint16_t  coreId) const
+GdbServer::readStatus (CoreId  coreId) const
 {
   return readReg (coreId, STATUS_REGNUM);
 
@@ -3880,7 +3878,7 @@ GdbServer::readStatus (uint16_t  coreId) const
 //! @return  The value of the PC
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readPc (uint16_t  coreId) const
+GdbServer::readPc (CoreId  coreId) const
 {
   return readReg (coreId, PC_REGNUM);
 
@@ -3896,7 +3894,7 @@ GdbServer::readPc (uint16_t  coreId) const
 //! @param[in] addr    The address to write into the PC
 //-----------------------------------------------------------------------------
 void
-GdbServer::writePc (uint16_t  coreId,
+GdbServer::writePc (CoreId  coreId,
 		    uint32_t addr)
 {
   writeReg (coreId, PC_REGNUM, addr);
@@ -3913,7 +3911,7 @@ GdbServer::writePc (uint16_t  coreId,
 //! @return  The value of the link register
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readLr (uint16_t  coreId) const
+GdbServer::readLr (CoreId  coreId) const
 {
   return readReg (coreId, LR_REGNUM);
 
@@ -3929,7 +3927,7 @@ GdbServer::readLr (uint16_t  coreId) const
 //! @param[in] addr    The address to write into the Link register
 //-----------------------------------------------------------------------------
 void
-GdbServer::writeLr (uint16_t  coreId,
+GdbServer::writeLr (CoreId  coreId,
 		    uint32_t  addr)
 {
   writeReg (coreId, LR_REGNUM, addr);
@@ -3946,7 +3944,7 @@ GdbServer::writeLr (uint16_t  coreId,
 //! @return  The value of the frame pointer register
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readFp (uint16_t  coreId) const
+GdbServer::readFp (CoreId  coreId) const
 {
   return readReg (coreId, FP_REGNUM);
 
@@ -3962,7 +3960,7 @@ GdbServer::readFp (uint16_t  coreId) const
 //! @param[in] addr    The address to write into the Frame pointer register
 //-----------------------------------------------------------------------------
 void
-GdbServer::writeFp (uint16_t  coreId,
+GdbServer::writeFp (CoreId  coreId,
 		    uint32_t addr)
 {
   writeReg (coreId, FP_REGNUM, addr);
@@ -3979,7 +3977,7 @@ GdbServer::writeFp (uint16_t  coreId,
 //! @return  The value of the frame pointer register
 //-----------------------------------------------------------------------------
 uint32_t
-GdbServer::readSp (uint16_t  coreId) const
+GdbServer::readSp (CoreId  coreId) const
 {
   return readReg (coreId, SP_REGNUM);
 
@@ -3995,7 +3993,7 @@ GdbServer::readSp (uint16_t  coreId) const
 //! @param[in] addr    The address to write into the Stack pointer register
 //-----------------------------------------------------------------------------
 void
-GdbServer::writeSp (uint16_t  coreId,
+GdbServer::writeSp (CoreId  coreId,
 		    uint32_t addr)
 {
   writeReg (coreId, SP_REGNUM, addr);
@@ -4011,10 +4009,10 @@ GdbServer::writeSp (uint16_t  coreId,
 
 //! @return  A coreID
 //-----------------------------------------------------------------------------
-uint16_t
+CoreId
 GdbServer::cCore ()
 {
-  uint16_t coreId;
+  CoreId coreId;
 
   switch (currentCThread)
     {
@@ -4041,10 +4039,10 @@ GdbServer::cCore ()
 
 //! @return  A coreID
 //-----------------------------------------------------------------------------
-uint16_t
+CoreId
 GdbServer::gCore ()
 {
-  uint16_t coreId;
+  CoreId coreId;
 
   switch (currentGThread)
     {
@@ -4435,7 +4433,7 @@ GdbServer::getBranchOffset (uint32_t  instr)
 //! @return  TRUE if this was a 16-bit jump destination
 //-----------------------------------------------------------------------------
 bool
-GdbServer::getJump (uint16_t  coreId,
+GdbServer::getJump (CoreId  coreId,
 		    uint16_t  instr,
 		    uint32_t  addr,
 		    uint32_t& destAddr)
@@ -4479,7 +4477,7 @@ GdbServer::getJump (uint16_t  coreId,
 //! @return  TRUE if this was a 16-bit jump destination
 //-----------------------------------------------------------------------------
 bool
-GdbServer::getJump (uint16_t  coreId,
+GdbServer::getJump (CoreId  coreId,
 		    uint32_t  instr,
 		    uint32_t  addr,
 		    uint32_t& destAddr)
@@ -4669,12 +4667,14 @@ GdbServer::regAddr (unsigned int  regnum) const
 }	// regAddr ()
 
 
+//-----------------------------------------------------------------------------
 //! Convenience function to turn an integer into a string
 
 //! @param[in] val    The value to convert
 //! @param[in] base   The base for conversion. Default 10, valid values 8, 10
 //!                   or 16. Other values will reset the iostream flags.
 //! @param[in] width  The width to pad (with zeros).
+//-----------------------------------------------------------------------------
 string
 GdbServer::intStr (int  val,
 		   int  base,
@@ -4686,28 +4686,6 @@ GdbServer::intStr (int  val,
   return os.str ();
 
 }	// intStr ()
-
-
-//! Convenience function to turn a coreID into a string
-
-//! A coreId is represented as a 2 digit decimal value of its row, followed by
-//! a 2 digit decimal value of its column. Thus core (13,3) is 1303 and (7,17)
-//! is 0717.
-
-//! @param[in] val    The value to convert
-//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
-//!                   or 16. Other values will reset the iostream flags.
-//! @param[in] width  The width to pad (with zeros).
-string
-GdbServer::coreIdStr (uint16_t  coreId) const
-{
-  int row = (coreId >> 6) & 0x3f;
-  int col = coreId & 0x3f;
-  string coreStr = intStr (row, 10, 2) + intStr (col, 10, 2);
-
-  return coreStr;
-
-}	// coreIdStr ()
 
 
 // Local Variables:

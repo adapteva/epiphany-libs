@@ -4,6 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../src/CoreId.cpp \
 ../src/GdbServer.cpp \
 ../src/MemRange.cpp \
 ../src/MpHash.cpp \
@@ -17,6 +18,7 @@ CPP_SRCS += \
 ../src/TargetControlHardware.cpp 
 
 OBJS += \
+./src/CoreId.o \
 ./src/GdbServer.o \
 ./src/MemRange.o \
 ./src/MpHash.o \
@@ -30,6 +32,7 @@ OBJS += \
 ./src/TargetControlHardware.o 
 
 CPP_DEPS += \
+./src/CoreId.d \
 ./src/GdbServer.d \
 ./src/MemRange.d \
 ./src/MpHash.d \

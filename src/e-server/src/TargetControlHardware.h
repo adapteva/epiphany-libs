@@ -49,32 +49,32 @@ public:
 
   // Functions to access memory. All register access on the Epiphany is via
   // memory
-  virtual bool readMem32 (uint16_t coreId, uint32_t addr, uint32_t &);
-  virtual bool readMem16 (uint16_t coreId, uint32_t addr, uint16_t &);
-  virtual bool readMem8 (uint16_t coreId, uint32_t addr, uint8_t &);
+  virtual bool readMem32 (CoreId coreId, uint32_t addr, uint32_t &);
+  virtual bool readMem16 (CoreId coreId, uint32_t addr, uint16_t &);
+  virtual bool readMem8 (CoreId coreId, uint32_t addr, uint8_t &);
 
-  virtual bool writeMem32 (uint16_t coreId, uint32_t addr, uint32_t value);
-  virtual bool writeMem16 (uint16_t coreId, uint32_t addr, uint16_t value);
-  virtual bool writeMem8 (uint16_t coreId, uint32_t addr, uint8_t value);
+  virtual bool writeMem32 (CoreId coreId, uint32_t addr, uint32_t value);
+  virtual bool writeMem16 (CoreId coreId, uint32_t addr, uint16_t value);
+  virtual bool writeMem8 (CoreId coreId, uint32_t addr, uint8_t value);
 
   // Read and write single words from target
-  bool readMem (uint16_t  coreId,
+  bool readMem (CoreId  coreId,
 		uint32_t  addr,
 		uint32_t& data,
 		size_t    len);
-  bool writeMem (uint16_t coreId,
+  bool writeMem (CoreId coreId,
 		 uint32_t addr,
 		 uint32_t data,
 		 size_t   len);
 
   // Burst write and read
-  virtual bool writeBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
+  virtual bool writeBurst (CoreId coreId, uint32_t addr, uint8_t *buf,
 			   size_t buff_size);
-  virtual bool readBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
+  virtual bool readBurst (CoreId coreId, uint32_t addr, uint8_t *buf,
 			  size_t buff_size);
 
   // Functions to access data about the target
-  virtual vector <uint16_t>  listCoreIds ();
+  virtual vector <CoreId>  listCoreIds ();
   virtual unsigned int  getNumRows ();
   virtual unsigned int  getNumCols ();
 
@@ -96,7 +96,7 @@ public:
 protected:
 
   virtual string getTargetId ();
-  virtual uint32_t convertAddress (uint16_t relCoreId, uint32_t  address);
+  virtual uint32_t convertAddress (CoreId relCoreId, uint32_t  address);
 
 
 private:
@@ -122,16 +122,16 @@ private:
   void *dsoHandle;
 
   //! Vector of all the relative CoreIds
-  vector <uint16_t> relCoreIds; 
+  vector <CoreId> relCoreIds; 
 
   //! Map of relative to absolute core ID
-  map <uint16_t, uint16_t> coreMap;
+  map <CoreId, CoreId> coreMap;
 
   //! Map of memory range to absolute core ID
-  map <MemRange, uint16_t, MemRange> coreMemMap;
+  map <MemRange, CoreId, MemRange> coreMemMap;
 
   //! Map of core ID to memory range
-  map <uint16_t, MemRange> reverseCoreMemMap;
+  map <CoreId, MemRange> reverseCoreMemMap;
 
   //! Set of all the external memory ranges
   set <MemRange, MemRange> extMemSet;
@@ -146,7 +146,7 @@ private:
   unsigned int  numCols;
   
   //! Current core being used for memory and register access.
-  uint16_t  currentCoreId;
+  CoreId  currentCoreId;
 
   //! Current thread to use for general access to memory and registers.
 
@@ -191,6 +191,11 @@ private:
 		       size_t    burstSize);
   int (*hwResetFunc) ();
   int (*getDescriptionFunc) (char** targetIdp);
+
+  //! Integer to string conversion
+  string  intStr (int  val,
+		  int  base = 10,
+		  int  width = 0) const;
 
 };	// TargetControlHardware
 

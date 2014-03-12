@@ -47,11 +47,11 @@
 #include <assert.h>
 #include <string.h>
 
+#include "CoreId.h"
 #include "MpHash.h"
 #include "ProcessInfo.h"
 #include "RspConnection.h"
 #include "RspPacket.h"
-
 #include "ServerInfo.h"
 #include "TargetControl.h"
 
@@ -160,10 +160,10 @@ private:
   static const uint16_t TRAP_INSTR = 0x03e2;	//!< TRAP instruction
 
   //! Size of the breakpoint instruction (in bytes)
-  static const int BKPT_INSTLEN = 2;
+  static const size_t BKPT_INSTLEN = 2;
 
   //! Size of the trap instruction (in bytes)
-  static const int TRAP_INSTLEN = 2;
+  static const size_t TRAP_INSTLEN = 2;
 
   //! Number of the idle process
   static const int IDLE_PID = 1;
@@ -178,10 +178,10 @@ private:
   int  mNextPid;
 
   //! Map from core to thread
-  map <uint16_t, int> core2thread;
+  map <CoreId, int> core2thread;
 
   //! Map from thread to core
-  map <int, uint16_t> thread2core;
+  map <int, CoreId> thread2core;
 
   //! Current thread for continue/step
   int  currentCThread;
@@ -230,7 +230,7 @@ private:
   void rspClientRequest ();
 
   // Handle the various RSP requests
-  void rspReportException (uint32_t stoppedPC, int threadID,
+  void rspReportException (uint32_t stoppedPC, CoreId coreId,
 			   TargetSignal exCause);
   void rspContinue ();
   void rspContinue (uint32_t except);
@@ -260,7 +260,7 @@ private:
   void rspStep ();
   void rspStep (bool haveAddrP, uint32_t addr, TargetSignal except);
   void rspIsThreadAlive ();
-  void targetResume (uint16_t coreId);
+  void targetResume (CoreId coreId);
   void rspVpkt ();
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
@@ -273,79 +273,79 @@ private:
   void targetHWReset ();
 
   // Main functions for reading and writing memory
-  bool readMemBlock (uint16_t  coreId,
+  bool readMemBlock (CoreId  coreId,
 		     uint32_t  addr,
 		     uint8_t* buf,
 		     size_t  len) const;
-  bool writeMemBlock (uint16_t  coreId,
+  bool writeMemBlock (CoreId  coreId,
 		      uint32_t  addr,
 		      uint8_t* buf,
 		      size_t  len) const;
-  bool  readMem32 (uint16_t  coreId,
+  bool  readMem32 (CoreId  coreId,
 		   uint32_t  addr,
 		   uint32_t& val) const;
-  uint32_t  readMem32 (uint16_t  coreId,
+  uint32_t  readMem32 (CoreId  coreId,
 		       uint32_t  addr) const;
-  bool  writeMem32 (uint16_t  coreId,
+  bool  writeMem32 (CoreId  coreId,
 		    uint32_t  addr,
 		    uint32_t val) const;
-  bool  readMem16 (uint16_t  coreId,
+  bool  readMem16 (CoreId  coreId,
 		   uint32_t  addr,
 		   uint16_t& val) const;
-  uint16_t  readMem16 (uint16_t  coreId,
+  uint16_t  readMem16 (CoreId  coreId,
 		       uint32_t  addr) const;
-  bool  writeMem16 (uint16_t  coreId,
+  bool  writeMem16 (CoreId  coreId,
 		    uint32_t  addr,
 		    uint16_t val) const;
-  bool  readMem8 (uint16_t  coreId,
+  bool  readMem8 (CoreId  coreId,
 		  uint32_t  addr,
 		  uint8_t& val) const;
-  uint8_t  readMem8 (uint16_t  coreId,
+  uint8_t  readMem8 (CoreId  coreId,
 		     uint32_t  addr) const;
-  bool  writeMem8 (uint16_t  coreId,
+  bool  writeMem8 (CoreId  coreId,
 		   uint32_t  addr,
 		   uint8_t val) const;
 
   // Main functions for reading and writing registers
-  bool readReg (uint16_t  coreId,
+  bool readReg (CoreId  coreId,
 		unsigned int regnum,
 		uint32_t& regval) const;
-  uint32_t  readReg (uint16_t  coreId,
+  uint32_t  readReg (CoreId  coreId,
 		     unsigned int regnum) const;
-  bool writeReg (uint16_t  coreId,
+  bool writeReg (CoreId  coreId,
 		 unsigned int regNum,
 		 uint32_t value) const;
 
   // Convenience functions for reading and writing various common registers
-  uint32_t readCoreId (uint16_t  coreId) const;
-  uint32_t readStatus (uint16_t  coreId) const;
-  uint32_t readPc (uint16_t  coreId) const;
-  void writePc (uint16_t  coreId,
+  uint32_t readCoreId (CoreId  coreId) const;
+  uint32_t readStatus (CoreId  coreId) const;
+  uint32_t readPc (CoreId  coreId) const;
+  void writePc (CoreId  coreId,
 		uint32_t addr);
-  uint32_t readLr (uint16_t  coreId) const;
-  void writeLr (uint16_t  coreId,
+  uint32_t readLr (CoreId  coreId) const;
+  void writeLr (CoreId  coreId,
 		uint32_t addr);
-  uint32_t readFp (uint16_t  coreId) const;
-  void writeFp (uint16_t  coreId,
+  uint32_t readFp (CoreId  coreId) const;
+  void writeFp (CoreId  coreId,
 		uint32_t addr);
-  uint32_t readSp (uint16_t  coreId) const;
-  void writeSp (uint16_t  coreId,
+  uint32_t readSp (CoreId  coreId) const;
+  void writeSp (CoreId  coreId,
 		uint32_t  addr);
 
   // Accessors for the core IDs of threads
-  uint16_t cCore ();
-  uint16_t gCore ();
+  CoreId cCore ();
+  CoreId gCore ();
 
-  void insertBkptInstr (unsigned long);
-  bool isHitInBreakPointInstruction (unsigned long);
-  bool isCoreHalted (uint16_t coreId);
-  bool isCoreIdle (uint16_t  coreId);
-  bool isCoreGIntsEnabled (uint16_t  coreId);
-  TargetSignal getException (uint16_t  coreId);
+  void insertBkptInstr (uint32_t addr);
+  bool isHitInBreakPointInstruction (uint32_t bkptAddr);
+  bool isCoreHalted (CoreId coreId);
+  bool isCoreIdle (CoreId  coreId);
+  bool isCoreGIntsEnabled (CoreId  coreId);
+  TargetSignal getException (CoreId  coreId);
   bool targetHalt ();
 
-  void saveIVT (uint16_t coreId);
-  void restoreIVT (uint16_t coreId);
+  void saveIVT (CoreId coreId);
+  void restoreIVT (CoreId coreId);
 
   //! Thread control
   void NanoSleepThread (unsigned long timeout);
@@ -383,11 +383,11 @@ private:
   uint8_t  getTrap (uint16_t  instr);
   int32_t  getBranchOffset (uint16_t  instr);
   int32_t  getBranchOffset (uint32_t  instr);
-  bool  getJump (uint16_t  coreId,
+  bool  getJump (CoreId  coreId,
 		 uint16_t  instr,
 		 uint32_t  addr,
 		 uint32_t& destAddr);
-  bool  getJump (uint16_t  coreId,
+  bool  getJump (CoreId  coreId,
 		 uint32_t  instr,
 		 uint32_t  addr,
 		 uint32_t& destAddr);
@@ -406,9 +406,6 @@ private:
   string  intStr (int  val,
 		  int  base = 10,
 		  int  width = 0) const;
-
-  //! CoreId to string conversion
-  string  coreIdStr (uint16_t  coreId) const;
 
 };				// GdbServer()
 

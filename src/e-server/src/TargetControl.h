@@ -31,9 +31,12 @@
 #include <cstdio>
 #include <vector>
 
-//! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
+//! @todo We would prefer to use <cinttypes.h> here, but that requires ISO C++
+//! 2011.
 #include <inttypes.h>
 #include <sys/time.h>
+
+#include "CoreId.h"
 
 
 using std::cerr;
@@ -224,22 +227,22 @@ public:
 
   // Functions to access memory. All register access on the Epiphany is also
   // via memory.
-  virtual bool readMem32 (uint16_t coreId, uint32_t addr, uint32_t &) = 0;
-  virtual bool readMem16 (uint16_t coreId, uint32_t addr, uint16_t &) = 0;
-  virtual bool readMem8 (uint16_t coreId, uint32_t addr, uint8_t &) = 0;
+  virtual bool readMem32 (CoreId coreId, uint32_t addr, uint32_t &) = 0;
+  virtual bool readMem16 (CoreId coreId, uint32_t addr, uint16_t &) = 0;
+  virtual bool readMem8 (CoreId coreId, uint32_t addr, uint8_t &) = 0;
 
 
-  virtual bool writeMem32 (uint16_t coreId, uint32_t addr, uint32_t value) = 0;
-  virtual bool writeMem16 (uint16_t coreId, uint32_t addr, uint16_t value) = 0;
-  virtual bool writeMem8 (uint16_t coreId, uint32_t addr, uint8_t value) = 0;
+  virtual bool writeMem32 (CoreId coreId, uint32_t addr, uint32_t value) = 0;
+  virtual bool writeMem16 (CoreId coreId, uint32_t addr, uint16_t value) = 0;
+  virtual bool writeMem8 (CoreId coreId, uint32_t addr, uint8_t value) = 0;
 
-  virtual bool writeBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
+  virtual bool writeBurst (CoreId coreId, uint32_t addr, uint8_t *buf,
 			   size_t buff_size) = 0;
-  virtual bool readBurst (uint16_t coreId, uint32_t addr, uint8_t *buf,
+  virtual bool readBurst (CoreId coreId, uint32_t addr, uint8_t *buf,
 			  size_t buff_size) = 0;
 
   // Functions to access data about the target
-  virtual vector <uint16_t>  listCoreIds () = 0;
+  virtual vector <CoreId>  listCoreIds () = 0;
   virtual unsigned int  getNumRows () = 0;
   virtual unsigned int  getNumCols () = 0;
 
@@ -257,7 +260,7 @@ public:
 protected:
 
   virtual string getTargetId () = 0;
-  virtual uint32_t convertAddress (uint16_t coreId, uint32_t  address) = 0;
+  virtual uint32_t convertAddress (CoreId coreId, uint32_t  address) = 0;
 
 private:
 
