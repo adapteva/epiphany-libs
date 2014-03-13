@@ -246,6 +246,7 @@ private:
   void rspQThreadInfo (bool isFirst);
   void rspQThreadExtraInfo ();
   void rspCommand ();
+  void rspCmdWorkgroup (char* cmd);
   void rspTransfer ();
   void rspOsData (unsigned int offset,
 		  unsigned int length);

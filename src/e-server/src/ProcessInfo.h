@@ -58,7 +58,8 @@ public:
 
   set <int>::iterator threadBegin () const;
   set <int>::iterator threadEnd () const;
-  void addThread (int thread);
+  bool addThread (int thread);
+  bool eraseThread (int thread);
   
 private:
 

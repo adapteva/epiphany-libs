@@ -1,3 +1,16 @@
+2014-03-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::initProcesses): Assert thread
+	addition worked.
+	(GdbServer::rspCommand): Add "monitor workgroup" command and rejig
+	logic slightly to accomodate.
+	(GdbServer::rspCmdWorkgroup): Created.
+	* src/GdbServer.h: Add rspCmdWorkgroup.
+	(ProcessInfo::addThread): No error message, just return TRUE of
+	FALSE to indicate success or not.
+	(ProcessInfo::eraseThread): Created.
+	* src/ProcessInfo.h: Add eraseThread, change prototype of addThread.
+
 2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::initProcesses): Use Target

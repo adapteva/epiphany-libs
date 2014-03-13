@@ -104,20 +104,29 @@ ProcessInfo::threadEnd () const
 //-----------------------------------------------------------------------------
 //! Add a thread to the process.
 
-//! Print a warning and don't add again if the thread is already there.
-
-//! @return  The begin iterator.
+//! @param[in] thread  The thread to add
+//! @return  TRUE if we successfully add the thread, false otherwise
 //-----------------------------------------------------------------------------
-void
+bool
 ProcessInfo::addThread (int thread)
 {
-  if (mThreads.find (thread) == mThreads.end ())
-    mThreads.insert (thread);
-  else
-    cerr << "Warning: Attempt to insert duplicate thread " << thread
-	 << " in to process " << mPid << "." << endl;
+  return  mThreads.insert (thread).second;
 
 }	// addThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Remove a thread from the process
+
+//! @param[in] thread  The thread to remove
+//! @return  TRUE if we succeed, and FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+ProcessInfo::eraseThread (int thread)
+{
+  return  mThreads.erase (thread) == 1;
+
+}	// eraseThread ()
 
 
 // Local Variables:

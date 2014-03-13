@@ -24,6 +24,7 @@
 
 // Note that the Epiphany is a little endian architecture.
 
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -239,7 +240,7 @@ GdbServer::initProcesses ()
       thread2core [threadId] = coreId;
 
       // Add to idle process
-      mIdleProcess->addThread (threadId);
+      assert (mIdleProcess->addThread (threadId));
     }
 }	// initProcesses ()
 
@@ -1857,6 +1858,7 @@ GdbServer::rspCommand ()
       pkt->packHexstr ("Software reset issued\n");
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
+      rsp->putPkt (pkt);
     }
   else if (strcmp ("hwreset", cmd) == 0)
     {
@@ -1865,6 +1867,7 @@ GdbServer::rspCommand ()
       pkt->packHexstr ("Hardware reset issued: restart debug client (s)\n");
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
+      rsp->putPkt (pkt);
     }
   else if (strcmp ("halt", cmd) == 0)
     {
@@ -1885,6 +1888,7 @@ GdbServer::rspCommand ()
 	}
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
+      rsp->putPkt (pkt);
     }
   else if (strcmp ("run", cmd) == 0)
     {
@@ -1893,6 +1897,7 @@ GdbServer::rspCommand ()
       pkt->packHexstr ("monitor run no longer supported\n");
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
+      rsp->putPkt (pkt);
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
@@ -1900,7 +1905,7 @@ GdbServer::rspCommand ()
       CoreId absGCoreId = readCoreId (gCore ());
       CoreId relCCoreId = fTargetControl->abs2rel (absCCoreId);
       CoreId relGCoreId = fTargetControl->abs2rel (absGCoreId);
-      std::ostringstream  oss;
+      ostringstream  oss;
 
       oss << "Continue core ID: " << absCCoreId << " (absolute), "
 	  << relCCoreId << " (relative)" << endl;
@@ -1911,6 +1916,11 @@ GdbServer::rspCommand ()
 
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else if (strncmp ("workgroup", cmd, strlen ("workgroup")) == 0)
+    {
+      rspCmdWorkgroup (cmd);
     }
   else if (strcmp ("help", cmd) == 0)
     {
@@ -1918,17 +1928,145 @@ GdbServer::rspCommand ()
 		       "run, help\n");
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
+      rsp->putPkt (pkt);
     }
   else
     {
       cerr << "Warning: Remote command " << cmd << ": ignored" << endl;
+      pkt->packHexstr ("monitor command not recognized\n");
+      rsp->putPkt (pkt);
       pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+    }
+}	// rspCommand()
+
+
+//-----------------------------------------------------------------------------
+//! Handle the "monitor workgroup" command.
+
+//! Format is: "monitor workgroup <row> <col> <rows> <cols>
+
+//! Where the meaning of the arguments correspond to the arguments to
+//! e_open. We create a new process, and associate it with the handle for the
+//! workgroup from e_open.
+
+//! @param[in] cmd  The command string for parsing.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspCmdWorkgroup (char* cmd)
+{
+  stringstream    ss (cmd);
+  vector <string> tokens;
+  string          item;
+
+  // Break out the command line args
+  while (getline (ss, item, ' '))
+    tokens.push_back (item);
+
+  if ((5 != tokens.size ()) || (0 != tokens[0].compare ("workgroup")))
+    {
+      cerr << "Warning: Defective monitor workgroup command: " << cmd
+	   << ": ignored." << endl;
+      pkt->packHexstr ("monitor workgroup command not recognized\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
     }
 
+  unsigned long int row  = strtoul (tokens[1].c_str (), NULL, 0);
+  unsigned long int col  = strtoul (tokens[2].c_str (), NULL, 0);
+  unsigned long int rows = strtoul (tokens[3].c_str (), NULL, 0);
+  unsigned long int cols = strtoul (tokens[4].c_str (), NULL, 0);
+  unsigned int numRows = fTargetControl->getNumRows ();
+  unsigned int numCols = fTargetControl->getNumCols ();
+
+  if (row >= numRows)
+    {
+      cerr << "Warning: Starting row " << row << "too large: ignored." << endl;
+      pkt->packHexstr ("Starting row too large.\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+  else if (col >= numCols)
+    {
+      cerr << "Warning: Starting column " << col << "too large: ignored."
+	   << endl;
+      pkt->packHexstr ("Starting column too large.\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+  else if ((row + rows) > numRows)
+    {
+      cerr << "Warning: Two many rows: " << rows << ": ignored." << endl;
+      pkt->packHexstr ("Too many rows.\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+  else if ((col + cols) > numCols)
+    {
+      cerr << "Warning: Two many columns: " << cols << ": ignored." << endl;
+      pkt->packHexstr ("Too many columns.\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  // We can only accept a group whose cores are all in the idle group.
+  ProcessInfo *process = new ProcessInfo (mNextPid);
+  mProcesses.insert (process);
+  mNextPid++;
+
+  for (unsigned int r = 0; r < rows; r++)
+    for (unsigned int c = 0; c < cols; c++)
+      {
+	CoreId coreId (row + r, col + c);
+	int thread = core2thread[coreId];
+	if (mIdleProcess->eraseThread (thread))
+	  assert (process->addThread (thread));
+	else
+	  {
+	    // Yuk - blew up half way. Put all the threads back into the idle
+	    // group, delete the process an give up.
+	    for (set <int>::iterator it = process->threadBegin ();
+		 it != process->threadEnd ();
+		 it++)
+	      {
+		assert (process->eraseThread (*it));
+		assert (mIdleProcess->addThread (*it));
+	      }
+
+	    --mNextPid;
+	    mProcesses.erase (process);
+	    delete process;
+
+	    cerr << "Warning: failed to add thread " << thread
+		 << "to workgroup." << endl;
+
+	    pkt->packHexstr ("Not all workgroup cores in idle process.\n");
+	    rsp->putPkt (pkt);
+	    pkt->packStr ("E01");
+	    rsp->putPkt (pkt);
+	    return;
+	  }
+      }
+
+  ostringstream oss;
+  oss << "New workgroup process ID " << process->pid () << endl;
+  pkt->packHexstr (oss.str ().c_str ());
+  rsp->putPkt (pkt);
+  pkt->packStr ("OK");
   rsp->putPkt (pkt);
 
-}				// rspCommand()
-
+}	// rspCmdWorkgroup ()
+		  
 
 //-----------------------------------------------------------------------------
 //! Handle a RSP qXfer request
