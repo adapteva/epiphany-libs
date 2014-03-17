@@ -50,7 +50,7 @@ class ProcessInfo
 public:
 
   // Constructor and destructor
-  ProcessInfo (int  pid);
+  ProcessInfo ();
   ~ProcessInfo ();
 
   // Accessors
@@ -58,14 +58,11 @@ public:
 
   set <int>::iterator threadBegin () const;
   set <int>::iterator threadEnd () const;
-  bool addThread (int thread);
-  bool eraseThread (int thread);
+  bool addThread (int tid);
+  bool eraseThread (int tid);
+  bool hasThread (int tid);
   
 private:
-
-  //! The process ID. 1 is the "idle" process for all threads corresponding to
-  //! cores not in workgroups.
-  int  mPid;
 
   //! The threads making up the process
   set <int> mThreads;

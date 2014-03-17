@@ -46,10 +46,24 @@
 // $Id: Utils.cpp 967 2011-12-29 07:07:27Z oraikhman $
 //-----------------------------------------------------------------------------
 
-#include "Utils.h"
-#include <stdlib.h>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
-#include <string.h>
+#include <sstream>
+
+#include "Utils.h"
+
+
+using std::cerr;
+using std::endl;
+using std::ostringstream;
+using std::setbase;
+using std::setfill;
+using std::setw;
+
 
 //-----------------------------------------------------------------------------
 //!Utility to give the value of a hex char
@@ -155,7 +169,7 @@ uint32_t Utils::hex2Reg (char *buf)
 //! @param[in]  src   The ASCII string (null terminated)                      */
 //-----------------------------------------------------------------------------
 void
-Utils::ascii2Hex (char *dest, char *src)
+Utils::ascii2Hex (char *dest, const char *src)
 {
   int i;
 
@@ -181,7 +195,7 @@ Utils::ascii2Hex (char *dest, char *src)
 //! @param[in]  src   Buffer holding the hex digit pairs (null terminated)
 //-----------------------------------------------------------------------------
 void
-Utils::hex2Ascii (char *dest, char *src)
+Utils::hex2Ascii (char *dest, const char *src)
 {
   int i;
 
@@ -234,86 +248,66 @@ Utils::rspUnescape (char *buf, int len)
 
   return toOffset;
 
-}				// rspUnescape()
+}	// rspUnescape()
 
 
 //-----------------------------------------------------------------------------
-//! Convert 32-bit value from host to target endianness
+//! Microsecond sleep with interrupt handling
 
-//! The Epiphany is always little endian.
+//! Replaces the old NanoSleepThread function, since we never want to sleep
+//! less than 1 us, and we also want to deal with interruptions.
 
-//! @param[in] hostVal  The value in host endianness
+//! Repeat the sleep if interrupted. Any failure is a disaster and we give
+//! up.
 
-//! @return  The value in target endianness
+//! @param[in] us  Number of microseconds to sleep
 //-----------------------------------------------------------------------------
-uint32_t Utils::htotl (uint32_t hostVal)
-{
-  uint8_t
-    targetBytes[4];
-
-  targetBytes[0] = hostVal;
-  targetBytes[1] = hostVal / 256;
-  targetBytes[2] = hostVal / 256 / 256;
-  targetBytes[3] = hostVal / 256 / 256 / 256;
-
-  return *((uint32_t *) targetBytes);
-}				// htotl()
-
-
-//-----------------------------------------------------------------------------
-//! Convert 32-bit value from target to host endianness
-
-//! The Epiphany is always little endian.
-
-//! @param[in] targetVal  The value in target endianness
-
-//! @return  The value in target endianness
-//-----------------------------------------------------------------------------
-uint32_t Utils::ttohl (uint32_t targetVal)
-{
-  uint8_t *
-    targetBytes = (uint8_t *) (&targetVal);
-  uint32_t
-    hostVal;
-
-  hostVal = targetBytes[3];
-  hostVal = hostVal * 256 + targetBytes[2];
-  hostVal = hostVal * 256 + targetBytes[1];
-  hostVal = hostVal * 256 + targetBytes[0];
-
-  return hostVal;
-}				// ttohl()
-
-
-//-----------------------------------------------------------------------------
-//! use the same memory allocation routines as Cgen simulator
-
-//-----------------------------------------------------------------------------
-void *
-zalloc (unsigned long size)
-{
-  void *
-    memory = (void *) malloc (size);
-  if (!memory)
-    {
-      std::
-	cerr <<
-	"ERROR malloc failed for stdio buffer allocation ?????????, size " <<
-	size << std::endl;
-      exit (4);
-    }
-  memset (memory, 0, size);
-  return memory;
-}
-
 void
-zfree (void *data)
+Utils::microSleep (unsigned long int  us)
 {
-  free (data);
-}
+  struct timespec sleepTime;
+  struct timespec remainingSleepTime;
+
+  sleepTime.tv_sec  = us / 1000000;
+  sleepTime.tv_nsec = us % 1000000;
+
+  while (0 != nanosleep (&sleepTime, &remainingSleepTime))
+    {
+      if (EINTR == errno)
+	sleepTime = remainingSleepTime;
+      else
+	{
+	  cerr << "ERROR: Unexpected failure in microsleep: "
+	       << strerror (errno) << ": Exiting." << endl;
+	  exit (EXIT_FAILURE);
+	}
+    }
+}	// microSleep ()
+
+
+//-----------------------------------------------------------------------------
+//! Convenience function to turn an integer into a string
+
+//! @param[in] val    The value to convert
+//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
+//!                   or 16. Other values will reset the iostream flags.
+//! @param[in] width  The width to pad (with zeros).
+//-----------------------------------------------------------------------------
+string
+Utils::intStr (int  val,
+	       int  base,
+	       int  width)
+{
+  ostringstream  os;
+
+  os << setbase (base) << setfill ('0') << setw (width) << val;
+  return os.str ();
+
+}	// intStr ()
 
 
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
+// show-trailing-whitespace: t
 // End:

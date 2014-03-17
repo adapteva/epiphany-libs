@@ -60,29 +60,17 @@ using std::string;
 using std::map;
 
 
+class Thread;
+
+//-----------------------------------------------------------------------------
 //! Class implementing a GDB RSP server.
 
-//! A thread listens for RSP requests, which are converted to requests to read
-//! and write registers or memory or control the CPU in the debug unit
+//! We listen for RSP requests, which are converted to requests to read and
+//! write registers or memory or control the CPU in the debug unit
+//-----------------------------------------------------------------------------
 class GdbServer
 {
 public:
-
-  // Constructor and destructor
-  GdbServer (ServerInfo* _si);
-  ~GdbServer ();
-
-  //! main loop for core
-  void rspServer (TargetControl* TargetControl);
-
-
-private:
-
-  // Public architectural constants. Must be consistent with the target
-  // hardware.
-  static const unsigned int NUM_GPRS = 64;
-  static const unsigned int NUM_SCRS = 42;
-  static const unsigned int NUM_REGS = NUM_GPRS + NUM_SCRS;
 
   //! Definition of GDB target signals. Data taken from the GDBsource. Only
   //! those we use defined here.
@@ -109,24 +97,11 @@ private:
     TARGET_SIGNAL_TERM = 15,
   };
 
-
-  enum SPECIAL_INSTR_OPCODES
-  {
-  };
-
-  enum EPIPHANY_EX_CASE
-  {
-    E_UNALIGMENT_LS = 0x2,
-    E_FPU = 0x3,
-    E_UNIMPL = 0x4
-  };
-
-  //! Maximum size of RSP packet. Enough for all the registers as hex
-  //! characters (8 per reg) + 1 byte end marker.
-  static const int RSP_PKT_MAX = NUM_REGS * TargetControl::E_REG_BYTES * 2 + 1;
-
-  //! Number of entries in IVT table
-  static const uint32_t IVT_ENTRIES = 10;
+  // Public architectural constants. Must be consistent with the target
+  // hardware.
+  static const unsigned int NUM_GPRS = 64;
+  static const unsigned int NUM_SCRS = 42;
+  static const unsigned int NUM_REGS = NUM_GPRS + NUM_SCRS;
 
   // Specific GDB register numbers - GPRs
   static const unsigned int R0_REGNUM = 0;
@@ -151,25 +126,43 @@ private:
   static const unsigned int RESETCORE_REGNUM = NUM_GPRS + 15;
   static const unsigned int COREID_REGNUM = NUM_GPRS + 37;
 
-  //! GDB register nu
-
   // 16-bit instruction fields for Epiphany (i.e. LS bytes in instruction)
   static const uint16_t NOP_INSTR  = 0x01a2;	//!< NOP instruction
   static const uint16_t IDLE_INSTR = 0x01b2;	//!< IDLE instruction
   static const uint16_t BKPT_INSTR = 0x01c2;	//!< BKPT instruction
   static const uint16_t TRAP_INSTR = 0x03e2;	//!< TRAP instruction
 
-  //! Size of the breakpoint instruction (in bytes)
-  static const size_t BKPT_INSTLEN = 2;
+  //! Size of a 16-bit instruction in bytes
+  static const size_t SHORT_INSTRLEN = 2;
 
-  //! Size of the trap instruction (in bytes)
-  static const size_t TRAP_INSTLEN = 2;
+  //! Size of a 32-bit instruction in bytes
+  static const size_t LONG_INSTRLEN = 2;
+
+  // Constructor and destructor
+  GdbServer (ServerInfo* _si);
+  ~GdbServer ();
+
+  //! main loop for core
+  void rspServer (TargetControl* TargetControl);
+
+
+private:
+
+  //! Maximum size of RSP packet. Enough for all the registers as hex
+  //! characters (8 per reg) + 1 byte end marker.
+  static const int RSP_PKT_MAX = NUM_REGS * TargetControl::E_REG_BYTES * 2 + 1;
 
   //! Number of the idle process
   static const int IDLE_PID = 1;
 
-  //! Set of processes
-  set <ProcessInfo *> mProcesses;
+  //! Our debug mode
+  enum {
+    NON_STOP,
+    ALL_STOP
+  } mDebugMode;
+
+  //! Map of process ID to process info
+  map <int, ProcessInfo *> mProcesses;
 
   //! The idle process
   ProcessInfo * mIdleProcess;
@@ -177,15 +170,20 @@ private:
   //! Next process ID to use
   int  mNextPid;
 
+  //! Map of thread ID to thread
+  map <int, Thread *> mThreads;
+
   //! Map from core to thread
-  map <CoreId, int> core2thread;
+  map <CoreId, int> mCore2Tid;
 
-  //! Map from thread to core
-  map <int, CoreId> thread2core;
+  //! Current process
+  int  currentPid;
 
-  //! Current thread for continue/step
-  int  currentCThread;
-  int  currentGThread;
+  //! Current thread ID for continue/step
+  int  currentCTid;
+
+  //! Current thread ID for general access
+  int  currentGTid;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -202,9 +200,6 @@ private:
   //! The packet pointer. There is only ever one packet in use at one time, so
   //! there is no need to repeatedly allocate and delete it.
   RspPacket *pkt;
-
-  //IVT save buffer
-  uint8_t fIVTSaveBuff[IVT_ENTRIES * TargetControl::E_INSTR_BYTES];
 
   //! Hash table for matchpoints
   MpHash *mpHash;
@@ -223,15 +218,15 @@ private:
 
   // Helper functions for setting up a connection
   void initProcesses ();
-  void rspAttach ();
-  void rspDetach ();
+  void rspAttach (int  pid);
+  void rspDetach (int pid);
 
   // Main RSP request handler
   void rspClientRequest ();
 
   // Handle the various RSP requests
-  void rspReportException (uint32_t stoppedPC, int threadId,
-			   TargetSignal exCause);
+  void rspReportException (int          tid,
+			   TargetSignal sig);
   void rspContinue ();
   void rspContinue (uint32_t except);
   void rspContinue (uint32_t addr, uint32_t except);
@@ -247,6 +242,7 @@ private:
   void rspQThreadExtraInfo ();
   void rspCommand ();
   void rspCmdWorkgroup (char* cmd);
+  void rspCmdProcess (char* cmd);
   void rspTransfer ();
   void rspOsData (unsigned int offset,
 		  unsigned int length);
@@ -261,8 +257,15 @@ private:
   void rspStep ();
   void rspStep (bool haveAddrP, uint32_t addr, TargetSignal except);
   void rspIsThreadAlive ();
-  void targetResume (CoreId coreId);
   void rspVpkt ();
+  void rspVCont ();
+  char extractVContAction (string action);
+  void doStep (int          tid,
+	       TargetSignal sig = TARGET_SIGNAL_NONE);
+  void continueThread (int       tid,
+		       uint32_t  sig = TARGET_SIGNAL_NONE);
+  void doContinue (int          tid);
+  bool doFileIO (int  tid);
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
@@ -273,89 +276,23 @@ private:
   void targetSwReset ();
   void targetHWReset ();
 
-  // Main functions for reading and writing memory
-  bool readMemBlock (CoreId  coreId,
-		     uint32_t  addr,
-		     uint8_t* buf,
-		     size_t  len) const;
-  bool writeMemBlock (CoreId  coreId,
-		      uint32_t  addr,
-		      uint8_t* buf,
-		      size_t  len) const;
-  bool  readMem32 (CoreId  coreId,
-		   uint32_t  addr,
-		   uint32_t& val) const;
-  uint32_t  readMem32 (CoreId  coreId,
-		       uint32_t  addr) const;
-  bool  writeMem32 (CoreId  coreId,
-		    uint32_t  addr,
-		    uint32_t val) const;
-  bool  readMem16 (CoreId  coreId,
-		   uint32_t  addr,
-		   uint16_t& val) const;
-  uint16_t  readMem16 (CoreId  coreId,
-		       uint32_t  addr) const;
-  bool  writeMem16 (CoreId  coreId,
-		    uint32_t  addr,
-		    uint16_t val) const;
-  bool  readMem8 (CoreId  coreId,
-		  uint32_t  addr,
-		  uint8_t& val) const;
-  uint8_t  readMem8 (CoreId  coreId,
-		     uint32_t  addr) const;
-  bool  writeMem8 (CoreId  coreId,
-		   uint32_t  addr,
-		   uint8_t val) const;
-
-  // Main functions for reading and writing registers
-  bool readReg (CoreId  coreId,
-		unsigned int regnum,
-		uint32_t& regval) const;
-  uint32_t  readReg (CoreId  coreId,
-		     unsigned int regnum) const;
-  bool writeReg (CoreId  coreId,
-		 unsigned int regNum,
-		 uint32_t value) const;
-
-  // Convenience functions for reading and writing various common registers
-  CoreId readCoreId (CoreId  coreId) const;
-  uint32_t readStatus (CoreId  coreId) const;
-  uint32_t readPc (CoreId  coreId) const;
-  void writePc (CoreId  coreId,
-		uint32_t addr);
-  uint32_t readLr (CoreId  coreId) const;
-  void writeLr (CoreId  coreId,
-		uint32_t addr);
-  uint32_t readFp (CoreId  coreId) const;
-  void writeFp (CoreId  coreId,
-		uint32_t addr);
-  uint32_t readSp (CoreId  coreId) const;
-  void writeSp (CoreId  coreId,
-		uint32_t  addr);
-
-  // Accessors for the core IDs of threads
-  CoreId cCore ();
-  CoreId gCore ();
-
-  void insertBkptInstr (uint32_t addr);
-  bool isHitInBreakPointInstruction (uint32_t bkptAddr);
-  bool isCoreHalted (CoreId coreId);
-  bool isCoreIdle (CoreId  coreId);
-  bool isCoreGIntsEnabled (CoreId  coreId);
-  TargetSignal getException (CoreId  coreId);
-  bool targetHalt (CoreId  coreId);
-
-  void saveIVT (CoreId coreId);
-  void restoreIVT (CoreId coreId);
-
+  // Accessors for processes and threads
+  ProcessInfo * getProcess (int  pid);
+  Thread * getThread (int         tid,
+		      const char* mess = NULL);
   //! Thread control
-  void NanoSleepThread (unsigned long timeout);
+  bool haltThreads (int  tid);
+  bool resumeThreads (int  tid);
 
-  void redirectSdioOnTrap (uint8_t trapNumber);
-
+  void redirectStdioOnTrap (int      tid,
+			    uint8_t  trap);
+  void hostWrite (const char* intro,
+		  uint32_t    chan,
+		  uint32_t    addr,
+		  uint32_t    len);
   bool  is32BitsInstr (uint32_t iab_instr);
 
-  //! Wrapper to avoid external memory problems. 
+  //! Wrapper to avoid external memory problems.
   void printfWrapper (char *result_str, const char *fmt, const char *args_buf);
 
   //! Extraction opcode fields.
@@ -384,11 +321,11 @@ private:
   uint8_t  getTrap (uint16_t  instr);
   int32_t  getBranchOffset (uint16_t  instr);
   int32_t  getBranchOffset (uint32_t  instr);
-  bool  getJump (CoreId  coreId,
+  bool  getJump (Thread*   thread,
 		 uint16_t  instr,
 		 uint32_t  addr,
 		 uint32_t& destAddr);
-  bool  getJump (CoreId  coreId,
+  bool  getJump (Thread*   thread,
 		 uint32_t  instr,
 		 uint32_t  addr,
 		 uint32_t& destAddr);
@@ -400,13 +337,6 @@ private:
   uint64_t getfield (uint64_t x, int _lt, int _rt);
   void setfield (uint32_t & x, int _lt, int _rt, uint32_t val);
 
-  //! Map GDB register number to hardware register memory address
-  uint32_t regAddr (unsigned int  regnum) const;
-
-  //! Integer to string conversion
-  string  intStr (int  val,
-		  int  base = 10,
-		  int  width = 0) const;
 
 };				// GdbServer()
 
@@ -416,4 +346,5 @@ private:
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
+// show-trailing-whitespace: t
 // End:

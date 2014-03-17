@@ -11,6 +11,7 @@ CPP_SRCS += \
 ../src/ProcessInfo.cpp \
 ../src/RspConnection.cpp \
 ../src/RspPacket.cpp \
+../src/Thread.cpp \
 ../src/Utils.cpp \
 ../src/main.cpp \
 ../src/ServerInfo.cpp \
@@ -25,6 +26,7 @@ OBJS += \
 ./src/ProcessInfo.o \
 ./src/RspConnection.o \
 ./src/RspPacket.o \
+./src/Thread.o \
 ./src/Utils.o \
 ./src/main.o \
 ./src/ServerInfo.o \
@@ -39,6 +41,7 @@ CPP_DEPS += \
 ./src/ProcessInfo.d \
 ./src/RspConnection.d \
 ./src/RspPacket.d \
+./src/Thread.d \
 ./src/Utils.d \
 ./src/main.d \
 ./src/ServerInfo.d \

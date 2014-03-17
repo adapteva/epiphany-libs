@@ -34,22 +34,17 @@
 
 // Commenting is Doxygen compatible.
 
-// Change Management
-// =================
-
-//  4 May 09: Jeremy Bennett. Initial version based on the Embecosm GDB server
-//                            for Verilator implementation.
-
-// Embecosm Subversion Identification
-// ==================================
-
-// $Id: Utils.h 967 2011-12-29 07:07:27Z oraikhman $
 //-----------------------------------------------------------------------------
 
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <ctime>
 #include <inttypes.h>
+#include <string>
+
+
+using std::string;
 
 
 //-----------------------------------------------------------------------------
@@ -65,11 +60,14 @@ public:
   static const char hex2Char (uint8_t d);
   static void reg2Hex (uint32_t val, char *buf);
   static uint32_t hex2Reg (char *buf);
-  static void ascii2Hex (char *dest, char *src);
-  static void hex2Ascii (char *dest, char *src);
+  static void ascii2Hex (char *dest, const char *src);
+  static void hex2Ascii (char *dest, const char *src);
   static int rspUnescape (char *buf, int len);
-  static uint32_t htotl (uint32_t hostVal);
-  static uint32_t ttohl (uint32_t targetVal);
+  static void microSleep (unsigned long us);
+ 
+  static string  intStr (int  val,
+			 int  base = 10,
+			 int  width = 0);
 
 
 private:
@@ -81,18 +79,11 @@ private:
 
 };				// class Utils
 
-
-//-----------------------------------------------------------------------------
-//! use the same memory allocation routines as Cgen simulator
-//! used for supporting stdio
-//-----------------------------------------------------------------------------
-void *zalloc (unsigned long size);
-void zfree (void *data);
-
 #endif // UTILS_H
 
 
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
+// show-trailing-whitespace: t
 // End:

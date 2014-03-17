@@ -1,3 +1,139 @@
+2014-03-17  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Add Thread.cpp., Thread.o and
+	Thread.d.
+	* Release/src/subdir.mk: Likewise.
+	* src/CoreId.h: Correct declaration of input operator.
+	* src/GdbServer.cpp: Use currentCTid and currentGTid
+	instead of currentCThread and currentGThread throughout.
+	(GdbServer::GdbServer): Define mDebugMode, move sanity checking to
+	Thread class.
+	(GdbServer::initProcesses): Set up thread map from thread ID. Only
+	need for one direction map core ID to thread ID.
+	(GdbServer::rspAttach): Use thread specific calls and apply to all
+	threads in current process.
+	(GdbServer::rspDetach): Restart all threads except for idle process.
+	(GdbServer::rspClientRequest): Use rspDetach on comms failure.
+	(GdbServer::rspReportException): Remove first argument, rewrite to
+	use T packet consistently.
+	(GdbServer::rspContinue): Use thread specific calls. Should now be
+	replaced by vCont anyway.
+	(GdbServer::NanoSleepThread): Deleted, replaced by Utils::microSleep.
+	(GdbServer::targetResume): Deleted, replace by thread specific call.
+	(GdbServer::rspSuspend): Use thread specific calls.
+	(GdbServer::rspFileIOreply): Likewise.
+	(enum TRAP_CODES): Moved into redirectStdioOnTrap
+	(GdbServer::redirectStdioOnTrap): Renamed from redirectSdioOnTrap
+	(GdbServer::redirectSdioOnTrap): Renamed as redirectStdioOnTrap
+	(GdbServer::hostWrite): Created.
+	(GdbServer::rspReadAllRegs): Use thread specific calls.
+	(GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQThreadInfo): Restrict to threads in current process.
+	(GdbServer::rspQThreadExtraInfo): Use thread specific calls.
+	(GdbServer::rspCommand): use thread specific calls. Add "process"
+	command.
+	(GdbServer::rspCmdWorkgroup): Fix bug in removing processes.
+	(GdbServer::rspCmdProcess): Created.
+	(GdbServer::rspOsDataProcesses): Use thread specific calls.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspRestart): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::rspIsThreadAlive): use mThreads instaed of thread2core/
+	(GdbServer::rspVpkt): Support vCont? and vCont.
+	(GdbServer::insertBkptInstr): moved to Thread class.
+	(GdbServer::rspVCont): Created.
+	(GdbServer::isCoreHalted): Moved to Thread class.
+	(GdbServer::isCoreIdle): Likewise.
+	(GdbServer::isCoreGIntsEnabled): Likewise.
+	(GdbServer::extractVContAction): Created.
+	(GdbServer::doStep): Created.
+	(GdbServer::restoreIVT): Moved to Thread class.
+	(GdbServer::continueThread): Created.
+	(GdbServer::doContinue): Created.
+	(GdbServer::doFileIO): Created.
+	(GdbServer::rspWriteMemBin): Use thread specific calls.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::targetSwReset): Likewise.
+	(GdbServer::targetHWReset): Likewise.
+	(GdbServer::readMemBlock): Moved to Thread class.
+	(GdbServer::writeMemBlock): Likewise.
+	(GdbServer::readMem32): Likewise.
+	(GdbServer::writeMem32): Likewise.
+	(GdbServer::readMem16): Likewise.
+	(GdbServer::getProcess): Created.
+	(GdbServer::getThread): Created.
+	(GdbServer::readMem8): Moved to Thread class.
+	(GdbServer::writeMem8): Likewise
+	(GdbServer::haltThreads): Created.
+	(GdbServer::readReg): Moved to Thread class.
+	(GdbServer::writeReg): Likewise.
+	(GdbServer::readCoreId): Likewise.
+	(GdbServer::readStatus): Likewise.
+	(GdbServer::readPc): Likewise.
+	(GdbServer::writePc): Likewise.
+	(GdbServer::readLr): Likewise.
+	(GdbServer::writeLr): Likewise.
+	(GdbServer::readFp): Likewise.
+	(GdbServer::writeFp): Likewise.
+	(GdbServer::readSp): Likewise.
+	(GdbServer::writeSp): Likewise.
+	(GdbServer::resumeThreads): Created.
+	(GdbServer::cCore): Deleted.
+	(GdbServer::gCore): Deleted.
+	(GdbServer::getJump): Use thread, rather than core ID as argument.
+	(GdbServer::regAddr): Moved to Thread class.
+	(GdbServer::intStr): Moved to Utils class.
+	* src/GdbServer.h (class GdbServer): Declare new and
+	remove old member function declarations as per GdbServer.cpp
+	comments.  Make register numbers and constants needed by Thread
+	class public.
+	* src/MemRange.cpp: Minor emacs local variable
+	change.
+	* src/MemRange.h: Likewise.
+	* src/MpHash.cpp: Likewise.
+	* src/MpHash.h: Likewise.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo): No
+	pid in prototypex
+	(ProcessInfo::pid): Deleted.
+	(ProcessInfo::threadEnd): Rename thread as tid for clarity.
+	(ProcessInfo::addThread): Likewise.
+	(ProcessInfo::eraseThread): Likewise.
+	(ProcessInfo::hasThread): Likewise.
+	* src/ProcessInfo.h (class ProcessInfo): Change
+	prototypes to match changes in ProcessInfo.cpp.  Remove pid accessor.
+	* src/RspConnection.cpp: Minor emacs local variable
+	change.
+	* src/RspConnection.h: Likewise.
+	* src/RspPacket.cpp: Likewise.
+	* src/RspPacket.h: Likewise.
+	* src/ServerInfo.cpp: Likewise.
+	* src/ServerInfo.h: Likewise.
+	* src/TargetControl.h: Likewise.
+	* src/TargetControlHardware.cpp: Likewise.
+	* src/TargetControlHardware.h: Likewise.
+	* src/Thread.cpp: Created.
+	* src/Thread.h: Created
+	* src/Utils.cpp (uint32_t Utils::hex2Reg): const
+	second argument
+	(Utils::ascii2Hex): Likewise.
+	(Utils::hex2Ascii): Likewise.
+	(Utils::microSleep): Created
+	(Utils::intStr): Created.
+	(zalloc): Deleted.
+	(zfree): Deleted.
+	* src/Utils.h: Added new functions, removed obsolete
+	ones.
+	* src/libgloss_syscall.h: Minor emacs local variable
+	change.
+	* src/maddr_defs.h: Likewise.
+	* src/main.cpp (main): Likewise.
+
 2014-03-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::initProcesses): Assert thread

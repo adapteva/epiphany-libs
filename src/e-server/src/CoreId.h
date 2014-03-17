@@ -89,7 +89,7 @@ private:
 
 // Global Operators
 ostream& operator<< (ostream& os, const CoreId &coreId);
-istream& operator<< (istream& is, CoreId &coreId);
+istream& operator>> (istream& is, CoreId &coreId);
 string operator+ (const string& str, const CoreId &coreId);
 const string& operator+= (string& str, const CoreId &coreId);
   

@@ -103,4 +103,5 @@ std::ostream & operator << (std::ostream & s, RspPacket & p);
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
+// show-trailing-whitespace: t
 // End:

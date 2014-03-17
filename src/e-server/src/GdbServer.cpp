@@ -24,6 +24,7 @@
 
 // Note that the Epiphany is a little endian architecture.
 
+#include <cerrno>
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
@@ -36,9 +37,8 @@
 #include <unistd.h>
 
 #include "GdbServer.h"
+#include "Thread.h"
 #include "Utils.h"
-
-#include "libgloss_syscall.h"
 
 using std::cerr;
 using std::cout;
@@ -46,6 +46,7 @@ using std::dec;
 using std::endl;
 using std::hex;
 using std::ostringstream;
+using std::pair;
 using std::setbase;
 using std::setfill;
 using std::setw;
@@ -84,29 +85,13 @@ using std::vector;
 
 //! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
-  currentCThread (0),
-  currentGThread (0),
+  mDebugMode (ALL_STOP),
+  currentCTid (0),
+  currentGTid (0),
   si (_si),
   fTargetControl (NULL),
   fIsTargetRunning (false)
 {
-  // Some sanity checking that numbering has not got misaligned! This is a
-  // consequence of our desire to have properly typed constants.
-  assert (regAddr (R0_REGNUM)      == TargetControl::R0);
-  assert (regAddr (R0_REGNUM + 63) == TargetControl::R63);
-
-  assert (regAddr (CONFIG_REGNUM)      == TargetControl::CONFIG);
-  assert (regAddr (STATUS_REGNUM)      == TargetControl::STATUS);
-  assert (regAddr (PC_REGNUM)          == TargetControl::PC);
-  assert (regAddr (DEBUGSTATUS_REGNUM) == TargetControl::DEBUGSTATUS);
-  assert (regAddr (IRET_REGNUM)        == TargetControl::IRET);
-  assert (regAddr (IMASK_REGNUM)       == TargetControl::IMASK);
-  assert (regAddr (ILAT_REGNUM)        == TargetControl::ILAT);
-  assert (regAddr (FSTATUS_REGNUM)      == TargetControl::FSTATUS);
-  assert (regAddr (DEBUGCMD_REGNUM)    == TargetControl::DEBUGCMD);
-  assert (regAddr (RESETCORE_REGNUM)   == TargetControl::RESETCORE);
-  assert (regAddr (COREID_REGNUM)      == TargetControl::COREID);
-
   pkt = new RspPacket (RSP_PKT_MAX);
   rsp = new RspConnection (si);
   mpHash = new MpHash ();
@@ -134,7 +119,7 @@ void
 GdbServer::rspServer (TargetControl* _fTargetControl)
 {
   fTargetControl = _fTargetControl;
-  
+
   initProcesses ();		// Set up the processes and core to thread maps
 
   // Loop processing commands forever
@@ -154,8 +139,9 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	    {
 	      cout << "INFO: connected to port " << si->port () << endl;
 
-	      if (si->haltOnAttach ())
-		  rspAttach ();
+	      // All-stop mode requires we halt on attaching. This will return
+	      // the appropriate stop packet.
+	      rspAttach (currentPid);
 	    }
 	}
 
@@ -223,69 +209,113 @@ GdbServer::initProcesses ()
   assert (fTargetControl);		// Just in case of a stupid connection
 
   // Create the idle process
-  mIdleProcess = new ProcessInfo (IDLE_PID);
-  mProcesses.insert (mIdleProcess);
-  mNextPid = IDLE_PID + 1;
+  mIdleProcess = new ProcessInfo;
+  mNextPid = IDLE_PID;
+  pair <int, ProcessInfo *> entry (mNextPid, mIdleProcess);
+  assert (mProcesses.insert (entry).second);
+  mNextPid++;
 
-  // Initialize a bi-directional mapping from the target
+  // Initialize a thread for each core. A thread is referenced by its thread
+  // ID, and from the thread we can get the coreId (accessor). We need a
+  // reverse map, to allow us to gte from core to thread ID if we ever need to
+  // in the future.
   for (vector <CoreId>::iterator it = fTargetControl->coreIdBegin ();
        it!= fTargetControl->coreIdEnd ();
        it++)
     {
       CoreId coreId = *it;
-      int threadId = (coreId.row () + 1) * 100 + coreId.col () + 1;
+      int tid = (coreId.row () + 1) * 100 + coreId.col () + 1;
+      Thread *thread = new Thread (coreId, fTargetControl, si);
 
-      // Oh for bi-directional maps
-      core2thread [coreId] = threadId;
-      thread2core [threadId] = coreId;
+      mThreads[tid] = thread;
+      mCore2Tid [coreId] = tid;
 
       // Add to idle process
-      assert (mIdleProcess->addThread (threadId));
+      assert (mIdleProcess->addThread (tid));
     }
+
+  currentPid = IDLE_PID;
+
 }	// initProcesses ()
 
-  
+
 //-----------------------------------------------------------------------------
 //! Attach to the target
 
-//! If not already halted, the target will be halted.
+//! If not already halted, the target will be halted. We send an appropriate
+//! stop packet back to the client.
 
 //! @todo What should we really do if the target fails to halt?
 
 //! @note  The target should *not* be reset when attaching.
+
+//! @param[in] pid  The ID of the process to which we attach
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspAttach ()
+GdbServer::rspAttach (int  pid)
 {
-  CoreId coreId = cCore ();
-  bool isHalted = targetHalt (coreId);
+  map <int, ProcessInfo *>::iterator  it = mProcesses.find (pid);
+  assert (it != mProcesses.end ());
+  ProcessInfo* process = it->second;
+  bool isHalted = true;
 
-  if (isCoreIdle (coreId))
+  for (set <int>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
     {
-      cerr << "Warning: Core " << coreId << " idle on attach: forcing active."
-	   << endl;
-      uint32_t status = readReg (coreId, STATUS_REGNUM);
-      status &= ~TargetControl::STATUS_ACTIVE_MASK;
-      status |= TargetControl::STATUS_ACTIVE_ACTIVE;
-      writeReg (coreId, FSTATUS_REGNUM, status);
+      int tid = *it;
+      Thread *thread = getThread (tid);
+      isHalted &= thread->halt ();
+
+      if (thread->isIdle ())
+	{
+	  if (thread->activate ())
+	    {
+	      if (si->debugStopResumeDetail ())
+		cerr << "DebugStopResumeDetail: Thread " << tid
+		     << " idle on attach: forced active." << endl;
+	    }
+	  else
+	    {
+	      if (si->debugStopResumeDetail ())
+		cerr << "DebugStopResumeDetail: Thread " << tid
+		     << " idle on attach: failed to force active." << endl;
+	    }
+	}
     }
-	
+
+  // @todo Does this belong here. Is TARGET_SIGNAL_HUP correct?
   if (!isHalted)
-      rspReportException (0, -1 /*all threads */ , TARGET_SIGNAL_HUP);
+    rspReportException (-1 /*all threads */ , TARGET_SIGNAL_HUP);
 
 }	// rspAttach ()
 
 
 //-----------------------------------------------------------------------------
-//! Detach from hardware.
+//! Detach from a process
 
-//! For now a null function.
+//! Restart all threads in the process, *unless* it is the idle process (why
+//! waste CPU with it).
 
-//! @todo Leave emulation mode?
+//! @param[in] pid  The ID of the process from whcih we detach
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspDetach ()
+GdbServer::rspDetach (int pid)
 {
+  if (IDLE_PID != pid)
+    {
+      map <int, ProcessInfo *>::iterator  it = mProcesses.find (pid);
+      assert (it != mProcesses.end ());
+      ProcessInfo* process = it->second;
+
+      for (set <int>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
+	{
+	  Thread* thread = getThread (*it);
+	  thread->resume ();
+	}
+    }
 }	// rspDetach ()
 
 
@@ -310,6 +340,7 @@ GdbServer::rspClientRequest ()
 {
   if (!rsp->getPkt (pkt))
     {
+      rspDetach (currentPid);
       rsp->rspClose ();		// Comms failure
       return;
     }
@@ -324,8 +355,7 @@ GdbServer::rspClientRequest ()
 
     case '?':
       // Return last signal ID
-      rspReportException (0 /*PC ??? */ , -1 /*all threads */ ,
-			  TARGET_SIGNAL_TRAP);
+      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_TRAP);
       break;
 
     case 'A':
@@ -366,6 +396,7 @@ GdbServer::rspClientRequest ()
     case 'D':
       // Detach GDB. Do this by closing the client. The rules say that
       // execution should continue, so unstall the processor.
+      rspDetach (currentPid);
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
       rsp->rspClose ();
@@ -378,7 +409,7 @@ GdbServer::rspClientRequest ()
       rspFileIOreply ();
 
       //always resume -- (continue c or s command)
-      targetResume (cCore ());
+      resumeThreads (currentCTid);
 
       break;
 
@@ -404,16 +435,9 @@ GdbServer::rspClientRequest ()
       break;
 
     case 'k':
-
-      cerr << hex << "GDB client kill request. The multicore server will be detached from the"
-	   << endl
-	   << "specific gdb client. Use target remote :<port> to connect again"
-	   << endl;	//Stop target id supported
-      //pkt->packStr("OK");
-      //rsp->putPkt(pkt);
-      //exit(23);
-      rspDetach ();
-      //reset to the initial state to prevent reporting to the disconnected client
+      rspDetach (currentPid);
+      //reset to the initial state to prevent reporting to the disconnected
+      //client
       fIsTargetRunning = false;
 
       break;
@@ -512,47 +536,46 @@ GdbServer::rspClientRequest ()
 //-----------------------------------------------------------------------------
 //! Send a packet acknowledging an exception has occurred
 
-//! The only signal we ever see in this implementation is TRAP/ABORT.
-//! TODO no thread support -- always report as S packet
+//! @param[in] tid  The thread ID we are acknowledging.
+//! @param[in] sig  The signal to report back.
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspReportException (uint32_t stoppedPC, int threadId,
-			       TargetSignal exCause)
+GdbServer::rspReportException (int          tid,
+			       TargetSignal sig)
 {
   if (si->debugStopResume ())
-    cerr << "DebugStopResume: Report exception at PC " << stoppedPC
-	 << " for thread " << threadId << " with GDB signal " << exCause
-	 << endl;
+    cerr << "DebugStopResume: Report exception  for thread " << tid
+	 << " with GDB signal " << sig << endl;
 
-  // Construct a signal received packet
-  if (threadId == -1)
+  ostringstream oss;
+
+  // Construct a signal received packet. Use S for all threads, T otherwise.
+  switch (tid)
     {
-      pkt->data[0] = 'S';
+    case -1:
+      // All threads have stopped
+      oss << "S" << Utils::intStr (sig, 16, 2);
+      break;
+
+    case 0:
+      // Weird. This isn't a sensible thread to return
+      cerr << "Warning: Attempt to report thread 0 stopped: Using -1 instead."
+	   << endl;
+      oss << "S" << Utils::intStr (sig, 16, 2);
+      break;
+
+    default:
+      // A specific thread has stopped
+      oss << "T" << Utils::intStr (sig, 16, 2) << "thread:" << hex << tid;
+      break;
     }
-  else
-    {
-      pkt->data[0] = 'T';
-    }
 
-  pkt->data[1] = Utils::hex2Char (exCause >> 4);
-  pkt->data[2] = Utils::hex2Char (exCause % 16);
-
-  if (threadId != -1)
-    {
-      sprintf ((pkt->data), "T05thread:%d;", threadId);
-
-    }
-  else
-    {
-
-      pkt->data[3] = '\0';
-    }
-  pkt->setLen (strlen (pkt->data));
-
-  rsp->putPkt (pkt);
-
-  //core in Debug state (bkpt) .. report to gdb
+  // In all-stop mode, ensure all threads are halted.
+  haltThreads (-1);
   fIsTargetRunning = false;
+
+  pkt->packStr (oss.str ().c_str ());
+  rsp->putPkt (pkt);
 
 }	// rspReportException()
 
@@ -573,6 +596,8 @@ GdbServer::rspContinue (uint32_t except)
 {
   uint32_t     addr;		// Address to continue from, if any
   uint32_t  hexAddr;		// Address supplied in packet
+  Thread *thread = getThread (currentCTid);
+
   // Reject all except 'c' packets
   if ('c' != pkt->data[0])
     {
@@ -583,14 +608,14 @@ GdbServer::rspContinue (uint32_t except)
 
   // Get an address if we have one
   if (0 == strcmp ("c", pkt->data))
-    addr = readPc (cCore ());		// Default uses current PC
+    addr = thread->readPc ();		// Default uses current PC
   else if (1 == sscanf (pkt->data, "c%" SCNx32, &hexAddr))
     addr = hexAddr;
   else
     {
       cerr << "Warning: RSP continue address " << pkt->data
 	<< " not recognized: ignored" << endl;
-      addr = readPc (cCore ());		// Default uses current NPC
+      addr = thread->readPc ();		// Default uses current NPC
     }
 
   rspContinue (addr, TARGET_SIGNAL_NONE);
@@ -607,17 +632,19 @@ GdbServer::rspContinue (uint32_t except)
 void
 GdbServer::rspContinue ()
 {
+  Thread* thread = getThread (currentCTid);
+
   if (si->debugTrapAndRspCon ())
     cerr << "RSP continue with signal '" << pkt->
       data << "' received" << endl;
 
   //return the same exception
-  TargetSignal exCause = TARGET_SIGNAL_TRAP;
+  TargetSignal sig = TARGET_SIGNAL_TRAP;
 
   if ((0 == strcmp ("C03", pkt->data)))
     {				//get continue with signal after reporting QUIT/exit, silently ignore
 
-      exCause = TARGET_SIGNAL_QUIT;
+      sig = TARGET_SIGNAL_QUIT;
 
     }
   else
@@ -626,53 +653,13 @@ GdbServer::rspContinue ()
 	data << "' received, the server will ignore the continue" << endl;
 
       //check the exception state
-      exCause = getException (cCore ());
-      //bool isExState= isTargetExceptionState(exCause);
+      sig = (TargetSignal) thread->getException ();
     }
 
-  //get PC
-  uint32_t reportedPc = readPc (cCore ());
-
   // report to gdb the target has been stopped
-  rspReportException (reportedPc, -1 /* all threads */ , exCause);
+  rspReportException (-1 /* all threads */ , sig);
 
-}				// rspContinue()
-
-
-//----------------------------------------------------------
-//! have sleep con for request .. get other thread to communicate with target
-//
-//-----------------------------------------------------------------------------
-void
-GdbServer::NanoSleepThread (unsigned long timeout)
-{
-  struct timespec sleepTime;
-  struct timespec remainingSleepTime;
-
-  sleepTime.tv_sec = 0;
-  sleepTime.tv_nsec = timeout;
-  nanosleep (&sleepTime, &remainingSleepTime);
-
-}
-
-
-//-----------------------------------------------------------------------------
-//! Resume target execution.
-
-//! @param[in] coreId  The core to resume.
-//-----------------------------------------------------------------------------
-void
-GdbServer::targetResume (CoreId coreId)
-{
-  if (!writeReg (coreId, DEBUGCMD_REGNUM, TargetControl::DEBUGCMD_COMMAND_RUN))
-    cerr << "Warning: Failed to resume target." << endl;
-
-  fIsTargetRunning = true;
-
-  if (si->debugTrapAndRspCon () || si->debugStopResume ())
-    cerr << "Resuming target." << endl;
-
-}	// targetResume ()
+}	// rspContinue()
 
 
 //-----------------------------------------------------------------------------
@@ -687,6 +674,8 @@ GdbServer::targetResume (CoreId coreId)
 void
 GdbServer::rspContinue (uint32_t addr, uint32_t except)
 {
+  Thread* thread = getThread (currentCTid);
+
   if ((!fIsTargetRunning && si->debugStopResume ()) || si->debugTranDetail ())
     {
       cerr << "GdbServer::rspContinue PC 0x" << hex << addr << dec << endl;
@@ -696,7 +685,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
   if (!fIsTargetRunning)
     {
-      if (!isCoreHalted (cCore ()))
+      if (! thread->isHalted ())
 	{
 	  //cerr << "********* isTargetInDebugState = false **************" << endl;
 
@@ -712,10 +701,10 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  //cerr << "********* isTargetInDebugState = true **************" << endl;
 
 	  //set PC
-	  writePc (cCore (), addr);
+	  thread->writePc (addr);
 
 	  //resume
-	  targetResume (cCore ());
+	  thread->resume ();
 	}
     }
 
@@ -728,7 +717,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
     {
       //cerr << "********* while true **************" << endl;
 
-      NanoSleepThread (300000000);
+      Utils::microSleep (300000);		// 300 ms
 
       timeout_me += 1;
 
@@ -743,19 +732,19 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
       //check the value of debug register
 
-      if (isCoreHalted (cCore ()))
+      if (thread->isHalted ())
 	{
 	  //cerr << "********* isTargetInDebugState = true **************" << endl;
 
 	  // If it's a breakpoint, then we need to back up one instruction, so
 	  // on restart we execute the actual instruction.
-	  uint32_t c_pc = readPc (cCore ());
+	  uint32_t c_pc = thread->readPc ();
 	  //cout << "stopped at @pc " << hex << c_pc << dec << endl;
-	  prevPc = c_pc - BKPT_INSTLEN;
+	  prevPc = c_pc - SHORT_INSTRLEN;
 
 	  //check if it is trap
 	  uint16_t val_;
-	  readMem16 (gCore (), prevPc, val_);
+	  thread->readMem16 (prevPc, val_);
 	  uint16_t valueOfStoppedInstr = val_;
 
 	  if (valueOfStoppedInstr == BKPT_INSTR)
@@ -764,7 +753,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	      if (NULL != mpHash->lookup (BP_MEMORY, prevPc))
 		{
-		  writePc (cCore (), prevPc);
+		  thread->writePc (prevPc);
 		  if (si->debugTrapAndRspCon ())
 		    cerr << dec << "set pc back " << hex << prevPc << dec << endl
 		     ;
@@ -777,8 +766,8 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 	      // report to gdb the target has been stopped
 
-	      rspReportException (prevPc, -1 /*all threads */ ,
-				  TARGET_SIGNAL_TRAP);
+
+	      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_TRAP);
 
 
 
@@ -805,7 +794,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 			{
 			  //check if it is trap
 
-			  readMem16 (cCore (), j, val_);
+			  thread->readMem16 (j, val_);
 			  valueOfStoppedInstr = val_;
 
 			  stoppedAtTrap =
@@ -833,7 +822,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 		  uint8_t trapNumber =
 		    getfield (valueOfStoppedInstr, 15, 10);
-		  redirectSdioOnTrap (trapNumber);
+		  redirectStdioOnTrap (currentCTid, trapNumber);
 		}
 	      else
 		{
@@ -842,8 +831,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		    cerr << dec << " no trap found, return control to gdb" <<
 		      endl;
 		  // report to gdb the target has been stopped
-		  rspReportException (readPc (cCore ()) /* PC no trap found */ ,
-				      -1 /* all threads */ ,
+		  rspReportException (-1 /* all threads */ ,
 				      TARGET_SIGNAL_TRAP);
 		}
 	    }
@@ -855,78 +843,23 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 
 
 //-----------------------------------------------------------------------------
-//! Generic processing of a suspend request .. CTRL-C command in gdb
-//! Stop target
-//! wait for confirmation on DEBUG state
-//! report to GDB by TRAP
-//! switch to not running stage, same as c or s command
+//! Stop in response to a ctrl-C
+
+//! We just halt everything. Let GDB worry about it later.
+
+//! @todo Should we see if we have an actual interrupt?
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspSuspend ()
 {
-  TargetSignal exCause = TARGET_SIGNAL_TRAP;
-  uint32_t reportedPc;
-  CoreId coreId = cCore ();
+  // Halt all threads.
+  if (!haltThreads (-1))
+    cerr << "Warning: suspend failed to halt all threads." << endl;
 
-  bool isHalted;
+  // Report to gdb the target has been stopped
+  rspReportException (-1 /*all threads */ , TARGET_SIGNAL_HUP);
 
-  if (si->debugTrapAndRspCon ())
-    cerr << dec <<
-      "force debug mode" << endl;
-
-  //probably target suspended
-  if (!isCoreHalted (coreId))
-    isHalted = targetHalt (coreId);
-  else
-    isHalted = true;
-
-  if (!isHalted)
-    exCause = TARGET_SIGNAL_HUP;
-  else
-    {
-
-      //get PC
-      reportedPc = readPc (cCore ());
-
-      //check the exception state
-      exCause = getException (cCore ());
-
-      if (exCause != TARGET_SIGNAL_NONE)
-	{
-	  //stopped due to some exception -- just report to gdb
-
-	}
-      else
-	{
-
-	  if (isCoreIdle (cCore ()))
-	    {
-
-	      //fetch instruction opcode on PC
-	      uint16_t val16;
-	      readMem16 (cCore (), reportedPc, val16);
-	      uint16_t instrOpcode = val16;
-
-	      //idle
-	      if (getfield (instrOpcode, 8, 0) == IDLE_INSTR)
-		{
-		  //cerr << "POINT on IDLE " << endl;
-		}
-	      else
-		{
-
-		  reportedPc = reportedPc - 2;
-		}
-	      writePc (cCore (), reportedPc);
-
-	      //cerr << "SUPEND " << hex << reportedPc << endl;
-	    }
-	}
-    }
-
-  // report to gdb the target has been stopped
-  rspReportException (reportedPc, -1 /*all threads */ , exCause);
-}
+}	// rspSuspend ()
 
 
 //-----------------------------------------------------------------------------
@@ -944,6 +877,7 @@ GdbServer::rspSuspend ()
 void
 GdbServer::rspFileIOreply ()
 {
+  Thread* thread = getThread (currentCTid);
 
   long int result_io = -1;
   long int host_respond_error_code;
@@ -952,10 +886,10 @@ GdbServer::rspFileIOreply ()
       sscanf (pkt->data, "F%lx,%lx", &result_io, &host_respond_error_code))
     {
       //write to r0
-      writeReg (gCore (), R0_REGNUM + 0, result_io);
+      thread->writeReg (R0_REGNUM + 0, result_io);
 
       //write to r3 error core
-      writeReg (gCore (), R0_REGNUM + 3, host_respond_error_code);
+      thread->writeReg (R0_REGNUM + 3, host_respond_error_code);
       if (si->debugStopResumeDetail ())
 	cerr << dec <<
 	  " remote io done " << result_io << "error code" <<
@@ -970,7 +904,7 @@ GdbServer::rspFileIOreply ()
 	  " remote io done " << result_io << endl;
 
       //write to r0
-      writeReg (gCore (), R0_REGNUM + 0, result_io);
+      thread->writeReg (R0_REGNUM + 0, result_io);
     }
   else
     {
@@ -979,36 +913,52 @@ GdbServer::rspFileIOreply ()
 }
 
 //-----------------------------------------------------------------------------
-//! Redirect the SDIO to gdb using F packets open,write,read, close are supported
+//! Redirect the SDIO to client GDB.
+
+//! The requests are sent using F packets. The open, write, read and close
+//! system calls are supported
 //
-//
-//
+//! @param[in] tid   Thread ID making the I/O request (must be > 0).
+//! @param[in] trap  The number of the trap.
 //-----------------------------------------------------------------------------
-
-/* Enum declaration for trap instruction dispatch code. See sim/epiphany/epiphany-desc.*/
-enum TRAP_CODES
-{
-  TRAP_WRITE,			// 0
-  TRAP_READ,			// 1
-  TRAP_OPEN,			// 2
-  TRAP_EXIT,			// 3
-  TRAP_PASS,			// 4
-  TRAP_FAIL,			// 5
-  TRAP_CLOSE,			// 6
-  TRAP_OTHER,			// 7
-};
-
-
-#define MAX_FILE_NAME_LENGTH (256*4)
-
-
 void
-GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
+GdbServer::redirectStdioOnTrap (int  tid,
+			       uint8_t trap)
 {
-  //cout << "---- stop on PC 0x " << hex << prevPc << dec << endl;
-  //cout << "---- got trap 0x" << hex << valueOfStoppedInstr << dec << endl;
+  Thread *thread = getThread (tid);
 
-  uint32_t r0, r1, r2, r3;
+  // The meaning of the TRAP codes. These are mostly not documented. Really
+  // for most of these, use TRAP_SYSCALL.
+  static const uint8_t  TRAP_WRITE   = 0;
+  static const uint8_t  TRAP_READ    = 1;
+  static const uint8_t  TRAP_OPEN    = 2;
+  static const uint8_t  TRAP_EXIT    = 3;
+  static const uint8_t  TRAP_PASS    = 4;
+  static const uint8_t  TRAP_FAIL    = 5;
+  static const uint8_t  TRAP_CLOSE   = 6;
+  static const uint8_t  TRAP_SYSCALL = 7;
+
+  // The system calls we support. We arguably should link to the libgloss
+  // header to pick these up, but we have no guarantee we know where that
+  // header is. Safest is to put them locally here where they are to be used.
+  static const uint32_t  SYS_open     =  2;
+  static const uint32_t  SYS_close    =  3;
+  static const uint32_t  SYS_read     =  4;
+  static const uint32_t  SYS_write    =  5;
+  static const uint32_t  SYS_lseek    =  6;
+  static const uint32_t  SYS_unlink   =  7;
+  static const uint32_t  SYS_fstat    = 10;
+  static const uint32_t  SYS_stat     = 15;
+
+  // We will almost certainly want to use these registers, so get them once
+  // and for all.
+  uint32_t  r0 = thread->readReg (R0_REGNUM + 0);
+  uint32_t  r1 = thread->readReg (R0_REGNUM + 1);
+  uint32_t  r2 = thread->readReg (R0_REGNUM + 2);
+  uint32_t  r3 = thread->readReg (R0_REGNUM + 3);
+
+  ostringstream oss;
+
   char *buf;
   //int result_io;
   unsigned int k;
@@ -1016,34 +966,19 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
   char res_buf[2048];
   char fmt[2048];
 
-  switch (trapNumber)
+  switch (trap)
     {
     case TRAP_WRITE:
-
-      if (si->debugTrapAndRspCon ())
-	cerr << dec <<
-	  " Trap 0 write " << endl;
-      r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
-      r1 = readReg (gCore (), R0_REGNUM + 1);		//addr
-      r2 = readReg (gCore (), R0_REGNUM + 2);		//length
-
-      if (si->debugTrapAndRspCon ())
-	cerr << dec <<
-	  " write to chan " << r0 << " bytes " << r2 << endl;
-
-      sprintf ((pkt->data), "Fwrite,%lx,%lx,%lx", (unsigned long) r0,
-	       (unsigned long) r1, (unsigned long) r2);
-      pkt->setLen (strlen (pkt->data));
-      rsp->putPkt (pkt);
-
-      break;
+      // Surely we prefer the syscall
+      hostWrite ("TRAP 0", r0, r1, r2);
+      return;
 
     case TRAP_READ:
       if (si->debugTrapAndRspCon ())
 	cerr << dec << " Trap 1 read " << endl;	/*read(chan, addr, len) */
-      r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
-      r1 = readReg (gCore (), R0_REGNUM + 1);		//addr
-      r2 = readReg (gCore (), R0_REGNUM + 2);		//length
+      r0 = thread->readReg (R0_REGNUM + 0);		//chan
+      r1 = thread->readReg (R0_REGNUM + 1);		//addr
+      r2 = thread->readReg (R0_REGNUM + 2);		//length
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
@@ -1057,18 +992,19 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
       break;
     case TRAP_OPEN:
-      r0 = readReg (gCore (), R0_REGNUM + 0);		//filepath
-      r1 = readReg (gCore (), R0_REGNUM + 1);		//flags
+      r0 = thread->readReg (R0_REGNUM + 0);		//filepath
+      r1 = thread->readReg (R0_REGNUM + 1);		//flags
 
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 2 open, file name located @" << hex << r0 << dec << " (mode)"
 	  << r1 << endl;
 
+#define MAX_FILE_NAME_LENGTH (256*4)
       for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 	{
 	  uint8_t val_;
-	  readMem8 (gCore (), r0 + k, val_);
+	  thread->readMem8 (r0 + k, val_);
 	  if (val_ == '\0')
 	    {
 	      break;
@@ -1087,21 +1023,21 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 3 exiting .... ??? " << endl;
-      r0 = readReg (gCore (), R0_REGNUM + 0);		//status
+      r0 = thread->readReg (R0_REGNUM + 0);		//status
       //cerr << " The remote target got exit() call ... no OS -- ignored" << endl;
       //exit(4);
-      rspReportException (readPc (cCore ()), -1 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_PASS:
       cerr << " Trap 4 PASS " << endl;
-      rspReportException (readPc (cCore ()), -1 /*all threads */ , TARGET_SIGNAL_TRAP);
+      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_TRAP);
       break;
     case TRAP_FAIL:
       cerr << " Trap 5 FAIL " << endl;
-      rspReportException (readPc (cCore ()), -1 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
-      r0 = readReg (gCore (), R0_REGNUM + 0);		//chan
+      r0 = thread->readReg (R0_REGNUM + 0);		//chan
       if (si->debugTrapAndRspCon ())
 	cerr << dec <<
 	  " Trap 6 close: " << r0 << endl;
@@ -1109,7 +1045,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
       break;
-    case TRAP_OTHER:
+    case TRAP_SYSCALL:
 
       if (NULL != si->ttyOut ())
 	{
@@ -1118,11 +1054,11 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	  if (si->debugTrapAndRspCon ())
 	    cerr << dec <<
 	      " Trap 7 " << endl;
-	  r0 = readReg (gCore (), R0_REGNUM + 0);	// buf_addr
-	  r1 = readReg (gCore (), R0_REGNUM + 1);	// fmt_len
-	  r2 = readReg (gCore (), R0_REGNUM + 2);	// total_len
+	  r0 = thread->readReg (R0_REGNUM + 0);	// buf_addr
+	  r1 = thread->readReg (R0_REGNUM + 1);	// fmt_len
+	  r2 = thread->readReg (R0_REGNUM + 2);	// total_len
 
-	  //fprintf(stderr, " TRAP_OTHER %x %x", PARM0,PARM1);
+	  //fprintf(stderr, " TRAP_SYSCALL %x %x", PARM0,PARM1);
 
 	  //cerr << " buf " << hex << r0 << "  " << r1 << "  " << r2 << dec << endl;
 
@@ -1131,7 +1067,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	    {
 	      uint8_t val_;
 
-	      readMem8 (gCore (), r0 + k, val_);
+	      thread->readMem8 (r0 + k, val_);
 	      buf[k] = val_;
 	    }
 
@@ -1143,15 +1079,15 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	  printfWrapper (res_buf, fmt, buf + r1 + 1);
 	  fprintf (si->ttyOut (), "%s", res_buf);
 
-	  targetResume (cCore ());
+	  thread->resume ();
 	}
       else
 	{
 
-	  r0 = readReg (gCore (), R0_REGNUM + 0);
-	  r1 = readReg (gCore (), R0_REGNUM + 1);
-	  r2 = readReg (gCore (), R0_REGNUM + 2);
-	  r3 = readReg (gCore (), R0_REGNUM + 3);	//SUBFUN;
+	  r0 = thread->readReg (R0_REGNUM + 0);
+	  r1 = thread->readReg (R0_REGNUM + 1);
+	  r2 = thread->readReg (R0_REGNUM + 2);
+	  r3 = thread->readReg (R0_REGNUM + 3);	//SUBFUN;
 
 	  switch (r3)
 	    {
@@ -1169,7 +1105,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 		{
 		  uint8_t val_;
-		  readMem8 (gCore (), r0 + k, val_);
+		  thread->readMem8 (r0 + k, val_);
 		  if (val_ == '\0')
 		    {
 		      break;
@@ -1214,7 +1150,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 		{
 		  uint8_t val_;
-		  readMem8 (gCore (), r0 + k, val_);
+		  thread->readMem8 (r0 + k, val_);
 		  if (val_ == '\0')
 		    {
 		      break;
@@ -1230,7 +1166,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 	      for (k = 0; k < MAX_FILE_NAME_LENGTH - 1; k++)
 		{
 		  uint8_t val_;
-		  readMem8 (gCore (), r0 + k, val_);
+		  thread->readMem8 (r0 + k, val_);
 		  if (val_ == '\0')
 		    {
 		      break;
@@ -1275,6 +1211,38 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 
 
 //-----------------------------------------------------------------------------
+//! Handle a host call to write
+
+//! This may come from TRAP 0 or TRAP 7 and SYS_write.
+
+//! @param[in] source  Where this came from (TRAP or Syscall)
+//! @param[in] chan    Channel to write to.
+//! @param[in] addr    Address of bytes to write.
+//! @param[in] len     Number of bytes to write.
+//-----------------------------------------------------------------------------
+void
+GdbServer::hostWrite (const char* intro,
+		      uint32_t    chan,
+		      uint32_t    addr,
+		      uint32_t    len)
+{
+  ostringstream oss;
+
+  if (si->debugTrapAndRspCon ())
+    cerr << "DebuTrapAndRspCon: " << intro << " write (0x"
+	 << Utils::intStr (chan, 16, 8) << ", 0x"
+	 << Utils::intStr (addr, 16, 8) << ", 0x"
+	 << Utils::intStr (len, 16, 8) << ")." << endl;
+
+  oss << "Fwrite," << Utils::intStr (chan, 16, 8) << ","
+      << Utils::intStr (addr, 16, 8) << "," << Utils::intStr (len, 16, 8);
+  pkt->packStr (oss.str ().c_str ());
+  rsp->putPkt (pkt);
+
+}	// hostWrite ()
+
+
+//-----------------------------------------------------------------------------
 //! Handle a RSP read all registers request
 
 //! The registers follow the GDB sequence for Epiphany: GPR0 through GPR63,
@@ -1286,6 +1254,7 @@ GdbServer::redirectSdioOnTrap (uint8_t trapNumber)
 void
 GdbServer::rspReadAllRegs ()
 {
+  Thread *thread = getThread (currentGTid);
   // Start timing if debugging
   if (si->debugStopResumeDetail ())
     fTargetControl->startOfBaudMeasurement ();
@@ -1297,7 +1266,7 @@ GdbServer::rspReadAllRegs ()
       unsigned int pktOffset = r * TargetControl::E_REG_BYTES * 2;
 
       // Not all registers are necessarily supported.
-      if (readReg (gCore (), r, val))
+      if (thread->readReg (r, val))
 	Utils::reg2Hex (val, &(pkt->data[pktOffset]));
       else
 	for (unsigned int i = 0; i < TargetControl::E_REG_BYTES * 2; i++)
@@ -1338,9 +1307,10 @@ GdbServer::rspReadAllRegs ()
 void
 GdbServer::rspWriteAllRegs ()
 {
+  Thread* thread = getThread (currentGTid);
   // All registers
   for (unsigned int r = 0; r < NUM_REGS; r++)
-      (void) writeReg (gCore (), r, Utils::hex2Reg (&(pkt->data[r * 8])));
+      (void) thread->writeReg (r, Utils::hex2Reg (&(pkt->data[r * 8])));
 
   // Acknowledge (always OK for now).
   pkt->packStr ("OK");
@@ -1364,11 +1334,11 @@ GdbServer::rspSetThread ()
       rsp->putPkt (pkt);
       return;
     }
-  
+
   switch (c)
     {
-    case 'c': currentCThread = tid; break;
-    case 'g': currentGThread = tid; break;
+    case 'c': currentCTid = tid; break;
+    case 'g': currentGTid = tid; break;
 
     default:
       cerr << "Warning: Failed RSP set thread command: "
@@ -1404,6 +1374,7 @@ GdbServer::rspSetThread ()
 void
 GdbServer::rspReadMem ()
 {
+  Thread *thread = getThread (currentGTid);
   unsigned int addr;		// Where to read the memory
   int len;			// Number of bytes to read
   int off;			// Offset into the memory
@@ -1437,7 +1408,7 @@ GdbServer::rspReadMem ()
     char buf[len];
 
     bool retReadOp =
-      readMemBlock (gCore (), addr, (unsigned char *) buf, len);
+      thread->readMemBlock (addr, (unsigned char *) buf, len);
 
     if (!retReadOp)
       {
@@ -1489,6 +1460,7 @@ GdbServer::rspReadMem ()
 void
 GdbServer::rspWriteMem ()
 {
+  Thread *thread = getThread (currentGTid);
   uint32_t addr;		// Where to write the memory
   int len;			// Number of bytes to write
 
@@ -1518,7 +1490,7 @@ GdbServer::rspWriteMem ()
   // Write the bytes to memory
   {
     //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl;
-    if (!writeMemBlock (gCore (), addr, (unsigned char *) symDat, len))
+    if (!thread->writeMemBlock (addr, (unsigned char *) symDat, len))
       {
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
@@ -1544,6 +1516,7 @@ GdbServer::rspWriteMem ()
 void
 GdbServer::rspReadReg ()
 {
+  Thread *thread = getThread (currentGTid);
   unsigned int regnum;
   uint32_t regval;
 
@@ -1563,7 +1536,7 @@ GdbServer::rspReadReg ()
     }
 
   // Get the relevant register
-  if (!readReg (gCore (), regnum, regval))
+  if (!thread->readReg (regnum, regval))
     {
       pkt->packStr ("E03");
       rsp->putPkt (pkt);
@@ -1588,6 +1561,7 @@ GdbServer::rspReadReg ()
 void
 GdbServer::rspWriteReg ()
 {
+  Thread *thread = getThread (currentGTid);
   unsigned int regnum;
   char valstr[9];		// Allow for EOS on the string
 
@@ -1607,7 +1581,7 @@ GdbServer::rspWriteReg ()
     }
 
   // Set the relevant register
-  if (!writeReg (gCore (), regnum, Utils::hex2Reg (valstr)))
+  if (! thread->writeReg (regnum, Utils::hex2Reg (valstr)))
     {
       pkt->packStr ("E03");
       rsp->putPkt (pkt);
@@ -1634,7 +1608,7 @@ GdbServer::rspQuery ()
       // indicates to use the previously selected thread. We use the G thread,
       // since C thread should be handled by vCont anyway.
 
-      sprintf (pkt->data, "QC%x", currentGThread);
+      sprintf (pkt->data, "QC%x", currentGTid);
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -1649,7 +1623,7 @@ GdbServer::rspQuery ()
     {
       // Return initial info about active threads.
       rspQThreadInfo (true);
-    }      
+    }
   else if (0 == strcmp ("qsThreadInfo", pkt->data))
     {
       // Return more info about active threads.
@@ -1750,7 +1724,8 @@ GdbServer::rspQuery ()
 //-----------------------------------------------------------------------------
 //! Handle a RSP qfThreadInfo/qsThreadInfo request
 
-//! Reuse the incoming packet.
+//! Reuse the incoming packet. We only return thread info for the current
+//! process.
 
 //! @todo We assume we can do everything in the first packet.
 
@@ -1762,14 +1737,17 @@ GdbServer::rspQThreadInfo (bool isFirst)
   if (isFirst)
     {
       ostringstream  os;
-      map <int, CoreId>::iterator  it;
+      ProcessInfo *process = getProcess (currentPid);
 
-      for (it = thread2core.begin (); it != thread2core.end (); it++)
+      // Iterate all the threads in the core
+      for (set <int>::iterator tit = process->threadBegin ();
+	   tit != process->threadEnd ();
+	   tit++)
 	{
-	  if (it != thread2core.begin ())
+	  if (tit != process->threadBegin ())
 	    os << ",";
 
-	  os << hex << it->first;
+	  os << hex << *tit;
 	}
 
       string reply = os.str ();
@@ -1786,15 +1764,12 @@ GdbServer::rspQThreadInfo (bool isFirst)
 //-----------------------------------------------------------------------------
 //! Handle a RSP qThreadExtraInfo request
 
-//! Reuse the incoming packet.
-
-//! @todo This should report the Core ID associated with the thread ID. For now
-//!       this is just the currentThread - 1, but we need to fix this.
+//! Reuse the incoming packet. For now we just ignore -1 and 0 as threads.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspQThreadExtraInfo ()
 {
-  unsigned int tid;
+  int tid;
 
   if (1 != sscanf (pkt->data, "qThreadExtraInfo,%x", &tid))
     {
@@ -1804,32 +1779,34 @@ GdbServer::rspQThreadExtraInfo ()
       return;
     }
 
-  // Data about thread
-  CoreId coreId = thread2core[tid];
-  bool isHalted = isCoreHalted (coreId);
-  bool isIdle = isCoreIdle (coreId);
-  bool isGIntsEnabled = isCoreGIntsEnabled (coreId);
-
-  char* buf = &(pkt->data[0]);
-  string res = "Core: ";
-  res += coreId;
-  if (isIdle)
-    res += isHalted ? ": idle, halted" : ": idle";
-  else
-    res += isHalted ? ": halted" : ": running";
-
-  res += ", gints ";
-  res += isGIntsEnabled ? "enabled" : "disabled";
-
-  // Put each char as its ASCII representation
-  for (string::iterator it = res.begin (); it != res.end (); it++)
+  if (tid > 0)
     {
-      sprintf (buf, "%02x", *it);
-      buf += 2;
+      // Data about thread
+      Thread* thread = getThread (tid);
+      CoreId coreId = thread->coreId ();
+      bool isHalted = thread->isHalted ();
+      bool isIdle = thread->isIdle ();
+      bool isInterruptible = thread->isInterruptible ();
+
+      string res = "Core: ";
+      res += coreId;
+      if (isIdle)
+	res += isHalted ? ": idle, halted" : ": idle";
+      else
+	res += isHalted ? ": halted" : ": running";
+
+      res += isInterruptible ? ", interruptible" : ", not interruptible";
+
+      // Convert each byte to ASCII
+      Utils::ascii2Hex (&(pkt->data[0]), res.c_str ());
+      pkt->setLen (strlen (pkt->data));
+    }
+  else
+    {
+      cerr << "Warning: Cannot supply info for thread -1." << endl;
+      pkt->packStr ("");
     }
 
-  sprintf (buf, "00");
-  pkt->setLen (strlen (pkt->data));
   rsp->putPkt (pkt);
 
 }	// rspQThreadExtraInfo ()
@@ -1872,14 +1849,8 @@ GdbServer::rspCommand ()
   else if (strcmp ("halt", cmd) == 0)
     {
       cout << "INFO: Halting all cores" << endl;
-      bool allHalted = true;
 
-      for (map <CoreId, int>::iterator it = core2thread.begin ();
-	   it != core2thread.end ();
-	   it++)
-	allHalted &= targetHalt (it->first);
-
-      if (allHalted)
+      if (haltThreads (-1))
 	pkt->packHexstr ("All cores halted\n");
       else
 	{
@@ -1901,8 +1872,10 @@ GdbServer::rspCommand ()
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
-      CoreId absCCoreId = readCoreId (cCore ());
-      CoreId absGCoreId = readCoreId (gCore ());
+      Thread* gThread = getThread (currentGTid);
+      Thread* cThread = getThread (currentCTid);
+      CoreId absCCoreId = cThread->readCoreId ();
+      CoreId absGCoreId = gThread->readCoreId ();
       CoreId relCCoreId = fTargetControl->abs2rel (absCCoreId);
       CoreId relGCoreId = fTargetControl->abs2rel (absGCoreId);
       ostringstream  oss;
@@ -1921,6 +1894,10 @@ GdbServer::rspCommand ()
   else if (strncmp ("workgroup", cmd, strlen ("workgroup")) == 0)
     {
       rspCmdWorkgroup (cmd);
+    }
+  else if (strncmp ("process", cmd, strlen ("process")) == 0)
+    {
+      rspCmdProcess (cmd);
     }
   else if (strcmp ("help", cmd) == 0)
     {
@@ -2020,15 +1997,17 @@ GdbServer::rspCmdWorkgroup (char* cmd)
     }
 
   // We can only accept a group whose cores are all in the idle group.
-  ProcessInfo *process = new ProcessInfo (mNextPid);
-  mProcesses.insert (process);
+  ProcessInfo *process = new ProcessInfo;
+  int pid = mNextPid;
+  pair <int, ProcessInfo *> entry (pid, process);
+  assert (mProcesses.insert (entry).second);
   mNextPid++;
 
   for (unsigned int r = 0; r < rows; r++)
     for (unsigned int c = 0; c < cols; c++)
       {
 	CoreId coreId (row + r, col + c);
-	int thread = core2thread[coreId];
+	int thread = mCore2Tid[coreId];
 	if (mIdleProcess->eraseThread (thread))
 	  assert (process->addThread (thread));
 	else
@@ -2044,7 +2023,7 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 	      }
 
 	    --mNextPid;
-	    mProcesses.erase (process);
+	    assert (mProcesses.erase (mNextPid) == 1);
 	    delete process;
 
 	    cerr << "Warning: failed to add thread " << thread
@@ -2059,14 +2038,70 @@ GdbServer::rspCmdWorkgroup (char* cmd)
       }
 
   ostringstream oss;
-  oss << "New workgroup process ID " << process->pid () << endl;
+  oss << "New workgroup process ID " << pid << endl;
   pkt->packHexstr (oss.str ().c_str ());
   rsp->putPkt (pkt);
   pkt->packStr ("OK");
   rsp->putPkt (pkt);
 
 }	// rspCmdWorkgroup ()
-		  
+
+
+//-----------------------------------------------------------------------------
+//! Handle the "monitor process" command.
+
+//! Format is: "monitor process <pid>"
+
+//! Where <pid> is a process ID shown by "info os processes".
+
+//! @param[in] cmd  The command string for parsing.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspCmdProcess (char* cmd)
+{
+  stringstream    ss (cmd);
+  vector <string> tokens;
+  string          item;
+
+  // Break out the command line args
+  while (getline (ss, item, ' '))
+    tokens.push_back (item);
+
+  if ((2 != tokens.size ()) || (0 != tokens[0].compare ("process")))
+    {
+      cerr << "Warning: Defective monitor process command: " << cmd
+	   << ": ignored." << endl;
+      pkt->packHexstr ("monitor process command not recognized\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  // Check the PID exists
+  unsigned long int pid  = strtoul (tokens[1].c_str (), NULL, 0);
+
+  if (mProcesses.find (pid) == mProcesses.end ())
+    {
+      cerr << "Warning: Non existent PID " << pid << ": ignored." << endl;
+      pkt->packHexstr ("Process ID does not exist.\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+  else
+    {
+      currentPid = pid;
+      ostringstream oss;
+      oss << "Process ID now " << pid << "." << endl;
+      pkt->packHexstr (oss.str ().c_str ());
+      rsp->putPkt (pkt);
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+}	// rspCmdProcess ()
+
 
 //-----------------------------------------------------------------------------
 //! Handle a RSP qXfer request
@@ -2099,7 +2134,7 @@ GdbServer::rspTransfer ()
       while (getline (ss, item, ','))
 	tokens.push_back (item);
     }
-      
+
   if (si->debugTrapAndRspCon ())
     {
       for (unsigned int i = 0; i < tokens.size (); i++)
@@ -2286,34 +2321,40 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
 	"<osdata type=\"processes\">\n";
 
-	// Iterate through all processes
-	for (set <ProcessInfo *>::iterator pit = mProcesses.begin ();
-	     pit != mProcesses.end (); pit++)
-	  {
-	    ProcessInfo *process = *pit;
-	    osProcessReply += "  <item>\n"
+      // Iterate through all processes. We need to temporarily make each
+      // process the "current" process
+      int oldCurrentPid = currentPid;
+      for (map <int, ProcessInfo *>::iterator pit = mProcesses.begin ();
+	   pit != mProcesses.end ();
+	   pit++)
+	{
+	  currentPid = pit->first;
+	  ProcessInfo *process = pit->second;
+	  osProcessReply += "  <item>\n"
 	    "    <column name=\"pid\">";
-	    osProcessReply += intStr (process->pid ());
-	    osProcessReply += "</column>\n"
+	  osProcessReply += Utils::intStr (currentPid);
+	  osProcessReply += "</column>\n"
 	    "    <column name=\"user\">root</column>\n"
 	    "    <column name=\"command\"></column>\n"
 	    "    <column name=\"cores\">\n"
 	    "      ";
 
-	    for (set <int>::iterator tit = process->threadBegin ();
-		 tit != process->threadEnd (); tit++)
-	      {
-		if (tit != process->threadBegin ())
-		  osProcessReply += ",";
+	  for (set <int>::iterator tit = process->threadBegin ();
+	       tit != process->threadEnd (); tit++)
+	    {
+	      Thread* thread = getThread (*tit);
 
-		osProcessReply += thread2core [*tit];
-	      }
+	      if (tit != process->threadBegin ())
+		osProcessReply += ",";
 
-	    osProcessReply += "\n"
+	      osProcessReply += thread->coreId ();
+	    }
+
+	  osProcessReply += "\n"
 	    "    </column>\n"
 	    "  </item>\n";
-	  }
-
+	}
+      currentPid = oldCurrentPid;	// Restored
       osProcessReply += "</osdata>";
     }
 
@@ -2375,9 +2416,9 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 	"<!DOCTYPE target SYSTEM \"osdata.dtd\">\n"
 	"<osdata type=\"load\">\n";
 
-      map <CoreId, int>::iterator  it;
-
-      for (it = core2thread.begin (); it != core2thread.end (); it++)
+      for (map <CoreId, int>::iterator it = mCore2Tid.begin ();
+	   it != mCore2Tid.end ();
+	   it++)
 	{
 	  osLoadReply +=
 	    "  <item>\n"
@@ -2387,7 +2428,7 @@ GdbServer::rspOsDataLoad (unsigned int offset,
 
 	  osLoadReply +=
 	    "    <column name=\"load\">";
-	  osLoadReply += intStr (random () % 100, 10, 2);
+	  osLoadReply += Utils::intStr (random () % 100, 10, 2);
 	  osLoadReply += "</column>\n"
 	    "  </item>\n";
 	}
@@ -2465,9 +2506,10 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 
       unsigned int maxRow = fTargetControl->getNumRows () - 1;
       unsigned int maxCol = fTargetControl->getNumCols () - 1;
-      map <CoreId, int>::iterator  it;
 
-      for (it = core2thread.begin (); it != core2thread.end (); it++)
+      for (map <CoreId, int>::iterator it = mCore2Tid.begin ();
+	   it != mCore2Tid.end ();
+	   it++)
 	{
 	  CoreId coreId = it->first;
 	  string inTraffic;
@@ -2481,12 +2523,12 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 
 	  // See what adjacent cores we have. Note that empty columns confuse
 	  // GDB! There is traffic on incoming edges, but not outgoing.
-	  inTraffic = intStr (random () % 100, 10, 2);
+	  inTraffic = Utils::intStr (random () % 100, 10, 2);
 	  if (coreId.row () > 0)
-	    outTraffic = intStr (random () % 100, 10, 2);
+	    outTraffic = Utils::intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
-		  
+
 	  osTrafficReply +=
 	    "    <column name=\"North In\">";
 	  osTrafficReply += inTraffic;
@@ -2495,9 +2537,9 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n";
 
-	  inTraffic = intStr (random () % 100, 10, 2);
+	  inTraffic = Utils::intStr (random () % 100, 10, 2);
 	  if (coreId.row ()< maxRow)
-	    outTraffic = intStr (random () % 100, 10, 2);
+	    outTraffic = Utils::intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
 
@@ -2509,9 +2551,9 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n";
 
-	  inTraffic = intStr (random () % 100, 10, 2);
+	  inTraffic = Utils::intStr (random () % 100, 10, 2);
 	  if (coreId.col () < maxCol)
-	    outTraffic = intStr (random () % 100, 10, 2);
+	    outTraffic = Utils::intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
 
@@ -2523,9 +2565,9 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 	  osTrafficReply += outTraffic;
 	  osTrafficReply += "</column>\n";
 
-	  inTraffic = intStr (random () % 100, 10, 2);
+	  inTraffic = Utils::intStr (random () % 100, 10, 2);
 	  if (coreId.col () > 0)
-	    outTraffic = intStr (random () % 100, 10, 2);
+	    outTraffic = Utils::intStr (random () % 100, 10, 2);
 	  else
 	    outTraffic = "--";
 
@@ -2652,7 +2694,8 @@ GdbServer::rspSet ()
 void
 GdbServer::rspRestart ()
 {
-  writePc (cCore (), 0);
+  Thread* thread = getThread (currentCTid);
+  thread->writePc (0);
 
 }				// rspRestart()
 
@@ -2731,34 +2774,33 @@ GdbServer::rspStep (bool         haveAddrP,
 		    uint32_t     addr,
 		    TargetSignal sig)
 {
-  CoreId  coreId = cCore ();		// Rude message if current thread is -1
-  assert (isCoreHalted (coreId));
+  Thread* thread = getThread (currentCTid);	// Bad for 0/-1
+  assert (thread->isHalted ());
 
   if (!haveAddrP)
     {
       // @todo This should be done on a per-core basis for thread -1
-      addr = readPc (coreId);
+      addr = thread->readPc ();
     }
 
   if (si->debugStopResumeDetail ())
     cerr << dec << "DebugStopResumeDetail: rspStep (" << addr << ", " << sig
 	 << ")" << endl;
 
-  TargetSignal exSig = getException (coreId);
-  if (exSig != TARGET_SIGNAL_NONE)
+  if (thread->getException () != TARGET_SIGNAL_NONE)
     {
       // Already stopped due to some exception. Just report to GDB.
 
       // @todo This is commented as being during to a silicon problem
-      rspReportException (addr, core2thread[coreId], exSig);
+      rspReportException (currentCTid, sig);
       return;
     }
 
   // Set the PC to the given address
-  writePc (coreId, addr);
-  assert (readPc (coreId) == addr);	// Do we really need this?
+  thread->writePc (addr);
+  assert (thread->readPc () == addr);	// Do we really need this?
 
-  uint16_t instr16 = readMem16 (coreId, addr);
+  uint16_t instr16 = thread->readMem16 (addr);
   uint16_t opcode = getOpcode10 (instr16);
 
   // IDLE and TRAP need special treatment
@@ -2769,10 +2811,10 @@ GdbServer::rspStep (bool         haveAddrP,
 	     << endl;
 
       //check if global ISR enable state
-      uint32_t coreStatus = readStatus (coreId);
+      uint32_t coreStatus = thread->readStatus ();
 
-      uint32_t imaskReg = readReg (coreId, IMASK_REGNUM);
-      uint32_t ilatReg = readReg (coreId, ILAT_REGNUM);
+      uint32_t imaskReg = thread->readReg (IMASK_REGNUM);
+      uint32_t ilatReg = thread->readReg (ILAT_REGNUM);
 
       //next cycle should be jump to IVT
       if (((coreStatus & TargetControl::STATUS_GID_MASK)
@@ -2784,87 +2826,89 @@ GdbServer::rspStep (bool         haveAddrP,
 
 	  // Next cycle should be jump to IVT. Take care of ISR call. Put a
 	  // breakpoint in each IVT slot except SYNC (aka RESET)
-	  saveIVT (coreId);
+	  thread->saveIVT ();
 
-	  insertBkptInstr (TargetControl::IVT_SWE);
-	  insertBkptInstr (TargetControl::IVT_PROT);
-	  insertBkptInstr (TargetControl::IVT_TIMER0);
-	  insertBkptInstr (TargetControl::IVT_TIMER1);
-	  insertBkptInstr (TargetControl::IVT_MSG);
-	  insertBkptInstr (TargetControl::IVT_DMA0);
-	  insertBkptInstr (TargetControl::IVT_DMA1);
-	  insertBkptInstr (TargetControl::IVT_WAND);
-	  insertBkptInstr (TargetControl::IVT_USER);
+	  thread->insertBkptInstr (TargetControl::IVT_SWE);
+	  thread->insertBkptInstr (TargetControl::IVT_PROT);
+	  thread->insertBkptInstr (TargetControl::IVT_TIMER0);
+	  thread->insertBkptInstr (TargetControl::IVT_TIMER1);
+	  thread->insertBkptInstr (TargetControl::IVT_MSG);
+	  thread->insertBkptInstr (TargetControl::IVT_DMA0);
+	  thread->insertBkptInstr (TargetControl::IVT_DMA1);
+	  thread->insertBkptInstr (TargetControl::IVT_WAND);
+	  thread->insertBkptInstr (TargetControl::IVT_USER);
 
 	  // Resume which should hit the breakpoint in the IVT.
-	  targetResume (coreId);
+	  thread->resume ();
 
-	  while (!isCoreHalted (coreId))
+	  while (!thread->isHalted ())
 	    ;
 
 	  //restore IVT
-	  restoreIVT (coreId);
+	  thread->restoreIVT ();
 
 	  // @todo The old code had reads of STATUS, IMASK and ILAT regs here
 	  //       which it did nothing with. Why?
 
 	  // Report to gdb the target has been stopped.
-	  addr = readPc (coreId) - BKPT_INSTLEN;
-	  writePc (coreId, addr);
-	  rspReportException (addr, core2thread[coreId], TARGET_SIGNAL_TRAP);
+	  addr = thread->readPc () - SHORT_INSTRLEN;
+	  thread->writePc (addr);
+	  rspReportException (currentCTid, TARGET_SIGNAL_TRAP);
 	  return;
 	}
       else
 	{
 	  cerr << "ERROR: IDLE instruction at step, with no interrupt." << endl;
-	  rspReportException (addr, core2thread[coreId], TARGET_SIGNAL_NONE);
+	  rspReportException (currentCTid, TARGET_SIGNAL_NONE);
 	  return;
 	}
     }
   else if (TRAP_INSTR == opcode)
     {
       if (si->debugStopResumeDetail ())
-	cerr << dec << "DebugStopResumeDetail: TRAP found at " << addr << "."
-	     << endl;
+	cerr << "DebugStopResumeDetail: TRAP found at 0x"
+	     << Utils::intStr (addr) << "." << endl;
 
       // TRAP instruction triggers I/O
       fIsTargetRunning = false;
-      redirectSdioOnTrap (getTrap (instr16));
-      writePc (coreId, addr + TRAP_INSTLEN);
+      redirectStdioOnTrap (currentCTid, getTrap (instr16));
+      thread->writePc (addr + SHORT_INSTRLEN);
       return;
     }
 
   // Ordinary instructions to be stepped.
-  uint16_t instrExt = readMem16 (coreId, addr + 2);
+  uint16_t instrExt = thread->readMem16 (addr + 2);
   uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
 
   if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: instr16: 0x" << intStr (instr16, 16, 4)
-	 << ", instr32: 0x" << intStr (instr32, 16, 8) << "." << endl;
+    cerr << "DebugStopResumeDetail: instr16: 0x"
+	 << Utils::intStr (instr16, 16, 4) << ", instr32: 0x"
+	 << Utils::intStr (instr32, 16, 8) << "." << endl;
 
   // put sequential breakpoint
   uint32_t bkptAddr = is32BitsInstr (instr16) ? addr + 4 : addr + 2;
-  uint16_t bkptVal = readMem16 (coreId, bkptAddr);
-  insertBkptInstr (bkptAddr);
+  uint16_t bkptVal = thread->readMem16 (bkptAddr);
+  thread->insertBkptInstr (bkptAddr);
 
   if (si->debugStopResumeDetail ())
     cerr << "DebugStopResumeDetail: Step (sequential) bkpt at " << bkptAddr
-	 << ", existing value " << intStr (bkptVal, 16, 4) << "." << endl;
+	 << ", existing value " << Utils::intStr (bkptVal, 16, 4) << "."
+	 << endl;
 
 
   uint32_t bkptJumpAddr;
   uint16_t bkptJumpVal;
 
-  if (   getJump (coreId, instr16, addr, bkptJumpAddr)
-      || getJump (coreId, instr32, addr, bkptJumpAddr))
+  if (   getJump (thread, instr16, addr, bkptJumpAddr)
+      || getJump (thread, instr32, addr, bkptJumpAddr))
     {
       // Put breakpoint to jump target
-      bkptJumpVal = readMem16 (coreId, bkptJumpAddr);
-      insertBkptInstr (bkptJumpAddr);
+      bkptJumpVal = thread->readMem16 (bkptJumpAddr);
+      thread->insertBkptInstr (bkptJumpAddr);
 
       if (si->debugStopResumeDetail ())
 	cerr << "DebugStopResumeDetail: Step (branch) bkpt at " << bkptJumpAddr
-	     << ", existing value " << intStr (bkptJumpVal, 16, 4) << "."
+	     << ", existing value " << Utils::intStr (bkptJumpVal, 16, 4) << "."
 	     << endl;
     }
   else
@@ -2875,56 +2919,56 @@ GdbServer::rspStep (bool         haveAddrP,
 
   // Take care of ISR call. Put a breakpoint in each IVT slot except
   // SYNC (aka RESET), but only if it doesn't overwrite the PC
-  saveIVT (coreId);
+  thread->saveIVT ();
 
   if (addr != TargetControl::IVT_SWE)
-    insertBkptInstr (TargetControl::IVT_SWE);
+    thread->insertBkptInstr (TargetControl::IVT_SWE);
   if (addr != TargetControl::IVT_PROT)
-    insertBkptInstr (TargetControl::IVT_PROT);
+    thread->insertBkptInstr (TargetControl::IVT_PROT);
   if (addr != TargetControl::IVT_TIMER0)
-    insertBkptInstr (TargetControl::IVT_TIMER0);
+    thread->insertBkptInstr (TargetControl::IVT_TIMER0);
   if (addr != TargetControl::IVT_TIMER1)
-    insertBkptInstr (TargetControl::IVT_TIMER1);
+    thread->insertBkptInstr (TargetControl::IVT_TIMER1);
   if (addr != TargetControl::IVT_MSG)
-    insertBkptInstr (TargetControl::IVT_MSG);
+    thread->insertBkptInstr (TargetControl::IVT_MSG);
   if (addr != TargetControl::IVT_DMA0)
-    insertBkptInstr (TargetControl::IVT_DMA0);
+    thread->insertBkptInstr (TargetControl::IVT_DMA0);
   if (addr != TargetControl::IVT_DMA1)
-    insertBkptInstr (TargetControl::IVT_DMA1);
+    thread->insertBkptInstr (TargetControl::IVT_DMA1);
   if (addr != TargetControl::IVT_WAND)
-    insertBkptInstr (TargetControl::IVT_WAND);
+    thread->insertBkptInstr (TargetControl::IVT_WAND);
   if (addr != TargetControl::IVT_USER)
-    insertBkptInstr (TargetControl::IVT_USER);
+    thread->insertBkptInstr (TargetControl::IVT_USER);
 
   // Resume until halt
-  targetResume (coreId);
+  thread->resume ();
 
-  while (!isCoreHalted (coreId))
+  while (!thread->isHalted ())
     ;
 
-  addr = readPc (coreId);		// PC where we stopped
+  addr = thread->readPc ();		// PC where we stopped
 
   if (si->debugStopResumeDetail ())
     cerr << "DebugStopResumeDetail: Step halted at " << addr << endl;
 
-  restoreIVT (coreId);
+  thread->restoreIVT ();
 
   // If it's a breakpoint, then we need to back up one instruction, so
   // on restart we execute the actual instruction.
-  addr -= BKPT_INSTLEN;
-  writePc (coreId, addr);
+  addr -= SHORT_INSTRLEN;
+  thread->writePc (addr);
 
   if ((addr != bkptAddr) && (addr != bkptJumpAddr))
     cerr << "Warning: Step stopped at " << addr << ", expected " << bkptAddr
 	 << " or " << bkptJumpAddr << "." << endl;
 
   // Remove temporary breakpoint(s)
-  writeMem16 (coreId, bkptAddr, bkptVal);
+  thread->writeMem16 (bkptAddr, bkptVal);
   if (bkptAddr != bkptJumpAddr)
-    writeMem16 (coreId, bkptJumpAddr, bkptJumpVal);
+    thread->writeMem16 (bkptJumpAddr, bkptJumpVal);
 
   // report to GDB the target has been stopped
-  rspReportException (addr, core2thread[coreId], TARGET_SIGNAL_TRAP);
+  rspReportException (currentCTid, TARGET_SIGNAL_TRAP);
 
 }	// rspStep()
 
@@ -2940,7 +2984,7 @@ GdbServer::rspStep (bool         haveAddrP,
 void
 GdbServer::rspIsThreadAlive ()
 {
-  unsigned int tid;
+  int tid;
 
   if (1 != sscanf (pkt->data, "T%x", &tid))
     {
@@ -2951,7 +2995,9 @@ GdbServer::rspIsThreadAlive ()
       return;
     }
 
-  if (thread2core.find (tid) == thread2core.end ())
+  // This will not find thread IDs 0 (any) or -1 (all), which seems to be what
+  // we want.
+  if (mThreads.find (tid) == mThreads.end ())
     pkt->packStr ("E01");
   else
     pkt->packStr ("OK");
@@ -3116,215 +3162,6 @@ GdbServer::printfWrapper (char *result_str, const char *fmt,
 
 
 //-----------------------------------------------------------------------------
-//! Halt a target core.
-
-//! Done by putting the core into debug mode.
-
-//! @param[in] coreId  The core to halt.
-//! @return  TRUE if we halt successfully, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::targetHalt (CoreId coreId)
-{
-  if (!writeReg (coreId, DEBUGCMD_REGNUM,
-		 TargetControl::DEBUGCMD_COMMAND_HALT))
-    cerr << "Warning: targetHalt failed to write HALT to DEBUGCMD." << endl;
-
-  if (si->debugStopResume ())
-      cerr << "DebugStopResume: Wrote HALT to DEBUGCMD" << endl;
-
-  if (!isCoreHalted (coreId))
-    {
-      sleep (1);
-
-      // Try again, then give up
-      if (!isCoreHalted (coreId))
-	{
-	  cerr << "Warning: Target has not halted after 1 sec " << endl;
-	  uint32_t val;
-	  if (readReg (coreId, DEBUGSTATUS_REGNUM, val))
-	    cerr << "         - core ID = " << coreId
-		 << ", DEBUGSTATUS = 0x" << hex << setw (8) << setfill ('0')
-		 << val << setfill (' ') << setw (0) << dec << endl;
-	  else
-	    cerr << "         - unable to access DEBUG register." << endl;
-
-	  return false;
-	}
-    }
-
-  if (si->debugStopResume ())
-    cerr << "DebugStopResume: Target halted." << endl;
-
-  return true;
-
-}	// targetHalt ()
-
-
-//---------------------------------------------------------------------------
-//! Insert a breakpoint instruction.
-
-//! @param [in] addr  Where to put the breakpoint
-//-----------------------------------------------------------------------------
-void
-GdbServer::insertBkptInstr (uint32_t addr)
-{
-  writeMem16 (cCore (), addr, BKPT_INSTR);
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: insert breakpoint at " << addr
-	 << endl;
-
-}	// putBkptInstr
-
-
-//---------------------------------------------------------------------------
-//! Check if hit on Breakpoint instruction
-//
-//-----------------------------------------------------------------------------
-bool
-GdbServer::isHitInBreakPointInstruction (uint32_t bkpt_addr)
-{
-  uint16_t val;
-  readMem16 (cCore (), bkpt_addr, val);
-  return (BKPT_INSTR == val);
-
-}
-
-
-//-----------------------------------------------------------------------------
-//! Check if core is halted.
-
-//! @param[in] coreId  The core to inspect
-//! @return  TRUE if the core is both halted and has no pending load or
-//!          fetch. FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::isCoreHalted (CoreId  coreId)
-{
-  uint32_t debugstatus = readReg (coreId, DEBUGSTATUS_REGNUM);
-  uint32_t haltStatus = debugstatus & TargetControl::DEBUGSTATUS_HALT_MASK;
-  uint32_t extPendStatus =
-    debugstatus & TargetControl::DEBUGSTATUS_EXT_PEND_MASK;
-
-  bool isHalted = haltStatus == TargetControl::DEBUGSTATUS_HALT_HALTED;
-  bool noPending = extPendStatus == TargetControl::DEBUGSTATUS_EXT_PEND_NONE;
-
-  return isHalted && noPending;
-
-}	// isCoreHalted ()
-
-
-//-----------------------------------------------------------------------------
-//! Check if core is idle.
-
-//! @param[in] coreId  The core to inspect
-//! @return  TRUE if the core is idle, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::isCoreIdle (CoreId  coreId)
-{
-  uint32_t status = readReg (coreId, STATUS_REGNUM);
-  uint32_t idleStatus = status & TargetControl::STATUS_ACTIVE_MASK;
-
-  // Warn if a software exception is pending
-  uint32_t ex = status & TargetControl::STATUS_EXCAUSE_MASK;
-  if (ex != TargetControl::STATUS_EXCAUSE_NONE)
-      cerr << "Warning: Unexpected pending SW exception 0x" << hex
-	   << (ex >> TargetControl::STATUS_EXCAUSE_SHIFT) << "." << endl;
-
-  return idleStatus == TargetControl::STATUS_ACTIVE_IDLE;
-
-}	// isCoreIdle ()
-
-
-//-----------------------------------------------------------------------------
-//! Check if global interrupts are enabled for core.
-
-//! @param[in] coreId  The core to inspect
-//! @return  TRUE if the core has global interrupts enabled, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::isCoreGIntsEnabled (CoreId  coreId)
-{
-  uint32_t status = readReg (coreId, STATUS_REGNUM);
-  uint32_t gidStatus = status & TargetControl::STATUS_GID_MASK;
-
-  return gidStatus == TargetControl::STATUS_GID_ENABLED;
-
-}	// isCoreGIntsEnabled ()
-
-
-//-----------------------------------------------------------------------------
-//! Check is core has been stopped at exception state
-
-//! @param[in] coreId  The core to check.
-//! @return  The GDB signal corresponding to any exception.
-//-----------------------------------------------------------------------------
-GdbServer::TargetSignal
-GdbServer::getException (CoreId coreId)
-{
-  uint32_t coreStatus = readStatus (coreId);
-  uint32_t exbits = coreStatus & TargetControl::STATUS_EXCAUSE_MASK;
-
-  switch (exbits)
-    {
-    case TargetControl::STATUS_EXCAUSE_NONE:
-      return TARGET_SIGNAL_NONE;
-
-    case TargetControl::STATUS_EXCAUSE_LDST:
-      return TARGET_SIGNAL_BUS;
-
-    case TargetControl::STATUS_EXCAUSE_FPU:
-      return TARGET_SIGNAL_FPE;
-
-    case TargetControl::STATUS_EXCAUSE_UNIMPL:
-      return TARGET_SIGNAL_ILL;
-
-    default:
-      // @todo Can we get this? Corresponds to STATUS_EXCAUSE_LSTALL or
-      //       STATUS_EXCAUSE_FSTALL being set.
-      return TARGET_SIGNAL_ABRT;
-    }
-}	// getException ()
-
-
-//-----------------------------------------------------------------------------
-//! Put bkpt instructions into IVT
-
-//! The single step mode can be broken when interrupt is fired. (ISR call)
-//! The instructions in IVT should be saved and replaced by BKPT
-
-//! @param[in] coreId  The core to save the IVT for.
-//-----------------------------------------------------------------------------
-void
-GdbServer::saveIVT (CoreId coreId)
-{
-  readMemBlock (coreId, TargetControl::IVT_SYNC, fIVTSaveBuff,
-		sizeof (fIVTSaveBuff));
-
-}	// saveIVT ()
-
-
-//-----------------------------------------------------------------------------
-//! Restore instructions to IVT
-
-//! The single step mode can be broken when interrupt is fired, (ISR call)
-//! The BKPT instructions in IVT should be restored by real instructions
-
-//! @param[in] coreId  The core to restore the IVT for.
-//-----------------------------------------------------------------------------
-void
-GdbServer::restoreIVT (CoreId coreId)
-{
-
-  writeMemBlock (coreId, TargetControl::IVT_SYNC, fIVTSaveBuff,
-		 sizeof (fIVTSaveBuff));
-
-}	// restoreIVT ()
-
-
-//-----------------------------------------------------------------------------
 //! Handle a RSP 'v' packet
 
 //! These are commands associated with executing the code on the target
@@ -3342,16 +3179,14 @@ GdbServer::rspVpkt ()
     }
   else if (0 == strcmp ("vCont?", pkt->data))
     {
-      // For now we don't support this.
-      pkt->packStr ("");
+      // Support this for multi-thraeding
+      pkt->packStr ("OK");
       rsp->putPkt (pkt);
       return;
     }
   else if (0 == strncmp ("vCont", pkt->data, strlen ("vCont")))
     {
-      // This shouldn't happen, because we've reported non-support via vCont?
-      // above
-      cerr << "Warning: RSP vCont not supported: ignored" << endl;
+      rspVCont ();
       return;
     }
   else if (0 == strncmp ("vFile:", pkt->data, strlen ("vFile:")))
@@ -3413,6 +3248,525 @@ GdbServer::rspVpkt ()
 
 
 //-----------------------------------------------------------------------------
+//! Handle a vCont packet
+
+//! Syntax is vCont[;action[:thread-id]]...
+
+//! There should be at most one default action.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspVCont ()
+{
+  ProcessInfo *process = getProcess (currentPid);
+
+  map <int, char>  threadActions;
+  char defaultAction = 'n';		// Custom "do nothing"
+  int  numDefaultActions = 0;
+
+  stringstream    ss (pkt->data);
+  vector <string> actions;		// To break out the packet elements
+  string          item;
+
+  // Break out the action/thread pairs
+  while (getline (ss, item, ';'))
+    actions.push_back (item);
+
+  if (1 == actions.size ())
+    {
+      cerr << "Warning: No actions specified for vCont. Defaulting to stop."
+	   << endl;
+    }
+
+  // Sort out the detail of each action
+  for (size_t i = 1; i < actions.size (); i++)
+    {
+      vector <string> tokens;
+      ss.clear ();
+
+      // Break out the action and the thread
+      while (getline (ss, item, ':'))
+	tokens.push_back (item);
+
+      if (1 == tokens.size ())
+	{
+	  // No thread ID, set default action
+	  if (0 == numDefaultActions)
+	    {
+	      defaultAction = extractVContAction (tokens[0]);
+	      numDefaultActions++;
+	    }
+	  else
+	    cerr << "Warning: Duplicate default action for vCont: Ignored."
+		 << endl;
+	}
+      else
+	{
+	  int tid = strtol (tokens[1].c_str (), NULL, 16);
+	  if (process->hasThread (tid))
+	    {
+	      if (threadActions.find (tid) == threadActions.end ())
+		{
+		  char action = extractVContAction (tokens[0].c_str ());
+		  threadActions.insert (pair <int, char> (tid, action));
+		}
+	      else
+		cerr << "Warning: Duplicate vCont action for thread ID "
+		     << tid << ": ignored." << endl;
+	    }
+	  else
+	    {
+	      cerr << "Warning: vCont thread ID " << tid
+		   << " not part of current process: ignored." << endl;
+	    }
+	}
+    }
+
+  // In all-stop mode we should only (I think) be asked to step one
+  // thread. Let's monitor that.
+  int  numSteps = 0;
+  int  stepTid;
+
+  // We have a map of threads to actions and a default action for any thread
+  // that is not specified. Apply the actions.
+  for (set <int>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
+    {
+      int tid = *it;
+      map <int, char>::iterator ait = threadActions.find (tid);
+      char action = (threadActions.end () == ait) ? defaultAction : ait->second;
+
+      switch (action)
+	{
+	case 'c':
+	case 'C':
+	  // @todo For now we are ignoring signals, so 'C' behaves the same as
+	  //       'c'.
+	  continueThread (tid);
+	  break;
+
+	case 'r':
+	case 's':
+	case 'S':
+	  // @todo For now we are ignoring signals, so 'S' behaves the same as
+	  //       's'. We also offer 's' as a degenerate implementation of 'r'.
+
+	  // @note stepThread deals with the case of stepping a file I/O
+	  //       operation.
+	  numSteps++;
+	  if ((ALL_STOP == mDebugMode) && (numSteps > 1))
+	    cerr << "INFO: Multiple vCont steps in all-stop mode: ignored."
+		 << endl;
+	  else
+	    stepTid = tid;
+
+	  break;
+
+	case 't':
+	  // This normally can only be supplied in non-stop mode. So we don't
+	  // worry about it for now
+	  cerr << "Warning: 't' vCont action not permitted in all-stop mode: "
+	       << "ignored." << endl;
+	  break;
+
+	case 'n':
+	  // Custom for us "do nothing". In all-stop mode, the thread will be
+	  // stopped, so nothing can happen.
+	  break;
+
+	default:
+	  // Should never happen. Here as a backstop
+	  cerr << "*** ABORT ***: Impossible vCont action " << action << "."
+	       << endl;
+	  abort ();
+	}
+    }
+
+  // If we were single stepping, just focus on that and return
+  if (numSteps > 0)
+    {
+      doStep (stepTid);
+      return;
+    }
+
+  // Treat anything other than step as continue. We must wait until a thread
+  // halts.
+  while (true)
+    {
+      for (set <int>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
+	{
+	  int tid = *it;
+	  Thread *thread = getThread (tid);
+
+	  if (thread->isHalted ())
+	    {
+	      doContinue (tid);
+	      return;
+	    }
+	}
+      Utils::microSleep (100000);	// Every 100ms
+    }
+}	// rspVCont ()
+
+
+//-----------------------------------------------------------------------------
+//! Extract a vCont action
+
+//! In essence we don't support 'C' or 'S' for now, so if we find one of
+//! these, we just print a rude message.
+
+//! @param[in] action  The string with the action
+//! @return the single character which is the action.
+//-----------------------------------------------------------------------------
+char
+GdbServer::extractVContAction (string action)
+{
+  char  a = action.c_str () [0];
+
+  switch (a)
+    {
+    case 'C':
+      cerr << "Warning: 'C' action not supported for vCont: treated as 'c'."
+	   << endl;
+      break;
+
+    case 'S':
+      cerr << "Warning: 'S' action not supported for vCont: treated as 's'."
+	   << endl;
+      break;
+
+    case 'c':
+    case 's':
+    case 't':
+    case 'r':
+      // All good
+      break;
+
+    default:
+      cerr << "Warning: Unrecognized vCont action '" << a
+	   << "': ignored." << endl;
+      a = 'n';				// Custom for us
+      break;
+    }
+
+  return  a;
+
+}	// extractVContAction ()
+
+
+//-----------------------------------------------------------------------------
+//! Step a thread.
+
+//! We only concern ourselves the first half of this - setting the thread
+//! going. A separate function concerns itself with the thread stopping.
+
+//! @todo We ignore the signal for now.
+
+//! @param[in] tid  The thread ID to be stepped. Must be > 0.
+//! @param[in] sig  The signal to use for stepping, default to
+//!                 TARGET_SIGNAL_NONE (currently ignored).
+//! @return  Any signal encountered.
+//-----------------------------------------------------------------------------
+void
+GdbServer::doStep (int          tid,
+		   TargetSignal sig)
+{
+  Thread* thread = getThread (tid);
+  assert (thread->isHalted ());
+
+  if (si->debugStopResumeDetail ())
+    cerr << dec << "DebugStopResumeDetail: stepThread (" << tid << ", " << sig
+	 << ")" << endl;
+
+  if (thread->getException () != TARGET_SIGNAL_NONE)
+    return;			// Nothing to do for now
+
+  uint32_t pc = thread->readPc ();
+  uint16_t instr16 = thread->readMem16 (pc);
+  uint16_t opcode = getOpcode10 (instr16);
+
+  // IDLE and TRAP need special treatment
+  if (IDLE_INSTR == opcode)
+    {
+      if (si->debugStopResumeDetail ())
+	cerr << dec << "DebugStopResumeDetail: IDLE found at " << pc << "."
+	     << endl;
+
+      //check if global ISR enable state
+      uint32_t coreStatus = thread->readStatus ();
+
+      uint32_t imaskReg = thread->readReg (IMASK_REGNUM);
+      uint32_t ilatReg = thread->readReg (ILAT_REGNUM);
+
+      //next cycle should be jump to IVT
+      if (((coreStatus & TargetControl::STATUS_GID_MASK)
+	   == TargetControl::STATUS_GID_ENABLED)
+	  && (((~imaskReg) & ilatReg) != 0))
+	{
+	  // Interrupts globally enabled, and at least one individual
+	  // interrupt is active and enabled.
+
+	  // Next cycle should be jump to IVT. Take care of ISR call. Put a
+	  // breakpoint in each IVT slot except SYNC (aka RESET)
+	  thread->saveIVT ();
+
+	  thread->insertBkptInstr (TargetControl::IVT_SWE);
+	  thread->insertBkptInstr (TargetControl::IVT_PROT);
+	  thread->insertBkptInstr (TargetControl::IVT_TIMER0);
+	  thread->insertBkptInstr (TargetControl::IVT_TIMER1);
+	  thread->insertBkptInstr (TargetControl::IVT_MSG);
+	  thread->insertBkptInstr (TargetControl::IVT_DMA0);
+	  thread->insertBkptInstr (TargetControl::IVT_DMA1);
+	  thread->insertBkptInstr (TargetControl::IVT_WAND);
+	  thread->insertBkptInstr (TargetControl::IVT_USER);
+
+	  // Resume which should hit the breakpoint in the IVT.
+	  thread->resume ();
+
+	  while (! thread->isHalted ())
+	    ;
+
+	  //restore IVT
+	  thread->restoreIVT ();
+
+	  // @todo The old code had reads of STATUS, IMASK and ILAT regs here
+	  //       which it did nothing with. Why?
+
+	  // Report to gdb the target has been stopped, stopping all other
+	  // threads since we are in all-stop mode.
+	  pc = thread->readPc () - SHORT_INSTRLEN;
+	  thread->writePc (pc);
+	  rspReportException (tid, TARGET_SIGNAL_TRAP);
+	  return;
+	}
+      else
+	{
+	  cerr << "ERROR: IDLE instruction at step, with no interrupt." << endl;
+	  rspReportException (tid, TARGET_SIGNAL_NONE);
+	  return;
+	}
+    }
+  else if (TRAP_INSTR == opcode)
+    {
+      if (si->debugStopResumeDetail ())
+	cerr << dec << "DebugStopResumeDetail: TRAP found at " << pc << "."
+	     << endl;
+
+      // TRAP instruction triggers I/O
+      fIsTargetRunning = false;
+      redirectStdioOnTrap (currentCTid, getTrap (instr16));
+      thread->writePc (pc + SHORT_INSTRLEN);
+      return;
+    }
+
+  // Ordinary instructions to be stepped.
+  uint16_t instrExt = thread->readMem16 (pc + 2);
+  uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
+
+  if (si->debugStopResumeDetail ())
+    cerr << "DebugStopResumeDetail: instr16: 0x"
+	 << Utils::intStr (instr16, 16, 4) << ", instr32: 0x"
+	 << Utils::intStr (instr32, 16, 8) << "." << endl;
+
+  // put sequential breakpoint
+  uint32_t bkptAddr = is32BitsInstr (instr16) ? pc + 4 : pc + 2;
+  uint16_t bkptVal = thread->readMem16 (bkptAddr);
+  thread->insertBkptInstr (bkptAddr);
+
+  if (si->debugStopResumeDetail ())
+    cerr << "DebugStopResumeDetail: Step (sequential) bkpt at " << bkptAddr
+	 << ", existing value " << Utils::intStr (bkptVal, 16, 4) << "."
+	 << endl;
+
+
+  uint32_t bkptJumpAddr;
+  uint16_t bkptJumpVal;
+
+  if (   getJump (thread, instr16, pc, bkptJumpAddr)
+      || getJump (thread, instr32, pc, bkptJumpAddr))
+    {
+      // Put breakpoint to jump target
+      bkptJumpVal = thread->readMem16 (bkptJumpAddr);
+      thread->insertBkptInstr (bkptJumpAddr);
+
+      if (si->debugStopResumeDetail ())
+	cerr << "DebugStopResumeDetail: Step (branch) bkpt at " << bkptJumpAddr
+	     << ", existing value " << Utils::intStr (bkptJumpVal, 16, 4) << "."
+	     << endl;
+    }
+  else
+    {
+      bkptJumpAddr = bkptAddr;
+      bkptJumpVal  = bkptVal;
+    }
+
+  // Take care of ISR call. Put a breakpoint in each IVT slot except
+  // SYNC (aka RESET), but only if it doesn't overwrite the PC
+  thread->saveIVT ();
+
+  if (pc != TargetControl::IVT_SWE)
+    thread->insertBkptInstr (TargetControl::IVT_SWE);
+  if (pc != TargetControl::IVT_PROT)
+    thread->insertBkptInstr (TargetControl::IVT_PROT);
+  if (pc != TargetControl::IVT_TIMER0)
+    thread->insertBkptInstr (TargetControl::IVT_TIMER0);
+  if (pc != TargetControl::IVT_TIMER1)
+    thread->insertBkptInstr (TargetControl::IVT_TIMER1);
+  if (pc != TargetControl::IVT_MSG)
+    thread->insertBkptInstr (TargetControl::IVT_MSG);
+  if (pc != TargetControl::IVT_DMA0)
+    thread->insertBkptInstr (TargetControl::IVT_DMA0);
+  if (pc != TargetControl::IVT_DMA1)
+    thread->insertBkptInstr (TargetControl::IVT_DMA1);
+  if (pc != TargetControl::IVT_WAND)
+    thread->insertBkptInstr (TargetControl::IVT_WAND);
+  if (pc != TargetControl::IVT_USER)
+    thread->insertBkptInstr (TargetControl::IVT_USER);
+
+  // Resume until halt
+  thread->resume ();
+
+  while (! thread->isHalted ())
+    ;
+
+  pc = thread->readPc ();		// PC where we stopped
+
+  if (si->debugStopResumeDetail ())
+    cerr << "DebugStopResumeDetail: Step halted at " << pc << endl;
+
+  thread->restoreIVT ();
+
+  // If it's a breakpoint, then we need to back up one instruction, so
+  // on restart we execute the actual instruction.
+  pc -= SHORT_INSTRLEN;
+  thread->writePc (pc);
+
+  if ((pc != bkptAddr) && (pc != bkptJumpAddr))
+    cerr << "Warning: Step stopped at " << pc << ", expected " << bkptAddr
+	 << " or " << bkptJumpAddr << "." << endl;
+
+  // Remove temporary breakpoint(s)
+  thread->writeMem16 (bkptAddr, bkptVal);
+  if (bkptAddr != bkptJumpAddr)
+    thread->writeMem16 (bkptJumpAddr, bkptJumpVal);
+
+  // report to GDB the target has been stopped, stopping all other threads
+  // since we are in all-stop mode.
+  rspReportException (tid, TARGET_SIGNAL_TRAP);
+
+}	// doStep ()
+
+
+//-----------------------------------------------------------------------------
+//! Continue execution of a thread
+
+//! This is only half of continue processing - we'll worry about the thread
+//! stopping later.
+
+//! @param[in] tid  The thread ID to continue.
+//! @param[in] sig  The exception to use. Defaults to
+//!                 TARGET_SIGNAL_NONE.  Currently ignored
+//-----------------------------------------------------------------------------
+void
+GdbServer::continueThread (int       tid,
+			   uint32_t  sig)
+{
+  Thread* thread = getThread (tid);
+
+  if (si->debugStopResume ())
+    cerr << "DebugStopResume: continueThread (" << tid << ", " << sig << ")."
+	 << endl;
+
+  // Resume the thread, and set fIsTargetRunning true.
+  // @todo What does fIsTargetRunning do?
+  thread->resume ();
+  fIsTargetRunning = true;
+
+}	// continueThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Deal with a stopped thread after continue
+
+//! @param[in] tid  The thread ID which stopped.
+//-----------------------------------------------------------------------------
+void
+GdbServer::doContinue (int  tid)
+{
+  Thread* thread = getThread (tid);
+
+  if (si->debugStopResume ())
+    cerr << "DebugStopResume: doContinue (" << tid << ")." << endl;
+
+  // If it was a trap, then do the relevant F packet return.
+  if (doFileIO (tid))
+    return;
+  else
+    {
+      TargetSignal sig = (TargetSignal) thread->getException ();
+      // If no signal flags are set, this must be a breakpoint.
+      if (TARGET_SIGNAL_NONE == sig)
+	sig = TARGET_SIGNAL_TRAP;
+      rspReportException (tid, sig);
+    }
+}	// doContinue ()
+
+
+//-----------------------------------------------------------------------------
+//! Process file I/O if needed for a continued thread.
+
+//! We know the thread is halted. Did it halt immediately after a TRAP
+//! instruction. Not quite as easy as it seems, since TRAP may often be
+//! followed by NOP.
+
+//! If we do find TRAP, then process the File I/O and restart the thread.
+
+//! @todo For now this is a placeholder. We don't actually deal with the F
+//!       packet.
+
+//! @param[in] tid  The thread to consider. Must be a specific thread, not 0
+//!                 or -1.
+//! @return  TRUE if we processed file I/O and restarted. FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::doFileIO (int  tid)
+{
+  assert (tid > 0);
+  Thread* thread = getThread (tid);
+  assert (thread->isHalted ());
+
+  // First see if we just hit a breakpoint. Fortunately BREAK, TRAP and NOP
+  // are all 16-bit instructions.
+  uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
+  uint16_t  instr16 = thread->readMem16 (pc);
+
+  if (BKPT_INSTR == instr16)
+    return false;
+
+  // Find the first preceding non-NOP instruction
+  while (NOP_INSTR == instr16)
+    {
+      pc -= SHORT_INSTRLEN;
+      instr16 = thread->readMem16 (pc);
+    }
+
+  // If it isn't a TRAP, something has gone 'orribly wrong.
+  if (getOpcode10 (instr16) != TRAP_INSTR)
+    {
+      cerr << "Warning: thread " << tid << " halted at neither BREAK nor TRAP"
+	   << ": treating as BREAK." << endl;
+      return false;
+    }
+
+  redirectStdioOnTrap (tid, getTrap (instr16));
+  return true;
+
+}	// doFileIO ()
+
+
+//-----------------------------------------------------------------------------
 //! Handle a RSP write memory (binary) request
 
 //! Syntax is:
@@ -3434,6 +3788,8 @@ GdbServer::rspVpkt ()
 void
 GdbServer::rspWriteMemBin ()
 {
+  Thread *thread = getThread (currentGTid);
+
   uint32_t addr;		// Where to write the memory
   int len;			// Number of bytes to write
 
@@ -3466,7 +3822,7 @@ GdbServer::rspWriteMemBin ()
     }
 
   //cerr << "rspWriteMemBin" << hex << addr << dec << " (" << len << ")" << endl;
-  if (!writeMemBlock (gCore (), addr, bindat, len))
+  if (! thread->writeMemBlock (addr, bindat, len))
     {
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
@@ -3494,6 +3850,7 @@ GdbServer::rspRemoveMatchpoint ()
   uint32_t addr;		// Address specified
   uint16_t instr;		// Instruction value found
   unsigned int len;		// Matchpoint length
+  Thread* thread = getThread (currentCTid);
 
   // Break out the instruction
   if (3 != sscanf (pkt->data, "z%1d,%x,%1ud", (int *) &type, &addr, &len))
@@ -3506,11 +3863,11 @@ GdbServer::rspRemoveMatchpoint ()
     }
 
   // Sanity check that the length is that of a BKPT instruction
-  if (BKPT_INSTLEN != len)
+  if (SHORT_INSTRLEN != len)
     {
       cerr << "Warning: RSP matchpoint deletion length " << len
-	<< " not valid: " << BKPT_INSTLEN << " assumed" << endl;
-      len = BKPT_INSTLEN;
+	<< " not valid: " << SHORT_INSTRLEN << " assumed" << endl;
+      len = SHORT_INSTRLEN;
     }
 
   // Sort out the type of matchpoint
@@ -3519,9 +3876,7 @@ GdbServer::rspRemoveMatchpoint ()
     case BP_MEMORY:
       //Memory breakpoint - replace the original instruction.
       if (mpHash->remove (type, addr, &instr))
-	{
-	  writeMem16 (cCore (), addr, instr);
-	}
+	thread->writeMem16 (addr, instr);
 
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
@@ -3554,7 +3909,7 @@ GdbServer::rspRemoveMatchpoint ()
       rsp->putPkt (pkt);
       return;
     }
-}				// rspRemoveMatchpoint()
+}	// rspRemoveMatchpoint()
 
 
 //---------------------------------------------------------------------------*/
@@ -3572,6 +3927,7 @@ GdbServer::rspInsertMatchpoint ()
   MpType type;			// What sort of matchpoint
   uint32_t addr;		// Address specified
   unsigned int len;		// Matchpoint length (not used)
+  Thread* thread = getThread (currentCTid);
 
   // Break out the instruction
   if (3 != sscanf (pkt->data, "Z%1d,%x,%1ud", (int *) &type, &addr, &len))
@@ -3584,11 +3940,11 @@ GdbServer::rspInsertMatchpoint ()
     }
 
   // Sanity check that the length is that of a BKPT instruction
-  if (BKPT_INSTLEN != len)
+  if (SHORT_INSTRLEN != len)
     {
       cerr << "Warning: RSP matchpoint insertion length " << len
-	<< " not valid: " << BKPT_INSTLEN << " assumed" << endl;
-      len = BKPT_INSTLEN;
+	<< " not valid: " << SHORT_INSTRLEN << " assumed" << endl;
+      len = SHORT_INSTRLEN;
     }
 
   // Sort out the type of matchpoint
@@ -3599,10 +3955,10 @@ GdbServer::rspInsertMatchpoint ()
     case BP_MEMORY:
       // Memory breakpoint - substitute a BKPT instruction
 
-      readMem16 (cCore (), addr, bpMemVal);
+      thread->readMem16 (addr, bpMemVal);
       mpHash->add (type, addr, bpMemVal);
 
-      insertBkptInstr (addr);
+      thread->insertBkptInstr (addr);
 
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
@@ -3635,20 +3991,27 @@ GdbServer::rspInsertMatchpoint ()
       rsp->putPkt (pkt);
       return;
     }
-}				// rspInsertMatchpoint()
+}	// rspInsertMatchpoint()
 
 
+//-----------------------------------------------------------------------------
 //! Sotware reset of the processor
 
 //! This is achieved by repeatedly writing 1 (RESET exception) and finally 0
 //! to the  RESETCORE_REGNUM register
+
+//! @todo Should this just be the current thread, or the current process, or
+//!       all cores?
+//-----------------------------------------------------------------------------
 void
 GdbServer::targetSwReset ()
 {
-  for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
-    (void) writeReg (cCore (), RESETCORE_REGNUM, 1);
+  Thread* thread = getThread (currentCTid);
 
-  writeReg (cCore (), RESETCORE_REGNUM, 0);
+  for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
+    (void) thread->writeReg (RESETCORE_REGNUM, 1);
+
+  (void) thread->writeReg (RESETCORE_REGNUM, 0);
 
 }	// targetSWreset()
 
@@ -3666,518 +4029,156 @@ GdbServer::targetHWReset ()
 
 
 //-----------------------------------------------------------------------------
-//! Read a block of memory from the target
+//! Map from a process ID to a process structure with sanity checking
 
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from
-//! @param[out] buf     Where to put the data read
-//! @param[in]  len     The number of bytes to read
-//! @return  TRUE on success, FALSE otherwise.
+//! Barf if this is not a good pid
+
+//! @param[in] pid  Process ID to map
+//! @return  Pointer to the process info.
 //-----------------------------------------------------------------------------
-bool
-GdbServer::readMemBlock (CoreId  coreId,
-			 uint32_t  addr,
-			 uint8_t* buf,
-			 size_t  len) const
+ProcessInfo *
+GdbServer::getProcess (int  pid)
 {
-  return fTargetControl->readBurst (coreId, addr, buf, len);
+  map <int, ProcessInfo *>::iterator pit = mProcesses.find (pid);
+  assert (pit != mProcesses.end ());
+  return  pit->second;
 
-}	// readMemBlock ()
-
-
-//-----------------------------------------------------------------------------
-//! Write a block of memory to the target
-
-//! @param[in] coreId  The core to write to
-//! @param[in] addr    The address to write to
-//! @param[in] buf     Where to get the data to be written
-//! @param[in] len     The number of bytes to read
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::writeMemBlock (CoreId  coreId,
-			  uint32_t  addr,
-			  uint8_t* buf,
-			  size_t  len) const
-{
-  return fTargetControl->writeBurst (coreId, addr, buf, len);
-
-}	// writeMemBlock ()
+}	// getProcess ()
 
 
 //-----------------------------------------------------------------------------
-//! Read a 32-bit value from memory in the target
+//! Map a tid to a thread with some sanity checking.
 
-//! In this version the caller is responsible for error handling.
+//! This is for threads > 0 (i.e. not -1 meaning all threads or 0 meaning any
+//! thread). In those circumstances we do something sensible.
 
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from.
-//! @param[out] val     The value read.
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::readMem32 (CoreId  coreId,
-		      uint32_t  addr,
-		      uint32_t& val) const
-{
-  return fTargetControl->readMem32 (coreId, addr, val);
-
-}	// readMem32 ()
-
-
-//-----------------------------------------------------------------------------
-//! Read a 32-bit value from memory in the target
-
-//! In this version we print a warning if the read fails.
-
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from.
-//! @return  The value read, undefined if there is a failure.
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readMem32 (CoreId  coreId,
-		      uint32_t  addr) const
-{
-  uint32_t val;
-  if (!fTargetControl->readMem32 (coreId, addr, val))
-    cerr << "Warning: readMem32 failed." << endl;
-  return val;
-
-}	// readMem32 ()
-
-
-//-----------------------------------------------------------------------------
-//! Write a 32-bit value to memory in the target
-
-//! The caller is responsible for error handling.
-
-//! @param[in] coreId  The core to write to
-//! @param[in]  addr   The address to write to.
-//! @param[out] val    The value to write.
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::writeMem32 (CoreId  coreId,
-		       uint32_t  addr,
-		       uint32_t  val) const
-{
-  return fTargetControl->writeMem32 (coreId, addr, val);
-
-}	// writeMem32 ()
-
-
-//-----------------------------------------------------------------------------
-//! Read a 16-bit value from memory in the target
-
-//! In this version the caller is responsible for error handling.
-
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from.
-//! @param[out] val     The value read.
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::readMem16 (CoreId  coreId,
-		      uint32_t  addr,
-		      uint16_t& val) const
-{
-  return fTargetControl->readMem16 (coreId, addr, val);
-
-}	// readMem16 ()
-
-
-//-----------------------------------------------------------------------------
-//! Read a 16-bit value from memory in the target
-
-//! In this version we print a warning if the read fails.
-
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from.
-//! @return  The value read, undefined if there is a failure.
-//-----------------------------------------------------------------------------
-uint16_t
-GdbServer::readMem16 (CoreId  coreId,
-		      uint32_t  addr) const
-{
-  uint16_t val;
-  if (!fTargetControl->readMem16 (coreId, addr, val))
-    cerr << "Warning: readMem16 failed." << endl;
-  return val;
-
-}	// readMem16 ()
-
-
-//-----------------------------------------------------------------------------
-//! Write a 16-bit value to memory in the target
-
-//! The caller is responsible for error handling.
-
-//! @param[in] coreId  The core to write to
-//! @param[in]  addr   The address to write to.
-//! @param[out] val    The value to write.
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::writeMem16 (CoreId  coreId,
-		       uint32_t  addr,
-		       uint16_t  val) const
-{
-  return fTargetControl->writeMem16 (coreId, addr, val);
-
-}	// writeMem16 ()
-
-
-//-----------------------------------------------------------------------------
-//! Read a 8-bit value from memory in the target
-
-//! In this version the caller is responsible for error handling.
-
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from.
-//! @param[out] val     The value read.
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::readMem8 (CoreId  coreId,
-		     uint32_t  addr,
-		     uint8_t& val) const
-{
-  return fTargetControl->readMem8 (coreId, addr, val);
-
-}	// readMem8 ()
-
-
-//-----------------------------------------------------------------------------
-//! Read a 8-bit value from memory in the target
-
-//! In this version we print a warning if the read fails.
-
-//! @param[in]  coreId  The core to read from
-//! @param[in]  addr    The address to read from.
-//! @return  The value read, undefined if there is a failure.
-//-----------------------------------------------------------------------------
-uint8_t
-GdbServer::readMem8 (CoreId  coreId,
-		     uint32_t  addr) const
-{
-  uint8_t val;
-  if (!fTargetControl->readMem8 (coreId, addr, val))
-    cerr << "Warning: readMem8 failed." << endl;
-  return val;
-
-}	// readMem8 ()
-
-
-//-----------------------------------------------------------------------------
-//! Write a 8-bit value to memory in the target
-
-//! The caller is responsible for error handling.
-
-//! @param[in] coreId  The core to write to
-//! @param[in]  addr   The address to write to.
-//! @param[out] val    The value to write.
-//! @return  TRUE on success, FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::writeMem8 (CoreId  coreId,
-		      uint32_t  addr,
-		      uint8_t   val) const
-{
-  return fTargetControl->writeMem8 (coreId, addr, val);
-
-}	// writeMem8 ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of an Epiphany register from hardware
-
-//! This is just a wrapper for reading memory, since the GPR's are mapped into
-//! core memory. In this version the user is responsible for error handling.
-
-//! @param[in]   coreId  The core to read from
-//! @param[in]   regnum  The GDB register number
-//! @param[out]  regval  The value read
-//! @return  True on success, false otherwise
-//-----------------------------------------------------------------------------
-bool
-GdbServer::readReg (CoreId     coreId,
-		    unsigned int regnum,
-		    uint32_t&    regval) const
-{
-  return fTargetControl->readMem32 (coreId, regAddr (regnum), regval);
-
-}	// readReg ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of an Epiphany register from hardware
-
-//! This is just a wrapper for reading memory, since the GPR's are mapped into
-//! core memory. In this version, we print a warning if the read fails.
-
-//! Overloaded version to return the value directly.
-
-//! @param[in]   coreId  The core to read from
-//! @param[in]   regnum  The GDB register number
-//! @return  The value read
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readReg (CoreId     coreId,
-		    unsigned int regnum) const
-{
-  uint32_t regval;
-  if (!fTargetControl->readMem32 (coreId, regAddr (regnum), regval))
-    cerr << "Warning: readReg failed." << endl;
-  return regval;
-
-}	// readReg ()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of an Epiphany register to hardware
-
-//! This is just a wrapper for writing memory, since the GPR's are mapped into
-//! core memory
-
-//! @param[in]  coreId  The core to write to
-//! @param[in]  regnum  The GDB register number
-//! @param[in]  regval  The value to write
-//! @return  True on success, false otherwise
-//-----------------------------------------------------------------------------
-bool
-GdbServer::writeReg (CoreId  coreId,
-		     unsigned int regnum,
-		     uint32_t value) const
-{
-  return  fTargetControl->writeMem32 (coreId, regAddr (regnum), value);
-
-}	// writeReg ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the Core ID
-
-//! A convenience routine and internal to external conversion
-
-//! @param[in]  coreId  The core to read from
-//! @return  The value of the Core ID
-//-----------------------------------------------------------------------------
-CoreId
-GdbServer::readCoreId (CoreId coreId) const
-{
-  CoreId *res = new CoreId (readReg (coreId, COREID_REGNUM));
-  return *res;
-
-}	// readCoreId ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the Core Status (a SCR)
-
-//! A convenience routine and internal to external conversion
-
-//! @param[in]  coreId  The core to read from
-//! @return  The value of the Status
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readStatus (CoreId  coreId) const
-{
-  return readReg (coreId, STATUS_REGNUM);
-
-}	// readStatus ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the Program Counter (a SCR)
-
-//! A convenience routine and internal to external conversion
-
-//! @param[in]  coreId  The core to read from
-//! @return  The value of the PC
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readPc (CoreId  coreId) const
-{
-  return readReg (coreId, PC_REGNUM);
-
-}	// readPc ()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of the Program Counter (a SCR)
-
-//! A convenience function and internal to external conversion
-
-//! @param[in] coreId  The core to write to
-//! @param[in] addr    The address to write into the PC
-//-----------------------------------------------------------------------------
-void
-GdbServer::writePc (CoreId  coreId,
-		    uint32_t addr)
-{
-  writeReg (coreId, PC_REGNUM, addr);
-
-}	// writePc ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the Link register (a GR)
-
-//! A convenience routine and internal to external conversion
-
-//! @param[in]  coreId  The core to read from
-//! @return  The value of the link register
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readLr (CoreId  coreId) const
-{
-  return readReg (coreId, LR_REGNUM);
-
-}	// readLr ()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of the Link register (GR)
-
-//! A convenience function and internal to external conversion
-
-//! @param[in] coreId  The core to write to
-//! @param[in] addr    The address to write into the Link register
-//-----------------------------------------------------------------------------
-void
-GdbServer::writeLr (CoreId  coreId,
-		    uint32_t  addr)
-{
-  writeReg (coreId, LR_REGNUM, addr);
-
-}	// writeLr ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the FP register (a GR)
-
-//! A convenience routine and internal to external conversion
-
-//! @param[in]  coreId  The core to read from
-//! @return  The value of the frame pointer register
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readFp (CoreId  coreId) const
-{
-  return readReg (coreId, FP_REGNUM);
-
-}	// readFp ()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of the Frame register (GR)
-
-//! A convenience function and internal to external conversion
-
-//! @param[in] coreId  The core to write to
-//! @param[in] addr    The address to write into the Frame pointer register
-//-----------------------------------------------------------------------------
-void
-GdbServer::writeFp (CoreId  coreId,
-		    uint32_t addr)
-{
-  writeReg (coreId, FP_REGNUM, addr);
-
-}	// writeFp ()
-
-
-//-----------------------------------------------------------------------------
-//! Read the value of the SP register (a GR)
-
-//! A convenience routine and internal to external conversion
-
-//! @param[in]  coreId  The core to read from
-//! @return  The value of the frame pointer register
-//-----------------------------------------------------------------------------
-uint32_t
-GdbServer::readSp (CoreId  coreId) const
-{
-  return readReg (coreId, SP_REGNUM);
-
-}	// readSp ()
-
-
-//-----------------------------------------------------------------------------
-//! Write the value of the Stack register (GR)
-
-//! A convenience function and internal to external conversion
-
-//! @param[in] coreId  The core to write to
-//! @param[in] addr    The address to write into the Stack pointer register
-//-----------------------------------------------------------------------------
-void
-GdbServer::writeSp (CoreId  coreId,
-		    uint32_t addr)
-{
-  writeReg (coreId, SP_REGNUM, addr);
-
-}	// writeSp ()
-
-
-//-----------------------------------------------------------------------------
-//! Get the core used for step and continue
-
-//! This is assumed to be a valid value. But we can't yield a single core for
-//! values of -1 (gives a warning), while for 0 we just return the first core.
-
+//! @param[in] tid   The thraed ID to translate
+//! @param[in] mess  Optional supplementary message in the event of
+//!                  problems. Defaults to NULL.
 //! @return  A coreID
 //-----------------------------------------------------------------------------
-CoreId
-GdbServer::cCore ()
+Thread*
+GdbServer::getThread (int         tid,
+		      const char* mess)
 {
-  CoreId coreId;
+  ProcessInfo *process = getProcess (currentPid);
+  ostringstream oss;
 
-  switch (currentCThread)
+  if (NULL == mess)
+    oss << "";
+  else
+    oss << "for " << mess;
+
+  if (tid < 1)
     {
-    case -1:
-      cerr << "Warning: Cannot give a single 'c' core for thread -1" << endl;
-      coreId = thread2core.begin ()->first;
+      int newTid = *(process->threadBegin ());
 
-    case 0:
-      coreId = thread2core.begin ()->first;
-
-    default:
-      coreId = thread2core[currentCThread];
+      cerr << "Warning: Cannot use thread ID " << tid << oss.str ()
+	   << ": using " << newTid << " instead." << endl;
+      tid = newTid;
     }
 
-  return coreId;
+  if (!process->hasThread (tid))
+    {
+      int newTid = *(process->threadBegin ());
 
-}	// cCore ()
+      cerr << "Thread ID " << tid << " is not in process " << currentPid
+	   << ": using " << newTid << " instead." << endl;
+      tid = newTid;
+    }
+
+  map <int, Thread*>::iterator it = mThreads.find (tid);
+  return it->second;
+
+}	// getThread ()
 
 
 //-----------------------------------------------------------------------------
-//! Get the core used for general access
+//! Halt one or more threads
 
-//! This is assumed to be a valid value.
+//! This is a wrapper, which deals with the case that the thread ID is -1 (all
+//! threads), which means to halt all threads (in the process).
 
-//! @return  A coreID
+//! @note We consider a thread ID of 0 (any thread) is meaningless here. We
+//!       warn and treat as -1
+
+//! @param[in] tid  Thread(s) to halt
+//! @return  TRUE if all threads halt, FALSE otherwise
 //-----------------------------------------------------------------------------
-CoreId
-GdbServer::gCore ()
+bool
+GdbServer::haltThreads (int  tid)
 {
-  CoreId coreId;
+  ProcessInfo *process = getProcess (currentPid);
 
-  switch (currentGThread)
+  if (0 == tid)
     {
-    case -1:
-      cerr << "Warning: Cannot give a single 'g' core for thread -1" << endl;
-      coreId = thread2core.begin ()->first;
-
-    case 0:
-      coreId = thread2core.begin ()->first;
-
-    default:
-      coreId = thread2core[currentGThread];
+      cerr << "Warning: can't halt thread 0: treating as -1" << endl;
+      tid = -1;
     }
 
-  return coreId;
+  bool allHalted = true;
+  if (-1 == tid)
+    for (set <int>::iterator it = process->threadBegin ();
+	 it != process->threadEnd ();
+	 it++)
+      {
+	Thread* thread = getThread (*it);
+	allHalted &= thread->halt ();
+      }
+  else
+    {
+      assert (process->hasThread (tid));
+      Thread* thread = getThread (tid);
+      allHalted = thread->halt ();
+    }
 
-}	// cCore ()
+  return allHalted;
+
+}	// haltThreads ()
+
+
+//-----------------------------------------------------------------------------
+//! Resume one or more threads
+
+//! This is a wrapper, which deals with the case that the thread ID is -1 (all
+//! threads), which means to resume all threads (in the process).
+
+//! @note We consider a thread ID of 0 (any thread) is meaningless here. We
+//!       warn and treat as -1
+
+//! @param[in] tid  Thread(s) to resume
+//! @return  TRUE if all threads resume, FALSE otherwise
+//-----------------------------------------------------------------------------
+bool
+GdbServer::resumeThreads (int  tid)
+{
+  ProcessInfo *process = getProcess (currentPid);
+
+  if (0 == tid)
+    {
+      cerr << "Warning: can't halt thread 0: treating as -1" << endl;
+      tid = -1;
+    }
+
+  bool allResumed = true;
+  if (-1 == tid)
+    for (set <int>::iterator it = process->threadBegin ();
+	 it != process->threadEnd ();
+	 it++)
+      {
+	Thread* thread = getThread (*it);
+	allResumed &= thread->resume ();
+      }
+  else
+    {
+      assert (process->hasThread (tid));
+      Thread* thread = getThread (tid);
+      allResumed = thread->resume ();
+    }
+
+  return allResumed;
+
+}	// resumeThreads ()
 
 
 //-----------------------------------------------------------------------------
@@ -4544,14 +4545,14 @@ GdbServer::getBranchOffset (uint32_t  instr)
 //! Possibilites are a branch (immediate offset), jump (register address) or
 //! return-from-interrupt (implicit register address).
 
-//! @param[in]  coreId    The core we are looking at
+//! @param[in]  thread    The thread we are looking at.
 //! @param[in]  instr     16-bit instruction
 //! @param[in]  addr      Address of instruction being examined
 //! @param[out] destAddr  Destination address
 //! @return  TRUE if this was a 16-bit jump destination
 //-----------------------------------------------------------------------------
 bool
-GdbServer::getJump (CoreId  coreId,
+GdbServer::getJump (Thread*   thread,
 		    uint16_t  instr,
 		    uint32_t  addr,
 		    uint32_t& destAddr)
@@ -4568,13 +4569,13 @@ GdbServer::getJump (CoreId  coreId,
     {
       // JR or JALR
       uint8_t rn = getRn (instr);
-      destAddr = readReg (coreId, R0_REGNUM + rn);
+      destAddr = thread->readReg (R0_REGNUM + rn);
       return true;
     }
   else if (0x1d2 == getOpcode10 (instr))
     {
       // RTI
-      destAddr = readReg (coreId, IRET_REGNUM);
+      destAddr = thread->readReg (IRET_REGNUM);
       return true;
     }
   else
@@ -4588,14 +4589,14 @@ GdbServer::getJump (CoreId  coreId,
 
 //! Possibilites are a branch (immediate offset) or jump (register address)
 
-//! @param[in]  coreId    The core we are looking at
+//! @param[in]  thread    The thread we are looking at.
 //! @param[in]  instr     32-bit instruction
 //! @param[in]  addr      Address of instruction being examined
 //! @param[out] destAddr  Destination address
 //! @return  TRUE if this was a 16-bit jump destination
 //-----------------------------------------------------------------------------
 bool
-GdbServer::getJump (CoreId  coreId,
+GdbServer::getJump (Thread*   thread,
 		    uint32_t  instr,
 		    uint32_t  addr,
 		    uint32_t& destAddr)
@@ -4612,7 +4613,7 @@ GdbServer::getJump (CoreId  coreId,
     {
       // JR or JALR
       uint8_t rn = getRn (instr);
-      destAddr = readReg (coreId, R0_REGNUM + rn);
+      destAddr = thread->readReg (R0_REGNUM + rn);
       return true;
     }
   else
@@ -4663,150 +4664,8 @@ GdbServer::setfield (uint32_t & x, int _lt, int _rt, uint32_t val)
 }
 
 
-//! Map GDB register number to hardware register memory address
-
-//! @param[in] regnum  GDB register number to look up
-//! @return the (local) hardware address in memory of the register
-uint32_t
-GdbServer::regAddr (unsigned int  regnum) const
-{
-  static const uint32_t regs [NUM_REGS] = {
-    TargetControl::R0,
-    TargetControl::R0 +   4,
-    TargetControl::R0 +   8,
-    TargetControl::R0 +  12,
-    TargetControl::R0 +  16,
-    TargetControl::R0 +  20,
-    TargetControl::R0 +  24,
-    TargetControl::R0 +  28,
-    TargetControl::R0 +  32,
-    TargetControl::R0 +  36,
-    TargetControl::R0 +  40,
-    TargetControl::R0 +  44,
-    TargetControl::R0 +  48,
-    TargetControl::R0 +  52,
-    TargetControl::R0 +  56,
-    TargetControl::R0 +  60,
-    TargetControl::R0 +  64,
-    TargetControl::R0 +  68,
-    TargetControl::R0 +  72,
-    TargetControl::R0 +  76,
-    TargetControl::R0 +  80,
-    TargetControl::R0 +  84,
-    TargetControl::R0 +  88,
-    TargetControl::R0 +  92,
-    TargetControl::R0 +  96,
-    TargetControl::R0 + 100,
-    TargetControl::R0 + 104,
-    TargetControl::R0 + 108,
-    TargetControl::R0 + 112,
-    TargetControl::R0 + 116,
-    TargetControl::R0 + 120,
-    TargetControl::R0 + 124,
-    TargetControl::R0 + 128,
-    TargetControl::R0 + 132,
-    TargetControl::R0 + 136,
-    TargetControl::R0 + 140,
-    TargetControl::R0 + 144,
-    TargetControl::R0 + 148,
-    TargetControl::R0 + 152,
-    TargetControl::R0 + 156,
-    TargetControl::R0 + 160,
-    TargetControl::R0 + 164,
-    TargetControl::R0 + 168,
-    TargetControl::R0 + 172,
-    TargetControl::R0 + 176,
-    TargetControl::R0 + 180,
-    TargetControl::R0 + 184,
-    TargetControl::R0 + 188,
-    TargetControl::R0 + 192,
-    TargetControl::R0 + 196,
-    TargetControl::R0 + 100,
-    TargetControl::R0 + 104,
-    TargetControl::R0 + 108,
-    TargetControl::R0 + 112,
-    TargetControl::R0 + 116,
-    TargetControl::R0 + 120,
-    TargetControl::R0 + 124,
-    TargetControl::R0 + 128,
-    TargetControl::R0 + 132,
-    TargetControl::R0 + 136,
-    TargetControl::R0 + 140,
-    TargetControl::R0 + 144,
-    TargetControl::R0 + 148,
-    TargetControl::R63,
-    TargetControl::CONFIG,
-    TargetControl::STATUS,
-    TargetControl::PC,
-    TargetControl::DEBUGSTATUS,
-    TargetControl::LC,
-    TargetControl::LS,
-    TargetControl::LE,
-    TargetControl::IRET,
-    TargetControl::IMASK,
-    TargetControl::ILAT,
-    TargetControl::ILATST,
-    TargetControl::ILATCL,
-    TargetControl::IPEND,
-    TargetControl::FSTATUS,
-    TargetControl::DEBUGCMD,
-    TargetControl::RESETCORE,
-    TargetControl::CTIMER0,
-    TargetControl::CTIMER1,
-    TargetControl::MEMSTATUS,
-    TargetControl::MEMPROTECT,
-    TargetControl::DMA0CONFIG,
-    TargetControl::DMA0STRIDE,
-    TargetControl::DMA0COUNT,
-    TargetControl::DMA0SRCADDR,
-    TargetControl::DMA0DSTADDR,
-    TargetControl::DMA0AUTO0,
-    TargetControl::DMA0AUTO1,
-    TargetControl::DMA0STATUS,
-    TargetControl::DMA1CONFIG,
-    TargetControl::DMA1STRIDE,
-    TargetControl::DMA1COUNT,
-    TargetControl::DMA1SRCADDR,
-    TargetControl::DMA1DSTADDR,
-    TargetControl::DMA1AUTO0,
-    TargetControl::DMA1AUTO1,
-    TargetControl::DMA1STATUS,
-    TargetControl::MESHCONFIG,
-    TargetControl::COREID,
-    TargetControl::MULTICAST,
-    TargetControl::CMESHROUTE,
-    TargetControl::XMESHROUTE,
-    TargetControl::RMESHROUTE
-  };
-
-  assert (regnum < NUM_REGS);
-  return regs[regnum];
-
-}	// regAddr ()
-
-
-//-----------------------------------------------------------------------------
-//! Convenience function to turn an integer into a string
-
-//! @param[in] val    The value to convert
-//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
-//!                   or 16. Other values will reset the iostream flags.
-//! @param[in] width  The width to pad (with zeros).
-//-----------------------------------------------------------------------------
-string
-GdbServer::intStr (int  val,
-		   int  base,
-		   int  width) const
-{
-  ostringstream  os;
-
-  os << setbase (base) << setfill ('0') << setw (width) << val;
-  return os.str ();
-
-}	// intStr ()
-
-
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
+// show-trailing-whitespace: t
 // End:

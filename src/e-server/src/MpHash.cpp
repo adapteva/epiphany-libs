@@ -214,4 +214,5 @@ bool MpHash::remove (MpType type, uint32_t addr, uint16_t * instr)
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
+// show-trailing-whitespace: t
 // End:

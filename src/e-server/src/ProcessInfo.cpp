@@ -42,12 +42,8 @@ using std::endl;
 
 //-----------------------------------------------------------------------------
 //! Constructor.
-
-//! @param[in] pid  The process ID. This is fixed and can't subsequently be
-//                  changed.
 //-----------------------------------------------------------------------------
-ProcessInfo::ProcessInfo (int  pid) :
-  mPid (pid)
+ProcessInfo::ProcessInfo ()
 {
 }	// ProcessInfo ()
 
@@ -60,19 +56,6 @@ ProcessInfo::ProcessInfo (int  pid) :
 ProcessInfo::~ProcessInfo ()
 {
 }	// ProcessInfo ()
-
-
-//-----------------------------------------------------------------------------
-//! Get the process ID
-
-//! @return  The Process ID.
-//-----------------------------------------------------------------------------
-int
-ProcessInfo::pid () const
-{
-  return mPid;
-
-}	// pid ()
 
 
 //-----------------------------------------------------------------------------
@@ -104,13 +87,13 @@ ProcessInfo::threadEnd () const
 //-----------------------------------------------------------------------------
 //! Add a thread to the process.
 
-//! @param[in] thread  The thread to add
+//! @param[in] tid  The thread ID to add
 //! @return  TRUE if we successfully add the thread, false otherwise
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::addThread (int thread)
+ProcessInfo::addThread (int tid)
 {
-  return  mThreads.insert (thread).second;
+  return  mThreads.insert (tid).second;
 
 }	// addThread ()
 
@@ -118,13 +101,27 @@ ProcessInfo::addThread (int thread)
 //-----------------------------------------------------------------------------
 //! Remove a thread from the process
 
-//! @param[in] thread  The thread to remove
+//! @param[in] tid  The thread ID to remove
 //! @return  TRUE if we succeed, and FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::eraseThread (int thread)
+ProcessInfo::eraseThread (int tid)
 {
-  return  mThreads.erase (thread) == 1;
+  return  mThreads.erase (tid) == 1;
+
+}	// eraseThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Is this a thread in this process?
+
+//! @param[in] tid  The thread ID to check
+//! @return  TRUE if this thread is in this process
+//-----------------------------------------------------------------------------
+bool
+ProcessInfo::hasThread (int tid)
+{
+  return  mThreads.find (tid) != mThreads.end ();
 
 }	// eraseThread ()
 
