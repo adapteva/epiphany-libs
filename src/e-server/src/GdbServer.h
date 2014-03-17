@@ -281,8 +281,8 @@ private:
   Thread * getThread (int         tid,
 		      const char* mess = NULL);
   //! Thread control
-  bool haltThreads (int  tid);
-  bool resumeThreads (int  tid);
+  bool haltAllThreads ();
+  bool resumeAllThreads ();
 
   void redirectStdioOnTrap (int      tid,
 			    uint8_t  trap);
@@ -329,6 +329,9 @@ private:
 		 uint32_t  instr,
 		 uint32_t  addr,
 		 uint32_t& destAddr);
+
+  // Debugging support.
+  void  doBacktrace ();
 
   // YS - provide the SystemC equivalent to the bit range selection operator.
   uint8_t getfield (uint8_t x, int _lt, int _rt);

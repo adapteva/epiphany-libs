@@ -54,32 +54,21 @@
 //-----------------------------------------------------------------------------
 //! Constructor
 
-//! Allocate the hash table
-//! @param[in] size  Number of slots in the  hash table. Defaults to
-//!                  DEFAULT_MP_HASH_SIZE.
+//! Does nothing. Retained for backwards compatibility.
 //-----------------------------------------------------------------------------
-MpHash::MpHash (int _size):
-size (_size)
+MpHash::MpHash ()
 {
-  // Allocate and clear the hash table
-  hashTab = new MpEntry *[size];
-
-  for (int i = 0; i < size; i++)
-    {
-      hashTab[i] = NULL;
-    }
-}				// MpHash()
+}	// MpHash()
 
 
 //-----------------------------------------------------------------------------
 //! Destructor
 
-//! Free the hash table
+//! Does nothing. Retained for backwards compatibility.
 //-----------------------------------------------------------------------------
 MpHash::~MpHash ()
 {
-  delete[]hashTab;
-}				// ~MpHash()
+}	// ~MpHash()
 
 
 //-----------------------------------------------------------------------------
@@ -95,61 +84,41 @@ MpHash::~MpHash ()
 
 //! @param[in] type   The type of matchpoint
 //! @param[in] addr   The address of the matchpoint
+//! @param[in] tid    The thread ID of the matchpoint
 //! @para[in]  instr  The instruction to associate with the address
 //-----------------------------------------------------------------------------
 void
-MpHash::add (MpType type, uint32_t addr, uint16_t instr)
+MpHash::add (MpType type,
+	     uint32_t addr,
+	     int tid,
+	     uint16_t instr)
 {
-  int hv = addr % size;
-  MpEntry *curr;
+  MpKey  key = {type, addr, tid};
+  mHashTab[key] = instr;
 
-  // See if we already have the entry
-  for (curr = hashTab[hv]; NULL != curr; curr = curr->next)
-    {
-      if ((type == curr->type) && (addr == curr->addr))
-	{
-	  return;		// We already have the entry
-	}
-    }
-
-  // Insert the new entry at the head of the chain
-  curr = new MpEntry ();
-
-  curr->type = type;
-  curr->addr = addr;
-  curr->instr = instr;
-  curr->next = hashTab[hv];
-
-  hashTab[hv] = curr;
-}				// add()
+}	// add()
 
 
 //-----------------------------------------------------------------------------
 //!Look up an entry in the matchpoint hash table
 
-//! The match must be on type AND addr.
+//! The match must be on type, address and thread ID.
 
 //! @param[in] type   The type of matchpoint
 //! @param[in] addr   The address of the matchpoint
+//! @param[in] tid    The thread ID of the matchpoint
 
-//! @return  The entry found, or NULL if the entry was not found
+//! @return  TRUE if an entry is found, FALSE otherwise.
 //-----------------------------------------------------------------------------
-MpEntry *
-MpHash::lookup (MpType type, uint32_t addr)
+bool
+MpHash::lookup (MpType    type,
+		uint32_t  addr,
+		int       tid)
 {
-  int hv = addr % size;
+  MpKey  key = {type, addr, tid};
+  return (mHashTab.find (key) != mHashTab.end ());
 
-  // Search
-  for (MpEntry * curr = hashTab[hv]; NULL != curr; curr = curr->next)
-    {
-      if ((type == curr->type) && (addr == curr->addr))
-	{
-	  return curr;		// The entry was found
-	}
-    }
-
-  return NULL;			// The entry was not found
-}				// lookup()
+}	// lookup()
 
 
 //-----------------------------------------------------------------------------
@@ -164,51 +133,30 @@ MpHash::lookup (MpType type, uint32_t addr)
 
 //! @param[in]  type   The type of matchpoint
 //! @param[in]  addr   The address of the matchpoint
-//! @param[out] instr  Location to place the instruction found. If NULL (the
-//!                    default) then the instruction is not written back.
+//! @param[in]  tid    The thread ID of the matchpoint
+//! @param[out] instr  If non-NULL a location for the instruction found.
+//!                    Default NULL.
 
 //! @return  TRUE if an entry was found and deleted
 //-----------------------------------------------------------------------------
-bool MpHash::remove (MpType type, uint32_t addr, uint16_t * instr)
+bool
+MpHash::remove (MpType    type,
+		uint32_t  addr,
+		int       tid,
+		uint16_t* instr)
 {
-  int
-    hv = addr % size;
-  MpEntry *
-    prev = NULL;
-  MpEntry *
-    curr;
+  MpKey  key = {type, addr, tid};
 
-  // Search
-  for (curr = hashTab[hv]; NULL != curr; curr = curr->next)
+  if (NULL != instr)
     {
-      if ((type == curr->type) && (addr == curr->addr))
-	{
-	  // Found - delete. Method depends on whether we are the head of
-	  // chain.
-	  if (NULL == prev)
-	    {
-	      hashTab[hv] = curr->next;
-	    }
-	  else
-	    {
-	      prev->next = curr->next;
-	    }
-
-	  if (NULL != instr)
-	    {
-	      *instr = curr->instr;	// Return the found instruction
-	    }
-
-	  delete
-	    curr;
-	  return true;		// Success
-	}
-
-      prev = curr;
+      map <MpKey, uint16_t>::iterator it = mHashTab.find (key);
+      if (it != mHashTab.end ())
+	*instr = it->second;
     }
 
-  return false;			// Not found
-}				// remove()
+  return 1 == mHashTab.erase (key);
+
+}	// remove()
 
 
 // Local Variables:

@@ -1,5 +1,36 @@
 2014-03-17  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp: Replace haltThreads by haltAllThreads
+	throughout.
+	(GdbServer::rspServer): Remove check for ctrl-C and move to
+	doContinue;
+	(GdbServer::rspClientRequest): resume all threads for 'F' packet,
+	close connection for 'k' packet.
+	(GdbServer::rspContinue): Change call of hash table lookup.
+	(GdbServer::rspSetThread): Do the selection for thread 0 here.
+	(GdbServer::rspCmdProcess): Reset current threads if necessary.
+	(GdbServer::rspIsThreadAlive): Resrict to current process.
+	(GdbServer::rspVCont): Correct logic of splitting out tokens.
+	(GdbServer::doFileIO): Mark target not running and halt all threads.
+	(GdbServer::rspRemoveMatchpoint): Deal with thread ID of -1.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::getThread): Do a backtrace on problem.
+	(GdbServer::haltAllThreads): Renamed from haltThreads.
+	(GdbServer::resumeAllThreads): Renamed from resumeThreads.
+	(GdbServer::doBacktrace): Created.
+	* src/GdbServer.h: Rename haltThreads to haltAllThreads and
+	resumeThreads to resumeAllThreads.  Add doBacktrace.
+	* src/MpHash.cpp (MpHash::MpHash): Reimplement using STL
+	map. Remains as backward-compatible stub.
+	(MpHash::~MpHash): Likewise.
+	(MpHash::add): Reimplement using STL map.
+	(MpHash::lookup): Likewise.
+	(MpHash::remove): Likewise.
+	* src/MpHash.h (struct MpEntry): Deleted.
+	(class MpHash): Reimplement using STL map. Add MpKey private struct.
+
+2014-03-17  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* Debug/src/subdir.mk: Add Thread.cpp., Thread.o and
 	Thread.d.
 	* Release/src/subdir.mk: Likewise.

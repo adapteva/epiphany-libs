@@ -49,7 +49,11 @@
 #ifndef MP_HASH__H
 #define MP_HASH__H
 
+#include <map>
+
 #include <inttypes.h>
+
+using std::map;
 
 
 //! Default size of the matchpoint hash table. Largest prime < 2^10
@@ -74,26 +78,6 @@ class MpHash;
 
 
 //-----------------------------------------------------------------------------
-//! A structure for a matchpoint hash table entry
-//-----------------------------------------------------------------------------
-struct MpEntry
-{
-public:
-
-  friend class MpHash;		// The only one which can get at next
-
-  MpType type;			//!< Type of matchpoint
-  uint32_t addr;		//!< Address with the matchpoint
-  uint16_t instr;		//!< Substituted (16-bit) instruction
-
-
-private:
-
-    MpEntry * next;		//!< Next in this slot
-};
-
-
-//-----------------------------------------------------------------------------
 //! A hash table for matchpoints
 
 //! We do this as our own open hash table. Our keys are a pair of entities
@@ -104,21 +88,52 @@ class MpHash
 public:
 
   // Constructor and destructor
-  MpHash (int _size = DEFAULT_MP_HASH_SIZE);
+  MpHash ();
    ~MpHash ();
 
   // Accessor methods
-  void add (MpType type, uint32_t addr, uint16_t instr);
-  MpEntry *lookup (MpType type, uint32_t addr);
-  bool remove (MpType type, uint32_t addr, uint16_t * instr = NULL);
+  void add (MpType    type,
+	    uint32_t  addr,
+	    int       tid,
+	    uint16_t  instr);
+  bool lookup (MpType    type,
+	       uint32_t  addr,
+	       int       tid);
+  bool remove (MpType    type,
+	       uint32_t  addr,
+	       int       tid,
+	       uint16_t* instr = NULL);
 
 private:
 
-  //! The hash table
-    MpEntry ** hashTab;
+  // The key
+  struct MpKey
+  {
+  public:
+    MpType    type;		//!< Type of matchpoint
+    uint32_t  addr;		//!< Address of the matchpoint
+    int       tid;              //!< Thread ID of the matchpoint
 
-  //! Size of the hash table
-  int size;
+    const bool operator < (const MpKey &key) const
+    {
+      if (type < key.type)
+	return true;
+      else if (type > key.type)
+	return false;
+      else if (addr < key.addr)
+	return true;
+      else if (addr > key.addr)
+	return false;
+      else if (tid < key.tid)
+	return true;
+      else
+	return false;
+    } ;
+  };
+
+
+  //! The hash table
+  map <MpKey, uint16_t> mHashTab;
 };
 
 #endif // MP_HASH__H

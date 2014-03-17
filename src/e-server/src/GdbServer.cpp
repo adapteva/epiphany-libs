@@ -31,6 +31,7 @@
 #include <sstream>
 #include <vector>
 
+#include <execinfo.h>
 #include <fcntl.h>
 #define __STDC_FORMAT_MACROS 1
 #include <inttypes.h>
@@ -44,6 +45,7 @@ using std::cerr;
 using std::cout;
 using std::dec;
 using std::endl;
+using std::flush;
 using std::hex;
 using std::ostringstream;
 using std::pair;
@@ -152,31 +154,8 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 
       rspClientRequest ();
 
-      //check if the target is stopped and not hit by BP in continue command
-      //and check gdb CTRL-C and continue again
-      while (fIsTargetRunning)
-	{
-	  if (si->debugCtrlCWait())
-	    cerr << "DebugCtrlCWait: Check for Ctrl-C" << endl;
-	  bool isGotBreakCommand = rsp->getBreakCommand ();
-	  if (isGotBreakCommand)
-	    {
-	      cerr << "CTLR-C request from gdb server." << endl;
-
-	      rspSuspend ();
-	      //get CTRl-C from gdb, the user should continue the target
-	    }
-	  else
-	    {
-	      //continue
-	      rspContinue (0, 0);	// The args are ignored by continue
-					// command in this mode
-	    }
-	  if (si->debugCtrlCWait())
-	    cerr << dec <<
-	      "check for CTLR-C done" << endl;
-	}
-
+      // At this point we should have responded to the client, and so, in
+      // all-stop mode, all threads should be halted.
       if (si->debugTranDetail ())
 	cerr << "DebugTranDetail: RSP client request complete" << endl;
     }
@@ -297,7 +276,7 @@ GdbServer::rspAttach (int  pid)
 //! Restart all threads in the process, *unless* it is the idle process (why
 //! waste CPU with it).
 
-//! @param[in] pid  The ID of the process from whcih we detach
+//! @param[in] pid  The ID of the process from which we detach
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspDetach (int pid)
@@ -405,11 +384,11 @@ GdbServer::rspClientRequest ()
 
     case 'F':
 
-      //parse the F reply packet
+      // Parse the F reply packet
       rspFileIOreply ();
 
-      //always resume -- (continue c or s command)
-      resumeThreads (currentCTid);
+      // For all-stop mode we assume all threads need restarting.
+      resumeAllThreads ();
 
       break;
 
@@ -436,8 +415,9 @@ GdbServer::rspClientRequest ()
 
     case 'k':
       rspDetach (currentPid);
-      //reset to the initial state to prevent reporting to the disconnected
-      //client
+      rsp->rspClose ();			// Close the connection.
+      // Reset to the initial state to prevent reporting to the disconnected
+      // client.
       fIsTargetRunning = false;
 
       break;
@@ -566,12 +546,13 @@ GdbServer::rspReportException (int          tid,
 
     default:
       // A specific thread has stopped
-      oss << "T" << Utils::intStr (sig, 16, 2) << "thread:" << hex << tid;
+      oss << "T" << Utils::intStr (sig, 16, 2) << "thread:" << hex << tid
+	  << ";";
       break;
     }
 
   // In all-stop mode, ensure all threads are halted.
-  haltThreads (-1);
+  haltAllThreads ();
   fIsTargetRunning = false;
 
   pkt->packStr (oss.str ().c_str ());
@@ -751,7 +732,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	    {
 	      //cerr << "********* valueOfStoppedInstr = BKPT_INSTR **************" << endl;
 
-	      if (NULL != mpHash->lookup (BP_MEMORY, prevPc))
+	      if (mpHash->lookup (BP_MEMORY, prevPc, currentCTid))
 		{
 		  thread->writePc (prevPc);
 		  if (si->debugTrapAndRspCon ())
@@ -817,12 +798,10 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	      if (stoppedAtTrap)
 		{
 		  //cerr << "********* stoppedAtTrap = true **************" << endl;
-
+		  haltAllThreads ();
 		  fIsTargetRunning = false;
-
-		  uint8_t trapNumber =
-		    getfield (valueOfStoppedInstr, 15, 10);
-		  redirectStdioOnTrap (currentCTid, trapNumber);
+		  redirectStdioOnTrap (currentCTid,
+				       getTrap (valueOfStoppedInstr));
 		}
 	      else
 		{
@@ -839,7 +818,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 	  break;
 	}			// if (isCoreInDebugState())
     }				// while (true)
-}				// rspContinue()
+}	// rspContinue()
 
 
 //-----------------------------------------------------------------------------
@@ -853,7 +832,7 @@ void
 GdbServer::rspSuspend ()
 {
   // Halt all threads.
-  if (!haltThreads (-1))
+  if (!haltAllThreads ())
     cerr << "Warning: suspend failed to halt all threads." << endl;
 
   // Report to gdb the target has been stopped
@@ -917,7 +896,10 @@ GdbServer::rspFileIOreply ()
 
 //! The requests are sent using F packets. The open, write, read and close
 //! system calls are supported
-//
+
+//! At this point all threads have been halted, and we have set
+//! fIsTargetRunning to FALSE.
+
 //! @param[in] tid   Thread ID making the I/O request (must be > 0).
 //! @param[in] trap  The number of the trap.
 //-----------------------------------------------------------------------------
@@ -1319,7 +1301,13 @@ GdbServer::rspWriteAllRegs ()
 }				// rspWriteAllRegs()
 
 
+//-----------------------------------------------------------------------------
 //! Set the thread number of subsequent operations.
+
+//! A tid of -1 means "all threads", 0 means "any thread". 0 causes all sorts of
+//! problems later, so we replace it by the first thread in the current
+//! process.
+//-----------------------------------------------------------------------------
 void
 GdbServer::rspSetThread ()
 {
@@ -1334,6 +1322,9 @@ GdbServer::rspSetThread ()
       rsp->putPkt (pkt);
       return;
     }
+
+  if (0 == tid)
+    tid = *(getProcess (currentPid)->threadBegin ());
 
   switch (c)
     {
@@ -1850,7 +1841,7 @@ GdbServer::rspCommand ()
     {
       cout << "INFO: Halting all cores" << endl;
 
-      if (haltThreads (-1))
+      if (haltAllThreads ())
 	pkt->packHexstr ("All cores halted\n");
       else
 	{
@@ -2093,8 +2084,30 @@ GdbServer::rspCmdProcess (char* cmd)
   else
     {
       currentPid = pid;
+      ProcessInfo *process = getProcess (pid);
+
       ostringstream oss;
       oss << "Process ID now " << pid << "." << endl;
+
+      // This may have invalidated the current threads. If so correct
+      // them. This is really a big dodgy - ultimately this needs proper
+      // process handling.
+      if ((-1 != currentCTid) && (! process->hasThread (currentCTid)))
+	{
+	  currentCTid = *(process->threadBegin ());
+	  oss << "- switching control thread to " << currentCTid << "." << endl;
+	  pkt->packHexstr (oss.str ().c_str ());
+	  rsp->putPkt (pkt);
+	}
+
+      if ((-1 != currentGTid) && (! process->hasThread (currentGTid)))
+	{
+	  currentGTid = *(process->threadBegin ());
+	  oss << "- switching general thread to " << currentGTid << "." << endl;
+	  pkt->packHexstr (oss.str ().c_str ());
+	  rsp->putPkt (pkt);
+	}
+
       pkt->packHexstr (oss.str ().c_str ());
       rsp->putPkt (pkt);
       pkt->packStr ("OK");
@@ -2871,6 +2884,7 @@ GdbServer::rspStep (bool         haveAddrP,
 
       // TRAP instruction triggers I/O
       fIsTargetRunning = false;
+      haltAllThreads ();
       redirectStdioOnTrap (currentCTid, getTrap (instr16));
       thread->writePc (addr + SHORT_INSTRLEN);
       return;
@@ -2997,10 +3011,12 @@ GdbServer::rspIsThreadAlive ()
 
   // This will not find thread IDs 0 (any) or -1 (all), which seems to be what
   // we want.
-  if (mThreads.find (tid) == mThreads.end ())
-    pkt->packStr ("E01");
-  else
+  ProcessInfo *process = getProcess (currentPid);
+
+  if (process->hasThread (tid))
     pkt->packStr ("OK");
+  else
+    pkt->packStr ("E01");
 
   rsp->putPkt (pkt);
 
@@ -3281,10 +3297,11 @@ GdbServer::rspVCont ()
   for (size_t i = 1; i < actions.size (); i++)
     {
       vector <string> tokens;
-      ss.clear ();
+      stringstream tss;
+      tss << actions[i];
 
       // Break out the action and the thread
-      while (getline (ss, item, ':'))
+      while (getline (tss, item, ':'))
 	tokens.push_back (item);
 
       if (1 == tokens.size ())
@@ -3299,7 +3316,7 @@ GdbServer::rspVCont ()
 	    cerr << "Warning: Duplicate default action for vCont: Ignored."
 		 << endl;
 	}
-      else
+      else if (2 == tokens.size ())
 	{
 	  int tid = strtol (tokens[1].c_str (), NULL, 16);
 	  if (process->hasThread (tid))
@@ -3318,6 +3335,11 @@ GdbServer::rspVCont ()
 	      cerr << "Warning: vCont thread ID " << tid
 		   << " not part of current process: ignored." << endl;
 	    }
+	}
+      else
+	{
+	  cerr << "Warning: Unrecognized vCont action of size "
+	       << tokens.size () << ": " << actions[i] << endl;
 	}
     }
 
@@ -3406,6 +3428,21 @@ GdbServer::rspVCont ()
 	      return;
 	    }
 	}
+
+      // Check for Ctrl-C
+      if (si->debugCtrlCWait())
+	cerr << "DebugCtrlCWait: Check for Ctrl-C" << endl;
+
+      if (rsp->getBreakCommand ())
+	{
+	  cerr << "INFO: Cntrl-C request from GDB client." << endl;
+	  rspSuspend ();
+	  return;
+	}
+
+      if (si->debugCtrlCWait())
+	cerr << "DebugCtrlCWait: check for CTLR-C done" << endl;
+
       Utils::microSleep (100000);	// Every 100ms
     }
 }	// rspVCont ()
@@ -3556,6 +3593,7 @@ GdbServer::doStep (int          tid,
 
       // TRAP instruction triggers I/O
       fIsTargetRunning = false;
+      haltAllThreads ();
       redirectStdioOnTrap (currentCTid, getTrap (instr16));
       thread->writePc (pc + SHORT_INSTRLEN);
       return;
@@ -3760,6 +3798,8 @@ GdbServer::doFileIO (int  tid)
       return false;
     }
 
+  fIsTargetRunning = false;
+  haltAllThreads ();
   redirectStdioOnTrap (tid, getTrap (instr16));
   return true;
 
@@ -3850,7 +3890,6 @@ GdbServer::rspRemoveMatchpoint ()
   uint32_t addr;		// Address specified
   uint16_t instr;		// Instruction value found
   unsigned int len;		// Matchpoint length
-  Thread* thread = getThread (currentCTid);
 
   // Break out the instruction
   if (3 != sscanf (pkt->data, "z%1d,%x,%1ud", (int *) &type, &addr, &len))
@@ -3874,9 +3913,30 @@ GdbServer::rspRemoveMatchpoint ()
   switch (type)
     {
     case BP_MEMORY:
-      //Memory breakpoint - replace the original instruction.
-      if (mpHash->remove (type, addr, &instr))
-	thread->writeMem16 (addr, instr);
+      // Memory breakpoint - replace the original instruction. If we are
+      // talking about all threads, we need to do all the threads.
+      if (-1 == currentCTid)
+	{
+	  ProcessInfo *process = getProcess (currentPid);
+
+	  for (set <int>::iterator it = process->threadBegin ();
+	       it != process->threadEnd ();
+	       it++)
+	    {
+	      int tid = *it;
+	      Thread *thread = getThread (tid);
+
+	      if (mpHash->remove (type, addr, tid, &instr))
+		thread->writeMem16 (addr, instr);
+	    }
+	}
+      else
+	{
+	  Thread* thread = getThread (currentCTid);
+
+	  if (mpHash->remove (type, addr, currentCTid, &instr))
+	    thread->writeMem16 (addr, instr);
+	}
 
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
@@ -3927,7 +3987,6 @@ GdbServer::rspInsertMatchpoint ()
   MpType type;			// What sort of matchpoint
   uint32_t addr;		// Address specified
   unsigned int len;		// Matchpoint length (not used)
-  Thread* thread = getThread (currentCTid);
 
   // Break out the instruction
   if (3 != sscanf (pkt->data, "Z%1d,%x,%1ud", (int *) &type, &addr, &len))
@@ -3953,12 +4012,35 @@ GdbServer::rspInsertMatchpoint ()
   switch (type)
     {
     case BP_MEMORY:
-      // Memory breakpoint - substitute a BKPT instruction
+      // Memory breakpoint - substitute a BKPT instruction If we are
+      // talking about all threads, we need to do all the threads.
+      if (-1 == currentCTid)
+	{
+	  ProcessInfo *process = getProcess (currentPid);
 
-      thread->readMem16 (addr, bpMemVal);
-      mpHash->add (type, addr, bpMemVal);
+	  for (set <int>::iterator it = process->threadBegin ();
+	       it != process->threadEnd ();
+	       it++)
+	    {
+	      int tid = *it;
+	      Thread *thread = getThread (tid);
 
-      thread->insertBkptInstr (addr);
+	      thread->readMem16 (addr, bpMemVal);
+	      mpHash->add (type, addr, tid, bpMemVal);
+
+	      thread->insertBkptInstr (addr);
+	    }
+	}
+      else
+	{
+	  Thread* thread = getThread (currentCTid);
+
+	  thread->readMem16 (addr, bpMemVal);
+	  mpHash->add (type, addr, currentCTid, bpMemVal);
+
+	  thread->insertBkptInstr (addr);
+	}
+
 
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
@@ -4076,6 +4158,7 @@ GdbServer::getThread (int         tid,
       cerr << "Warning: Cannot use thread ID " << tid << oss.str ()
 	   << ": using " << newTid << " instead." << endl;
       tid = newTid;
+      doBacktrace ();
     }
 
   if (!process->hasThread (tid))
@@ -4094,91 +4177,51 @@ GdbServer::getThread (int         tid,
 
 
 //-----------------------------------------------------------------------------
-//! Halt one or more threads
+//! Halt all threads in the current process.
 
-//! This is a wrapper, which deals with the case that the thread ID is -1 (all
-//! threads), which means to halt all threads (in the process).
-
-//! @note We consider a thread ID of 0 (any thread) is meaningless here. We
-//!       warn and treat as -1
-
-//! @param[in] tid  Thread(s) to halt
 //! @return  TRUE if all threads halt, FALSE otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::haltThreads (int  tid)
+GdbServer::haltAllThreads ()
 {
   ProcessInfo *process = getProcess (currentPid);
-
-  if (0 == tid)
-    {
-      cerr << "Warning: can't halt thread 0: treating as -1" << endl;
-      tid = -1;
-    }
-
   bool allHalted = true;
-  if (-1 == tid)
-    for (set <int>::iterator it = process->threadBegin ();
-	 it != process->threadEnd ();
-	 it++)
-      {
-	Thread* thread = getThread (*it);
-	allHalted &= thread->halt ();
-      }
-  else
+
+  for (set <int>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
     {
-      assert (process->hasThread (tid));
-      Thread* thread = getThread (tid);
-      allHalted = thread->halt ();
+      Thread* thread = getThread (*it);
+      allHalted &= thread->halt ();
     }
 
   return allHalted;
 
-}	// haltThreads ()
+}	// haltAllThreads ()
 
 
 //-----------------------------------------------------------------------------
-//! Resume one or more threads
+//! Resume all threads in the current process.
 
-//! This is a wrapper, which deals with the case that the thread ID is -1 (all
-//! threads), which means to resume all threads (in the process).
-
-//! @note We consider a thread ID of 0 (any thread) is meaningless here. We
-//!       warn and treat as -1
-
-//! @param[in] tid  Thread(s) to resume
 //! @return  TRUE if all threads resume, FALSE otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::resumeThreads (int  tid)
+GdbServer::resumeAllThreads ()
 {
   ProcessInfo *process = getProcess (currentPid);
-
-  if (0 == tid)
-    {
-      cerr << "Warning: can't halt thread 0: treating as -1" << endl;
-      tid = -1;
-    }
-
   bool allResumed = true;
-  if (-1 == tid)
-    for (set <int>::iterator it = process->threadBegin ();
-	 it != process->threadEnd ();
-	 it++)
-      {
-	Thread* thread = getThread (*it);
-	allResumed &= thread->resume ();
-      }
-  else
+
+  for (set <int>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
     {
-      assert (process->hasThread (tid));
-      Thread* thread = getThread (tid);
-      allResumed = thread->resume ();
+      Thread* thread = getThread (*it);
+      allResumed &= thread->resume ();
     }
 
   return allResumed;
 
-}	// resumeThreads ()
+}	// resumeAllThreads ()
 
 
 //-----------------------------------------------------------------------------
@@ -4620,6 +4663,39 @@ GdbServer::getJump (Thread*   thread,
     return false;
 
 }	// getJump ()
+
+
+//-----------------------------------------------------------------------------
+//! Do a backtrace
+//-----------------------------------------------------------------------------
+void
+GdbServer::doBacktrace ()
+{
+  void* calls [100];
+  int nCalls = backtrace (calls, sizeof (calls) / sizeof (void *));
+  char **symbols = backtrace_symbols (calls, nCalls);
+
+  for (int  i = 1; i < nCalls; i++)
+    {
+      stringstream ss (symbols[i]);
+      string fileName;
+      string location;
+      string address;
+      getline (ss, fileName, '(');
+      getline (ss, location, '[');
+      getline (ss, address, ']');
+
+      ostringstream oss;
+      oss << "/opt/adapteva/esdk/tools/e-gnu/bin/e-addr2line -C -f -e "
+	  << fileName << " " << address
+	  << " | sed -e :a -e '$!N; s/\\n/ /; ta' | sed -e 's#/.*/##'";
+      cout << i << ": " << flush;
+      system (oss.str ().c_str ());
+    }
+
+  free (symbols);
+
+}	// doBacktrace ()
 
 
 // These functions replace the intrinsic SystemC bitfield operators.
