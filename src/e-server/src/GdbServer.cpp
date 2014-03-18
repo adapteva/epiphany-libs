@@ -3336,7 +3336,7 @@ GdbServer::rspVCont ()
 
 		  // Note if we are a step thread. There should only be one of
 		  // these in all-stop mode.
-		  if (action = 's')
+		  if (action == 's')
 		    {
 		      numSteps++;
 
@@ -3419,6 +3419,7 @@ GdbServer::rspVCont ()
 	{
 	  int tid = *it;
 	  Thread *thread = getThread (tid);
+	  map <int, char>::iterator ait = threadActions.find (tid);
 	  char action =
 	    (threadActions.end () == ait) ? defaultAction : ait->second;
 
@@ -3477,7 +3478,7 @@ GdbServer::extractVContAction (string action)
     case 'S':
       cerr << "Warning: 'S' action not supported for vCont: treated as 's'."
 	   << endl;
-      a = 's'
+      a = 's';
       break;
 
     case 'c':
@@ -3491,7 +3492,7 @@ GdbServer::extractVContAction (string action)
       break;
 
     case 't':
-      if (ALL_STOP == debugMode)
+      if (ALL_STOP == mDebugMode)
 	{
 	  cerr << "Warning: 't' vCont action not permitted in all-stop mode: "
 	       << "ignored." << endl;

@@ -170,20 +170,23 @@ private:
   //! Next process ID to use
   int  mNextPid;
 
+  //! Current process
+  int  currentPid;
+
   //! Map of thread ID to thread
   map <int, Thread *> mThreads;
 
   //! Map from core to thread
   map <CoreId, int> mCore2Tid;
 
-  //! Current process
-  int  currentPid;
-
   //! Current thread ID for continue/step
   int  currentCTid;
 
   //! Current thread ID for general access
   int  currentGTid;
+
+  //! Set of thread IDs with pending stops
+  set <int> mPendingStops;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -260,6 +263,10 @@ private:
   void rspVpkt ();
   void rspVCont ();
   char extractVContAction (string action);
+  bool pendingStop (int  tid);
+  void markPendingStops (ProcessInfo* process,
+			 int          tid);
+  void removePendingStop (int  tid);
   void doStep (int          tid,
 	       TargetSignal sig = TARGET_SIGNAL_NONE);
   void continueThread (int       tid,

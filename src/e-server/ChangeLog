@@ -1,5 +1,12 @@
 2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspVCont): Correct minor compiler
+	errors.
+	(GdbServer::extractVContAction): Likewise.
+	* src/GdbServer.h: Add declaration of mPendingStops;
+
+2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	Work in progress. Do not use.
 
 	* src/GdbServer.cpp (GdbServer::rspVCont): Simplify logic and deal
