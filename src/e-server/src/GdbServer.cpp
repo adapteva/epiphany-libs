@@ -3268,6 +3268,8 @@ GdbServer::rspVpkt ()
 
 //! Syntax is vCont[;action[:thread-id]]...
 
+//! For now we only have the all-stop functionality supported.
+
 //! There should be at most one default action.
 //-----------------------------------------------------------------------------
 void
@@ -3275,30 +3277,34 @@ GdbServer::rspVCont ()
 {
   ProcessInfo *process = getProcess (currentPid);
 
-  map <int, char>  threadActions;
-  char defaultAction = 'n';		// Custom "do nothing"
-  int  numDefaultActions = 0;
-
   stringstream    ss (pkt->data);
-  vector <string> actions;		// To break out the packet elements
+  vector <string> elements;		// To break out the packet elements
   string          item;
 
   // Break out the action/thread pairs
   while (getline (ss, item, ';'))
-    actions.push_back (item);
+    elements.push_back (item);
 
-  if (1 == actions.size ())
+  if (1 == elements.size ())
     {
       cerr << "Warning: No actions specified for vCont. Defaulting to stop."
 	   << endl;
     }
 
   // Sort out the detail of each action
-  for (size_t i = 1; i < actions.size (); i++)
+  map <int, char>  threadActions;
+  char defaultAction = 'n';		// Custom "do nothing"
+  int  numDefaultActions = 0;
+
+  // In all-stop mode we should only (I think) be asked to step one
+  // thread. Let's monitor that.
+  int  numSteps = 0;
+  int  stepTid;
+
+  for (size_t i = 1; i < elements.size (); i++)
     {
       vector <string> tokens;
-      stringstream tss;
-      tss << actions[i];
+      stringstream tss (elements [i]);
 
       // Break out the action and the thread
       while (getline (tss, item, ':'))
@@ -3307,6 +3313,8 @@ GdbServer::rspVCont ()
       if (1 == tokens.size ())
 	{
 	  // No thread ID, set default action
+
+	  // @todo Are all actions valid as default?
 	  if (0 == numDefaultActions)
 	    {
 	      defaultAction = extractVContAction (tokens[0]);
@@ -3325,6 +3333,19 @@ GdbServer::rspVCont ()
 		{
 		  char action = extractVContAction (tokens[0].c_str ());
 		  threadActions.insert (pair <int, char> (tid, action));
+
+		  // Note if we are a step thread. There should only be one of
+		  // these in all-stop mode.
+		  if (action = 's')
+		    {
+		      numSteps++;
+
+		      if ((ALL_STOP == mDebugMode) && (numSteps > 1))
+			cerr << "INFO: Multiple vCont steps in all-stop mode: "
+			     << "ignored." << endl;
+		      else
+			stepTid = tid;
+		    }
 		}
 	      else
 		cerr << "Warning: Duplicate vCont action for thread ID "
@@ -3339,17 +3360,18 @@ GdbServer::rspVCont ()
       else
 	{
 	  cerr << "Warning: Unrecognized vCont action of size "
-	       << tokens.size () << ": " << actions[i] << endl;
+	       << tokens.size () << ": " << elements[i] << endl;
 	}
     }
 
-  // In all-stop mode we should only (I think) be asked to step one
-  // thread. Let's monitor that.
-  int  numSteps = 0;
-  int  stepTid;
-
   // We have a map of threads to actions and a default action for any thread
-  // that is not specified. Apply the actions.
+  // that is not specified. We may also have pending stops for previous
+  // actions. So what we need to do is:
+  // 1. Continue any thread that was not already marked as stopped.
+  // 2. Deal with a step action if we have any.
+  // 3. Otherwise report the first stopped thread.
+
+  // Continue any thread without a pendingStop to deal with.
   for (set <int>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
        it++)
@@ -3358,49 +3380,9 @@ GdbServer::rspVCont ()
       map <int, char>::iterator ait = threadActions.find (tid);
       char action = (threadActions.end () == ait) ? defaultAction : ait->second;
 
-      switch (action)
+      if (('c' == action) && !pendingStop (tid))
 	{
-	case 'c':
-	case 'C':
-	  // @todo For now we are ignoring signals, so 'C' behaves the same as
-	  //       'c'.
 	  continueThread (tid);
-	  break;
-
-	case 'r':
-	case 's':
-	case 'S':
-	  // @todo For now we are ignoring signals, so 'S' behaves the same as
-	  //       's'. We also offer 's' as a degenerate implementation of 'r'.
-
-	  // @note stepThread deals with the case of stepping a file I/O
-	  //       operation.
-	  numSteps++;
-	  if ((ALL_STOP == mDebugMode) && (numSteps > 1))
-	    cerr << "INFO: Multiple vCont steps in all-stop mode: ignored."
-		 << endl;
-	  else
-	    stepTid = tid;
-
-	  break;
-
-	case 't':
-	  // This normally can only be supplied in non-stop mode. So we don't
-	  // worry about it for now
-	  cerr << "Warning: 't' vCont action not permitted in all-stop mode: "
-	       << "ignored." << endl;
-	  break;
-
-	case 'n':
-	  // Custom for us "do nothing". In all-stop mode, the thread will be
-	  // stopped, so nothing can happen.
-	  break;
-
-	default:
-	  // Should never happen. Here as a backstop
-	  cerr << "*** ABORT ***: Impossible vCont action " << action << "."
-	       << endl;
-	  abort ();
 	}
     }
 
@@ -3408,11 +3390,27 @@ GdbServer::rspVCont ()
   if (numSteps > 0)
     {
       doStep (stepTid);
+      markPendingStops (process, stepTid);
       return;
     }
 
-  // Treat anything other than step as continue. We must wait until a thread
-  // halts.
+  // Deal with any pending stops before looking for new ones.
+  for (set <int>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
+    {
+      int tid = *it;
+      map <int, char>::iterator ait = threadActions.find (tid);
+      char action = (threadActions.end () == ait) ? defaultAction : ait->second;
+
+      if (('c' == action) && pendingStop (tid))
+	{
+	  doContinue (tid);
+	  markPendingStops (process, tid);
+	}
+    }
+
+  // We must wait until a thread halts.
   while (true)
     {
       for (set <int>::iterator it = process->threadBegin ();
@@ -3421,10 +3419,13 @@ GdbServer::rspVCont ()
 	{
 	  int tid = *it;
 	  Thread *thread = getThread (tid);
+	  char action =
+	    (threadActions.end () == ait) ? defaultAction : ait->second;
 
-	  if (thread->isHalted ())
+	  if (('c' == action) && thread->isHalted ())
 	    {
 	      doContinue (tid);
+	      markPendingStops (process, tid);
 	      return;
 	    }
 	}
@@ -3451,8 +3452,11 @@ GdbServer::rspVCont ()
 //-----------------------------------------------------------------------------
 //! Extract a vCont action
 
-//! In essence we don't support 'C' or 'S' for now, so if we find one of
-//! these, we just print a rude message.
+//! We don't support 'C' or 'S' for now, so if we find one of these, we print
+//! a rude message and return 'c' or 's' respectively.  'r' is implemented as
+//! 's' (degenerate implementation), so we return 's'.  't' is not supported in
+//! all-stop mode, so we return 'n' to mean "no action'.  And finally we print
+//! a rude message an return 'n' for any other action.
 
 //! @param[in] action  The string with the action
 //! @return the single character which is the action.
@@ -3467,19 +3471,33 @@ GdbServer::extractVContAction (string action)
     case 'C':
       cerr << "Warning: 'C' action not supported for vCont: treated as 'c'."
 	   << endl;
+      a = 'c';
       break;
 
     case 'S':
       cerr << "Warning: 'S' action not supported for vCont: treated as 's'."
 	   << endl;
+      a = 's'
       break;
 
     case 'c':
     case 's':
-    case 't':
-    case 'r':
       // All good
       break;
+
+    case 'r':
+      // All good and treated as 's'
+      a = 's';
+      break;
+
+    case 't':
+      if (ALL_STOP == debugMode)
+	{
+	  cerr << "Warning: 't' vCont action not permitted in all-stop mode: "
+	       << "ignored." << endl;
+	  a = 'n';
+	  break;
+	}
 
     default:
       cerr << "Warning: Unrecognized vCont action '" << a
@@ -3491,6 +3509,63 @@ GdbServer::extractVContAction (string action)
   return  a;
 
 }	// extractVContAction ()
+
+
+//-----------------------------------------------------------------------------
+//! Does a thread have a pending stop?
+
+//! This means that it stopped during a previous vCont but was not yet
+//! reported.
+
+//! @param[in] tid  Thread ID to consider
+//! @return  TRUE if the thread had a pending stop
+//-----------------------------------------------------------------------------
+bool
+GdbServer::pendingStop (int  tid)
+{
+  return mPendingStops.find (tid) != mPendingStops.end ();
+
+}	// pendingStop ()
+
+
+//-----------------------------------------------------------------------------
+//! Mark any pending stops
+
+//! Mark any threads other than the one specified which have halted. At this
+//! stage threads should be running, so any halt means a pending stop.
+
+//! @todo  This assumes that in all-stop mode, all threads are restarted on
+//!        vCont. Will need refinement for non-stop mode.
+
+//! @param[in] process  The current process info structure
+//! @param[in] tid      The thread not to consider.
+//-----------------------------------------------------------------------------
+void
+GdbServer::markPendingStops (ProcessInfo* process,
+			     int          tid)
+{
+  for (set <int>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
+    {
+      mPendingStops.insert (tid);
+    }
+}	// markPendingStops ()
+
+
+//-----------------------------------------------------------------------------
+//! Clear a pending stop
+
+//! Remove the specified threads from the set of pending stops
+
+//! @param[in] tid      The thread to remove
+//-----------------------------------------------------------------------------
+void
+GdbServer::removePendingStop (int  tid)
+{
+  mPendingStops.erase (tid);
+
+}	// removePendingStop ()
 
 
 //-----------------------------------------------------------------------------
@@ -3517,8 +3592,20 @@ GdbServer::doStep (int          tid,
     cerr << dec << "DebugStopResumeDetail: stepThread (" << tid << ", " << sig
 	 << ")" << endl;
 
-  if (thread->getException () != TARGET_SIGNAL_NONE)
-    return;			// Nothing to do for now
+  // @todo The old code did nothing here, which seems wrong.
+  TargetSignal except = (TargetSignal) thread->getException ();
+  if (except != TARGET_SIGNAL_NONE)
+    {
+      rspReportException (tid, except);
+      return;
+    }
+
+  // We shouldn't have a pending stop. Sanity check
+  if (pendingStop (tid))
+    {
+      cerr << "Warning: Unexpected pending stop in doStep: ignored" << endl;
+      removePendingStop (tid);
+    }
 
   uint32_t pc = thread->readPc ();
   uint16_t instr16 = thread->readMem16 (pc);

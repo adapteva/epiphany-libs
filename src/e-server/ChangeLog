@@ -1,3 +1,16 @@
+2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Work in progress. Do not use.
+
+	* src/GdbServer.cpp (GdbServer::rspVCont): Simplify logic and deal
+	with pending stops.
+	(GdbServer::extractVContAction): Move warnings about invalid
+	packets here.
+	(GdbServer::pendingStop): Created.
+	(GdbServer::markPendingStops): Created.
+	(GdbServer::removePendingStop): Created.
+	(GdbServer::doStep): Report exception, deal with pending stops.
+
 2014-03-17  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp: Replace haltThreads by haltAllThreads
