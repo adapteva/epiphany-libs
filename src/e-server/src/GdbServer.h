@@ -272,7 +272,8 @@ private:
   void continueThread (int       tid,
 		       uint32_t  sig = TARGET_SIGNAL_NONE);
   void doContinue (int          tid);
-  bool doFileIO (int  tid);
+  uint16_t  getStopInstr (Thread* thread);
+  bool doFileIO (Thread* thread);
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
@@ -291,7 +292,7 @@ private:
   bool haltAllThreads ();
   bool resumeAllThreads ();
 
-  void redirectStdioOnTrap (int      tid,
+  void redirectStdioOnTrap (Thread*  thread,
 			    uint8_t  trap);
   void hostWrite (const char* intro,
 		  uint32_t    chan,

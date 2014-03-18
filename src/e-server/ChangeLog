@@ -1,5 +1,19 @@
 2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp: Pass thread, not thread ID to
+	redirectStdioOnTrap throughout.
+	(GdbServer::redirectStdioOnTrap): Take thread, not thread ID as
+	argument.
+	(GdbServer::markPendingStops): Only mark pending if at BREAK
+	instruction.
+	(GdbServer::getStopInstr): Created.
+	(GdbServer::doFileIO): Take thread, not thread ID as argument, use
+	getStopInstr to get any stop instruction.
+	* src/GdbServer.h: Change getFileIO and redirectStdioOnTrap to
+	take thread, not thread ID.  Ad getStopInstr.
+
+2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::rspVCont): Correct minor compiler
 	errors.
 	(GdbServer::extractVContAction): Likewise.

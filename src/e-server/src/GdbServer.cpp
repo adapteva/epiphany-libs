@@ -800,7 +800,7 @@ GdbServer::rspContinue (uint32_t addr, uint32_t except)
 		  //cerr << "********* stoppedAtTrap = true **************" << endl;
 		  haltAllThreads ();
 		  fIsTargetRunning = false;
-		  redirectStdioOnTrap (currentCTid,
+		  redirectStdioOnTrap (thread,
 				       getTrap (valueOfStoppedInstr));
 		}
 	      else
@@ -900,15 +900,13 @@ GdbServer::rspFileIOreply ()
 //! At this point all threads have been halted, and we have set
 //! fIsTargetRunning to FALSE.
 
-//! @param[in] tid   Thread ID making the I/O request (must be > 0).
+//! @param[in] thread   Thread making the I/O request
 //! @param[in] trap  The number of the trap.
 //-----------------------------------------------------------------------------
 void
-GdbServer::redirectStdioOnTrap (int  tid,
-			       uint8_t trap)
+GdbServer::redirectStdioOnTrap (Thread *thread,
+				uint8_t trap)
 {
-  Thread *thread = getThread (tid);
-
   // The meaning of the TRAP codes. These are mostly not documented. Really
   // for most of these, use TRAP_SYSCALL.
   static const uint8_t  TRAP_WRITE   = 0;
@@ -2885,7 +2883,7 @@ GdbServer::rspStep (bool         haveAddrP,
       // TRAP instruction triggers I/O
       fIsTargetRunning = false;
       haltAllThreads ();
-      redirectStdioOnTrap (currentCTid, getTrap (instr16));
+      redirectStdioOnTrap (thread, getTrap (instr16));
       thread->writePc (addr + SHORT_INSTRLEN);
       return;
     }
@@ -3532,8 +3530,8 @@ GdbServer::pendingStop (int  tid)
 //-----------------------------------------------------------------------------
 //! Mark any pending stops
 
-//! Mark any threads other than the one specified which have halted. At this
-//! stage threads should be running, so any halt means a pending stop.
+//! At this point all threads should have been halted anyway. So we are
+//! looking to see if a thread has halted at a breakpoint.
 
 //! @todo  This assumes that in all-stop mode, all threads are restarted on
 //!        vCont. Will need refinement for non-stop mode.
@@ -3548,9 +3546,9 @@ GdbServer::markPendingStops (ProcessInfo* process,
   for (set <int>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
        it++)
-    {
-      mPendingStops.insert (tid);
-    }
+    if (BKPT_INSTR == getStopInstr (getThread (tid)))
+	mPendingStops.insert (tid);
+
 }	// markPendingStops ()
 
 
@@ -3682,7 +3680,7 @@ GdbServer::doStep (int          tid,
       // TRAP instruction triggers I/O
       fIsTargetRunning = false;
       haltAllThreads ();
-      redirectStdioOnTrap (currentCTid, getTrap (instr16));
+      redirectStdioOnTrap (thread, getTrap (instr16));
       thread->writePc (pc + SHORT_INSTRLEN);
       return;
     }
@@ -3827,7 +3825,7 @@ GdbServer::doContinue (int  tid)
     cerr << "DebugStopResume: doContinue (" << tid << ")." << endl;
 
   // If it was a trap, then do the relevant F packet return.
-  if (doFileIO (tid))
+  if (doFileIO (thread))
     return;
   else
     {
@@ -3838,6 +3836,48 @@ GdbServer::doContinue (int  tid)
       rspReportException (tid, sig);
     }
 }	// doContinue ()
+
+
+//-----------------------------------------------------------------------------
+//! Have we fit a "stopping" instruction
+
+//! We know the thread is halted. Did it halt immediately after a BREAK, TRAP
+//! or IDLE instruction. Not quite as easy as it seems, since TRAP may often be
+//! followed by NOP.
+
+//! Return the stop instruction found, or NOP_INSTR if it isn't a stop
+//! instruction.
+
+//! @param[in] thread  The thread to consider.
+//! @return  TRUE if we processed file I/O and restarted. FALSE otherwise.
+//-----------------------------------------------------------------------------
+uint16_t
+GdbServer::getStopInstr (Thread *thread)
+{
+  assert (thread->isHalted ());
+
+  // First see if we just hit a breakpoint or IDLE. Fortunately IDLE, BREAK,
+  // TRAP and NOP are all 16-bit instructions.
+  uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
+  uint16_t  instr16 = thread->readMem16 (pc);
+
+  if ((BKPT_INSTR == instr16) || (IDLE_INSTR == instr16))
+    return  instr16;
+
+  // Find the first preceding non-NOP instruction
+  while (NOP_INSTR == instr16)
+    {
+      pc -= SHORT_INSTRLEN;
+      instr16 = thread->readMem16 (pc);
+    }
+
+  // If it isn't a TRAP, something has gone 'orribly wrong.
+  if (getOpcode10 (instr16) == TRAP_INSTR)
+    return instr16;
+  else
+    return NOP_INSTR;
+
+}	// getStopInstr ()
 
 
 //-----------------------------------------------------------------------------
@@ -3852,45 +3892,38 @@ GdbServer::doContinue (int  tid)
 //! @todo For now this is a placeholder. We don't actually deal with the F
 //!       packet.
 
-//! @param[in] tid  The thread to consider. Must be a specific thread, not 0
-//!                 or -1.
+//! @param[in] thread  The thread to consider.
 //! @return  TRUE if we processed file I/O and restarted. FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::doFileIO (int  tid)
+GdbServer::doFileIO (Thread* thread)
 {
-  assert (tid > 0);
-  Thread* thread = getThread (tid);
   assert (thread->isHalted ());
+  uint16_t instr16 = getStopInstr (thread);
 
-  // First see if we just hit a breakpoint. Fortunately BREAK, TRAP and NOP
-  // are all 16-bit instructions.
-  uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
-  uint16_t  instr16 = thread->readMem16 (pc);
-
-  if (BKPT_INSTR == instr16)
-    return false;
-
-  // Find the first preceding non-NOP instruction
-  while (NOP_INSTR == instr16)
+  // Have we stopped for some reason?
+  switch (instr16)
     {
-      pc -= SHORT_INSTRLEN;
-      instr16 = thread->readMem16 (pc);
-    }
-
-  // If it isn't a TRAP, something has gone 'orribly wrong.
-  if (getOpcode10 (instr16) != TRAP_INSTR)
-    {
-      cerr << "Warning: thread " << tid << " halted at neither BREAK nor TRAP"
-	   << ": treating as BREAK." << endl;
+    case BKPT_INSTR:
+      // Nothing to do if we just hit a breakpoint
       return false;
+
+    default:
+      // If it isn't a TRAP, something has gone 'orribly wrong.
+      if (getOpcode10 (instr16) != TRAP_INSTR)
+	{
+	  cerr << "Warning: thread halted at neither BREAK nor "
+	       << "TRAP: treating as BREAK." << endl;
+	  return false;
+	}
+      else
+	{
+	  fIsTargetRunning = false;
+	  haltAllThreads ();
+	  redirectStdioOnTrap (thread, getTrap (instr16));
+	  return true;
+	}
     }
-
-  fIsTargetRunning = false;
-  haltAllThreads ();
-  redirectStdioOnTrap (tid, getTrap (instr16));
-  return true;
-
 }	// doFileIO ()
 
 
