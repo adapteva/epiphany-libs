@@ -3841,6 +3841,7 @@ GdbServer::doContinue (int  tid)
       // If no signal flags are set, this must be a breakpoint.
       if (TARGET_SIGNAL_NONE == sig)
 	sig = TARGET_SIGNAL_TRAP;
+      removePendingStop (tid);
       rspReportException (tid, sig);
     }
 }	// doContinue ()

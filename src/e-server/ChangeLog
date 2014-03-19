@@ -1,5 +1,10 @@
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::doContinue): Remove pending stop
+	when deal with breakpoint.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::markPendingStops): Mark iterated
 	thread, not exclusion thread.
 
