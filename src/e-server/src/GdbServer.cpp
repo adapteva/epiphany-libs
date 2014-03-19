@@ -3913,7 +3913,8 @@ GdbServer::doFileIO (Thread* thread)
       if (getOpcode10 (instr16) != TRAP_INSTR)
 	{
 	  cerr << "Warning: thread halted at neither BREAK nor "
-	       << "TRAP: treating as BREAK." << endl;
+	       << "TRAP: treating as BREAK: 0x"
+	       << Utils::intStr (instr16, 16, 3) << endl;
 	  return false;
 	}
       else
