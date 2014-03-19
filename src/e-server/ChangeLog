@@ -1,5 +1,10 @@
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::doFileIO): Don't flag problem if
+	instruction is IDLE.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::pendingStop): Remove debug message.
 	(GdbServer::markPendingStops): Likewise.
 	(GdbServer::removePendingStop): Likewise.

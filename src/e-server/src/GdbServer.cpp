@@ -3909,7 +3909,8 @@ GdbServer::doFileIO (Thread* thread)
   switch (instr16)
     {
     case BKPT_INSTR:
-      // Nothing to do if we just hit a breakpoint
+    case IDLE_INSTR:
+      // Nothing to do if we just hit a breakpoint or are idle
       return false;
 
     default:
