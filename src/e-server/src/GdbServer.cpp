@@ -3546,6 +3546,8 @@ void
 GdbServer::markPendingStops (ProcessInfo* process,
 			     int          tid)
 {
+  cerr << "Marking pending stops" << endl;
+
   for (set <int>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
        it++)
@@ -3866,6 +3868,8 @@ GdbServer::getStopInstr (Thread *thread)
   // TRAP and NOP are all 16-bit instructions.
   uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
   uint16_t  instr16 = thread->readMem16 (pc);
+
+  cerr << "Got stop instr 0x" << Utils::intStr (instr16, 16, 4);
 
   if ((BKPT_INSTR == instr16) || (IDLE_INSTR == instr16))
     return  instr16;
