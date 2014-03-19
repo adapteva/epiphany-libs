@@ -3522,6 +3522,9 @@ GdbServer::extractVContAction (string action)
 bool
 GdbServer::pendingStop (int  tid)
 {
+  if (mPendingStops.find (tid) != mPendingStops.end ())
+    cerr << "Found pending stop for thread ID " << tid << endl;
+
   return mPendingStops.find (tid) != mPendingStops.end ();
 
 }	// pendingStop ()
@@ -3547,8 +3550,10 @@ GdbServer::markPendingStops (ProcessInfo* process,
        it != process->threadEnd ();
        it++)
     if (BKPT_INSTR == getStopInstr (getThread (tid)))
+      {
+	cerr << "Added pending stop for thread ID " << tid << endl;
 	mPendingStops.insert (tid);
-
+      }
 }	// markPendingStops ()
 
 
@@ -3562,6 +3567,7 @@ GdbServer::markPendingStops (ProcessInfo* process,
 void
 GdbServer::removePendingStop (int  tid)
 {
+  cerr << "cleared pending stop for thread ID " << tid << endl;
   mPendingStops.erase (tid);
 
 }	// removePendingStop ()
