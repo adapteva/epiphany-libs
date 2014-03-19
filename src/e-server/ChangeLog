@@ -1,5 +1,10 @@
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::doFileIO): Don't worry if we
+	aren't at a TRAP instruction.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::doFileIO): Don't flag problem if
 	instruction is IDLE.
 

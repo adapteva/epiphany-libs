@@ -3905,31 +3905,17 @@ GdbServer::doFileIO (Thread* thread)
   assert (thread->isHalted ());
   uint16_t instr16 = getStopInstr (thread);
 
-  // Have we stopped for some reason?
-  switch (instr16)
+  // Have we stopped for a TRAP
+  if (getOpcode10 (instr16) == TRAP_INSTR)
     {
-    case BKPT_INSTR:
-    case IDLE_INSTR:
-      // Nothing to do if we just hit a breakpoint or are idle
-      return false;
-
-    default:
-      // If it isn't a TRAP, something has gone 'orribly wrong.
-      if (getOpcode10 (instr16) != TRAP_INSTR)
-	{
-	  cerr << "Warning: thread halted at neither BREAK nor "
-	       << "TRAP: treating as BREAK: 0x"
-	       << Utils::intStr (instr16, 16, 3) << endl;
-	  return false;
-	}
-      else
-	{
-	  fIsTargetRunning = false;
-	  haltAllThreads ();
-	  redirectStdioOnTrap (thread, getTrap (instr16));
-	  return true;
-	}
+      fIsTargetRunning = false;
+      haltAllThreads ();
+      redirectStdioOnTrap (thread, getTrap (instr16));
+      return true;
     }
+  else
+    return false;
+
 }	// doFileIO ()
 
 
