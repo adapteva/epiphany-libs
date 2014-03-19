@@ -1,5 +1,10 @@
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::getStopInstr): More detailed error
+	message.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::markPendingStops): More debug
 	messages.
 	(GdbServer::getStopInstr): Likewise.

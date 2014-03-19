@@ -3869,7 +3869,8 @@ GdbServer::getStopInstr (Thread *thread)
   uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
   uint16_t  instr16 = thread->readMem16 (pc);
 
-  cerr << "Got stop instr 0x" << Utils::intStr (instr16, 16, 4);
+  cerr << "Got stop instr 0x" << Utils::intStr (instr16, 16, 4) << " at pc 0x"
+       << Utils::intStr (pc, 16, 8) << endl;
 
   if ((BKPT_INSTR == instr16) || (IDLE_INSTR == instr16))
     return  instr16;
