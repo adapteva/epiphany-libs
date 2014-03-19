@@ -3534,20 +3534,20 @@ GdbServer::pendingStop (int  tid)
 //! Mark any pending stops
 
 //! At this point all threads should have been halted anyway. So we are
-//! looking to see if a thread has halted at a breakpoint.
+//! looking to see if a thread has halted at a breakpoint. We are called from
+//! a thread which has dealt with a pending stop, so we should remote that
+//! thread ID from the list.
 
 //! @todo  This assumes that in all-stop mode, all threads are restarted on
 //!        vCont. Will need refinement for non-stop mode.
 
 //! @param[in] process  The current process info structure
-//! @param[in] tid      The thread not to consider.
+//! @param[in] tid      The thread ID xto clear pending stop for.
 //-----------------------------------------------------------------------------
 void
 GdbServer::markPendingStops (ProcessInfo* process,
 			     int          tid)
 {
-  cerr << "Marking pending stops" << endl;
-
   for (set <int>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
        it++)
@@ -3556,6 +3556,9 @@ GdbServer::markPendingStops (ProcessInfo* process,
 	cerr << "Added pending stop for thread ID " << *it << endl;
 	mPendingStops.insert (*it);
       }
+
+  removePendingStop (tid);
+
 }	// markPendingStops ()
 
 
@@ -3841,7 +3844,6 @@ GdbServer::doContinue (int  tid)
       // If no signal flags are set, this must be a breakpoint.
       if (TARGET_SIGNAL_NONE == sig)
 	sig = TARGET_SIGNAL_TRAP;
-      removePendingStop (tid);
       rspReportException (tid, sig);
     }
 }	// doContinue ()
@@ -3869,9 +3871,6 @@ GdbServer::getStopInstr (Thread *thread)
   // TRAP and NOP are all 16-bit instructions.
   uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
   uint16_t  instr16 = thread->readMem16 (pc);
-
-  cerr << "Got stop instr 0x" << Utils::intStr (instr16, 16, 4) << " at pc 0x"
-       << Utils::intStr (pc, 16, 8) << endl;
 
   if ((BKPT_INSTR == instr16) || (IDLE_INSTR == instr16))
     return  instr16;

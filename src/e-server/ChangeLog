@@ -1,5 +1,13 @@
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::markPendingStops): Also remove
+	pending stop for exclusion thread. Reduce debug messages.
+	(GdbServer::doContinue): No need to remove pending stop - done by
+	calling method.
+	(GdbServer::getStopInstr): Remove debug message.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::doContinue): Remove pending stop
 	when deal with breakpoint.
 
