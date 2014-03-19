@@ -3551,7 +3551,7 @@ GdbServer::markPendingStops (ProcessInfo* process,
   for (set <int>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
        it++)
-    if (BKPT_INSTR == getStopInstr (getThread (tid)))
+    if ((*it != tid) && (BKPT_INSTR == getStopInstr (getThread (*it))))
       {
 	cerr << "Added pending stop for thread ID " << tid << endl;
 	mPendingStops.insert (tid);

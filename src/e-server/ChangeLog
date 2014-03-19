@@ -1,5 +1,10 @@
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::markPendingStops): Use iterated
+	thread, not exclusion thread for check.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::getStopInstr): More detailed error
 	message.
 
