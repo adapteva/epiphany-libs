@@ -849,7 +849,7 @@ int e_reset_system()
 		e_open(&dev, 2, 3, 1, 1);
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
-		e_write(&dev, 0, 0, E_REG_IO_LINK_MODE_CFG, &data, sizeof(int));
+		e_write(&dev, 0, 0, E_REG_LINK_MODE_CFG, &data, sizeof(int));
 		ee_write_esys(E_SYS_CONFIG, 0x00000000);
 		e_close(&dev);
 	}
@@ -885,8 +885,8 @@ int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	usleep(100000);
 
 	diag(H_D1) { fprintf(fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
-	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
+	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
+	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
 	diag(H_D1) { fprintf(fd, "e_reset_core(): done.\n"); }
 
 	return E_OK;
@@ -917,8 +917,8 @@ int e_reset_group(e_epiphany_t *dev)
 	for (row=0; row<dev->rows; row++)
 		for (col=0; col<dev->cols; col++)
 		{
-			ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
-			ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
+			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
+			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
 		}
 
 	diag(H_D1) { fprintf(fd, "e_reset_group(): done.\n"); }
