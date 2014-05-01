@@ -849,7 +849,7 @@ int e_reset_system()
 		e_open(&dev, 2, 3, 1, 1);
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
-		e_write(&dev, 0, 0, E_REG_LINK_MODE_CFG, &data, sizeof(int));
+		e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int));
 		ee_write_esys(E_SYS_CONFIG, 0x00000000);
 		e_close(&dev);
 	}
