@@ -22,6 +22,3 @@ SRCS      = \
 
 
 include $(BUILD_ROOT)/build_tools/make_sharedlib.rules
-
-
-CC=arm-linux-gnueabihf-g++

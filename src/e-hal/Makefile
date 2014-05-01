@@ -3,10 +3,6 @@ BUILD_ROOT  	= ../..
 
 LIBNAME			= e-hal
 
-CC=arm-linux-gnueabihf-gcc
-LD=arm-linux-gnueabihf-ld
-AR=arm-linux-gnueabihf-ar
-
 # <REQUIRED - for shared object versioning
 #LIBVERMAJ       = .1
 #LIBVERMIN       = .0

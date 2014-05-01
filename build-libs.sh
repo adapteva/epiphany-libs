@@ -5,15 +5,14 @@ set -e
 ESDK=${EPIPHANY_HOME}
 BSPS="zed_E16G3_512mb zed_E64G4_512mb parallella_E16G3_1GB"
 
-
 function build-xml() {
 	# Build the XML parser library
 	echo '==============================='
 	echo '============ E-XML ============'
 	echo '==============================='
 	cd src/e-xml
-#	make clean
-	make all
+	${MAKE} clean
+	${MAKE} all
 	cd ../../
 }
 
@@ -24,8 +23,8 @@ function build-loader() {
 	echo '============ E-LOADER ============'
 	echo '=================================='
 	cd src/e-loader
-#	make clean
-	make all
+	${MAKE} clean
+	${MAKE} all
 	cd ../../
 }
 
@@ -36,8 +35,8 @@ function build-hal() {
 	echo '============ E-HAL ============'
 	echo '==============================='
 	cd src/e-hal
-#	make clean
-	make all
+	${MAKE} clean
+	${MAKE} all
 	for bsp in ${BSPS}; do
 		cp -f Release/libe-hal.so ../../bsps/${bsp}
 	done
@@ -51,8 +50,8 @@ function build-server() {
 	echo '============ E-SERVER ============'
 	echo '=================================='
 	cd src/e-server
-#	make clean
-	make all
+	${MAKE} clean
+	${MAKE} all
 	cd ../../
 }
 
@@ -65,23 +64,23 @@ function build-utils() {
 	cd src/e-utils
 	echo 'Building e-reset'
 	cd e-reset
-	make  all
+	${MAKE}  all
 	cd ../
 	echo 'Building e-loader'
 	cd e-loader
-	make all
+	${MAKE} all
 	cd ../
 	echo 'Building e-read'
 	cd e-read
-	make all
+	${MAKE} all
 	cd ../
 	echo 'Building e-write'
 	cd e-write
-	make all
+	${MAKE} all
 	cd ../
 	echo 'Building e-hw-rev'
 	cd e-hw-rev
-	make all
+	${MAKE} all
 	cd ../
 	cd ../../
 }
@@ -99,7 +98,9 @@ function build-lib() {
 	fi
 	cd src/e-lib
 	make clean
-	make all
+
+	# Always use the epiphany toolchain for building e-lib
+	make CROSS_COMPILE=e- all
 	cd ../../
 }
 
@@ -121,8 +122,6 @@ function usage() {
 	echo "        -a  - Build all packages"
 	echo "        -h  - Print this help message"	
 	echo ""
-	echo "   If no target is selected, all packages will be built."
-	echo ""
 	echo "   Example: The following command will build e-hal, e-xml and e-lib:"
 	echo ""
 	echo "   $ ./build-libs.sh 1 3 e-lib"
@@ -134,6 +133,20 @@ if [[ $# == 0 ]]; then
 	usage
 fi
 
+CROSS_PREFIX=
+
+case $(uname -p) in
+	arm*)
+		# Use native arm compiler (no cross prefix)
+		CROSS_PREFIX=
+		;;
+	   *)
+		# Use cross compiler
+		CROSS_PREFIX="CROSS_COMPILE=arm-linux-gnueabihf-"
+		;;
+esac
+
+MAKE="make $CROSS_PREFIX " 
 
 while [[ $# > 0 ]]; do
 	if   [[ "$1" == "1" || "$1" == "e-xml"    ]]; then

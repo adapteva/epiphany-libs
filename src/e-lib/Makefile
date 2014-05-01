@@ -47,9 +47,3 @@ S_SRCS = \
 
 include $(BUILD_ROOT)/build_tools/make_lib.rules
 
-## Set epiphany toolchain
-CPP=e-g++
-CC=e-gcc
-LD=e-ld
-AR=e-ar
-AS=e-as
