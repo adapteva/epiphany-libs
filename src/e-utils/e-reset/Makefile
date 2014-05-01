@@ -1,7 +1,7 @@
 #BUILD_ROOT  	= $(EPIPHANY_HOME)/../
 BUILD_ROOT  	= ../../..
 
-EXENAME			= e-read
+EXENAME			= e-reset
 EXTRACFLAGS  	= -fmessage-length=0
 EXTRALINKFLAGS  =
 
