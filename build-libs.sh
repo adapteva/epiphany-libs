@@ -11,7 +11,7 @@ function build-xml() {
 	echo '============ E-XML ============'
 	echo '==============================='
 	cd src/e-xml
-	${MAKE} clean
+#	${MAKE} clean
 	${MAKE} all
 	cd ../../
 }
@@ -23,7 +23,7 @@ function build-loader() {
 	echo '============ E-LOADER ============'
 	echo '=================================='
 	cd src/e-loader
-	${MAKE} clean
+#	${MAKE} clean
 	${MAKE} all
 	cd ../../
 }
@@ -35,7 +35,7 @@ function build-hal() {
 	echo '============ E-HAL ============'
 	echo '==============================='
 	cd src/e-hal
-	${MAKE} clean
+#	${MAKE} clean
 	${MAKE} all
 	for bsp in ${BSPS}; do
 		cp -f Release/libe-hal.so ../../bsps/${bsp}
@@ -50,7 +50,7 @@ function build-server() {
 	echo '============ E-SERVER ============'
 	echo '=================================='
 	cd src/e-server
-	${MAKE} clean
+#	${MAKE} clean
 	${MAKE} all
 	cd ../../
 }
@@ -64,22 +64,27 @@ function build-utils() {
 	cd src/e-utils
 	echo 'Building e-reset'
 	cd e-reset
-	${MAKE}  all
+#	${MAKE} clean
+	${MAKE} all
 	cd ../
 	echo 'Building e-loader'
 	cd e-loader
+#	${MAKE} clean
 	${MAKE} all
 	cd ../
 	echo 'Building e-read'
 	cd e-read
+#	${MAKE} clean
 	${MAKE} all
 	cd ../
 	echo 'Building e-write'
 	cd e-write
+#	${MAKE} clean
 	${MAKE} all
 	cd ../
 	echo 'Building e-hw-rev'
 	cd e-hw-rev
+#	${MAKE} clean
 	${MAKE} all
 	cd ../
 	cd ../../
@@ -97,7 +102,7 @@ function build-lib() {
 		exit
 	fi
 	cd src/e-lib
-	make clean
+	#make clean
 
 	# Always use the epiphany toolchain for building e-lib
 	make CROSS_COMPILE=e- all
