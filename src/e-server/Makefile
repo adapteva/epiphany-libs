@@ -1,7 +1,7 @@
 #BUILD_ROOT  	= $(EPIPHANY_HOME)/../
 BUILD_ROOT  	= ../..
 
-LIBNAME			= e-server
+EXENAME			= e-server
 
 # <REQUIRED - for shared object versioning
 #LIBVERMAJ       = .1
@@ -35,4 +35,4 @@ SRCS      = \
 	targetCntrlHardware.cpp	\
 	Utils.cpp
 
-include $(BUILD_ROOT)/build_tools/make_sharedlib.rules
+include $(BUILD_ROOT)/build_tools/make_exe.rules
