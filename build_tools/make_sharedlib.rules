@@ -1,0 +1,57 @@
+################################################################
+## Rules for building shared libraries 
+##
+
+# Pickup common rules
+include $(BUILD_ROOT)/build_tools/make_common.rules
+
+LIBEXT		    = .so
+LIBSONAME      	= lib$(LIBNAME)$(LIBEXT)$(LIBVERMAJ)
+LIBREALNAME    	= $(LIBSONAME)$(LIBVERMIN)$(LIBVERBLD)
+
+CXXFLAGS 	   += -fPIC
+CFLAGS         += -fPIC
+LNK	 		    = $(CC) -shared -Wl,-soname,$(LIBSONAME)
+
+INSTALL_DIR		= $(BUILD_ROOT)/x3c/lib
+
+LIBRELOBJS    = $(SRCS:%.cpp=$(RELEASEDIR)/%.o) 
+LIBDBGOBJS    = $(SRCS:%.cpp=$(DEBUGDIR)/%.o) 
+C_LIBRELOBJS  = $(C_SRCS:%.c=$(RELEASEDIR)/%.o)
+C_LIBDBGOBJS  = $(C_SRCS:%.c=$(DEBUGDIR)/%.o)
+S_LIBRELOBJS  = $(S_SRCS:%.s=$(RELEASEDIR)/%.o)
+S_LIBDBGOBJS  = $(S_SRCS:%.s=$(DEBUGDIR)/%.o)
+
+all: debug release
+
+# Release target for libraries
+release: $(RELEASEDIR)/$(LIBREALNAME)
+
+# Debug target for libraries
+debug: $(DEBUGDIR)/$(LIBREALNAME)
+
+# Link rule for release libraries
+$(RELEASEDIR)/$(LIBREALNAME): $(LIBRELOBJS) $(C_LIBRELOBJS)
+	$(LNK) -o $@ $^ $(LIB_PATHS) $(LIBS)
+
+# Link rule for debug libraries
+$(DEBUGDIR)/$(LIBREALNAME): $(LIBDBGOBJS)  $(C_DBGOBJS)
+	$(LNK) -o $@ $^ $(LIB_PATHS) $(LIBS)
+
+# For now, the install rule defaults to installing the Debug version
+# install: $(DEBUGDIR)/$(LIBREALNAME)
+# 	@echo "Installing $< to $(INSTALL_DIR) ..."
+# 	@$(INSTALL) -p -D --mode=664 $< $(INSTALL_DIR)
+# 	@echo "Running ldconfig on $(INSTALL_DIR) ..."
+# 	@/sbin/ldconfig -n $(INSTALL_DIR)
+# 	@echo "Creating symbolic link $(INSTALL_DIR)/lib$(LIBNAME)$(LIBEXT) -> $(LIBREALNAME)"
+# 	@ln -sf $(LIBREALNAME) $(INSTALL_DIR)/lib$(LIBNAME)$(LIBEXT) 
+
+# Clean target
+clean:
+	$(RM) -r $(DEPDIR)/$(DEBUGDIR)/*.P $(DEPDIR)/$(RELEASEDIR)/*.P 				\
+		$(DEBUGDIR)/*.o $(RELEASEDIR)/*.o $(DEBUGDIR)/$(LIBREALNAME)		 	\
+		$(RELEASEDIR)/$(LIBREALNAME) include/*.i  *.i
+
+.PHONY: release debug clean install
+

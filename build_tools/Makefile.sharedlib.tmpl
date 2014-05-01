@@ -1,0 +1,41 @@
+# <REQUIRED - this is the path to the workspace root, i.e., the top level build directory>
+BUILD_ROOT  	= ..
+
+# <REQUIRED - library name - sans the 'lib' prefix and file extension>
+LIBNAME			=
+
+# <REQUIRED - for shared object versioning
+LIBVERMAJ       = .1
+LIBVERMIN       = .0
+LIBVERBLD       = .0
+
+# Libraries to link with
+LIBS			= -lLtXml10
+
+# <OPTIONAL - any additional compiler flags needed to build this module>
+EXTRACXXFLAGS  	= <any additional compiler flags needed to build this module>
+
+# List of include search paths
+INCLUDES    = \
+	-I./include						\
+	-I$(BUILD_ROOT)/x3c/include		\
+	-I<another include path>		\
+	-I<yet another include path>
+
+# All target defaulting to debug builds
+all: debug install
+
+# <OPTIONAL - a colon sperated list of any subirectoriess othar than
+# 'src' which contain .cpp sources>
+vpath %.cpp <source paths>
+
+# <REQUIRED - CPP sources to be built, e.g., cparser_tree.c>
+SRCS		= \
+	<some source file>.cpp
+
+# <OPTIONAL - C sources to be built, e.g., cparser_tree.c>
+C_SRCS      = \
+	<some source file>.c
+
+include $(BUILD_ROOT)/x3c/scripts/build/x3c_make_sharedlib.rules
+

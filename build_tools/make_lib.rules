@@ -1,0 +1,32 @@
+################################################################
+## Rules for building static libraries 
+##
+
+# Pickup common rules
+include $(BUILD_ROOT)/build_tools/make_common.rules
+
+LIBEXT			= .a
+
+# Release target for libraries
+release: $(RELEASEDIR)/lib$(LIBNAME)$(LIBEXT)
+
+# Debug target for libraries
+debug: $(DEBUGDIR)/lib$(LIBNAME)$(LIBEXT)
+
+# Link rule for release libraries
+$(RELEASEDIR)/lib$(LIBNAME)$(LIBEXT): $(RELOBJS) $(C_RELOBJS) $(S_RELOBJS)  
+	$(AR) rvs $@ $^ 
+
+# Link rule for debug libraries
+$(DEBUGDIR)/lib$(LIBNAME)$(LIBEXT): $(DBGOBJS) $(C_DBGOBJS) $(S_DBGOBJS)
+	$(AR) rvs $@ $^ 
+
+# Clean target
+clean:
+	$(RM) -r $(DEPDIR)/$(DEBUGDIR)/*.P $(DEPDIR)/$(RELEASEDIR)/*.P 				\
+		$(DEBUGDIR)/*.o $(RELEASEDIR)/*.o $(DEBUGDIR)/lib$(LIBNAME)_d$(LIBEXT) 	\
+		$(RELEASEDIR)/lib$(LIBNAME)$(LIBEXT) include/*.i  *.i
+
+
+.PHONY: release debug clean
+

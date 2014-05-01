@@ -11,10 +11,10 @@ function build-xml() {
 	echo '==============================='
 	echo '============ E-XML ============'
 	echo '==============================='
-	cd src/e-xml/Release
+	cd src/e-xml
 #	make clean
 	make all
-	cd ../../../
+	cd ../../
 }
 
 
@@ -23,10 +23,10 @@ function build-loader() {
 	echo '=================================='
 	echo '============ E-LOADER ============'
 	echo '=================================='
-	cd src/e-loader/Release
+	cd src/e-loader
 #	make clean
 	make all
-	cd ../../../
+	cd ../../
 }
 
 
@@ -35,13 +35,13 @@ function build-hal() {
 	echo '==============================='
 	echo '============ E-HAL ============'
 	echo '==============================='
-	cd src/e-hal/Release
+	cd src/e-hal
 #	make clean
 	make all
 	for bsp in ${BSPS}; do
-		cp -f libe-hal.so ../../../bsps/${bsp}
+		cp -f Release/libe-hal.so ../../bsps/${bsp}
 	done
-	cd ../../../
+	cd ../../
 }
 
 
@@ -50,10 +50,10 @@ function build-server() {
 	echo '=================================='
 	echo '============ E-SERVER ============'
 	echo '=================================='
-	cd src/e-server/Release
+	cd src/e-server
 #	make clean
 	make all
-	cd ../../../
+	cd ../../
 }
 
 
@@ -63,20 +63,25 @@ function build-utils() {
 	echo '============ E-UTILS ============'
 	echo '================================='
 	cd src/e-utils
+	echo 'Building e-reset'
 	cd e-reset
-	./build.sh
+	make  all
 	cd ../
-	cd e-loader/Debug
+	echo 'Building e-loader'
+	cd e-loader
 	make all
-	cd ../../
-	cd e-read/Debug
+	cd ../
+	echo 'Building e-read'
+	cd e-read
 	make all
-	cd ../../
-	cd e-write/Debug
+	cd ../
+	echo 'Building e-write'
+	cd e-write
 	make all
-	cd ../../
+	cd ../
+	echo 'Building e-hw-rev'
 	cd e-hw-rev
-	./build.sh
+	make all
 	cd ../
 	cd ../../
 }
@@ -92,10 +97,10 @@ function build-lib() {
 		echo "install the Epiphany GNU tools suite first at ${ESDK}/tools/e-gnu!"
 		exit
 	fi
-	cd src/e-lib/Release
-#	make clean
+	cd src/e-lib
+	make clean
 	make all
-	cd ../../../
+	cd ../../
 }
 
 

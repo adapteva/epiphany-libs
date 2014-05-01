@@ -1,0 +1,45 @@
+# <REQUIRED - this is the path to the workspace root, i.e., the top level build directory>
+BUILD_ROOT  	= ..
+
+# <REQUIRED - exe binary name>
+EXENAME			=
+
+# <OPTIONAL - any additional compiler flags needed to build this module>
+EXTRACXXFLAGS  	= 
+
+# <OPTIONAL - any additional linker flags needed to build this module>
+EXTRALINKFLAGS  =
+
+# List of include search paths
+INCLUDES    = \
+	-I./include						\
+	-I<another include path>		\
+	-I<yet another include path>
+
+# List of Library search paths
+LIB_PATHS   = \
+	-L$(BUILD_ROOT)/x3c/lib			\
+	-L<another library path>		\
+	-L<yet another library path>
+
+# List of libraries to link
+LIBS        =  \
+	-lx3cCommon						\
+	-l<some lib>					\
+	-l<some other lib>
+
+
+# <OPTIONAL - a colon sperated list of any subirectoriess othar than
+# 'src' which contain .cpp sources>
+vpath %cpp <source paths>
+
+# <REQUIRED - CPP sources to be built, e.g., cparser_tree.c>
+SRCS		= \
+	<some source file>.cpp
+
+# <OPTIONAL - C sources to be built, e.g., cparser_tree.c>
+C_SRC       = \
+	<some source file>.c
+
+# REQUIRED - Include the X3C rules for building executable binaries
+include $(BUILD_ROOT)/x3c/scripts/build/x3c_make_exe.rules
