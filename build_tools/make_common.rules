@@ -21,12 +21,6 @@ vpath %.cpp src
 vpath %.c src
 vpath %.s src
 
-# CXX = arm-linux-gnueabihf-g++
-# CC  = arm-linux-gnueabihf-gcc
-# AR  = arm-linux-gnueabihf-ar
-# LD  = arm-linux-gnueabihf-ls
-# AS  = arm-linux-gnueabihf-as
-
 CXX = $(CROSS_COMPILE)g++
 CC  = $(CROSS_COMPILE)gcc
 AR  = $(CROSS_COMPILE)ar

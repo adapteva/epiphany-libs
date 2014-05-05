@@ -11,8 +11,7 @@ function build-xml() {
 	echo '============ E-XML ============'
 	echo '==============================='
 	cd src/e-xml
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../../
 }
 
@@ -23,8 +22,7 @@ function build-loader() {
 	echo '============ E-LOADER ============'
 	echo '=================================='
 	cd src/e-loader
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../../
 }
 
@@ -35,8 +33,7 @@ function build-hal() {
 	echo '============ E-HAL ============'
 	echo '==============================='
 	cd src/e-hal
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	for bsp in ${BSPS}; do
 		cp -f Release/libe-hal.so ../../bsps/${bsp}
 	done
@@ -50,8 +47,7 @@ function build-server() {
 	echo '============ E-SERVER ============'
 	echo '=================================='
 	cd src/e-server
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../../
 }
 
@@ -64,28 +60,23 @@ function build-utils() {
 	cd src/e-utils
 	echo 'Building e-reset'
 	cd e-reset
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../
 	echo 'Building e-loader'
 	cd e-loader
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../
 	echo 'Building e-read'
 	cd e-read
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../
 	echo 'Building e-write'
 	cd e-write
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../
 	echo 'Building e-hw-rev'
 	cd e-hw-rev
-#	${MAKE} clean
-	${MAKE} all
+	${MAKE} $CLEAN all
 	cd ../
 	cd ../../
 }
@@ -102,16 +93,15 @@ function build-lib() {
 		exit
 	fi
 	cd src/e-lib
-	#make clean
 
 	# Always use the epiphany toolchain for building e-lib
-	make CROSS_COMPILE=e- all
+	make CROSS_COMPILE=e- $CLEAN all
 	cd ../../
 }
 
 
 function usage() {
-	echo "Usage: build-libs.sh [pkg-list] [-a] [-h]"
+	echo "Usage: build-libs.sh [pkg-list] [-a] [-h] [-r]"
 	echo "   'pkg-list' is any combination of package numbers or names"
 	echo "        to be built. Items are separated by spaces and names"
 	echo "        are given in lowercase (e.g, 'e-hal'). The packages"
@@ -125,7 +115,8 @@ function usage() {
 	echo "        6   - E-LIB"
 	echo ""
 	echo "        -a  - Build all packages"
-	echo "        -h  - Print this help message"	
+	echo "        -c  - Clean then build all packages"
+	echo "        -h  - Print this help message"
 	echo ""
 	echo "   Example: The following command will build e-hal, e-xml and e-lib:"
 	echo ""
@@ -152,6 +143,7 @@ case $(uname -p) in
 esac
 
 MAKE="make $CROSS_PREFIX " 
+CLEAN=
 
 while [[ $# > 0 ]]; do
 	if   [[ "$1" == "1" || "$1" == "e-xml"    ]]; then
@@ -173,6 +165,15 @@ while [[ $# > 0 ]]; do
 		build-lib
 		
 	elif [[ "$1" == "-a" ]]; then
+		build-xml
+		build-loader
+		build-hal
+		build-server
+		build-utils
+		build-lib
+		exit
+	elif [[ "$1" == "-c" ]]; then
+		CLEAN=clean
 		build-xml
 		build-loader
 		build-hal
