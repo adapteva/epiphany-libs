@@ -150,7 +150,7 @@ int e_init(char *hdf)
 
 
 // Finalize connection with the Epiphany platform; Free allocated resources.
-int e_finalize()
+int e_finalize(void)
 {
 	if (e_platform.initialized == E_FALSE)
 	{
@@ -833,7 +833,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 // Core control functions
 //
 // Reset the Epiphany platform
-int e_reset_system()
+int e_reset_system(void)
 {
 	diag(H_D1) { fprintf(fd, "e_reset_system(): resetting full ESYS...\n"); }
 	ee_write_esys(E_SYS_RESET, 0);
@@ -861,7 +861,7 @@ int e_reset_system()
 
 
 // Reset the Epiphany chip
-int e_reset_chip()
+int e_reset_chip(void)
 {
 	diag(H_D1) { fprintf(fd, "e_reset_chip(): This operation is not implemented!\n"); }
 
