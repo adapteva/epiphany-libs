@@ -39,7 +39,7 @@ extern "C"
 // Platform configuration
 int     e_init(char *hdf);
 int     e_get_platform_info(e_platform_t *platform);
-int     e_finalize();
+int     e_finalize(void);
 // Epiphany access
 int     e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
 int     e_close(e_epiphany_t *dev);
@@ -55,8 +55,8 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 ///////////////////////////
 // System control functions
 #define e_reset e_reset_system
-int     e_reset_system();
-int     e_reset_chip();
+int     e_reset_system(void);
+int     e_reset_chip(void);
 int     e_reset_group(e_epiphany_t *dev);
 int     e_start(e_epiphany_t *dev, unsigned row, unsigned col);
 int     e_start_group(e_epiphany_t *dev);
