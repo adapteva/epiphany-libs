@@ -1,6 +1,9 @@
 #BUILD_ROOT  	= $(EPIPHANY_HOME)/../
 BUILD_ROOT  	= ../../..
 
+## Override CROSS_COMPILE on command line for a different cross-prefix
+CROSS_COMPILE=arm-linux-gnueabihf-
+
 EXENAME			= e-read
 EXTRACFLAGS  	= -fmessage-length=0
 EXTRALINKFLAGS  =

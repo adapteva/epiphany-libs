@@ -1,9 +1,13 @@
 #BUILD_ROOT  	= $(EPIPHANY_HOME)/../
 BUILD_ROOT  	= ../..
 
+## This library is always compiled for the epiphany cores
+CROSS_COMPILE=e-
+
 LIBNAME			= e-lib
 
-EXTRACFLAGS  	= -O3 -falign-loops=8 -fmessage-length=0 -ffp-contract=fast -mlong-calls -mfp-mode=round-nearest
+EXTRACFLAGS  	= -O3 -falign-loops=8 -fmessage-length=0 -ffp-contract=fast \
+	 -mlong-calls -mfp-mode=round-nearest
 
 # List of include search paths
 INCLUDES    = \

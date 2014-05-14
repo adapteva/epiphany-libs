@@ -5,6 +5,9 @@ EXENAME			= e-reset
 EXTRACFLAGS  	= -fmessage-length=0
 EXTRALINKFLAGS  =
 
+## Override CROSS_COMPILE on command line for a different cross-prefix
+CROSS_COMPILE=arm-linux-gnueabihf-
+
 INCLUDES    = \
 	-I../../e-hal/src		\
 	-I../../e-loader/src
