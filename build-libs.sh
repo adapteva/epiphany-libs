@@ -101,7 +101,7 @@ function build-lib() {
 
 
 function usage() {
-	echo "Usage: build-libs.sh [pkg-list] [-a] [-h] [-r]"
+	echo "Usage: build-libs.sh [pkg-list] [-a] [-h] [-c]"
 	echo "   'pkg-list' is any combination of package numbers or names"
 	echo "        to be built. Items are separated by spaces and names"
 	echo "        are given in lowercase (e.g, 'e-hal'). The packages"

@@ -1,0 +1,9 @@
+2014-05-14  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-server/Debug/makefile: Removed File.
+	* src/e-server/Debug/objects.mk: Removed File.
+	* src/e-server/Debug/sources.mk: Removed File.
+	* src/e-server/Release/makefile: Removed File.
+	* src/e-server/Release/objects.mk: Removed File.
+	* src/e-server/Release/sources.mk: Removed File.
+
