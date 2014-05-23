@@ -1,3 +1,12 @@
+2014-05-14  Ben Chaco  <bchaco@x3-c.com>
+
+	* build-libs.sh (function build-loader): Implement make-based build.
+	(function build-hal):  Implement make-based build.
+	(function build-server): Implement make-based build.
+	(function build-utils): Implement make-based build.
+	(function build-lib): Implement make-based build.
+	(function usage): Added a clean build (-c) option.
+
 2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* build-libs.sh: Take arg -c to clean before building and -d to

@@ -1,0 +1,10 @@
+2014-05-14  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-lib/Debug/makefile: Removed file.
+	* src/e-lib/Debug/objects.mk: Removed file.
+	* src/e-lib/Debug/sources.mk: Removed file.
+	* src/e-lib/Debug/src/subdir.mk: Removed file.
+	* src/e-lib/Release/makefile: Removed file.
+	* src/e-lib/Release/objects.mk: Removed file.
+	* src/e-lib/Release/sources.mk: Removed file.
+	* src/e-lib/Release/src/subdir.mk: Removed file.

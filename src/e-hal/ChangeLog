@@ -1,0 +1,27 @@
+2014-05-14  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-hal/Debug/makefile: Removed file.
+	* src/e-hal/Debug/objects.mk: Removed file.
+	* src/e-hal/Debug/sources.mk: Removed file.
+	* src/e-hal/Release/makefile: Removed file.
+	* src/e-hal/Release/objects.mk: Removed file.
+	* src/e-hal/Release/sources.mk: Removed file.
+	* src/e-hal/src/epiphany-hal-api.h (ssize_t e_write):
+	* src/e-hal/src/epiphany-hal.c (int e_init):
+	(int e_finalize):
+	(ssize_t ee_write_esys):
+	(int e_reset_system):
+	(int e_reset_chip):
+
+2014-05-09  Mikael Taveniku <mtaveniku@x3-c.com>
+
+	* src/e-hal/src/epiphany-hal-api.h (ssize_t e_write): Fixed function declarations with void params
+	* src/e-hal/src/epiphany-hal.c (int e_init): Fixed function declarations with void params
+	(int e_finalize):  Fixed function declarations with void params
+	(ssize_t ee_write_esys):  Fixed function declarations with void params
+	(int e_reset_system):  Fixed function declarations with void params
+	(int e_reset_chip):  Fixed function declarations with void params
+
+2014-05-02  Mikael Taveniku <mtaveniku@x3-c.com>
+
+	* src/e-hal/src/e-hal.h: Fixed header include

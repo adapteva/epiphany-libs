@@ -150,7 +150,7 @@ int e_init(char *hdf)
 
 
 // Finalize connection with the Epiphany platform; Free allocated resources.
-int e_finalize()
+int e_finalize(void)
 {
 	if (e_platform.initialized == E_FALSE)
 	{
@@ -833,7 +833,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 // Core control functions
 //
 // Reset the Epiphany platform
-int e_reset_system()
+int e_reset_system(void)
 {
 	diag(H_D1) { fprintf(fd, "e_reset_system(): resetting full ESYS...\n"); }
 	ee_write_esys(E_SYS_RESET, 0);
@@ -849,7 +849,7 @@ int e_reset_system()
 		e_open(&dev, 2, 3, 1, 1);
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
-		e_write(&dev, 0, 0, E_REG_IO_LINK_MODE_CFG, &data, sizeof(int));
+		e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int));
 		ee_write_esys(E_SYS_CONFIG, 0x00000000);
 		e_close(&dev);
 	}
@@ -861,7 +861,7 @@ int e_reset_system()
 
 
 // Reset the Epiphany chip
-int e_reset_chip()
+int e_reset_chip(void)
 {
 	diag(H_D1) { fprintf(fd, "e_reset_chip(): This operation is not implemented!\n"); }
 
@@ -885,8 +885,8 @@ int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	usleep(100000);
 
 	diag(H_D1) { fprintf(fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
-	ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
+	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
+	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
 	diag(H_D1) { fprintf(fd, "e_reset_core(): done.\n"); }
 
 	return E_OK;
@@ -917,8 +917,8 @@ int e_reset_group(e_epiphany_t *dev)
 	for (row=0; row<dev->rows; row++)
 		for (col=0; col<dev->cols; col++)
 		{
-			ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET1);
-			ee_write_reg(dev, row, col, E_REG_CORE_RESET, RESET0);
+			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
+			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
 		}
 
 	diag(H_D1) { fprintf(fd, "e_reset_group(): done.\n"); }

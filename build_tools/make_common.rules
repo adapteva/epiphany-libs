@@ -1,0 +1,101 @@
+CXXFLAGS    	= -Wall -Wextra
+CFLAGS          = -Wall -Wextra
+RELEASEFLAGS  	= -DNDEBUG -O3
+DEBUGFLAGS  	= -O0 -g
+RELEASEDIR  	= Release
+DEBUGDIR   		= Debug
+DEPDIR 			= .deps
+df 				= $(basename $(DEPDIR)/$@)
+
+INSTALL 		= /usr/bin/install
+
+RELOBJS    := $(SRCS:%.cpp=$(RELEASEDIR)/%.o) 
+DBGOBJS    := $(SRCS:%.cpp=$(DEBUGDIR)/%.o) 
+C_RELOBJS  := $(C_SRCS:%.c=$(RELEASEDIR)/%.o)
+C_DBGOBJS  := $(C_SRCS:%.c=$(DEBUGDIR)/%.o)
+S_DBGOBJS  := $(S_SRCS:%.s=$(DEBUGDIR)/%.o)
+S_RELOBJS  := $(S_SRCS:%.s=$(RELEASEDIR)/%.o)
+
+# vpath for src subdir
+vpath %.cpp src
+vpath %.c src
+vpath %.s src
+
+CXX = $(CROSS_COMPILE)g++
+CC  = $(CROSS_COMPILE)gcc
+AR  = $(CROSS_COMPILE)ar
+LD  = $(CROSS_COMPILE)ld
+AS  = $(CROSS_COMPILE)as
+
+# All target
+all:  debug release $(TESTAPP1) $(TESTAPP2) $(TESTAPP3)
+
+# Object file target for debug (.cpp sources)
+$(DEBUGDIR)/%.o: %.cpp
+	$(COMPILE.cc) -MMD $(DEBUGFLAGS) $(CPPFLAGS) $(INCLUDES) $(EXTRACXXFLAGS) $(EXTRADEBUGFLAGS) -o $@ $<
+	@cp $(basename $@).d $(df).P; \
+		sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+			-e '/^$$/ d' -e 's/$$/ :/' < $(basename $@).d >> $(df).P; \
+	rm -f $(basename $@).d $(df).d
+
+# Object file target for release
+$(RELEASEDIR)/%.o: %.cpp
+	$(COMPILE.cc) -MMD $(RELEASEFLAGS) $(CPPFLAGS) $(INCLUDES) $(EXTRACXXFLAGS) -o $@ $<
+	@cp $(basename $@).d $(df).P; \
+		sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+			-e '/^$$/ d' -e 's/$$/ :/' < $(basename $@).d >> $(df).P; \
+	rm -f $(basename $@).d $(df).d
+
+# Object file target for debug (.c sources)
+$(DEBUGDIR)/%.o: %.c
+	$(COMPILE.c) -MD $(INCLUDES) $(DEBUGFLAGS) $(EXTRACFLAGS) $(EXTRADEBUGFLAGS) -o $@ $<
+	@cp $(basename $@).d $(df).P; \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		-e '/^$$/ d' -e 's/$$/ :/' < $(basename $@).d >> $(df).P; \
+	rm -f $(basename $@).d $(df).d
+
+# Object file target for release (.c sources)
+$(RELEASEDIR)/%.o: %.c
+	$(COMPILE.c) -MD $(DEBUGFLAGS) $(EXTRACFLAGS) $(INCLUDES) -o $@ $<
+	@cp $(basename $@).d $(df).P; \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		-e '/^$$/ d' -e 's/$$/ :/' < $(basename $@).d >> $(df).P; \
+	rm -f $(basename $@).d $(df).d
+
+# Object file target for debug (.s sources)
+$(DEBUGDIR)/%.o: %.s
+	$(AS) -o $@ $<
+
+# Object file target for release (.s sources)
+$(RELEASEDIR)/%.o: %.s
+	$(AS) -o $@ $<
+
+# Include directive for debug dependencies (C++ Source files)
+-include $(SRCS:%.cpp=$(DEPDIR)/$(DEBUGDIR)/%.P)
+# Include directive for debug dependencies (C Source files)
+-include $(C_SRCS:%.c=$(DEPDIR)/$(DEBUGDIR)/%.P)
+
+# Include directive for release dependencies (C++ Source files)
+-include $(SRCS:%.cpp=$(DEPDIR)/$(RELEASEDIR)/%.P)
+# Include directive for debug dependencies (C Source files)
+-include $(C_SRCS:%.c=$(DEPDIR)/$(RELEASEDIR)/%.P)
+
+# Rule for generating preprocessed header files
+%.i: %.h
+	$(COMPILE.cc) -E $(DEBUGFLAGS) $(EXTRACXXFLAGS) $(INCLUDES) -o $@ $<
+
+# Rule for generating preprocessed header files
+%.i: %.cpp
+	$(COMPILE.cc) -E $(DEBUGFLAGS) $(EXTRACXXFLAGS) $(INCLUDES) -o $@ $<
+
+# Scrub rule (clean and remove dependencies and emacs TAGS files and backup files)
+scrub: clean
+	$(RM) -r *~ TAGS src/*~ src/TAGS include/*~ include/TAGS $(RELEASEDIR) $(DEBUGDIR) $(DEPDIR)
+
+.PHONY: all release debug scrub 
+
+# Commands for creating directories
+$(shell mkdir -p $(DEPDIR)/$(RELEASEDIR))
+$(shell mkdir -p $(DEPDIR)/$(DEBUGDIR))
+$(shell mkdir -p $(DEBUGDIR))
+$(shell mkdir -p $(RELEASEDIR))

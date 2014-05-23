@@ -5,97 +5,85 @@ set -e
 ESDK=${EPIPHANY_HOME}
 BSPS="zed_E16G3_512mb zed_E64G4_512mb parallella_E16G3_1GB"
 
-
 function build-xml() {
 	# Build the XML parser library
 	echo '==============================='
 	echo '============ E-XML ============'
 	echo '==============================='
-	cd src/e-xml/${version}
-	if [ "${cleanit}" = "yes" ]
-	then
-	    make clean
-	fi
-	make all
-	cd ../../../
+	cd src/e-xml
+	${MAKE} $CLEAN all
+	cd ../../
 }
 
 
 function build-loader() {
-	# Build the Epiphany Loader library
+	# Build the Epiphnay Loader library
 	echo '=================================='
 	echo '============ E-LOADER ============'
 	echo '=================================='
-	cd src/e-loader/${version}
-	if [ "${cleanit}" = "yes" ]
-	then
-	    make clean
-	fi
-	make all
-	cd ../../../
+	cd src/e-loader
+	${MAKE} $CLEAN all
+	cd ../../
 }
 
 
 function build-hal() {
-	# Build the Epiphany HAL library
+	# Build the Epiphnay HAL library
 	echo '==============================='
 	echo '============ E-HAL ============'
 	echo '==============================='
-	cd src/e-hal/${version}
-	if [ "${cleanit}" = "yes" ]
-	then
-	    make clean
-	fi
-	make all
+	cd src/e-hal
+	${MAKE} $CLEAN all
 	for bsp in ${BSPS}; do
-		cp -f libe-hal.so ../../../bsps/${bsp}
+		cp -f Release/libe-hal.so ../../bsps/${bsp}
 	done
-	cd ../../../
+	cd ../../
 }
 
 
 function build-server() {
-	# Build the Epiphany GDB RSP Server
+	# Build the Epiphnay GDB RSP Server
 	echo '=================================='
 	echo '============ E-SERVER ============'
 	echo '=================================='
-	cd src/e-server/${version}
-	if [ "${cleanit}" = "yes" ]
-	then
-	    make clean
-	fi
-	make CPPFLAGS+="-DREVISION=${REV}" all
-	cd ../../../
+	cd src/e-server
+	${MAKE} $CLEAN all
+	cd ../../
 }
 
 
 function build-utils() {
-	# Install the Epiphany GNU Tools wrappers
+	# Install the Epiphnay GNU Tools wrappers
 	echo '================================='
 	echo '============ E-UTILS ============'
 	echo '================================='
 	cd src/e-utils
+	echo 'Building e-reset'
 	cd e-reset
-	./build.sh
+	${MAKE} $CLEAN all
 	cd ../
-	cd e-loader/Debug
-	make all
-	cd ../../
-	cd e-read/Debug
-	make all
-	cd ../../
-	cd e-write/Debug
-	make all
-	cd ../../
+	echo 'Building e-loader'
+	cd e-loader
+	${MAKE} $CLEAN all
+	cd ../
+	echo 'Building e-read'
+	cd e-read
+	${MAKE} $CLEAN all
+	cd ../
+	echo 'Building e-write'
+	cd e-write
+	${MAKE} $CLEAN all
+	cd ../
+	echo 'Building e-hw-rev'
 	cd e-hw-rev
-	./build.sh
+	${MAKE} $CLEAN all
 	cd ../
 	cd ../../
 }
 
 
 function build-lib() {
-	# build the Epiphany Runtime Library
+	# build the Epiphnay Runtime Library
 	echo '==============================='
 	echo '============ E-LIB ============'
 	echo '==============================='
@@ -104,18 +92,16 @@ function build-lib() {
 		echo "install the Epiphany GNU tools suite first at ${ESDK}/tools/e-gnu!"
 		exit
 	fi
-	cd src/e-lib/${version}
-	if [ "${cleanit}" = "yes" ]
-	then
-	    make clean
-	fi
-	make all
-	cd ../../../
+	cd src/e-lib
+
+	# Always use the epiphany toolchain for building e-lib
+	make CROSS_COMPILE=e- $CLEAN all
+	cd ../../
 }
 
 
 function usage() {
-	echo "Usage: build-libs.sh [pkg-list] [-a] [-h]"
+	echo "Usage: build-libs.sh [pkg-list] [-a] [-h] [-c]"
 	echo "   'pkg-list' is any combination of package numbers or names"
 	echo "        to be built. Items are separated by spaces and names"
 	echo "        are given in lowercase (e.g, 'e-hal'). The packages"
@@ -129,10 +115,8 @@ function usage() {
 	echo "        6   - E-LIB"
 	echo ""
 	echo "        -a  - Build all packages"
-	echo "        -h  - Print this help message"	
-	echo "        -c  - Clean before building any packages after this"
-	echo ""
-	echo "   If no target is selected, all packages will be built."
+	echo "        -c  - Clean then build all packages"
+	echo "        -h  - Print this help message"
 	echo ""
 	echo "   Example: The following command will build e-hal, e-xml and e-lib:"
 	echo ""
@@ -145,8 +129,21 @@ if [[ $# == 0 ]]; then
 	usage
 fi
 
-cleanit="no"
-version="Release"
+CROSS_PREFIX=
+
+case $(uname -p) in
+	arm*)
+		# Use native arm compiler (no cross prefix)
+		CROSS_PREFIX=
+		;;
+	   *)
+		# Use cross compiler
+		CROSS_PREFIX="CROSS_COMPILE=arm-linux-gnueabihf-"
+		;;
+esac
+
+MAKE="make $CROSS_PREFIX " 
+CLEAN=
 
 while [[ $# > 0 ]]; do
 	if   [[ "$1" == "1" || "$1" == "e-xml"    ]]; then
@@ -175,15 +172,18 @@ while [[ $# > 0 ]]; do
 		build-utils
 		build-lib
 		exit
+	elif [[ "$1" == "-c" ]]; then
+		CLEAN=clean
+		build-xml
+		build-loader
+		build-hal
+		build-server
+		build-utils
+		build-lib
+		exit
 
 	elif [[ "$1" == "-h" ]]; then
 		usage
-
-	elif [[  "$1" == "-c" ]]; then
-		cleanit="yes"
-
-	elif [[  "$1" == "-d" ]]; then
-		version="Debug"
 	fi
 
 	shift
