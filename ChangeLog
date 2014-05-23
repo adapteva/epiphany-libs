@@ -1,3 +1,7 @@
+2014-05-23  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* .gitignore: Created.
+
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh (function build-loader): Implement make-based build.
