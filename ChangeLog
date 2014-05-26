@@ -1,3 +1,7 @@
+2014-05-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* build-libs.sh: Set CROSS_PREFIX as CROSS_COMPILE value for make.
+
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh (function build-loader): Implement make-based build.

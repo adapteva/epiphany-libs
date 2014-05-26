@@ -142,7 +142,7 @@ case $(uname -p) in
 		;;
 esac
 
-MAKE="make $CROSS_PREFIX " 
+MAKE="make CROSS_COMPILE=$CROSS_PREFIX " 
 CLEAN=
 
 while [[ $# > 0 ]]; do
