@@ -573,7 +573,7 @@ GdbServer::rspReportException (int          tid,
 //! @param[in] except  The GDB signal to use
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspContinue (uint32_t except)
+GdbServer::rspContinue (uint32_t except __attribute ((unused)) )
 {
   uint32_t     addr;		// Address to continue from, if any
   uint32_t  hexAddr;		// Address supplied in packet
@@ -653,7 +653,7 @@ GdbServer::rspContinue ()
 //! @param[in] except  The exception to use (if any). Currently ignored
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspContinue (uint32_t addr, uint32_t except)
+GdbServer::rspContinue (uint32_t addr, uint32_t except __attribute ((unused)))
 {
   Thread* thread = getThread (currentCTid);
 
@@ -943,7 +943,6 @@ GdbServer::redirectStdioOnTrap (Thread *thread,
   //int result_io;
   unsigned int k;
 
-  char res_buf[2048];
   char fmt[2048];
 
   switch (trap)
@@ -1055,9 +1054,7 @@ GdbServer::redirectStdioOnTrap (Thread *thread,
 	  strncpy (fmt, buf, r1);
 	  fmt[r1] = '\0';
 
-
-	  printfWrapper (res_buf, fmt, buf + r1 + 1);
-	  fprintf (si->ttyOut (), "%s", res_buf);
+	  fprintf (si->ttyOut (), fmt, buf + r1 + 1);
 
 	  thread->resume ();
 	}
@@ -3053,128 +3050,6 @@ GdbServer::is32BitsInstr (uint32_t iab_instr)
 }	// is32BitsInstr ()
 
 
-//! Created as a wrapper to overcome external memory problems.
-
-//! The original comment labelled this as NOT IN USE, but it is evidently used
-//! in this class.
-void
-GdbServer::printfWrapper (char *result_str, const char *fmt,
-			  const char *args_buf)
-{
-  char *p = (char *) fmt;
-  char *b = (char *) fmt;
-  //char *perc;        = (char *) fmt;
-  char *p_args_buf = (char *) args_buf;
-
-  unsigned a, a1, a2, a3, a4;
-
-  int found_percent = 0;
-
-  char buf[2048];
-  char tmp_str[2048];
-
-  strcpy (result_str, "");
-  //sprintf(result_str, "");
-
-  //sprintf(buf, fmt);
-
-  //printf("fmt ----%d ----\n", strlen(fmt));
-
-  //puts(fmt);
-
-  //printf("Parsing\n");
-
-  while (*p)
-    {
-      if (*p == '%')
-	{
-	  found_percent = 1;
-	  //perc = p;
-	}
-      else if (*p == 's' && (found_percent == 1))
-	{
-	  found_percent = 0;
-
-	  strncpy (buf, b, (p - b) + 1);
-	  buf[p - b + 1] = '\0';
-	  b = p + 1;
-
-	  //puts(buf);
-
-	  //printf("args_buf ----%d ----\n", strlen(p_args_buf));
-	  //puts(p_args_buf);
-
-	  sprintf (tmp_str, buf, p_args_buf);
-	  sprintf (result_str, "%s%s", result_str, tmp_str);
-
-	  p_args_buf = p_args_buf + strlen (p_args_buf) + 1;
-
-	}
-      else
-	if ((*p == 'p' || *p == 'X' || *p == 'u' || *p == 'i' || *p == 'd'
-	     || *p == 'x' || *p == 'f') && (found_percent == 1))
-	{
-	  found_percent = 0;
-
-	  strncpy (buf, b, (p - b) + 1);
-	  buf[p - b + 1] = '\0';
-	  b = p + 1;
-
-	  //print out buf
-	  //puts(buf);
-
-	  a1 = (p_args_buf[0]);
-	  a1 &= 0xff;
-	  a2 = (p_args_buf[1]);
-	  a2 &= 0xff;
-	  a3 = (p_args_buf[2]);
-	  a3 &= 0xff;
-	  a4 = (p_args_buf[3]);
-	  a4 &= 0xff;
-
-	  //printf("INT <a1> %x <a2> %x <a3> %x <a4> %x\n", a1, a2,a3, a4);
-	  a = ((a1 << 24) | (a2 << 16) | (a3 << 8) | a4);
-
-	  if (*p == 'i')
-	    {
-	      //printf("I %i\n", a);
-	    }
-	  else if (*p == 'd')
-	    {
-	      //printf("D %d\n", a);
-	    }
-	  else if (*p == 'x')
-	    {
-	      //printf("X %x\n", a);
-	    }
-	  else if (*p == 'f')
-	    {
-	      //printf("F %f \n", *((float*)&a));
-	    }
-	  else if (*p == 'f')
-	    {
-	      sprintf (tmp_str, buf, *((float *) &a));
-	    }
-	  else
-	    {
-	      sprintf (tmp_str, buf, a);
-	    }
-	  sprintf (result_str, "%s%s", result_str, tmp_str);
-
-	  p_args_buf = p_args_buf + 4;
-	}
-
-      p++;
-    }
-
-  //tail
-  //puts(b);
-  sprintf (result_str, "%s%s", result_str, b);
-
-  //printf("------------- %s ------------- %d ", result_str, strlen(result_str));
-}	// printf_wrappper ()
-
-
 //-----------------------------------------------------------------------------
 //! Handle a RSP 'v' packet
 
@@ -4803,7 +4678,8 @@ GdbServer::doBacktrace ()
 	  << fileName << " " << address
 	  << " | sed -e :a -e '$!N; s/\\n/ /; ta' | sed -e 's#/.*/##'";
       cout << i << ": " << flush;
-      system (oss.str ().c_str ());
+      if (0 != system (oss.str ().c_str ()))
+	cerr << "Warning: Could not translate address" << endl;
     }
 
   free (symbols);

@@ -47,15 +47,15 @@ public:
 
   // Functions to access memory ranges
   void  minAddr (const uint32_t _minAddrVal);
-  const uint32_t  minAddr () const;
+  uint32_t  minAddr () const;
   void  maxAddr (const uint32_t _maxAddrVal);
-  const uint32_t  maxAddr () const;
+  uint32_t  maxAddr () const;
   void  addrRange (const uint32_t _minAddrVal,
 		   const uint32_t _maxAddrVal);
   void  minRegAddr (const uint32_t _minRegAddrVal);
-  const uint32_t  minRegAddr () const;
+  uint32_t  minRegAddr () const;
   void  maxRegAddr (const uint32_t _maxRegAddrVal);
-  const uint32_t  maxRegAddr () const;
+  uint32_t  maxRegAddr () const;
   void  regAddrRange (const uint32_t _minRegAddrVal,
 		   const uint32_t _maxRegAddrVal);
 

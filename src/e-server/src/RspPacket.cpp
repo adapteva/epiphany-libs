@@ -151,7 +151,7 @@ RspPacket::packNStr (const char *str,
   len = n + 1;
 
 }	// packNStr ()
-  
+
 
 //-----------------------------------------------------------------------------
 //! Pack a const string as a hex encoded string into a packet for qRcmd.

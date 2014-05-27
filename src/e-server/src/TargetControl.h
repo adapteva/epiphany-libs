@@ -152,7 +152,7 @@ public:
   static const uint32_t STATUS_BUS_MASK      = 0x00008000;
   static const uint32_t STATUS_EXCAUSE_MASK  = 0x000f0000;
   static const uint32_t STATUS_RESERVED_MASK = 0xfff00804;
-    
+
   static const uint32_t STATUS_ACTIVE_ACTIVE  = 0x00000001;
   static const uint32_t STATUS_ACTIVE_IDLE    = 0x00000000;
   static const uint32_t STATUS_GID_ENABLED    = 0x00000000;

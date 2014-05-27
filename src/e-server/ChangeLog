@@ -1,11 +1,51 @@
+2014-05-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Makefile: Remove trailing spaces throughout. Add copyright
+	header. Remove commented out things which are not relevant. Add
+	-Werror, remote -fmessage-length. Simplify include dirs. Set
+	correct source code list.
+	* src/CoreId.cpp: Remove trailing spaces throughout.
+	(CoreId::operator<): Remove const qualifier from return type.
+	* src/CoreId.h: Likewise.
+	* src/GdbServer.cpp: Remove trailing spaces throughout.
+	(GdbServer::rspContinue): Mark except unused.
+	(GdbServer::redirectStdioOnTrap): Use fprintf direct, not
+	printfWrapper.
+	(GdbServer::printfWrapper): Deleted.
+	(GdbServer::doBacktrace): Check return value from call to system
+	().
+	* src/MemRange.cpp: Remove trailing spaces throughout.
+	(MemRange::minAddr): Remove const qualifier from return type.
+	(MemRange::maxAddr): Likewise.
+	(MemRange::minRegAddr): Likewise.
+	(MemRange::maxRegAddr): Likewise.
+	* src/MemRange.h: Likewise.
+	* src/MpHash.h: Remove trailing spaces throughout.
+	* src/ProcessInfo.h: Remove trailing spaces throughout.
+	* src/RspPacket.cpp: Remove trailing spaces throughout.
+	* src/ServerInfo.h: Remove trailing spaces throughout.  No need to
+	specify directory for HAL header include.
+	* src/TargetControl.h: Remove trailing spaces throughout.
+	* src/TargetControlHardware.cpp: Remove trailing spaces
+	throughout.
+	(TargetControlHardware::breakSignalHandler): Mark signum unused.
+	* src/TargetControlHardware.h: Remove trailing spaces throughout.
+	No need to specify directory for XML and HAL includes.
+	* src/Thread.h: Remove trailing spaces throughout.
+	* src/Utils.cpp (Utils::hex2Char): Remove const qualifier on
+	return value (not needed for static method).
+	* src/Utils.h (class Utils): Likewise.
+	* src/main.cpp (main): Remove trailing spaces throughout.  No need
+	to specify directory for XML and HAL includes.
+
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
-	* src/e-server/Debug/makefile: Removed File.
-	* src/e-server/Debug/objects.mk: Removed File.
-	* src/e-server/Debug/sources.mk: Removed File.
-	* src/e-server/Release/makefile: Removed File.
-	* src/e-server/Release/objects.mk: Removed File.
-	* src/e-server/Release/sources.mk: Removed File.
+	* Debug/makefile: Removed File.
+	* Debug/objects.mk: Removed File.
+	* Debug/sources.mk: Removed File.
+	* Release/makefile: Removed File.
+	* Release/objects.mk: Removed File.
+	* Release/sources.mk: Removed File.
 
 2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 

@@ -97,7 +97,7 @@ TargetControlHardware::readMem16 (CoreId coreId,
 
 
 bool
-TargetControlHardware::readMem8 (CoreId coreId, 
+TargetControlHardware::readMem8 (CoreId coreId,
 				 uint32_t addr,
 				 uint8_t & data)
 {
@@ -194,7 +194,7 @@ TargetControlHardware::readMem (CoreId  coreId,
 	     << intStr (addr, 16, 8) << ":0x" << intStr (fullAddr, 16, 8)
 	     << ", 0x" <<  intStr (data, 16, 8) << ", " << len << ") -> "
 	     << intStr (data, 16, 8) << endl;
-      
+
       return true;
     }
 }	// readMem ()
@@ -262,7 +262,7 @@ TargetControlHardware::readBurst (CoreId coreId,
     cerr << "DebugTargetWr: readBurst (" << coreId << ", "
 	 << intStr (addr, 16, 8) << ", " << (void *) buf << ", "
 	 << burstSize << ")" << endl;
-      
+
 
   if ((fullAddr % E_WORD_BYTES) == 0)
     {
@@ -343,7 +343,7 @@ TargetControlHardware::writeBurst (CoreId coreId,
 	   << setfill ('0') << addr << " (0x" << fullAddr << "), size "
 	   << setfill (' ') << setw (0) << dec << bufSize << " bytes." << endl;
     }
-  
+
   if ((bufSize == E_WORD_BYTES) && ((fullAddr % E_WORD_BYTES) == 0))
     {
       // Single aligned word write. Typically register access
@@ -376,7 +376,7 @@ TargetControlHardware::writeBurst (CoreId coreId,
 	      if (si->debugTargetWr ())
 		{
 		  cerr << "DebugTargetWr: Write burst head byte " << n
-		       << " to 0x" << hex << setw (8) << setfill ('0') 
+		       << " to 0x" << hex << setw (8) << setfill ('0')
 		       << fullAddr << "." << setfill (' ') << setw (0)
 		       << dec << endl;
 		}
@@ -563,7 +563,7 @@ TargetControlHardware::stopTrace ()
 
 //! @param[in] Signal number
 void
-TargetControlHardware::breakSignalHandler (int signum)
+TargetControlHardware::breakSignalHandler (int signum __attribute ((unused)))
 {
   cerr << " Get OS signal .. exiting ..." << endl;
   // give chance to finish usb drive
@@ -893,7 +893,7 @@ TargetControlHardware::initPlatform (platform_definition_t* platform,
   if (si->debugHwDetail ())
       cerr << "DebugHwDetail: initPlatform (" << (void *) platform << ", "
 	   << verbose << ")" << endl;
-  
+
   return (*initPlatformFunc) (platform, verbose);
 
 }	// initPlatform ()
@@ -907,7 +907,7 @@ TargetControlHardware::closePlatform ()
 {
   if (si->debugHwDetail ())
       cerr << "DebugHwDetail: closePlatform ()" << endl;
-  
+
   return (*closePlatformFunc) ();
 
 }	// closePlatform ()
@@ -927,7 +927,7 @@ TargetControlHardware::writeTo (unsigned int  address,
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: writeTo (0x" << intStr (address, 16, 8) << ", "
 	 << (void *) buf << ", " << burstSize << ")" << endl;
-  
+
   return (*writeToFunc) (address, buf, burstSize);
 
 }	// writeTo ()

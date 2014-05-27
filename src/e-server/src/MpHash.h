@@ -114,7 +114,7 @@ private:
     uint32_t  addr;		//!< Address of the matchpoint
     int       tid;              //!< Thread ID of the matchpoint
 
-    const bool operator < (const MpKey &key) const
+    bool operator < (const MpKey &key) const
     {
       if (type < key.type)
 	return true;

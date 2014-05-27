@@ -38,8 +38,8 @@
 #include "GdbServer.h"
 #include "ServerInfo.h"
 #include "TargetControlHardware.h"
-#include "e-xml/src/epiphany_xml.h"
-#include "e-hal/src/epiphany-hal-data.h"
+#include "epiphany_xml.h"
+#include "epiphany-hal-data.h"
 
 
 // Up to the builder to specify a revision.
@@ -329,7 +329,7 @@ main (int argc, char *argv[])
 	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
-	} 
+	}
       else if (!strcmp (argv[n], "-Xpl"))
 	{
 	  n += 1;

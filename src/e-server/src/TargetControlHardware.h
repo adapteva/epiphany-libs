@@ -32,8 +32,8 @@
 #include "ServerInfo.h"
 #include "TargetControl.h"
 
-#include <e-xml/src/epiphany_platform.h>
-#include <e-hal/src/epiphany-hal-data.h>
+#include "epiphany_platform.h"
+#include "epiphany-hal-data.h"
 
 
 using std::map;
@@ -124,7 +124,7 @@ private:
   void *dsoHandle;
 
   //! Vector of all the relative CoreIds
-  vector <CoreId> relCoreIds; 
+  vector <CoreId> relCoreIds;
 
   //! Map of relative to absolute core ID
   map <CoreId, CoreId>  rel2absCore;
@@ -146,10 +146,10 @@ private:
 
   //! The number of rows
   unsigned int  numRows;
-  
+
   //! The number of columns
   unsigned int  numCols;
-  
+
   //! Current core being used for memory and register access.
   CoreId  currentCoreId;
 

@@ -88,7 +88,7 @@ uint8_t Utils::char2Hex (int c)
 
 //! @param[in] d  A hexadecimal digit. Any non-hex digit returns a NULL char
 //-----------------------------------------------------------------------------
-const char
+char
 Utils::hex2Char (uint8_t d)
 {
   static const char map[] = "0123456789abcdef"

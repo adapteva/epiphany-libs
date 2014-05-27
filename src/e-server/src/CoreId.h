@@ -73,7 +73,7 @@ public:
   uint16_t      coreId () const;
 
   // Member operators
-  const bool operator< (const CoreId& coreId) const;
+  bool operator< (const CoreId& coreId) const;
   string operator+ (const string& str);
 
 private:
@@ -92,7 +92,7 @@ ostream& operator<< (ostream& os, const CoreId &coreId);
 istream& operator>> (istream& is, CoreId &coreId);
 string operator+ (const string& str, const CoreId &coreId);
 const string& operator+= (string& str, const CoreId &coreId);
-  
+
 #endif // CORE_ID__H
 
 

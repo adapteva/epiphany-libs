@@ -37,7 +37,7 @@ using std::endl;
 //!                            range.  Default 0.
 //! @param[in] _maxRegAddrVal  Highest register mapped address in this
 //!                            range.  Default 0.
-//! 
+//!
 MemRange::MemRange (uint32_t _minAddrVal,
 		    uint32_t _maxAddrVal,
 		    uint32_t _minRegAddrVal,
@@ -100,7 +100,7 @@ MemRange::minAddr (const uint32_t  _minAddrVal)
 
 
 //! Get the minimum address
-const uint32_t
+uint32_t
 MemRange::minAddr () const
 {
   return  minAddrVal;
@@ -118,7 +118,7 @@ MemRange::maxAddr (const uint32_t  _maxAddrVal)
 
 
 //! Get the maximum address
-const uint32_t
+uint32_t
 MemRange::maxAddr () const
 {
   return  maxAddrVal;
@@ -147,7 +147,7 @@ MemRange::minRegAddr (const uint32_t  _minRegAddrVal)
 
 
 //! Get the minimum register mapped address
-const uint32_t
+uint32_t
 MemRange::minRegAddr () const
 {
   return  minRegAddrVal;
@@ -165,7 +165,7 @@ MemRange::maxRegAddr (const uint32_t  _maxRegAddrVal)
 
 
 //! Get the maximum register mapped address
-const uint32_t
+uint32_t
 MemRange::maxRegAddr () const
 {
   return  maxRegAddrVal;

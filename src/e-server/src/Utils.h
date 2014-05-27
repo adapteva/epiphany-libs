@@ -57,14 +57,14 @@ class Utils
 public:
 
   static uint8_t char2Hex (int c);
-  static const char hex2Char (uint8_t d);
+  static char hex2Char (uint8_t d);
   static void reg2Hex (uint32_t val, char *buf);
   static uint32_t hex2Reg (char *buf);
   static void ascii2Hex (char *dest, const char *src);
   static void hex2Ascii (char *dest, const char *src);
   static int rspUnescape (char *buf, int len);
   static void microSleep (unsigned long us);
- 
+
   static string  intStr (int  val,
 			 int  base = 10,
 			 int  width = 0);

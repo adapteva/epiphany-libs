@@ -113,7 +113,7 @@ CoreId::coreId () const
 //! @param [in]  coreId     The core to compare against
 //! @return  True if we are less than the specified CoreID
 //-----------------------------------------------------------------------------
-const bool
+bool
 CoreId::operator< (const CoreId& coreId) const
 {
   if (mRow < coreId.row ())

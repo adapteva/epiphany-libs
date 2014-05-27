@@ -124,7 +124,7 @@ public:
   uint32_t readSp () const;
   void writeSp (uint32_t  addr);
 
- 
+
 private:
 
   //! Number of entries in IVT table
