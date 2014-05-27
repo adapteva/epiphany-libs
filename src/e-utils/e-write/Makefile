@@ -15,6 +15,9 @@ INCLUDES    = \
 LIB_PATHS   = \
 	-L../../e-hal/Release
 
+DBG_LIB_PATHS = \
+	-L../../e-hal/Debug
+
 LIBS        = \
 	-le-hal
 

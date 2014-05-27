@@ -11,7 +11,11 @@ CROSS_COMPILE=arm-linux-gnueabihf-
 #LIBVERMIN       = .0
 #LIBVERBLD       = .0
 
-LIB_PATHS       = -L../e-xml/Release
+LIB_PATHS       = \
+	-L../e-xml/Release
+
+DBG_LIB_PATHS = \
+	-L../e-xml/Debug
 
 # Libraries to link with
 LIBS			= \

@@ -1,3 +1,15 @@
+
+2014-05-27  Ben Chaco  <bchaco@x3-c.com>
+
+	* build_tools/make_exe.rules:
+	* src/e-server/Makefile:
+	* src/e-utils/e-hw-rev/Makefile:
+	* src/e-utils/e-loader/Makefile:
+	* src/e-utils/e-read/Makefile:
+	* src/e-utils/e-reset/Makefile:
+	* src/e-utils/e-write/Makefile:
+	Added DBG_LIB_PATHS for linking debug versions of static libraries within exe Makefiles.
+	
 2014-05-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* build-libs.sh: Set CROSS_PREFIX as CROSS_COMPILE value for make.
