@@ -16,6 +16,10 @@ LIB_PATHS   = \
 	-L../../e-hal/Release 		\
     -L../../e-loader/Release
 
+DBG_LIB_PATHS = \
+	-L../../e-hal/Debug 		\
+    -L../../e-loader/Debug
+
 LIBS        = \
 	-le-hal						\
 	-le-loader
