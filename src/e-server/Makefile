@@ -24,12 +24,16 @@
 
 BUILD_ROOT  	= ../..
 
-EXENAME   = e-server
+EXENAME			= e-server
 
 ## Override CROSS_COMPILE on command line for a different cross-prefix
 CROSS_COMPILE=arm-linux-gnueabihf-
 
-LIB_PATHS = -L../e-xml/Release
+LIB_PATHS       = \
+	-L../e-xml/Release
+
+DBG_LIB_PATHS = \
+	-L../e-xml/Debug
 
 # Libraries to link with
 LIBS        = -ldl                      \

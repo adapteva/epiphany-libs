@@ -7,7 +7,7 @@ $(RELEASEDIR)/$(EXENAME): $(RELOBJS) $(C_RELOBJS) $(S_RELOBJS)
 
 # Link rule for debug executables
 $(DEBUGDIR)/$(EXENAME): $(DBGOBJS) $(C_DBGOBJS) $(S_DBGOBJS)
-	$(LINK.cc) $(EXTRALINKFLAGS) -o $@ $^ $(LIB_PATHS) $(LIBS)
+	$(LINK.cc) $(EXTRALINKFLAGS) -o $@ $^ $(DBG_LIB_PATHS) $(LIBS)
 
 # Release target for executables
 release: $(RELEASEDIR)/$(EXENAME)

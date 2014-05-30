@@ -10,6 +10,8 @@ CROSS_COMPILE=arm-linux-gnueabihf-
 
 INCLUDES    = 
 LIB_PATHS   = 
+DBG_LIB_PATHS = 
+
 LIBS        = 
 
 

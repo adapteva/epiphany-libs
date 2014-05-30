@@ -1,6 +1,22 @@
+
+2014-05-27  Ben Chaco  <bchaco@x3-c.com>
+
+	* build_tools/make_exe.rules:
+	* src/e-server/Makefile:
+	* src/e-utils/e-hw-rev/Makefile:
+	* src/e-utils/e-loader/Makefile:
+	* src/e-utils/e-read/Makefile:
+	* src/e-utils/e-reset/Makefile:
+	* src/e-utils/e-write/Makefile:
+	Added DBG_LIB_PATHS for linking debug versions of static libraries within exe Makefiles.
+	
 2014-05-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* build-libs.sh: Set CROSS_PREFIX as CROSS_COMPILE value for make.
+
+2014-05-23  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* .gitignore: Created.
 
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
@@ -11,12 +27,3 @@
 	(function build-lib): Implement make-based build.
 	(function usage): Added a clean build (-c) option.
 
-2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
-
-	* build-libs.sh: Take arg -c to clean before building and -d to
-	build Debug rather than Release versions.
-
-2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
-
-	* .gitignore: Created.
-	* ChangeLog: Created.
