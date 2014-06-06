@@ -129,8 +129,6 @@ if [[ $# == 0 ]]; then
 	usage
 fi
 
-CROSS_PREFIX=
-
 case $(uname -p) in
 	arm*)
 		# Use native arm compiler (no cross prefix)
@@ -138,7 +136,7 @@ case $(uname -p) in
 		;;
 	   *)
 		# Use cross compiler
-		CROSS_PREFIX="CROSS_COMPILE=arm-linux-gnueabihf-"
+		CROSS_PREFIX="${CROSS_PREFIX-arm-linux-gnueabihf-}"
 		;;
 esac
 

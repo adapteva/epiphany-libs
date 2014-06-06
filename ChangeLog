@@ -1,15 +1,18 @@
+2014-06-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* build-libs.sh: Correctly set CROSS_PREFIX if not already set.
 
 2014-05-27  Ben Chaco  <bchaco@x3-c.com>
 
-	* build_tools/make_exe.rules:
-	* src/e-server/Makefile:
-	* src/e-utils/e-hw-rev/Makefile:
-	* src/e-utils/e-loader/Makefile:
-	* src/e-utils/e-read/Makefile:
-	* src/e-utils/e-reset/Makefile:
-	* src/e-utils/e-write/Makefile:
-	Added DBG_LIB_PATHS for linking debug versions of static libraries within exe Makefiles.
-	
+	* build_tools/make_exe.rules: Added DBG_LIB_PATHS for linking
+	debug versions of static libraries within exe Makefiles.
+	* src/e-server/Makefile: Likewise.
+	* src/e-utils/e-hw-rev/Makefile: Likewise.
+	* src/e-utils/e-loader/Makefile: Likewise.
+	* src/e-utils/e-read/Makefile: Likewise.
+	* src/e-utils/e-reset/Makefile: Likewise.
+	* src/e-utils/e-write/Makefile: Likewise.
+
 2014-05-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* build-libs.sh: Set CROSS_PREFIX as CROSS_COMPILE value for make.
