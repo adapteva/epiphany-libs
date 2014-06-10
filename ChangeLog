@@ -1,4 +1,8 @@
+2014-05-28  Ben Chaco  <bchaco@x3-c.com>
 
+	* build-libs.sh:
+	Updates to fix CROSS_COMPILE and CROSS_PREFIX - allow CROSS_PREFIX from env var
+	
 2014-05-27  Ben Chaco  <bchaco@x3-c.com>
 
 	* build_tools/make_exe.rules:
