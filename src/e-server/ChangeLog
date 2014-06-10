@@ -1,3 +1,8 @@
+2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Add support for
+	enabling non-stop mode.
+
 2014-05-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* Makefile: Remove trailing spaces throughout. Add copyright

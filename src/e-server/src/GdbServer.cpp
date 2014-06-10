@@ -1628,6 +1628,18 @@ GdbServer::rspQuery ()
       pkt->packStr ("qM001");
       rsp->putPkt (pkt);
     }
+  else if (0 == strcmp ("qNonStop:0", pkt->data)
+    {
+      mDebugMode = ALL_STOP;
+      pkt->packStr ("OK");
+      rps->putPkt (pkt);
+    }
+  else if (0 == strcmp ("qNonStop:1", pkt->data)
+    {
+      mDebugMode = NON_STOP;
+      pkt->packStr ("OK");
+      rps->putPkt (pkt);
+    }
   else if (0 == strcmp ("qOffsets", pkt->data))
     {
       // Report any relocation
@@ -1658,7 +1670,7 @@ GdbServer::rspQuery ()
       // supported as well. Note that the packet size allows for 'G' + all the
       // registers sent to us, or a reply to 'g' with all the registers and an
       // EOS so the buffer is a well formed string.
-      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+",
+      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+,QNonStop+",
 	       pkt->getBufSize ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
