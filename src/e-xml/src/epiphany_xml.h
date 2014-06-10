@@ -1,3 +1,5 @@
+#ifndef EPIPHANY_XML__H
+#define EPIPHANY_XML__H
 /*
   File: epiphany_xml.h
 
@@ -65,3 +67,4 @@ private:
 	platform_definition_t* m_platform;
 };
 
+#endif /* EPIPHANY_XML__H */
