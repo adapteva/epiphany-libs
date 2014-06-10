@@ -1628,17 +1628,18 @@ GdbServer::rspQuery ()
       pkt->packStr ("qM001");
       rsp->putPkt (pkt);
     }
-  else if (0 == strcmp ("qNonStop:0", pkt->data)
+  else if (0 == strcmp ("qNonStop:0", pkt->data))
     {
       mDebugMode = ALL_STOP;
+      stopAttachedProcesses ();
       pkt->packStr ("OK");
-      rps->putPkt (pkt);
+      rsp->putPkt (pkt);
     }
-  else if (0 == strcmp ("qNonStop:1", pkt->data)
+  else if (0 == strcmp ("qNonStop:1", pkt->data))
     {
       mDebugMode = NON_STOP;
       pkt->packStr ("OK");
-      rps->putPkt (pkt);
+      rsp->putPkt (pkt);
     }
   else if (0 == strcmp ("qOffsets", pkt->data))
     {
@@ -4134,7 +4135,7 @@ GdbServer::getProcess (int  pid)
 //! This is for threads > 0 (i.e. not -1 meaning all threads or 0 meaning any
 //! thread). In those circumstances we do something sensible.
 
-//! @param[in] tid   The thraed ID to translate
+//! @param[in] tid   The thread ID to translate
 //! @param[in] mess  Optional supplementary message in the event of
 //!                  problems. Defaults to NULL.
 //! @return  A coreID
@@ -4222,6 +4223,22 @@ GdbServer::resumeAllThreads ()
   return allResumed;
 
 }	// resumeAllThreads ()
+
+
+//-----------------------------------------------------------------------------
+//! Stop all attached processes
+
+//! Required when switching to all-stop mode. For now we can't attach to more
+//! than one process, so it is a null operation.
+
+//! @todo Make this work for multiple attached processes.
+//-----------------------------------------------------------------------------
+void
+GdbServer::stopAttachedProcesses ()
+{
+  // Nothing for now
+
+}	// stopAttachedProcesses ()
 
 
 //-----------------------------------------------------------------------------

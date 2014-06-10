@@ -1,5 +1,13 @@
 2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
+	* src/GdbServer.cpp (GdbServer::rspQuery): Fix typos in previous
+	commit, stop attached processes in all stop mode.
+	(GdbServer::stopAttachedProcesses): Created as dummy.
+	* src/GdbServer.h: Add stopAttachedProcesses, delete printfWrapper
+	declaration, since no-longer needed.
+
+2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
 	* src/GdbServer.cpp (GdbServer::rspQuery): Add support for
 	enabling non-stop mode.
 
