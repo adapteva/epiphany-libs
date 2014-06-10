@@ -1,3 +1,17 @@
+2014-06-10  Ola Jeppsson <ola.jeppsson@gmail.com>
+
+	* src/e-xml/src/parse_c.c:
+	e-xml: Add example program that uses C bindings
+
+	* src/e-xml/Makefile:
+	* src/e-xml/src/epiphany_xml.cpp:
+	* src/e-xml/src/epiphany_xml_c.h:
+	e-xml: Add C api
+
+	* src/e-xml/src/epiphany_platform.h:
+	* src/e-xml/src/epiphany_xml.h:
+	e-xml: Add include guards to header files
+
 2014-05-28  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh:
