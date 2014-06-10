@@ -32,6 +32,12 @@
 #include "xml.h"
 #include "epiphany_xml.h"
 
+/* C API */
+extern "C"
+{
+#include "epiphany_xml_c.h"
+}
+
 // Extract a string value from an attribute
 int EpiphanyXML::ExtractAttr(XMLElement* element, char** value, char* attr)
 {
@@ -372,4 +378,38 @@ void EpiphanyXML::PrintPlatform(void)
 	}
 }
 
+/* C API */
+extern "C"
+{
 
+e_xml_t e_xml_new(char *filename)
+{
+  return (e_xml_t) new EpiphanyXML(filename);
+}
+
+void e_xml_delete(e_xml_t handle)
+{
+  delete static_cast<EpiphanyXML*>(handle);
+}
+
+int e_xml_parse(e_xml_t handle)
+{
+  return static_cast<EpiphanyXML*>(handle)->Parse();
+}
+
+platform_definition_t* e_xml_get_platform(e_xml_t handle)
+{
+  return static_cast<EpiphanyXML*>(handle)->GetPlatform();
+}
+
+void e_xml_print_platform(e_xml_t handle)
+{
+  static_cast<EpiphanyXML*>(handle)->PrintPlatform();
+}
+
+unsigned e_xml_version(e_xml_t handle)
+{
+  return static_cast<EpiphanyXML*>(handle)->Version();
+}
+
+}
