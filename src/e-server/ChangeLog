@@ -1,3 +1,10 @@
+2014-06-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp (ServerInfo::chipVersion): Created two
+	versions to get and set.
+	* src/ServerInfo.h: Added two versions of ChipVersion.
+	* src/main.cpp (initPlatform): Set chip version in server info.
+
 2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspQuery): Fix typos in previous

@@ -394,6 +394,24 @@ ServerInfo::haltOnAttach () const
 }	// haltOnAttach ()
 
 
+//! Set the chip version
+void
+ServerInfo::chipVersion (const int  version)
+{
+  mChipVersion = version;
+
+}	// chipVersion ()
+
+
+//! Get the chip version
+int
+ServerInfo::chipVersion (void) const
+{
+  return  mChipVersion;
+
+}	// chipVersion ()
+
+
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
