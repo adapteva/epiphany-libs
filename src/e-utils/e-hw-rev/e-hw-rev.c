@@ -1,27 +1,27 @@
 /*
-The MIT License (MIT)
+  The MIT License (MIT)
 
-Copyright (c) 2013 Adapteva, Inc
+  Copyright (c) 2013 Adapteva, Inc
 
-Contributed by Yaniv Sapir <support@adapteva.com>
+  Contributed by Yaniv Sapir <support@adapteva.com>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
 */
 
 #include <sys/types.h>
@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include <unistd.h>
 #include <string.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -39,33 +40,31 @@ THE SOFTWARE.
 
 #define diag(vN)   if (e_host_verbose >= vN)
 
-static int e_host_verbose = 0;
-static FILE *fd;
-
 typedef struct {
-	off_t           phy_base;    // physical global base address of memory region
-	size_t          map_size;    // size of mapped region
-	off_t           map_mask;    // for mmap
-	void           *mapped_base; // for mmap
-	void           *base;        // application space base address of memory region
+    off_t           phy_base;    // physical global base address of memory region
+    size_t          map_size;    // size of mapped region
+    off_t           map_mask;    // for mmap
+    void           *mapped_base; // for mmap
+    void           *base;        // application space base address of memory region
 } Epiphany_mmap_t;
 
 
 typedef struct {
-	int             memfd;       // for mmap
-	Epiphany_mmap_t esys;        // e-system registers data structure
+    int             memfd;       // for mmap
+    Epiphany_mmap_t esys;        // e-system registers data structure
 } Epiphany_t;
 
 
 
 #ifndef EPI_OK
-#	define EPI_OK     0
-#	define EPI_ERR    1
-#	define EPI_WARN   2
+#   define EPI_OK     0
+#   define EPI_ERR    1
+#   define EPI_WARN   2
 #endif
 
-
-#define ESYS_BASE_REGS 0x808f0000
+#define EPIPHANY_DEVICE         "/dev/epiphany"
+#define ESYS_BASE               0x80800000
+#define ESYS_REGS_OFFSET        0xf0000    
 
 // Epiphany System Registers
 #define ESYS_CONFIG    0x0f00
@@ -77,22 +76,33 @@ typedef struct {
 #define ESYS_TIMEOUT   0x0f18
 
 
+int e_open(Epiphany_t *);
+int e_close(Epiphany_t *);
+int e_read_esys(Epiphany_t *, const off_t);
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
-	Epiphany_t *dev, Epiphany;
-	unsigned int hw_rev;
+    Epiphany_t *dev, Epiphany;
+    unsigned int hw_rev;
 
-	dev = &Epiphany;
+    /* Silence unused variable warnings */
+    (void)argc;
+    (void)argv;
 
-	e_open(dev);
+    dev = &Epiphany;
 
-	hw_rev = e_read_esys(dev, ESYS_VERSION);
-	printf("Epiphany Hardware Revision: %02x.%02x.%02x.%02x\n", (hw_rev>>24)&0xff, (hw_rev>>16)&0xff, (hw_rev>>8)&0xff, (hw_rev>>0)&0xff);
+    if ( EPI_OK != e_open(dev) ) {
+        warnx("main(): failed to open the epiphany device.");   
+        return EPI_ERR;
+    }
 
-	e_close(dev);
+    hw_rev = e_read_esys(dev, ESYS_VERSION);
+    printf("Epiphany Hardware Revision: %02x.%02x.%02x.%02x\n", (hw_rev>>24)&0xff,
+           (hw_rev>>16)&0xff, (hw_rev>>8)&0xff, (hw_rev>>0)&0xff);
 
-	return 0;
+    e_close(dev);
+
+    return 0;
 }
 
 
@@ -102,61 +112,51 @@ int main(int argc, char *argv[])
 // Epiphany access
 int e_open(Epiphany_t *dev)
 {
-	uid_t UID;
-	int i;
+    // Open memory device
+    dev->memfd = open(EPIPHANY_DEVICE, O_RDWR | O_SYNC);
+    if (dev->memfd == -1)
+    {
+        warnx("e_open(): /dev/epiphany file open failure. errno is %s", strerror(errno));
+        return EPI_ERR;
+    }
 
-	UID = getuid();
-	if (UID != 0)
-	{
-		warnx("e_open(): Program must be invoked with superuser privilege (sudo).");
-		return EPI_ERR;
-	}
+    // e-sys regs
+    dev->esys.phy_base = ESYS_BASE;
+    dev->esys.map_size = 0x1000;
+    dev->esys.map_mask = (dev->esys.map_size - 1);
 
-	// Open memory device
-	dev->memfd = open("/dev/mem", O_RDWR | O_SYNC);
-	if (dev->memfd == 0)
-	{
-		warnx("e_open(): /dev/mem file open failure.");
-		return EPI_ERR;
-	}
+    dev->esys.mapped_base = mmap(0, dev->esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
+                                 dev->memfd, ESYS_REGS_OFFSET);
+    dev->esys.base = dev->esys.mapped_base;
 
-	// e-sys regs
-	dev->esys.phy_base = ESYS_BASE_REGS;
-	dev->esys.map_size = 0x1000;
-	dev->esys.map_mask = (dev->esys.map_size - 1);
+    if ((dev->esys.mapped_base == MAP_FAILED))
+    {
+        warnx("e_open(): mmap failure.");
+        return EPI_ERR;
+    }
 
-	dev->esys.mapped_base = mmap(0, dev->esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-	                          dev->memfd, dev->esys.phy_base & ~dev->esys.map_mask);
-	dev->esys.base = dev->esys.mapped_base + (dev->esys.phy_base & dev->esys.map_mask);
-
-	if ((dev->esys.mapped_base == MAP_FAILED))
-	{
-		warnx("e_open(): ESYS mmap failure.");
-		return EPI_ERR;
-	}
-
-	return EPI_OK;
+    return EPI_OK;
 }
 
 
 int e_close(Epiphany_t *dev)
 {
-	munmap(dev->esys.mapped_base, dev->esys.map_size);
+    munmap(dev->esys.mapped_base, dev->esys.map_size);
 
-	close(dev->memfd);
+    close(dev->memfd);
 
-	return EPI_OK;
+    return EPI_OK;
 }
 
 
-int e_read_esys(Epiphany_t *dev, const off_t from_addr)
+int e_read_esys(Epiphany_t *dev, const off_t offset)
 {
-	volatile int *pfrom;
-	int           data;
+    volatile int *pfrom;
+    int           data = 0;
 
-	pfrom = (int *) (dev->esys.base + (from_addr & dev->esys.map_mask));
-	data  = *pfrom;
+    pfrom = (int *) (dev->esys.base + (offset & dev->esys.map_mask));
+    data  = *pfrom;
 
-	return data;
+    return data;
 }
 
