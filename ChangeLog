@@ -1,3 +1,14 @@
+2014-06-10  Ola Jeppsson <ola.jeppsson@gmail.com>
+
+	* src/e-xml/Makefile:
+	e-xml: Only export public API functions in shared library
+
+	Don't clutter namespace.
+
+	objdump --dynamic-syms Release/libe-xml.so | grep " g    " | wc -l
+	Before: 262
+	After: 27
+
 2014-05-28  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh:
