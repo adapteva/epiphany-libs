@@ -263,7 +263,7 @@ EpiphanyXML::~EpiphanyXML()
 		{
 			for(i=0; i<m_platform->num_chips; i++)
 			{
-				delete m_platform->chips[i].version;
+				delete [] m_platform->chips[i].version;
 			}
 			delete [] m_platform->chips;
 		}
@@ -271,13 +271,13 @@ EpiphanyXML::~EpiphanyXML()
 		{
 			for(i=0; i<m_platform->num_banks; i++)
 			{
-				delete m_platform->ext_mem[i].name;
+				delete [] m_platform->ext_mem[i].name;
 			}
 			delete [] m_platform->ext_mem;
 		}
-		if (m_platform->name) delete m_platform->name;
-		if (m_platform->lib) delete m_platform->lib;
-		if (m_platform->libinitargs) delete m_platform->libinitargs;
+		if (m_platform->name) delete [] m_platform->name;
+		if (m_platform->lib) delete [] m_platform->lib;
+		if (m_platform->libinitargs) delete [] m_platform->libinitargs;
 		delete m_platform;
 		delete m_xml;
 	}

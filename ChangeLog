@@ -12,6 +12,9 @@
 	* src/e-xml/src/epiphany_xml.h:
 	e-xml: Add include guards to header files
 
+	* src/e-xml/src/epiphany_xml.cpp:
+	e-xml: Fix mismatched delete / new[]
+
 2014-05-28  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh:
