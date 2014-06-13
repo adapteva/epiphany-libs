@@ -51,6 +51,8 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 {
 	FILE       *elfStream;
 	Elf32_Ehdr hdr;
+	Elf32_Shdr shdr;
+	Elf32      phnum;
 	Elf32_Phdr *phdr;
 	e_bool_t   islocal, isonchip;
 	int        ihdr;
@@ -59,18 +61,27 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 	unsigned   CoreID;
 	int        status = E_OK;
 
-
 	islocal   = E_FALSE;
 	isonchip  = E_FALSE;
 
 	elfStream = fopen(executable, "rb");
 
 	fread(&hdr, sizeof(hdr), 1, elfStream);
-	phdr = alloca(sizeof(*phdr) * hdr.e_phnum);
-	fseek(elfStream, hdr.e_phoff, SEEK_SET);
-	fread(phdr, sizeof(*phdr), hdr.e_phnum, elfStream);
 
-	for (ihdr=0; ihdr<hdr.e_phnum; ihdr++)
+	if (hdr.e_phnum == PN_XNUM)
+	{
+		fseek(elfStream, hdr.e_shoff, SEEK_SET);
+		fread(&shdr, sizeof(shdr), 1, elfStream);
+		phnum = shdr.sh_info;
+	}
+	else
+		phnum = hdr.e_phnum;
+
+	phdr = alloca(sizeof(*phdr) * phnum);
+	fseek(elfStream, hdr.e_phoff, SEEK_SET);
+	fread(phdr, sizeof(*phdr), phnum, elfStream);
+
+	for (ihdr=0; ihdr<phnum; ihdr++)
 	{
 		if (phdr[ihdr].p_vaddr & 0xfff00000)
 		{
