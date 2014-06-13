@@ -32,6 +32,12 @@
 #include "xml.h"
 #include "epiphany_xml.h"
 
+/* C API */
+extern "C"
+{
+#include "epiphany_xml_c.h"
+}
+
 // Extract a string value from an attribute
 int EpiphanyXML::ExtractAttr(XMLElement* element, char** value, char* attr)
 {
@@ -263,7 +269,7 @@ EpiphanyXML::~EpiphanyXML()
 		{
 			for(i=0; i<m_platform->num_chips; i++)
 			{
-				delete m_platform->chips[i].version;
+				delete [] m_platform->chips[i].version;
 			}
 			delete [] m_platform->chips;
 		}
@@ -271,13 +277,13 @@ EpiphanyXML::~EpiphanyXML()
 		{
 			for(i=0; i<m_platform->num_banks; i++)
 			{
-				delete m_platform->ext_mem[i].name;
+				delete [] m_platform->ext_mem[i].name;
 			}
 			delete [] m_platform->ext_mem;
 		}
-		if (m_platform->name) delete m_platform->name;
-		if (m_platform->lib) delete m_platform->lib;
-		if (m_platform->libinitargs) delete m_platform->libinitargs;
+		if (m_platform->name) delete [] m_platform->name;
+		if (m_platform->lib) delete [] m_platform->lib;
+		if (m_platform->libinitargs) delete [] m_platform->libinitargs;
 		delete m_platform;
 		delete m_xml;
 	}
@@ -372,4 +378,38 @@ void EpiphanyXML::PrintPlatform(void)
 	}
 }
 
+/* C API */
+extern "C"
+{
 
+e_xml_t e_xml_new(char *filename)
+{
+  return (e_xml_t) new EpiphanyXML(filename);
+}
+
+void e_xml_delete(e_xml_t handle)
+{
+  delete static_cast<EpiphanyXML*>(handle);
+}
+
+int e_xml_parse(e_xml_t handle)
+{
+  return static_cast<EpiphanyXML*>(handle)->Parse();
+}
+
+platform_definition_t* e_xml_get_platform(e_xml_t handle)
+{
+  return static_cast<EpiphanyXML*>(handle)->GetPlatform();
+}
+
+void e_xml_print_platform(e_xml_t handle)
+{
+  static_cast<EpiphanyXML*>(handle)->PrintPlatform();
+}
+
+unsigned e_xml_version(e_xml_t handle)
+{
+  return static_cast<EpiphanyXML*>(handle)->Version();
+}
+
+}

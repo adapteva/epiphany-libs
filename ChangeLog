@@ -1,4 +1,4 @@
-o2014-06-12  Ben Chaco  <bchaco@x3-c.com>
+2014-06-12  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/src/epiphany-hal.c (int e_init):
 	(int e_open):
@@ -11,8 +11,34 @@ o2014-06-12  Ben Chaco  <bchaco@x3-c.com>
 	* src/e-utils/e-hw-rev/e-hw-rev.c (int main):
 	(int e_close):
 	(int e_read_esys):
-	use /dev/epiphany for memory mapping. Untabified.
-	
+	Use /dev/epiphany for memory mapping. Untabified.
+
+2014-06-10  Ola Jeppsson <ola.jeppsson@gmail.com>
+
+	* src/e-xml/Makefile:
+	e-xml: Only export public API functions in shared library
+
+	Don't clutter namespace.
+
+	objdump --dynamic-syms Release/libe-xml.so | grep " g    " | wc -l
+	Before: 262
+	After: 27
+
+	* src/e-xml/src/parse_c.c:
+	e-xml: Add example program that uses C bindings
+
+	* src/e-xml/Makefile:
+	* src/e-xml/src/epiphany_xml.cpp:
+	* src/e-xml/src/epiphany_xml_c.h:
+	e-xml: Add C api
+
+	* src/e-xml/src/epiphany_platform.h:
+	* src/e-xml/src/epiphany_xml.h:
+	e-xml: Add include guards to header files
+
+	* src/e-xml/src/epiphany_xml.cpp:
+	e-xml: Fix mismatched delete / new[]
+
 2014-05-28  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh:
