@@ -1,3 +1,5 @@
+#ifndef EPIPHANY_PLATFORM__H
+#define EPIPHANY_PLATFORM__H
 /*
   File: epiphany_platform.h
 
@@ -69,3 +71,4 @@ typedef struct
 	mem_def_t  *ext_mem;     // array of ext_mem[]
 } platform_definition_t;
 
+#endif /* EPIPHANY_PLATFORM__H */

@@ -8,6 +8,9 @@
 	objdump --dynamic-syms Release/libe-xml.so | grep " g    " | wc -l
 	Before: 262
 	After: 27
+	* src/e-xml/src/epiphany_platform.h:
+	* src/e-xml/src/epiphany_xml.h:
+	e-xml: Add include guards to header files
 
 2014-05-28  Ben Chaco  <bchaco@x3-c.com>
 
