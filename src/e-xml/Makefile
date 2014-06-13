@@ -34,3 +34,7 @@ CXXFLAGS    += ${EXTRA_FLAGS}
 # Make all API functions visible
 Release/epiphany_xml.o: CXXFLAGS += -fvisibility=default
 Debug/epiphany_xml.o:   CXXFLAGS += -fvisibility=default
+
+# Link with stdc++
+LNK         += -lstdc++
+
