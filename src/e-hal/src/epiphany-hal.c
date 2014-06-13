@@ -73,13 +73,6 @@ int e_init(char *hdf)
 	e_platform.num_chips   = 0;
 	e_platform.num_emems   = 0;
 
-	UID = getuid();
-	if (UID != 0)
-	{
-		warnx("e_init(): Program must be invoked with superuser privilege (sudo).");
-		return E_ERR;
-	}
-
 	// Parse HDF, get platform configuration
 	if (hdf == NULL)
 	{
@@ -216,10 +209,10 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 
 	// Open memory device
-	dev->memfd = open("/dev/mem", O_RDWR | O_SYNC);
-	if (dev->memfd == 0)
+	dev->memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	if (dev->memfd == -1)
 	{
-		warnx("e_open(): /dev/mem file open failure.");
+		warnx("e_open(): /dev/epiphany file open failure.");
 		return E_ERR;
 	}
 
@@ -591,10 +584,10 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 
 	mbuf->objtype = E_EXT_MEM;
 
-	mbuf->memfd = open("/dev/mem", O_RDWR | O_SYNC);
-	if (mbuf->memfd == 0)
+	mbuf->memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	if (mbuf->memfd == -1)
 	{
-		warnx("e_alloc(): /dev/mem file open failure.");
+		warnx("e_alloc(): /dev/epiphany file open failure.");
 		return E_ERR;
 	}
 
@@ -752,10 +745,10 @@ int ee_read_esys(off_t from_addr)
 	int           data;
 
 	// Open memory device
-	memfd = open("/dev/mem", O_RDWR | O_SYNC);
-	if (memfd == 0)
+	memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	if (memfd == -1)
 	{
-		warnx("ee_read_esys(): /dev/mem file open failure.");
+		warnx("ee_read_esys(): /dev/epiphany file open failure.");
 		return E_ERR;
 	}
 
@@ -794,10 +787,10 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 	int      *pto;
 
 	// Open memory device
-	memfd = open("/dev/mem", O_RDWR | O_SYNC);
-	if (memfd == 0)
+	memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	if (memfd == -1)
 	{
-		warnx("ee_write_esys(): /dev/mem file open failure.");
+		warnx("ee_write_esys(): /dev/epiphany file open failure.");
 		return E_ERR;
 	}
 
@@ -846,7 +839,12 @@ int e_reset_system(void)
 		e_epiphany_t dev;
 		int          data;
 		diag(H_D2) { fprintf(fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
-		e_open(&dev, 2, 3, 1, 1);
+		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
+        {
+            warnx("e_reset_system(): e_open() failure.");
+            return E_ERR;
+        }
+
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
 		e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int));

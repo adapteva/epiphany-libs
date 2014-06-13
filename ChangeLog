@@ -1,3 +1,18 @@
+2014-06-12  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-hal/src/epiphany-hal.c (int e_init):
+	(int e_open):
+	(int e_alloc):
+	(int ee_read_esys):
+	(ssize_t ee_write_esys):
+	(int e_reset_system):
+	Removed test for root privs, use /dev/epiphany for memory mapping,
+	Fixed return value checks from open() syscall.
+	* src/e-utils/e-hw-rev/e-hw-rev.c (int main):
+	(int e_close):
+	(int e_read_esys):
+	Use /dev/epiphany for memory mapping. Untabified.
+
 2014-06-10  Ola Jeppsson <ola.jeppsson@gmail.com>
 
 	* src/e-xml/Makefile:
