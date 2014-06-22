@@ -5,6 +5,10 @@ set -e
 ESDK=${EPIPHANY_HOME}
 BSPS="zed_E16G3_512mb zed_E64G4_512mb parallella_E16G3_1GB"
 
+if [[ -z $EPIPHANY_PREFIX ]]; then
+    EPIPHANY_PREFIX=e-
+fi
+
 function build-xml() {
         # Build the XML parser library
         echo '==============================='
@@ -87,15 +91,17 @@ function build-lib() {
         echo '==============================='
         echo '============ E-LIB ============'
         echo '==============================='
-        if [ ! -d "${ESDK}/tools/e-gnu/bin" ]; then
+	which ${EPIPHANY_PREFIX}gcc 
+        if [ $? -ne 0 ]; then
                 echo "In order to build the E-LIB the e-gcc compiler is required. Please"
                 echo "install the Epiphany GNU tools suite first at ${ESDK}/tools/e-gnu!"
+		echo "(or in your PATH)"
                 exit
         fi
         cd src/e-lib
 
         # Always use the epiphany toolchain for building e-lib
-        make CROSS_COMPILE=e- $CLEAN all
+        make CROSS_COMPILE=${EPIPHANY_PREFIX} $CLEAN all
         cd ../../
 }
 
@@ -132,7 +138,7 @@ fi
 # If CROSS_PREFIX is not defined in the environment then try to
 # determine what it is based on the platform
 if [[ -z $CROSS_PREFIX ]]; then
-    case $(uname -p) in
+    case $(uname -m) in
         arm*)
             # Use native arm compiler (no cross prefix)
             CROSS_PREFIX=
