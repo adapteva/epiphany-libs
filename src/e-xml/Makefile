@@ -3,9 +3,6 @@ BUILD_ROOT  	= ../..
 
 LIBNAME			= e-xml
 
-## Override CROSS_COMPILE on command line for a different cross-prefix
-CROSS_COMPILE=arm-linux-gnueabihf-
-
 # <REQUIRED - for shared object versioning
 # LIBVERMAJ       = .1
 # LIBVERMIN       = .0
