@@ -135,27 +135,6 @@ if [[ $# == 0 ]]; then
         usage
 fi
 
-# If CROSS_PREFIX is not defined in the environment then try to
-# determine what it is based on the platform
-if [[ -z $CROSS_PREFIX ]]; then
-    case $(uname -m) in
-        arm*)
-            # Use native arm compiler (no cross prefix)
-            CROSS_PREFIX=
-            ;;
-        *)
-            case $(uname -s) in
-                Linux)
-                             # Use cross compiler
-                    CROSS_PREFIX="arm-linux-gnueabihf-"
-                    ;;
-                Darwin) 
-                    CROSS_PREFIX="Darwin - no known toolchain CROSS_PREFIX"
-                    ;;
-            esac
-    esac
-fi
-
 MAKE="make CROSS_COMPILE=$CROSS_PREFIX " 
 CLEAN=
 
