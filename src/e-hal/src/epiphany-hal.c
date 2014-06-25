@@ -36,6 +36,9 @@
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+
 typedef unsigned int  uint;
 typedef unsigned long ulong;
 
@@ -43,16 +46,14 @@ typedef unsigned long ulong;
 #define diag(vN) if (e_host_verbose >= vN)
 
 //static int e_host_verbose = 0;
-//static FILE *fd;
 int   e_host_verbose; //__attribute__ ((visibility ("hidden"))) = 0;
-FILE *fd             __attribute__ ((visibility ("hidden")));
+FILE *diag_fd             __attribute__ ((visibility ("hidden")));
 
 char *OBJTYPE[64] = {"NULL", "EPI_PLATFORM", "EPI_CHIP", "EPI_GROUP", "EPI_CORE", "EXT_MEM"};
 
 char const esdk_path[] = "EPIPHANY_HOME";
 char const hdf_env_var_name[] = "EPIPHANY_HDF";
 
-//static e_platform_t e_platform = { E_EPI_PLATFORM };
 e_platform_t e_platform = { E_EPI_PLATFORM };
 
 /////////////////////////////////
@@ -63,9 +64,11 @@ e_platform_t e_platform = { E_EPI_PLATFORM };
 // Initialize Epiphany platform according to configuration found in the HDF
 int e_init(char *hdf)
 {
-	uid_t UID;
 	char *hdf_env, *esdk_env, hdf_dfl[1024];
 	int i;
+
+    // Init global file descriptor
+    diag_fd = stderr;
 
 	e_platform.objtype     = E_EPI_PLATFORM;
 	e_platform.hal_ver     = 0x050d0705; // TODO: update ver
@@ -78,7 +81,7 @@ int e_init(char *hdf)
 	{
 		// Try getting HDF from EPIPHANY_HDF environment variable
 		hdf_env = getenv(hdf_env_var_name);
-		diag(H_D2) { fprintf(fd, "e_init(): HDF ENV = %s\n", hdf_env); }
+		diag(H_D2) { fprintf(diag_fd, "e_init(): HDF ENV = %s\n", hdf_env); }
 		if (hdf_env != NULL)
 			hdf = hdf_env;
 		else
@@ -92,7 +95,7 @@ int e_init(char *hdf)
 		}
 	}
 
-	diag(H_D2) { fprintf(fd, "e_init(): opening HDF %s\n", hdf); }
+	diag(H_D2) { fprintf(diag_fd, "e_init(): opening HDF %s\n", hdf); }
 	if (ee_parse_hdf(&e_platform, hdf))
 	{
 		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
@@ -133,8 +136,8 @@ int e_init(char *hdf)
 	}
 	e_platform.rows = e_platform.rows - e_platform.row + 1;
 	e_platform.cols = e_platform.cols - e_platform.col + 1;
-	diag(H_D2) { fprintf(fd, "e_init(): platform.(row,col)   = (%d,%d)\n", e_platform.row, e_platform.col); }
-	diag(H_D2) { fprintf(fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
+	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(row,col)   = (%d,%d)\n", e_platform.row, e_platform.col); }
+	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
 
 	e_platform.initialized = E_TRUE;
 
@@ -195,17 +198,17 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 	// Set device geometry
 	// TODO: check if coordinates and size are legal.
-	diag(H_D2) { fprintf(fd, "e_open(): platform.(row,col)=(%d,%d)\n", e_platform.row, e_platform.col); }
+	diag(H_D2) { fprintf(diag_fd, "e_open(): platform.(row,col)=(%d,%d)\n", e_platform.row, e_platform.col); }
 	dev->row         = row + e_platform.row;
 	dev->col         = col + e_platform.col;
 	dev->rows        = rows;
 	dev->cols        = cols;
 	dev->num_cores   = dev->rows * dev->cols;
-	diag(H_D2) { fprintf(fd, "e_open(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), num_cores=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, dev->num_cores); }
+	diag(H_D2) { fprintf(diag_fd, "e_open(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), num_cores=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, dev->num_cores); }
 	dev->base_coreid = ee_get_id_from_coords(dev, 0, 0);
 
-	diag(H_D2) { fprintf(fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
-	diag(H_D2) { fprintf(fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
+	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
+	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
 
 	// Open memory device
@@ -236,14 +239,14 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 		for (icol=0; icol<dev->cols; icol++)
 		{
-			diag(H_D2) { fprintf(fd, "e_open(): opening core (%d,%d)\n", irow, icol); }
+			diag(H_D2) { fprintf(diag_fd, "e_open(): opening core (%d,%d)\n", irow, icol); }
 
 			curr_core = &(dev->core[irow][icol]);
 			curr_core->row = irow;
 			curr_core->col = icol;
 			curr_core->id  = ee_get_id_from_coords(dev, curr_core->row, curr_core->col);
 
-			diag(H_D2) { fprintf(fd, "e_open(): core (%d,%d), CoreID = 0x%03x\n", curr_core->row, curr_core->col, curr_core->id); }
+			diag(H_D2) { fprintf(diag_fd, "e_open(): core (%d,%d), CoreID = 0x%03x\n", curr_core->row, curr_core->col, curr_core->id); }
 
 			//    |-------------|     req'd map
 			// +--0-+--1-+--2-+--3-+  O/S pages
@@ -258,7 +261,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->mems.mapped_base = mmap(NULL, curr_core->mems.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->mems.page_base);
 			curr_core->mems.base = curr_core->mems.mapped_base + curr_core->mems.page_offset;
 
-			diag(H_D2) { fprintf(fd, "e_open(): mems.phy_base = 0x%08x, mems.base = 0x%08x, mems.size = 0x%08x\n", (uint) curr_core->mems.phy_base, (uint) curr_core->mems.base, (uint) curr_core->mems.map_size); }
+			diag(H_D2) { fprintf(diag_fd, "e_open(): mems.phy_base = 0x%08x, mems.base = 0x%08x, mems.size = 0x%08x\n", (uint) curr_core->mems.phy_base, (uint) curr_core->mems.base, (uint) curr_core->mems.map_size); }
 
 			// e-core regs
 			curr_core->regs.phy_base = (curr_core->id << 20 | e_platform.chip[0].regs_base); // TODO: assumes first chip + a single chip type
@@ -269,7 +272,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->regs.mapped_base = mmap(NULL, curr_core->regs.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->regs.page_base);
 			curr_core->regs.base = curr_core->regs.mapped_base + curr_core->regs.page_offset;
 
-			diag(H_D2) { fprintf(fd, "e_open(): regs.phy_base = 0x%08x, regs.base = 0x%08x, regs.size = 0x%08x\n", (uint) curr_core->regs.phy_base, (uint) curr_core->regs.base, (uint) curr_core->regs.map_size); }
+			diag(H_D2) { fprintf(diag_fd, "e_open(): regs.phy_base = 0x%08x, regs.base = 0x%08x, regs.size = 0x%08x\n", (uint) curr_core->regs.phy_base, (uint) curr_core->regs.base, (uint) curr_core->regs.map_size); }
 
 			if (curr_core->mems.mapped_base == MAP_FAILED)
 			{
@@ -332,7 +335,7 @@ ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf
 	switch (*((e_objtype_t *) dev))
 	{
 	case E_EPI_GROUP:
-		diag(H_D2) { fprintf(fd, "e_read(): detected EPI_GROUP object.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_read(): detected EPI_GROUP object.\n"); }
 		edev = (e_epiphany_t *) dev;
 		if (from_addr < edev->core[row][col].mems.map_size)
 			rcount = ee_read_buf(edev, row, col, from_addr, buf, size);
@@ -343,13 +346,13 @@ ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf
 		break;
 
 	case E_EXT_MEM:
-		diag(H_D2) { fprintf(fd, "e_read(): detected EXT_MEM object.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_read(): detected EXT_MEM object.\n"); }
 		mdev = (e_mem_t *) dev;
 		rcount = ee_mread_buf(mdev, from_addr, buf, size);
 		break;
 
 	default:
-		diag(H_D2) { fprintf(fd, "e_read(): invalid object type.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_read(): invalid object type.\n"); }
 		rcount = 0;
 		return E_ERR;
 	}
@@ -369,7 +372,7 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 	switch (*((e_objtype_t *) dev))
 	{
 	case E_EPI_GROUP:
-		diag(H_D2) { fprintf(fd, "e_write(): detected EPI_GROUP object.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_write(): detected EPI_GROUP object.\n"); }
 		edev = (e_epiphany_t *) dev;
 		if (to_addr < edev->core[row][col].mems.map_size)
 			wcount = ee_write_buf(edev, row, col, to_addr, buf, size);
@@ -381,13 +384,13 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 		break;
 
 	case E_EXT_MEM:
-		diag(H_D2) { fprintf(fd, "e_write(): detected EXT_MEM object.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_write(): detected EXT_MEM object.\n"); }
 		mdev = (e_mem_t *) dev;
 		wcount = ee_mwrite_buf(mdev, to_addr, buf, size);
 		break;
 
 	default:
-		diag(H_D2) { fprintf(fd, "e_write(): invalid object type.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_write(): invalid object type.\n"); }
 		wcount = 0;
 		return E_ERR;
 	}
@@ -406,13 +409,13 @@ int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from
 	size = sizeof(int);
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_read_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_read_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_read_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = (int *) (dev->core[row][col].mems.base + from_addr);
-	diag(H_D2) { fprintf(fd, "ee_read_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
+	diag(H_D2) { fprintf(diag_fd, "ee_read_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
 	return data;
@@ -428,13 +431,13 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_write_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_write_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_write_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = (int *) (dev->core[row][col].mems.base + to_addr);
-	diag(H_D2) { fprintf(fd, "ee_write_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
+	diag(H_D2) { fprintf(diag_fd, "ee_write_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
 	*pto = data;
 
 	return sizeof(int);
@@ -450,13 +453,13 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_read_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_read_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = dev->core[row][col].mems.base + from_addr;
-	diag(H_D2) { fprintf(fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (int) size); }
+	diag(H_D2) { fprintf(diag_fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (int) size); }
 
 	if ((dev->type == E_E64G401) && ((row >= 1) && (row <= 2)))
 	{
@@ -503,13 +506,13 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].mems.map_size); }
 		warnx("ee_write_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = dev->core[row][col].mems.base + to_addr;
-	diag(H_D2) { fprintf(fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
+	diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
 	memcpy(pto, buf, size);
 
 	return size;
@@ -531,13 +534,13 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	size = sizeof(int);
 	if (((addr + size) > dev->core[row][col].regs.map_size) || (addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_read_reg(): from_addr=0x%08x, size=0x%08x, map_size=0x%08x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_read_reg(): from_addr=0x%08x, size=0x%08x, map_size=0x%08x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
 		warnx("ee_read_reg(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = (int *) (dev->core[row][col].regs.base + addr);
-	diag(H_D2) { fprintf(fd, "ee_read_reg(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
+	diag(H_D2) { fprintf(diag_fd, "ee_read_reg(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
 	return data;
@@ -558,13 +561,13 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].regs.map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_write_reg(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_write_reg(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
 		warnx("ee_write_reg(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = (int *) (dev->core[row][col].regs.base + to_addr);
-	diag(H_D2) { fprintf(fd, "ee_write_reg(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
+	diag(H_D2) { fprintf(diag_fd, "ee_write_reg(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
 	*pto = data;
 
 	return sizeof(int);
@@ -591,7 +594,7 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 		return E_ERR;
 	}
 
-	diag(H_D2) { fprintf(fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) base); }
+	diag(H_D2) { fprintf(diag_fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) base); }
 
 	mbuf->phy_base = (e_platform.emem[0].phy_base + base); // TODO: this takes only the 1st segment into account
 	mbuf->page_base = ee_rndl_page(mbuf->phy_base);
@@ -604,7 +607,7 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 	mbuf->ephy_base = (e_platform.emem[0].ephy_base + base); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
-	diag(H_D2) { fprintf(fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
+	diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
 
 	if (mbuf->mapped_base == MAP_FAILED)
 	{
@@ -658,13 +661,13 @@ int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 	size = sizeof(int);
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mread_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_mread_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mread_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = (int *) (mbuf->base + from_addr);
-	diag(H_D2) { fprintf(fd, "ee_mread_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
+	diag(H_D2) { fprintf(diag_fd, "ee_mread_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
 	return data;
@@ -680,13 +683,13 @@ ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data)
 	size = sizeof(int);
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mwrite_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_mwrite_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mwrite_word(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = (int *) (mbuf->base + to_addr);
-	diag(H_D2) { fprintf(fd, "ee_mwrite_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
+	diag(H_D2) { fprintf(diag_fd, "ee_mwrite_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
 	*pto = data;
 
 	return sizeof(int);
@@ -700,13 +703,13 @@ ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t siz
 
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mread_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mread_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = mbuf->base + from_addr;
-	diag(H_D2) { fprintf(fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (uint) size); }
+	diag(H_D2) { fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (uint) size); }
 	memcpy(buf, pfrom, size);
 
 	return size;
@@ -720,13 +723,13 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
+		diag(H_D2) { fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mwrite_buf(): Buffer range is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = mbuf->base + to_addr;
-	diag(H_D2) { fprintf(fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (uint) size); }
+	diag(H_D2) { fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (uint) size); }
 	memcpy(pto, buf, size);
 
 	return size;
@@ -760,7 +763,7 @@ int ee_read_esys(off_t from_addr)
 	esys.mapped_base = mmap(NULL, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.page_base);
 	esys.base = esys.mapped_base + esys.page_offset;
 
-	diag(H_D2) { fprintf(fd, "ee_read_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size); }
+	diag(H_D2) { fprintf(diag_fd, "ee_read_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size); }
 
 	if (esys.mapped_base == MAP_FAILED)
 	{
@@ -769,7 +772,7 @@ int ee_read_esys(off_t from_addr)
 	}
 
 	pfrom = (int *) (esys.base);
-	diag(H_D2) { fprintf(fd, "ee_read_esys(): reading from from_addr=0x%08x, pto=0x%08x\n", (uint) from_addr, (uint) pfrom); }
+	diag(H_D2) { fprintf(diag_fd, "ee_read_esys(): reading from from_addr=0x%08x, pto=0x%08x\n", (uint) from_addr, (uint) pfrom); }
 	data  = *pfrom;
 
 	munmap(esys.mapped_base, esys.map_size);
@@ -802,7 +805,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 	esys.mapped_base = mmap(NULL, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.page_base);
 	esys.base = esys.mapped_base + esys.page_offset;
 
-	diag(H_D2) { fprintf(fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.page_base = 0x%08x, esys.page_offset = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.page_base, (uint) esys.page_offset, (uint) esys.base, (uint) esys.map_size); }
+	diag(H_D2) { fprintf(diag_fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.page_base = 0x%08x, esys.page_offset = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.page_base, (uint) esys.page_offset, (uint) esys.base, (uint) esys.map_size); }
 
 	if (esys.mapped_base == MAP_FAILED)
 	{
@@ -811,7 +814,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 	}
 
 	pto = (int *) (esys.base);
-	diag(H_D2) { fprintf(fd, "ee_write_esys(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) (e_platform.regs_base + to_addr), (uint) pto); }
+	diag(H_D2) { fprintf(diag_fd, "ee_write_esys(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) (e_platform.regs_base + to_addr), (uint) pto); }
 	*pto = data;
 
 	munmap(esys.mapped_base, esys.map_size);
@@ -828,7 +831,7 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	diag(H_D1) { fprintf(fd, "e_reset_system(): resetting full ESYS...\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
 	ee_write_esys(E_SYS_RESET, 0);
 	usleep(200000);
 
@@ -838,7 +841,7 @@ int e_reset_system(void)
 	{
 		e_epiphany_t dev;
 		int          data;
-		diag(H_D2) { fprintf(fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
+		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
 		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
         {
             warnx("e_reset_system(): e_open() failure.");
@@ -852,7 +855,7 @@ int e_reset_system(void)
 		e_close(&dev);
 	}
 
-	diag(H_D1) { fprintf(fd, "e_reset_system(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
 }
@@ -861,7 +864,7 @@ int e_reset_system(void)
 // Reset the Epiphany chip
 int e_reset_chip(void)
 {
-	diag(H_D1) { fprintf(fd, "e_reset_chip(): This operation is not implemented!\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_chip(): This operation is not implemented!\n"); }
 
 	return E_OK;
 }
@@ -874,18 +877,18 @@ int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	int RESET1 = 0x1;
 	int CONFIG = 0x01000000;
 
-	diag(H_D1) { fprintf(fd, "e_reset_core(): halting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): halting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
 	e_halt(dev, row, col);
 
-	diag(H_D1) { fprintf(fd, "e_reset_core(): pausing DMAs.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): pausing DMAs.\n"); }
 	e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
 
 	usleep(100000);
 
-	diag(H_D1) { fprintf(fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
 	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
 	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
-	diag(H_D1) { fprintf(fd, "e_reset_core(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): done.\n"); }
 
 	return E_OK;
 }
@@ -899,11 +902,11 @@ int e_reset_group(e_epiphany_t *dev)
 	int CONFIG = 0x01000000;
 	int row, col;
 
-	diag(H_D1) { fprintf(fd, "e_reset_group(): halting core...\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): halting core...\n"); }
 	for (row=0; row<dev->rows; row++)
 		for (col=0; col<dev->cols; col++)
 			e_halt(dev, row, col);
-	diag(H_D1) { fprintf(fd, "e_reset_group(): pausing DMAs.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): pausing DMAs.\n"); }
 
 	for (row=0; row<dev->rows; row++)
 		for (col=0; col<dev->cols; col++)
@@ -911,7 +914,7 @@ int e_reset_group(e_epiphany_t *dev)
 
 	usleep(100000);
 
-	diag(H_D1) { fprintf(fd, "e_reset_group(): resetting cores...\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): resetting cores...\n"); }
 	for (row=0; row<dev->rows; row++)
 		for (col=0; col<dev->cols; col++)
 		{
@@ -919,7 +922,7 @@ int e_reset_group(e_epiphany_t *dev)
 			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
 		}
 
-	diag(H_D1) { fprintf(fd, "e_reset_group(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): done.\n"); }
 
 	return E_OK;
 }
@@ -934,10 +937,10 @@ int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 
 	int SYNC = (1 << E_SYNC);
 
-	diag(H_D1) { fprintf(fd, "e_start(): SYNC (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
+	diag(H_D1) { fprintf(diag_fd, "e_start(): SYNC (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
 	if (ee_write_reg(dev, row, col, E_REG_ILATST, SYNC) == E_ERR)
 		retval = E_ERR;
-	diag(H_D1) { fprintf(fd, "e_start(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_start(): done.\n"); }
 
 	return retval;
 }
@@ -953,15 +956,15 @@ int e_start_group(e_epiphany_t *dev)
 
 	int SYNC = (1 << E_SYNC);
 
-	diag(H_D1) { fprintf(fd, "e_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
+	diag(H_D1) { fprintf(diag_fd, "e_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
 	for (irow=0; irow<dev->rows; irow++)
 		for (icol=0; icol<dev->cols; icol++)
 			{
-				diag(H_D1) { fprintf(fd, "e_start_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
+				diag(H_D1) { fprintf(diag_fd, "e_start_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
 				if (ee_write_reg(dev, irow, icol, E_REG_ILATST, SYNC) == E_ERR)
 					retval = E_ERR;
 			}
-	diag(H_D1) { fprintf(fd, "e_start_group(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_start_group(): done.\n"); }
 
 	return retval;
 }
@@ -972,9 +975,9 @@ int e_signal(e_epiphany_t *dev, unsigned row, unsigned col)
 {
 	int SWI = (1 << E_USER_INT);
 
-	diag(H_D1) { fprintf(fd, "e_signal(): SWI (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
+	diag(H_D1) { fprintf(diag_fd, "e_signal(): SWI (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
 	ee_write_reg(dev, row, col, E_REG_ILATST, SWI);
-	diag(H_D1) { fprintf(fd, "e_signal(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "e_signal(): done.\n"); }
 
 	return E_OK;
 }
@@ -1013,7 +1016,7 @@ unsigned e_get_num_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
 	unsigned corenum;
 
 	corenum = col + row * dev->cols;
-	diag(H_D2) { fprintf(fd, "e_get_num_from_coords(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), corenum=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
+	diag(H_D2) { fprintf(diag_fd, "e_get_num_from_coords(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), corenum=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
 
 	return corenum;
 }
@@ -1027,7 +1030,7 @@ unsigned ee_get_num_from_id(e_epiphany_t *dev, unsigned coreid)
 	row = (coreid >> 6) & 0x3f;
 	col = (coreid >> 0) & 0x3f;
 	corenum = (col - dev->col) + (row - dev->row) * dev->cols;
-	diag(H_D2) { fprintf(fd, "ee_get_num_from_id(): CoreID=0x%03x, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), corenum=%d\n", coreid, dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
+	diag(H_D2) { fprintf(diag_fd, "ee_get_num_from_id(): CoreID=0x%03x, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), corenum=%d\n", coreid, dev->row, dev->col, dev->rows, dev->cols, row, col, corenum); }
 
 	return corenum;
 }
@@ -1039,7 +1042,7 @@ unsigned ee_get_id_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
 	unsigned coreid;
 
 	coreid = (dev->col + col) + ((dev->row + row) << 6);
-	diag(H_D2) { fprintf(fd, "ee_get_id_from_coords(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), CoreID=0x%03x\n", dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
+	diag(H_D2) { fprintf(diag_fd, "ee_get_id_from_coords(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), CoreID=0x%03x\n", dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
 
 	return coreid;
 }
@@ -1053,7 +1056,7 @@ unsigned ee_get_id_from_num(e_epiphany_t *dev, unsigned corenum)
 	row = corenum / dev->cols;
 	col = corenum % dev->cols;
 	coreid = (dev->col + col) + ((dev->row + row) << 6);
-	diag(H_D2) { fprintf(fd, "ee_get_id_from_num(): corenum=%d, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), CoreID=0x%03x\n", corenum, dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
+	diag(H_D2) { fprintf(diag_fd, "ee_get_id_from_num(): corenum=%d, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), CoreID=0x%03x\n", corenum, dev->row, dev->col, dev->rows, dev->cols, row, col, coreid); }
 
 	return coreid;
 }
@@ -1064,7 +1067,7 @@ void ee_get_coords_from_id(e_epiphany_t *dev, unsigned coreid, unsigned *row, un
 {
 	*row = ((coreid >> 6) & 0x3f) - dev->row;
 	*col = ((coreid >> 0) & 0x3f) - dev->col;
-	diag(H_D2) { fprintf(fd, "ee_get_coords_from_id(): CoreID=0x%03x, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d)\n", coreid, dev->row, dev->col, dev->rows, dev->col, *row, *col); }
+	diag(H_D2) { fprintf(diag_fd, "ee_get_coords_from_id(): CoreID=0x%03x, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d)\n", coreid, dev->row, dev->col, dev->rows, dev->col, *row, *col); }
 
 	return;
 }
@@ -1074,7 +1077,7 @@ void e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *row, u
 {
 	*row = corenum / dev->cols;
 	*col = corenum % dev->cols;
-	diag(H_D2) { fprintf(fd, "e_get_coords_from_num(): corenum=%d, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d)\n", corenum, dev->row, dev->col, dev->col, dev->rows, *row, *col); }
+	diag(H_D2) { fprintf(diag_fd, "e_get_coords_from_num(): corenum=%d, dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d)\n", corenum, dev->row, dev->col, dev->col, dev->rows, *row, *col); }
 
 	return;
 }
@@ -1112,8 +1115,7 @@ e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr)
 	coreid = ((unsigned) addr) >> 20;
 	ee_get_coords_from_id(dev, coreid, &row, &col);
 
-	if ((row >= 0) && (row < dev->rows) &&
-	    (col >= 0) && (col < dev->cols))
+	if ((row < dev->rows) && (col < dev->cols))
 		return E_TRUE;
 
 	return E_FALSE;
@@ -1125,7 +1127,7 @@ e_hal_diag_t e_set_host_verbosity(e_hal_diag_t verbose)
 	e_hal_diag_t old_host_verbose;
 
 	old_host_verbose = e_host_verbose;
-	fd = stderr;
+	diag_fd = stderr;
 	e_host_verbose = verbose;
 
 	return old_host_verbose;
@@ -1157,6 +1159,8 @@ int ee_parse_hdf(e_platform_t *dev, char *hdf)
 	return ret;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 {
 	FILE       *fp;
@@ -1188,34 +1192,34 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 		if (!strcmp(line, ""))
 			continue;
 		sscanf(line, "%s %s", etag, eval);
-		diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): line %d: %s %s\n", l, etag, eval); }
+		diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): line %d: %s %s\n", l, etag, eval); }
 
 
 		// Platform definition
 		if      (!strcmp("PLATFORM_VERSION", etag))
 		{
 			sscanf(eval, "%s", dev->version);
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): platform version = %s\n", dev->version); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): platform version = %s\n", dev->version); }
 		}
 
 		else if (!strcmp("NUM_CHIPS", etag))
 		{
 			sscanf(eval, "%d", &(dev->num_chips));
 			dev->chip = (e_chip_t *) calloc(dev->num_chips, sizeof(e_chip_t));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): number of chips = %d\n", dev->num_chips); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): number of chips = %d\n", dev->num_chips); }
 		}
 
 		else if (!strcmp("NUM_EXT_MEMS", etag))
 		{
 			sscanf(eval, "%d", &(dev->num_emems));
 			dev->emem = (e_memseg_t *) calloc(dev->num_emems, sizeof(e_memseg_t));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): number of ext. memory segments = %d\n", dev->num_emems); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): number of ext. memory segments = %d\n", dev->num_emems); }
 		}
 
 		else if (!strcmp("ESYS_REGS_BASE", etag))
 		{
 			sscanf(eval, "%x", &(dev->regs_base));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): base address of platform registers = 0x%08x\n", dev->regs_base); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): base address of platform registers = 0x%08x\n", dev->regs_base); }
 		}
 
 
@@ -1225,20 +1229,20 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 			chip_num++;
 			curr_chip = &(dev->chip[chip_num]);
 			sscanf(eval, "%s", curr_chip->version);
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): processing chip #%d, version = \"%s\"\n", chip_num, curr_chip->version); }
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): chip version = %s\n", curr_chip->version); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): processing chip #%d, version = \"%s\"\n", chip_num, curr_chip->version); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): chip version = %s\n", curr_chip->version); }
 		}
 
 		else if (!strcmp("CHIP_ROW", etag))
 		{
 			sscanf(eval, "%d", &(curr_chip->row));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): chip row = %d\n", curr_chip->row); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): chip row = %d\n", curr_chip->row); }
 		}
 
 		else if (!strcmp("CHIP_COL", etag))
 		{
 			sscanf(eval, "%d", &(curr_chip->col));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): chip col = %d\n", curr_chip->col); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): chip col = %d\n", curr_chip->col); }
 		}
 
 
@@ -1247,25 +1251,25 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 		{
 			emem_num++;
 			curr_emem = &(dev->emem[emem_num]);
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): processing external memory segment #%d\n", emem_num); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): processing external memory segment #%d\n", emem_num); }
 		}
 
 		else if (!strcmp("EMEM_BASE_ADDRESS", etag))
 		{
 			sscanf(eval, "%x", (unsigned int *) &(curr_emem->phy_base));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): base addr. of ext. mem. segment = 0x%08x\n", (uint) curr_emem->phy_base); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): base addr. of ext. mem. segment = 0x%08x\n", (uint) curr_emem->phy_base); }
 		}
 
 		else if (!strcmp("EMEM_EPI_BASE", etag))
 		{
 			sscanf(eval, "%x", (unsigned int *) &(curr_emem->ephy_base));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): base addr. of ext. mem. segment (device side)= 0x%08x\n", (uint) curr_emem->ephy_base); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): base addr. of ext. mem. segment (device side)= 0x%08x\n", (uint) curr_emem->ephy_base); }
 		}
 
 		else if (!strcmp("EMEM_SIZE", etag))
 		{
 			sscanf(eval, "%x", (unsigned int *) &(curr_emem->size));
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): size of ext. mem. segment = %x\n", (uint) curr_emem->size); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): size of ext. mem. segment = %x\n", (uint) curr_emem->size); }
 		}
 
 		else if (!strcmp("EMEM_TYPE", etag))
@@ -1276,7 +1280,7 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 				curr_emem->type = E_WR;
 			else if (!strcmp(etag, "RDWR"))
 				curr_emem->type = E_RDWR;
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): type of ext. mem. segment = %x\n", (uint) curr_emem->type); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): type of ext. mem. segment = %x\n", (uint) curr_emem->type); }
 		}
 
 
@@ -1284,7 +1288,7 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 		else if (!strcmp("//", etag))
 		{
 			;
-			diag(H_D3) { fprintf(fd, "ee_parse_simple_hdf(): comment\n"); }
+			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): comment\n"); }
 		}
 		else {
 			return E_ERR;
@@ -1295,10 +1299,12 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 
 	return E_OK;
 }
-
+#pragma GCC diagnostic pop
 
 int ee_parse_xml_hdf(e_platform_t *dev, char *hdf)
 {
+    (void)dev;
+    (void)hdf;
 	warnx("e_init(): XML file format is not yet supported. Please use simple HDF format.");
 
 	return E_ERR;
@@ -1332,13 +1338,13 @@ int ee_set_platform_params(e_platform_t *platform)
 	for (platform_ver = 0; platform_ver < NUM_PLATFORM_VERSIONS; platform_ver++)
 		if (!strcmp(platform->version, platform_params_table[platform_ver].version))
 		{
-			diag(H_D2) { fprintf(fd, "ee_set_platform_params(): found platform version \"%s\"\n", platform->version); }
+			diag(H_D2) { fprintf(diag_fd, "ee_set_platform_params(): found platform version \"%s\"\n", platform->version); }
 			break;
 		}
 
 	if (platform_ver == NUM_PLATFORM_VERSIONS)
 	{
-		diag(H_D2) { fprintf(fd, "ee_set_platform_params(): platform version \"%s\" not found, setting to \"%s\" type\n", platform->version, platform_params_table[0].version); }
+		diag(H_D2) { fprintf(diag_fd, "ee_set_platform_params(): platform version \"%s\" not found, setting to \"%s\" type\n", platform->version, platform_params_table[0].version); }
 		platform_ver = 0;
 	}
 
@@ -1380,13 +1386,13 @@ int ee_set_chip_params(e_chip_t *chip)
 	for (chip_ver = 0; chip_ver < NUM_CHIP_VERSIONS; chip_ver++)
 		if (!strcmp(chip->version, chip_params_table[chip_ver].version))
 		{
-			diag(H_D2) { fprintf(fd, "ee_set_chip_params(): found chip version \"%s\"\n", chip->version); }
+			diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): found chip version \"%s\"\n", chip->version); }
 			break;
 		}
 
 	if (chip_ver == NUM_CHIP_VERSIONS)
 	{
-		diag(H_D2) { fprintf(fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, chip_params_table[0].version); }
+		diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, chip_params_table[0].version); }
 		chip_ver = 0;
 	}
 
@@ -1447,3 +1453,4 @@ unsigned long ee_rndl_page(unsigned long size)
 	return rsize;
 }
 
+#pragma GCC diagnostic pop

@@ -1,3 +1,13 @@
+2014-06-25  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-hal/src/epiphany-hal-legacy.c:
+	* src/e-hal/src/epiphany-hal.c:
+	* src/e-loader/src/e-loader.c:
+	* src/e-loader/src/e-process-SREC.c:
+	Fixed a segfault due to fprintf being called with an uninitialized file pointer.
+	Renamed global diagnostics file pointer from fd to diag_fd.
+	Changed explicit fprintf calls to warnx calls.
+	
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/Debug/makefile: Removed file.

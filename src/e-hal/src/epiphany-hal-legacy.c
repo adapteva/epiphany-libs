@@ -35,10 +35,13 @@
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+
 #define diag(vN)   if (e_host_verbose >= vN)
 
 extern int   e_host_verbose;
-extern FILE *fd;
+extern FILE *diag_fd;
 
 extern e_platform_t e_platform;
 
@@ -60,7 +63,7 @@ ssize_t ee_read_abs(unsigned address, void *buf, size_t burst_size)
 	unsigned coreid;
 	unsigned row, col, i;
 
-	diag(H_D1) { fprintf(fd, "ee_read_abs(): address = 0x%08x\n", address); }
+	diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): address = 0x%08x\n", address); }
 	isglobal = ((address & 0xfff00000) != 0) ? E_TRUE : E_FALSE;
 	if (isglobal)
 	{
@@ -85,41 +88,41 @@ ssize_t ee_read_abs(unsigned address, void *buf, size_t burst_size)
 	{
 		if (isexternal)
 		{
-			diag(H_D2) { fprintf(fd, "ee_read_abs(): to external memory.\n"); }
+			diag(H_D2) { fprintf(diag_fd, "ee_read_abs(): to external memory.\n"); }
 			if ((address >= pERAM->ephy_base) && (address < (pERAM->ephy_base + pERAM->emap_size)))
 			{
-				diag(H_D2) { fprintf(fd, "ee_read_abs(): converting virtual (0x%08x) ", address); }
+				diag(H_D2) { fprintf(diag_fd, "ee_read_abs(): converting virtual (0x%08x) ", address); }
 				address = address - (pERAM->ephy_base - pERAM->phy_base);
-				diag(H_D2) { fprintf(fd, "to physical (0x%08x)...\n", address); }
+				diag(H_D2) { fprintf(diag_fd, "to physical (0x%08x)...\n", address); }
 			}
-			diag(H_D2) { fprintf(fd, "ee_read_abs(): converting physical (0x%08x) ", address); }
+			diag(H_D2) { fprintf(diag_fd, "ee_read_abs(): converting physical (0x%08x) ", address); }
 			address = address - pERAM->phy_base;
-			diag(H_D2) { fprintf(fd, "to offset (0x%08x)...\n", address); }
+			diag(H_D2) { fprintf(diag_fd, "to offset (0x%08x)...\n", address); }
 			rcount = ee_mread_buf(pERAM, address, buf, burst_size);
-			diag(H_D1) { fprintf(fd, "ee_read_abs(): isexternal -> rcount = %d\n", (int) rcount); }
+			diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): isexternal -> rcount = %d\n", (int) rcount); }
 		} else if (isonchip)
 		{
 			address = address & 0x000fffff;
 			if (ismems) {
 				rcount = ee_read_buf(pEpiphany, row, col, address, buf, burst_size);
-				diag(H_D1) { fprintf(fd, "ee_read_abs(): isonchip/ismems -> rcount = %d\n", (int) rcount); }
+				diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): isonchip/ismems -> rcount = %d\n", (int) rcount); }
 			} else if (isregs) {
 				for (rcount=0, i=0; i<burst_size; i+=sizeof(unsigned)) {
 					*((unsigned *) (buf+i)) = ee_read_reg(pEpiphany, row, col, (address+i));
 					rcount += sizeof(unsigned);
 				}
-				diag(H_D1) { fprintf(fd, "ee_read_abs(): isonchip/isregs -> rcount = %d\n", (int) rcount); }
+				diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): isonchip/isregs -> rcount = %d\n", (int) rcount); }
 			} else {
 				rcount = 0;
-				diag(H_D1) { fprintf(fd, "ee_read_abs(): is a reserved on-chip address -> rcount = %d\n", (int) rcount); }
+				diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): is a reserved on-chip address -> rcount = %d\n", (int) rcount); }
 			}
 		} else {
 			rcount = 0;
-			diag(H_D1) { fprintf(fd, "ee_read_abs(): is not a legal address -> rcount = %d\n", (int) rcount); }
+			diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): is not a legal address -> rcount = %d\n", (int) rcount); }
 		}
 	} else {
 		rcount = 0;
-		diag(H_D1) { fprintf(fd, "ee_read_abs(): is not a global address -> rcount = %d\n", (int) rcount); }
+		diag(H_D1) { fprintf(diag_fd, "ee_read_abs(): is not a global address -> rcount = %d\n", (int) rcount); }
 	}
 
 	return rcount;
@@ -134,7 +137,7 @@ ssize_t ee_write_abs(unsigned address, void *buf, size_t burst_size)
 	unsigned coreid;
 	unsigned row, col, i;
 
-	diag(H_D1) { fprintf(fd, "ee_write_abs(): address = 0x%08x\n", address); }
+	diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): address = 0x%08x\n", address); }
 	isglobal = ((address & 0xfff00000) != 0) ? E_TRUE : E_FALSE;
 	if (isglobal)
 	{
@@ -159,40 +162,40 @@ ssize_t ee_write_abs(unsigned address, void *buf, size_t burst_size)
 	{
 		if (isexternal)
 		{
-			diag(H_D2) { fprintf(fd, "ee_read_abs(): to external memory.\n"); }
+			diag(H_D2) { fprintf(diag_fd, "ee_read_abs(): to external memory.\n"); }
 			if ((address >= pERAM->ephy_base) && (address < (pERAM->ephy_base + pERAM->emap_size)))
 			{
-				diag(H_D2) { fprintf(fd, "ee_read_abs(): converting virtual (0x%08x) ", address); }
+				diag(H_D2) { fprintf(diag_fd, "ee_read_abs(): converting virtual (0x%08x) ", address); }
 				address = address - (pERAM->ephy_base - pERAM->phy_base);
-				diag(H_D2) { fprintf(fd, "to physical (0x%08x)...\n", address); }
+				diag(H_D2) { fprintf(diag_fd, "to physical (0x%08x)...\n", address); }
 			}
-			diag(H_D2) { fprintf(fd, "ee_read_abs(): converting physical (0x%08x) ", address); }
+			diag(H_D2) { fprintf(diag_fd, "ee_read_abs(): converting physical (0x%08x) ", address); }
 			address = address - pERAM->phy_base;
-			diag(H_D2) { fprintf(fd, "to offset (0x%08x)...\n", address); }
+			diag(H_D2) { fprintf(diag_fd, "to offset (0x%08x)...\n", address); }
 			rcount = ee_mwrite_buf(pERAM, address, buf, burst_size);
-			diag(H_D1) { fprintf(fd, "ee_write_abs(): isexternal -> rcount = %d\n", (int) rcount); }
+			diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): isexternal -> rcount = %d\n", (int) rcount); }
 		} else if (isonchip)
 		{
 			address = address & 0x000fffff;
 			if (ismems) {
 				rcount = ee_write_buf(pEpiphany, row, col, address, buf, burst_size);
-				diag(H_D1) { fprintf(fd, "ee_write_abs(): isonchip/ismems -> rcount = %d\n", (int) rcount); }
+				diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): isonchip/ismems -> rcount = %d\n", (int) rcount); }
 			} else if (isregs) {
 				for (rcount=0, i=0; i<burst_size; i+=sizeof(unsigned)) {
 					rcount += ee_write_reg(pEpiphany, row, col, address, *((unsigned *)(buf+i)));
 				}
-				diag(H_D1) { fprintf(fd, "ee_write_abs(): isonchip/isregs -> rcount = %d\n", (int) rcount); }
+				diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): isonchip/isregs -> rcount = %d\n", (int) rcount); }
 			} else {
 				rcount = 0;
-				diag(H_D1) { fprintf(fd, "ee_write_abs(): is a reserved on-chip address -> rcount = %d\n", (int) rcount); }
+				diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): is a reserved on-chip address -> rcount = %d\n", (int) rcount); }
 			}
 		} else {
 			rcount = 0;
-			diag(H_D1) { fprintf(fd, "ee_write_abs(): is not a legal address -> rcount = %d\n", (int) rcount); }
+			diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): is not a legal address -> rcount = %d\n", (int) rcount); }
 		}
 	} else {
 		rcount = 0;
-		diag(H_D1) { fprintf(fd, "ee_write_abs(): is not a global address -> rcount = %d\n", (int) rcount); }
+		diag(H_D1) { fprintf(diag_fd, "ee_write_abs(): is not a global address -> rcount = %d\n", (int) rcount); }
 	}
 
 	return rcount;
@@ -279,3 +282,5 @@ int esrv_get_description(char** targetIdp)
 
 	return 0;
 }
+
+#pragma GCC diagnostic pop
