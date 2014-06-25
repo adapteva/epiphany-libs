@@ -28,9 +28,13 @@
 #include <string.h>
 #include <assert.h>
 #include <elf.h>
+#include <err.h>
 
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
 
 typedef unsigned int uint;
 
@@ -44,7 +48,7 @@ typedef unsigned int uint;
 #define BUFSIZE 1000  // should be sufficient for an SREC record
 
 extern int e_load_verbose;
-extern FILE *fd;
+extern FILE *diag_fd;
 
 
 e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
@@ -83,12 +87,12 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 			isonchip = E_TRUE;
 		}
 
-		diag(L_D3) { fprintf(fd, "ee_process_ELF(): copying the data (%d bytes)", phdr[ihdr].p_filesz); }
+		diag(L_D3) { fprintf(diag_fd, "ee_process_ELF(): copying the data (%d bytes)", phdr[ihdr].p_filesz); }
 
 		if (islocal)
 		{
 			// If this is a local address
-			diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", row, col); }
+			diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", row, col); }
 			pto = pEpiphany->core[row][col].mems.base + phdr[ihdr].p_vaddr; // TODO: should this be p_paddr instead of p_vaddr?
 		}
 		else if (isonchip)
@@ -96,23 +100,23 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 			// If global address, check if address is of an eCore.
 			CoreID = phdr[ihdr].p_vaddr >> 20;
 			ee_get_coords_from_id(pEpiphany, CoreID, &globrow, &globcol);
-			diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", globrow, globcol); }
+			diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", globrow, globcol); }
 			pto = pEpiphany->core[globrow][globcol].mems.base + (phdr[ihdr].p_vaddr & ~(0xfff00000)); // TODO: should this be p_paddr instead of p_vaddr?
 		}
 		else
 		{
 			// If it is not on an eCore, it is on external memory.
-			diag(L_D3) { fprintf(fd, " to external memory.\n"); }
+			diag(L_D3) { fprintf(diag_fd, " to external memory.\n"); }
 			pto = (void *) phdr[ihdr].p_vaddr;
 			if ((phdr[ihdr].p_vaddr >= pEMEM->ephy_base) && (phdr[ihdr].p_vaddr < (pEMEM->ephy_base + pEMEM->emap_size)))
 			{
-				diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
+				diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
 				pto = pto - (pEMEM->ephy_base - pEMEM->phy_base);
-				diag(L_D3) { fprintf(fd, "to physical (0x%08x)...\n", (uint) phdr[ihdr].p_vaddr); }
+				diag(L_D3) { fprintf(diag_fd, "to physical (0x%08x)...\n", (uint) phdr[ihdr].p_vaddr); }
 			}
-			diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
+			diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
 			pto = pto - (uint) pEMEM->phy_base + (uint) pEMEM->base;
-			diag(L_D3) { fprintf(fd, "to offset (0x%08x)...\n", (uint) pto); }
+			diag(L_D3) { fprintf(diag_fd, "to offset (0x%08x)...\n", (uint) pto); }
 		}
 		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
 		fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
@@ -123,7 +127,8 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 	return status;
 }
 
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
 {
 	typedef enum {S0, S3, S7} SrecSel;
@@ -140,26 +145,26 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 	islocal   = E_FALSE;
 	isonchip  = E_FALSE;
 
-	diag(L_D1) { fprintf(fd, "ee_process_SREC(): loading core (%d,%d).\n", row, col); }
+	diag(L_D1) { fprintf(diag_fd, "ee_process_SREC(): loading core (%d,%d).\n", row, col); }
 
 	srecStream = fopen(executable, "r");
 	if (srecStream == NULL)
 	{
-		fprintf(fd, "Error: Can't open SREC file: %s\n", executable);
+		fprintf(diag_fd, "Error: Can't open SREC file: %s\n", executable);
 		return E_ERR;
 	}
 
 	rewind(srecStream);
 	unsigned lineN = 0;
-	char *dummy;
+    char *dummy    = NULL;
 
 	while(!feof(srecStream) && !ferror(srecStream))
 	{
-		dummy = fgets(buf, BUFSIZE, srecStream);
+        dummy = fgets(buf, BUFSIZE, srecStream);
 
 		if (!feof(srecStream) && !ferror(srecStream))
 		{
-			diag(L_D3) { fprintf(fd, "ee_process_SREC(): %s", buf); }
+			diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): %s", buf); }
 
 			// RECORD TYPE
 			SrecSel sSel;
@@ -167,8 +172,8 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 
 			if (buf[0] != 'S')
 			{
-				fprintf(fd, "Error: Invalid record format in SREC file line ");
-				fprintf(fd, "%d: \"%s\"\n", lineN, buf);
+				warnx("Error: Invalid record format in SREC file line ");
+				warnx("%d: \"%s\"\n", lineN, buf);
 				return E_ERR;
 			}
 
@@ -178,8 +183,8 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				addrSize = 4;
 				if (insection == E_TRUE)
 				{
-					fprintf(fd, "Error: S0 record found inside a section in SREC file line ");
-					fprintf(fd, "%d: \"%s\"\n", lineN, buf);
+					warnx("Error: S0 record found inside a section in SREC file line ");
+					warnx("%d: \"%s\"\n", lineN, buf);
 					status = E_WARN;
 					continue; // TODO: bail out with error code
 				} else {
@@ -191,8 +196,8 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				addrSize = 8;
 				if (insection == E_FALSE)
 				{
-					fprintf(fd, "Error: S3 record found outside of a section in SREC file line ");
-					fprintf(fd, "%d: \"%s\"\n", lineN, buf);
+					warnx("Error: S3 record found outside of a section in SREC file line ");
+					warnx("%d: \"%s\"\n", lineN, buf);
 					status = E_WARN;
 					continue; // TODO: bail out with error code
 				}
@@ -202,8 +207,8 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				addrSize = 8;
 				if (insection == E_FALSE)
 				{
-					fprintf(fd, "Error: S7 record found outside of a section in SREC file line ");
-					fprintf(fd, "%d: \"%s\"\n", lineN, buf);
+					warnx("Error: S7 record found outside of a section in SREC file line ");
+					warnx("%d: \"%s\"\n", lineN, buf);
 					status = E_WARN;
 					continue; // TODO: bail out with error code
 				} else {
@@ -211,8 +216,8 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				}
 			} else
 			{
-				fprintf(fd, "Error: Invalid record types (valid types are S0, S3 and S7) in SREC file line ");
-				fprintf(fd, "%d: \"%s\"\n", lineN, buf);
+				warnx("Error: Invalid record types (valid types are S0, S3 and S7) in SREC file line ");
+				warnx("%d: \"%s\"\n", lineN, buf);
 				status = E_WARN;
 				continue; // TODO: bail out with error code
 			}
@@ -229,10 +234,10 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 			if (byteCount > 0)
 			{
 				byteCount = byteCount - (addrSize/2) /* addr */ - 1 /* checksum */;
-				diag(L_D3) { fprintf(fd, "ee_process_SREC(): record length = %d\n", byteCount); }
+				diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): record length = %d\n", byteCount); }
 			} else {
-				fprintf(fd, "Error: Wrong record format in SREC file line ");
-				fprintf(fd, "%d: \"%s\"\n", lineN, buf);
+				warnx("Error: Wrong record format in SREC file line ");
+				warnx("%d: \"%s\"\n", lineN, buf);
 				status = E_WARN;
 				continue;
 			}
@@ -255,7 +260,7 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				islocal  = E_TRUE;
 				isonchip = E_TRUE;
 			}
-			diag(L_D3) { fprintf(fd, "ee_process_SREC(): address: 0x%08x\n", (uint) addrHex); }
+			diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): address: 0x%08x\n", (uint) addrHex); }
 
 
 			// DATA
@@ -269,10 +274,10 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				strncpy(dataBuf, pbuf, 4);
 				dataBuf[4] = '\0';
 
-				diag(L_D3) { fprintf(fd, "ee_process_SREC(): %x\n", (uint) dataBuf); }
+				diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): %x\n", (uint) dataBuf); }
 
 /*				CoreID = strtol(dataBuf, NULL, 16);
-				diag(L_D2) { fprintf(fd, "ee_process_SREC(): found coreID 0x%03x in the S0 record.\n", (uint) CoreID); }
+				diag(L_D2) { fprintf(diag_fd, "ee_process_SREC(): found coreID 0x%03x in the S0 record.\n", (uint) CoreID); }
 
 				if (CoreID == 0x000)
 				{
@@ -293,7 +298,7 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				unsigned int globrow, globcol;
 
 				assert(byteCount <= MAX_BUFFER_TO_SERVER_SIZE);
-				diag(L_D3) { fprintf(fd, "ee_process_SREC(): copying the data (%d bytes)", byteCount); }
+				diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): copying the data (%d bytes)", byteCount); }
 
 				// convert text to bytes
 				pbuf = buf + 4 + addrSize;
@@ -307,13 +312,13 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 					unsigned long dataHex = strtol(dataBuf, NULL, 16);
 					Data2Send[i] = dataHex;
 
-					diag(L_D4) { fprintf(fd, "ee_process_SREC():  %s", dataBuf); }
+					diag(L_D4) { fprintf(diag_fd, "ee_process_SREC():  %s", dataBuf); }
 				}
 
 				if (islocal)
 				{
 					// If this is a local address
-					diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", row, col); }
+					diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", row, col); }
 					ee_write_buf(pEpiphany, row, col, addrHex, Data2Send, byteCount);
 				}
 				else if (isonchip)
@@ -321,22 +326,22 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 					// If global address, check if address is of an eCore.
 					CoreID = addrHex >> 20;
 					ee_get_coords_from_id(pEpiphany, CoreID, &globrow, &globcol);
-					diag(L_D3) { fprintf(fd, " to core (%d,%d)\n", globrow, globcol); }
+					diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", globrow, globcol); }
 					ee_write_buf(pEpiphany, globrow, globcol, addrHex & ~(0xfff00000), Data2Send, byteCount);
 				}
 				else
 				{
 					// If it is not on an eCore, it is on external memory.
-					diag(L_D3) { fprintf(fd, " to external memory.\n"); }
+					diag(L_D3) { fprintf(diag_fd, " to external memory.\n"); }
 					if ((addrHex >= pEMEM->ephy_base) && (addrHex < (pEMEM->ephy_base + pEMEM->emap_size)))
 					{
-						diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) addrHex); }
+						diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) addrHex); }
 						addrHex = addrHex - (pEMEM->ephy_base - pEMEM->phy_base);
-						diag(L_D3) { fprintf(fd, "to physical (0x%08x)...\n", (uint) addrHex); }
+						diag(L_D3) { fprintf(diag_fd, "to physical (0x%08x)...\n", (uint) addrHex); }
 					}
-					diag(L_D3) { fprintf(fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) addrHex); }
+					diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) addrHex); }
 					addrHex = addrHex - pEMEM->phy_base;
-					diag(L_D3) { fprintf(fd, "to offset (0x%08x)...\n", (uint) addrHex); }
+					diag(L_D3) { fprintf(diag_fd, "to offset (0x%08x)...\n", (uint) addrHex); }
 					ee_mwrite_buf(pEMEM, addrHex, Data2Send, byteCount);
 				}
 			}
@@ -353,8 +358,8 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 				unsigned long startOfProrgram = strtol(startAddrofProg, NULL, 16);
 				if (startOfProrgram != 0)
 				{
-					fprintf(fd, "Warning: non zero _start address. The start of program is detected in the address ");
-					fprintf(fd, "%x\n", (unsigned int) startOfProrgram);
+					warnx("Warning: non zero _start address. The start of program is detected in the address ");
+					warnx("%x\n", (unsigned int) startOfProrgram);
 					status = E_WARN;
 				}
 			}
@@ -366,3 +371,6 @@ e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem
 
 	return status;
 }
+#pragma GCC diagnostic pop  /* unused-but-set-variable */
+#pragma GCC diagnostic pop  /* sign-compare */
+
