@@ -1,3 +1,87 @@
+2014-06-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Work in progress to support non-stop mode
+
+	* src/GdbServer.cpp (GdbServer::rspServer): New flow for non-stop
+	mode.
+	(GdbServer::initProcesses): Use processes directly, not pids
+	(GdbServer::rspAttach): Use threads not thread IDs
+	(GdbServer::rspDetach): Likewise.
+	(GdbServer::rspClientRequest): Simplify handling of continue and
+	step packets, let client sort out single stepping.
+	(GdbServer::waitAllThreads): Created.
+	(GdbServer::haltThread): Simplified.
+	(GdbServer::haltAllThreads): Created.
+	(GdbServer:continueThread): Created.
+	(GdbServer::continueAllThreads): Created.
+	(GdbServer::rspReportStopped): Replaces RspReportException.
+	(GdbServer::findStopReason): Created.
+	(GdbServer::rspContinue): Simplified.
+	(GdbServer::rspContinueWithSignal): Created.
+	(GdbServer::rspContinueGeneric): Created.
+	(GdbServer::rspSuspend): Use threads not thread ID.
+	(GdbServer::hostWrite): Likwise.
+	(GdbServer::rspReadAllRegs): Likwise.
+	(GdbServer::rspWriteAllRegs): Likwise.
+	(GdbServer::rspSetThread): Likwise.
+	(GdbServer::rspReadMem): Likwise.
+	(GdbServer::rspWriteMem): Likwise.
+	(GdbServer::rspReadReg): Likwise.
+	(GdbServer::rspWriteReg): Likwise.
+	(GdbServer::rspQuery): Likwise.
+	(GdbServer::rspQThreadInfo): Likwise.
+	(GdbServer::rspCommand): Likwise.
+	(GdbServer::rspCmdWorkgroup): Likwise.
+	(GdbServer::rspCmdProcess): Likwise.
+	(GdbServer::rspOsDataProcesses): Likwise.
+	(GdbServer::rspSet): Likwise.
+	(GdbServer::rspRestart): Likwise.
+	(GdbServer::rspIsThreadAlive): Likwise.
+	(GdbServer::is32BitsInstr): Likwise.
+	(GdbServer::rspVpkt): Likwise.
+	(GdbServer::rspVCont): Rewritten and simplified for non-stop.
+	(GdbServer::parseVContArgs): Created.
+	(GdbServer::extractVContAction): Created.
+	(GdbServer::pendingStop): Deleted.
+	(GdbServer::markPendingStops): Deleted.
+	(GdbServer::removePendingStop): Deleted.
+	(GdbServer::doStep): Deleted.
+	(GdbServer::continueThread): Deleted.
+	(GdbServer::doContinue): Deleted.
+	(GdbServer::doFileIO): Use threads not thread ID.
+	(GdbServer::rspWriteMemBin): Likewise.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::targetSwReset): Likewise.
+	(GdbServer::targetHWReset): Likewise.
+	(GdbServer::getProcess): Likewise.
+	(GdbServer::resumeAllThreads): Deleted
+	* src/GdbServer.h: Add/remove methods created/deleted from definition.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo): Use threads not
+	thread ID.
+	(ProcessInfo::threadBegin): Likewise.
+	(ProcessInfo::threadEnd): Likewise.
+	(ProcessInfo::addThread): Likewise.
+	(ProcessInfo::eraseThread): Likewise.
+	(ProcessInfo::hasThread): Likewise.
+	* src/ProcessInfo.h (class ProcessInfo): Adjust methods to match
+	changes in definitions.
+	* src/RspConnection.cpp (bool RspConnection::getPkt): Fix layout
+	* src/TargetControl.h: Change EXCAUSE bits for Epiphany III/IV
+	* src/Thread.cpp (Thread::Thread): Add TID argument
+	(Thread::tid): Created.
+	(Thread::isReported): Created.
+	(Thread::markReported): Created.
+	(Thread::halt): Add control of reported status.
+	(Thread::resume): Likewise.
+	(Thread::activate): Likewise.
+	(Thread:breakpointIVT): Do actual saving.
+	(Thread::insertBreakpoint): Renamed from inserBkptInstr.
+	(Thread::insertBkptInstr): Renamed as insertBreakpoint.
+	(Thread::getException): Deal with new EXCAUSE values
+	* src/Thread.h (class Thread): Add new methods, change prototypes
+	of existing methods.
+
 2014-06-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/ServerInfo.cpp (ServerInfo::chipVersion): Created two

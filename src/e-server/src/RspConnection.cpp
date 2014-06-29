@@ -294,14 +294,10 @@ bool RspConnection::getPkt (RspPacket * pkt)
   // Keep getting packets, until one is found with a valid checksum
   while (true)
     {
-      int
-	bufSize = pkt->getBufSize ();
-      unsigned char
-	checksum;		// The checksum we have computed
-      int
-	count;			// Index into the buffer
-      int
-	ch;			// Current character
+      int  bufSize = pkt->getBufSize ();
+      unsigned char checksum;		// The checksum we have computed
+      int           count;		// Index into the buffer
+      int           ch;			// Current character
 
 
       // Wait around for the start character ('$'). Ignore all other
