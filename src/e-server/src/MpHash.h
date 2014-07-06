@@ -49,9 +49,9 @@
 #ifndef MP_HASH__H
 #define MP_HASH__H
 
+#include <inttypes.h>
 #include <map>
 
-#include <inttypes.h>
 
 using std::map;
 
@@ -75,6 +75,7 @@ enum MpType
 
 
 class MpHash;
+class Thread;
 
 
 //-----------------------------------------------------------------------------
@@ -94,14 +95,14 @@ public:
   // Accessor methods
   void add (MpType    type,
 	    uint32_t  addr,
-	    int       tid,
+	    Thread*   thread,
 	    uint16_t  instr);
   bool lookup (MpType    type,
 	       uint32_t  addr,
-	       int       tid);
+	       Thread*   thread);
   bool remove (MpType    type,
 	       uint32_t  addr,
-	       int       tid,
+	       Thread*   thread,
 	       uint16_t* instr = NULL);
 
 private:
@@ -112,7 +113,7 @@ private:
   public:
     MpType    type;		//!< Type of matchpoint
     uint32_t  addr;		//!< Address of the matchpoint
-    int       tid;              //!< Thread ID of the matchpoint
+    Thread*   thread;           //!< Thread of the matchpoint
 
     bool operator < (const MpKey &key) const
     {
@@ -124,7 +125,7 @@ private:
 	return true;
       else if (addr > key.addr)
 	return false;
-      else if (tid < key.tid)
+      else if (thread < key.thread)
 	return true;
       else
 	return false;

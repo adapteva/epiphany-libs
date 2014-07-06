@@ -1,3 +1,66 @@
+2014-07-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	First compilable version of new GDB server.
+
+	* src/GdbServer.cpp (GdbServer::rspAttach): Deleted.
+	(GdbServer::rspDetach): Use threads, not thread IDs
+	(GdbServer::rspClientRequest): Correct handling of '?'.  Remove
+	host file IO support for now.
+	(GdbServer::rspClientNotifications): Created as placeholder.
+	(GdbServer::findStoppedThreads): Created.
+	(GdbServer::waitAllThreads): Rewritten to use findStoppedThreads.
+	Stopped thread info now added to process, not returned via second
+	arg.
+	(GdbServer::haltAllThreads): Use threads, not thread IDs.
+	(GdbServer::continueThread): Use Utils for hex output.
+	(GdbServer:continueThread): Use threads, not thread IDs.
+	(GdbServer::rspReportStopped): Simplified.
+	(GdbServer::findStopReason): Completed support for system calls.
+	(GdbServer::rspContinueGeneric): Use threads, not thread IDs.
+	(GdbServer::rspSuspend): Deleted.
+	(GdbServer::rspFileIOreply): Commented out.
+	(GdbServer::redirectStdioOnTrap): Commented out.
+	(GdbServer::rspSetThread): Add missing indirection and fix syntax
+	error.
+	(GdbServer::rspWriteReg): Correct typo.
+	(GdbServer::rspCommand): Pass current process to haltAllThreads.
+	(GdbServer::rspCmdWorkgroup): Pass process ID when creating new
+	process.  Use threads, not thread IDs.
+	(GdbServer::rspCmdProcess): Correct typo.
+	(GdbServer::rspOsDataProcesses): Get process ID from process.
+	(GdbServer::rspIsThreadAlive): Deal with invalid thread ID.
+	(GdbServer::rspVCont): Add missing indirection.  Ensure signal
+	variable is set before using.  Don't use stoppedThreads set.
+	(GdbServer::doFileIO): Commented out.
+	(GdbServer::rspRemoveMatchpoint): Hash on thread, not threadID.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	* src/GdbServer.h: Add new methods and comment out
+	fileIO methods.  Add new signals to enum and define more register
+	number constants.
+	(MpHash::add): Use thread not thread ID.
+	(MpHash::lookup): Likewise.
+	(MpHash::remove): Likewise.
+	* src/MpHash.h: Likewise.
+	* src/ProcessInfo.cpp (ProcessInfo::pid): Created.
+	(ProcessInfo::eraseThread): Also remove from stopped threads.
+	(ProcessInfo::addStoppedThread): Created.
+	(ProcessInfo::clearStoppedThreads): Created.
+	(ProcessInfo::getStoppedThread): Created.
+	(ProcessInfo::popStoppedThread): Created.
+	(ProcessInfo::numStoppedThreads): Created.
+	* src/ProcessInfo.h: Added new methods.  Added
+	mStoppedThreads set.
+	* src/RspConnection.cpp
+	(bool RspConnection::getPktNonBlock): Created as placeholder.
+	* src/RspConnection.h: Added new method.
+	* src/Thread.cpp (Thread::Thread): Add thread ID to
+	args.
+	(Thread::tid): Correct return type.
+	(Thread::activate): Correct typo.
+	(Thread::breakpointIVT): Correct typos.
+	(Thread::getException): Correct sanity checking.
+ 	* src/Thread.h: Rename reported as isReported.
+
 2014-06-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Work in progress to support non-stop mode

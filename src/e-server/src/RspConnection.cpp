@@ -417,6 +417,26 @@ bool RspConnection::getPkt (RspPacket * pkt)
 
 
 //-----------------------------------------------------------------------------
+//! Get the next packet from the RSP connection without blocking.
+
+//! Required to support non-stop mode.
+
+//! @todo For now this is a place holder
+
+//! @param[in] pkt  The packet for storing the result.
+
+//! @return  TRUE to indicate success, FALSE otherwise (means a communications
+//!          failure)
+//-----------------------------------------------------------------------------
+
+bool RspConnection::getPktNonBlock (RspPacket * pkt __attribute__ ((unused)) )
+{
+  return  false;
+
+}	// getPktNonBlock ()
+
+
+//-----------------------------------------------------------------------------
 //! Put the packet out on the RSP connection
 
 //! Modeled on the stub version supplied with GDB. Put out the data preceded

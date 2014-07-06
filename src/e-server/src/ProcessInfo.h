@@ -47,6 +47,9 @@ class Thread;
 //! A process corresponds to an Epiphany workgroup, and the cores to threads
 //! within the process.
 
+//! We also associate a list of threads which have stopped and need
+//! reporting.
+
 //! Each process has an integer identifier, which is the positive value
 //! associated with this process by GDB.
 //-----------------------------------------------------------------------------
@@ -61,11 +64,16 @@ public:
   // Accessors
   int  pid () const;
 
-  set <Thread *>::iterator threadBegin () const;
-  set <Thread *>::iterator threadEnd () const;
-  bool addThread (Thread* threadPtr);
-  bool eraseThread (Thread* threadPtr);
-  bool hasThread (Thread* threadPtr);
+  set <Thread *>::iterator  threadBegin () const;
+  set <Thread *>::iterator  threadEnd () const;
+  bool  addThread (Thread* threadPtr);
+  bool  eraseThread (Thread* threadPtr);
+  bool  hasThread (Thread* threadPtr);
+  bool  addStoppedThread (Thread* threadPtr);
+  void  clearStoppedThreads ();
+  Thread* getStoppedThread ();
+  Thread* popStoppedThread ();
+  int  numStoppedThreads ();
 
 private:
 
@@ -74,6 +82,13 @@ private:
 
   //! The threads making up the process
   set <Thread *> mThreads;
+
+  //! Threads to be reported as stopped.
+
+  //! For all-stop mode this is the thread which triggered the stop (since by
+  //! definition all threads will be stopped when reporting). For non-stop
+  //! mode it is the set of threads to report.
+  set <Thread *> mStoppedThreads;
 
 };	// ProcessInfo ()
 

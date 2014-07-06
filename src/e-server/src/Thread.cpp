@@ -50,10 +50,12 @@ using std::endl;
 //-----------------------------------------------------------------------------
 Thread::Thread (CoreId         coreId,
 		TargetControl* target,
-		ServerInfo*    si) :
+		ServerInfo*    si,
+		const int      tid) :
   mCoreId (coreId),
   mTarget (target),
   mSi (si),
+  mTid (tid),
   mIVTSavedP (false),
   mDebugState (DEBUG_RUNNING),
   mRunState (RUN_UNKNOWN),
@@ -108,7 +110,7 @@ Thread::coreId () const
 
 //! @return  The thead ID
 //-----------------------------------------------------------------------------
-CoreId
+int
 Thread::tid () const
 {
   return  mTid;
@@ -417,7 +419,7 @@ Thread::activate ()
 //! @return  TRUE if we save the IVT successfully, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-Thread:breakpointIVT ()
+Thread::breakpointIVT ()
 {
   assert (!mIVTSavedP);			// Sanity check
 
@@ -426,7 +428,7 @@ Thread:breakpointIVT ()
 		     sizeof (mIVTSaveBuf)))
     {
       cerr << "Warning: Failed to save IVT: exceptions not caught" << endl;
-      return FALSE;
+      return false;
     }
 
   mIVTSavedP = true;
@@ -445,7 +447,7 @@ Thread:breakpointIVT ()
       TargetControl::IVT_DMA1,
       TargetControl::IVT_WAND,
       TargetControl::IVT_USER
-    }
+    };
   static int IVTAddressesSize= sizeof (IVTAddresses) / sizeof (IVTAddresses[0]);
 
   uint32_t pc = readPc ();
@@ -522,8 +524,6 @@ Thread::insertBreakpoint (uint32_t addr)
 GdbServer::TargetSignal
 Thread::getException (int  version)
 {
-  assert ((3 == version) || (4 == version));	// Sanity check
-
   uint32_t coreStatus = readStatus ();
   uint32_t exbits = coreStatus & TargetControl::STATUS_EXCAUSE_MASK;
 
@@ -550,8 +550,9 @@ Thread::getException (int  version)
 
 	default:
 	  // @todo Can we get this?
-	  cerr << "Warning: Unexpected software exception cause 0x" << hex
-	       << exbits << dec << ": treated as ABORT signal." << endl;
+	  cerr << "Warning: Unexpected software exception cause 0x"
+	       << Utils::intStr (exbits, 16) << ": treated as ABORT signal."
+	       << endl;
 	  return GdbServer::TARGET_SIGNAL_ABRT;
 	}
 
@@ -576,11 +577,17 @@ Thread::getException (int  version)
 
 	default:
 	  // @todo Can we get this?
-	  cerr << "Warning: Unexpected software exception cause 0x" << hex
-	       << exbits << dec << ": treated as ABORT signal." << endl;
+	  cerr << "Warning: Unexpected software exception cause 0x"
+	       << Utils::intStr (exbits, 16) << ": treated as ABORT signal."
+	       << endl;
 	  return GdbServer::TARGET_SIGNAL_ABRT;
 	}
+
+    default:
+      assert (false);				// Sanity check
+      return  GdbServer::TARGET_SIGNAL_NONE;	// Keep compiler check happy.
     }
+
 }	// getException ()
 
 

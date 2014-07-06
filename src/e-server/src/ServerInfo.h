@@ -78,6 +78,8 @@ public:
   // Other accessors
   void chipVersion (const int  version);
   int chipVersion (void) const;
+
+
 private:
 
   // Debug flag bits
