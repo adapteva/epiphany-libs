@@ -177,11 +177,7 @@ TargetControlHardware::readMem (CoreId  coreId,
 
   size_t res = readFrom (fullAddr, (void *) buf, len);
   if (res != len)
-    {
-      cerr << "Warning: readMem failed for addr 0x" << intStr (addr, 16, 8)
-	   << ", length " << len << ", result " << res << endl;
-      return false;
-    }
+    return false;
   else
     {
       // pack returned data
@@ -228,16 +224,7 @@ TargetControlHardware::writeMem (CoreId  coreId,
 	 << intStr (addr, 16, 8) << ", 0x" << intStr (data, 16, 8)
 	 << ", " << len << ")" << endl;
 
-  size_t res = writeTo (fullAddr, (void *) buf, len);
-  if (res != len)
-    {
-      cerr << "Warning: writeMem failed for addr 0x" << intStr (addr, 16, 8)
-	   << ":0x" << intStr (fullAddr, 16, 8) << ", length " << len
-	   << ", result " << res << endl;
-      return false;
-    }
-
-  return true;
+  return  writeTo (fullAddr, (void *) buf, len) == len;
 
 }	// writeMem ()
 

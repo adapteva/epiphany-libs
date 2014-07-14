@@ -68,10 +68,12 @@ public:
   static string  intStr (int  val,
 			 int  base = 10,
 			 int  width = 0);
+  static void rspAssert (bool cond);
 
 
 private:
 
+  static const int  BT_LIMIT = 40;
   // Private constructor cannot be instantiated
     Utils ()
   {

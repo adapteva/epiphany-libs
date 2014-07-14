@@ -1,3 +1,51 @@
+2014-07-14  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp: Rename currentCThread and mContinueThread and
+	currentGThread as mGeneralThread throughout.
+	(GdbServer::GdbServer): initialize nNotifyingP.
+	(GdbServer::rspServer): reset mNotifyingP on new connection.
+	(GdbServer::rspClientRequest): Use unified version of getPkt for
+	non-stop.  Reset mNotifyingP on '?' packet.
+	(GdbServer::rspClientNotifications): Provide implementation.
+	(GdbServer::readThreadId): Created.
+	(GdbServer::getThread): Use our own assert method.
+	(GdbServer::rspReportStopped): Deal with zero threads in
+	non-stop mode.  Use hex format for thread IDs.
+	(GdbServer::findStopReason): Deal with case of reset when we are
+	at location 0.
+	(GdbServer::rspContinueGeneric): No reply in non-stop mode.
+	(GdbServer::rspSetThread): Use readThreadId to get TID.
+	(GdbServer::rspQuery): -1 is not a valid return.
+	(GdbServer::rspIsThreadAlive): Use readThreadId to get TID.
+	(GdbServer::rspVpkt): Report support of 's' packets with vCont,
+	even though we don't think we'll get them.
+	(GdbServer::rspVCont): Clear mNotifyingP on new continue.
+	* src/GdbServer.h: Rename currentCThread and mContinueThread and
+	currentGThread as mGeneralThread throughout.  Add mNotifyingP and
+	declarations of new member methods.
+	* src/RspConnection.cpp (RspConnection::RspConnection): Subsume
+	functionality of rspInit.
+	(RspConnection::rspInit): Deleted.
+	(RspConnection::rspConnect): Remove obsolete servername code.
+	(RspConnection::getPkt): Modify to allow non-blocking reads
+	(bool RspConnection::getPktNonBlock): Deleted.
+	(RspConnection::putNotification): Created.
+	(RspConnection::getBreak): Simplified to use non-blocking read.
+	(RspConnection::putRspChar): Always blocking.
+	(RspConnection::getRspChar): Provide option to be non-blocking.
+	(RspConnection::setBlocking): Created.
+	(RspConnection::setNonBlocking): Created.
+	* src/RspConnection.h: Add new methods.
+	* src/TargetControlHardware.cpp (TargetControlHardware::readMem):
+	Don't put out warning message.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/Thread.cpp (Thread::readMem32): Clearer error message.
+	(Thread::readMem16): Likewise.
+	(Thread::readMem8): Likewise.
+	(Thread::readReg): Likewise.
+	(Utils::rspAssert): Created.
+	* src/Utils.h: Added new method.
+
 2014-07-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspServer): In non-stop mode

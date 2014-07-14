@@ -657,8 +657,13 @@ uint32_t
 Thread::readMem32 (uint32_t  addr) const
 {
   uint32_t val;
+
   if (!mTarget->readMem32 (mCoreId, addr, val))
-    cerr << "Warning: readMem32 failed." << endl;
+    {
+      cerr << "Warning: readMem32 failed for thread " << mTid << ", address 0x"
+	   << Utils::intStr (addr, 16, 8) << endl;
+    }
+
   return val;
 
 }	// readMem32 ()
@@ -712,8 +717,13 @@ uint16_t
 Thread::readMem16 (uint32_t  addr) const
 {
   uint16_t val;
+
   if (!mTarget->readMem16 (mCoreId, addr, val))
-    cerr << "Warning: readMem16 failed." << endl;
+    {
+      cerr << "Warning: readMem16 failed for thread " << mTid << ", address 0x"
+	   << Utils::intStr (addr, 16, 8) << endl;
+    }
+
   return val;
 
 }	// readMem16 ()
@@ -766,8 +776,13 @@ uint8_t
 Thread::readMem8 (uint32_t  addr) const
 {
   uint8_t val;
+
   if (!mTarget->readMem8 (mCoreId, addr, val))
-    cerr << "Warning: readMem8 failed." << endl;
+    {
+      cerr << "Warning: readMem8 failed for thread " << mTid << ", address 0x"
+	   << Utils::intStr (addr, 16, 8) << endl;
+    }
+
   return val;
 
 }	// readMem8 ()
@@ -824,8 +839,13 @@ uint32_t
 Thread::readReg (unsigned int regnum) const
 {
   uint32_t regval;
+
   if (!mTarget->readMem32 (mCoreId, regAddr (regnum), regval))
-    cerr << "Warning: readReg failed." << endl;
+    {
+      cerr << "Warning: readReg failed for thread " << mTid << ", register "
+	   << regnum << endl;
+    }
+
   return regval;
 
 }	// readReg ()

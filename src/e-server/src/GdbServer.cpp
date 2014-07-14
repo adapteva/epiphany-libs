@@ -88,8 +88,9 @@ using std::vector;
 //! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
   mDebugMode (ALL_STOP),
-  currentCThread (NULL),
-  currentGThread (NULL),
+  mContinueThread (NULL),
+  mGeneralThread (NULL),
+  mNotifyingP (false),
   si (_si),
   fTargetControl (NULL),
   fIsTargetRunning (false)
@@ -150,6 +151,11 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	      // Activate all threads, in case any are idle.
 	      // @todo Is this the right thing to do?
 	      activateAllThreads (mCurrentProcess);
+	    }
+	  else
+	    {
+	      // We aren't in a notification sequence.
+	      mNotifyingP = false;
 	    }
 	}
 
@@ -291,33 +297,24 @@ GdbServer::rspDetach (ProcessInfo* process)
 void
 GdbServer::rspClientRequest ()
 {
-  switch (mDebugMode)
+  int  res = rsp->getPkt (pkt, ALL_STOP == mDebugMode);
+
+  switch (res)
     {
-    case NON_STOP:
+    case -2:
+      // Non-blocking read, but we didn't find anything
+      assert (NON_STOP == mDebugMode);		// Sanity check
+      return;
 
-      // Non-blocking read of a packet (which therefore may be empty)
-      if (!rsp->getPktNonBlock (pkt))
-	{
-	  rspDetach (mCurrentProcess);
-	  rsp->rspClose ();		// Comms failure
-	  return;
-	}
+    case -1:
+      // Comms failure
+      rspDetach (mCurrentProcess);
+      rsp->rspClose ();				// Comms failure
+      return;
 
-      if (0 == pkt->getLen ())
-	return;				// No packet found
-
-      break;
-
-    case ALL_STOP:
-
-      // Blocking read of a packet. Nothing happens until we get a packet.
-      if (!rsp->getPkt (pkt))
-	{
-	  rspDetach (mCurrentProcess);
-	  rsp->rspClose ();		// Comms failure
-	  return;
-	}
-
+    default:
+      // Looks like we got a packet OK
+      assert (res >= 0);			// Sanity check
       break;
     }
 
@@ -333,7 +330,10 @@ GdbServer::rspClientRequest ()
       // Return last reason for stopping. In the case of non-stop mode this
       // means refinding the list of stopped threads.
       if (NON_STOP == mDebugMode)
-	findStoppedThreads (mCurrentProcess);
+	{
+	  mNotifyingP = true;
+	  findStoppedThreads (mCurrentProcess);
+	}
 
       rspReportStopped (mCurrentProcess);
 
@@ -395,8 +395,6 @@ GdbServer::rspClientRequest ()
       //resumeAllThreads ();
       pkt->packStr ("");
       rsp->putPkt (pkt);
-      rsp->rspClose ();
-
       break;
 
     case 'g':
@@ -529,7 +527,44 @@ GdbServer::rspClientRequest ()
 void
 GdbServer::rspClientNotifications ()
 {
+  if (!mNotifyingP && findStoppedThreads (mCurrentProcess))
+    {
+      mNotifyingP = true;
+
+      // Pop the first thread to report.
+      Thread * thread = mCurrentProcess->popStoppedThread ();
+      TargetSignal sig = findStopReason (thread);
+      ostringstream oss;
+
+      oss << "Stop:T" << Utils::intStr (sig, 16, 2) << "thread:"
+	  << Utils::intStr (thread->tid (), 16) << ";";
+      pkt->packStr (oss.str ().c_str ());;
+      rsp->putNotification (pkt);
+    }
 }	// rspClientNotifications ()
+
+
+//-----------------------------------------------------------------------------
+//! Get a thread ID from a packet.
+
+//! Valid values are "-1", "0" or a big-endian hex string.
+
+//! @param[in] str   The string to recognize
+//! @return  The thread ID,  or -2 if we don't recognize the thread ID.
+//-----------------------------------------------------------------------------
+int
+GdbServer::readThreadId (const char* str)
+{
+  int tid;
+
+  if (0 == strncmp ("-1", str, strlen ("-1")))
+    return -1;
+  else if (1 == sscanf (str, "%x", &tid))
+    return tid;
+  else
+    return -2;
+
+}	// readThreadId ()
 
 
 //-----------------------------------------------------------------------------
@@ -546,7 +581,7 @@ GdbServer::getThread (int  tid)
 {
   map <int, Thread*>::iterator it = mThreads.find(tid);
 
-  assert (it != mThreads.end ());
+  Utils::rspAssert (it != mThreads.end ());
   return it->second;
 
 }	// getThread ()
@@ -583,9 +618,9 @@ GdbServer::findStoppedThreads (ProcessInfo* process)
 	// First see if current C Thread has also stopped, and if so use
 	// it instead (all-stop mode only).
 	if ((ALL_STOP == mDebugMode)
-	    && (NULL != currentCThread)
-	    && currentCThread->isHalted ())
-	  thread = currentCThread;
+	    && (NULL != mContinueThread)
+	    && mContinueThread->isHalted ())
+	  thread = mContinueThread;
 	else
 	  thread = *it;
 
@@ -602,7 +637,7 @@ GdbServer::findStoppedThreads (ProcessInfo* process)
   if (si->debugCtrlCWait())
     cerr << "DebugCtrlCWait: Check for Ctrl-C" << endl;
 
-  return rsp->getBreakCommand ();
+  return rsp->getBreak ();
 
 }	// findStoppedThreads ()
 
@@ -823,18 +858,24 @@ GdbServer::rspReportStopped (ProcessInfo*  process)
     }
   else
     {
-      // Non-stop mode should be at least one thread to be supported. I don't
-      // think we can get ctrl-C here. We report the first thread with a
-      // T packet. Any others will be handled by a vStopped packet.
-      assert (process->numStoppedThreads () > 0);
+      // Non-stop mode report any threads which are marked as stopped. We can
+      // be called when there are no stopped threads, in which case we return
+      // "OK"
+      if (process->numStoppedThreads () == 0)
+	{
+	  pkt->packStr ("OK");
+	  rsp->putPkt (pkt);
+	  return;
+	}
 
-      // Pop the thread to report.
+      // Pop the thread to report. We do just one at a time, in case different
+      // threads have stopped with different signals.
       Thread * thread = process->popStoppedThread ();
       TargetSignal sig = findStopReason (thread);
       ostringstream oss;
 
-      oss << "T" << Utils::intStr (sig, 16, 2) << "thread:" << thread->tid ()
-	  << ";";
+      oss << "T" << Utils::intStr (sig, 16, 2) << "thread:"
+	  << Utils::intStr (thread->tid (), 16) << ";";
       pkt->packStr (oss.str ().c_str ());;
       rsp->putPkt (pkt);
     }
@@ -917,8 +958,19 @@ GdbServer::findStopReason (Thread *thread)
 
   // First see if we just hit a breakpoint or IDLE. Fortunately IDLE, BREAK,
   // TRAP and NOP are all 16-bit instructions.
-  uint32_t  pc = thread->readPc () - SHORT_INSTRLEN;
-  uint16_t  instr16 = thread->readMem16 (pc);
+  uint32_t  npc = thread->readPc ();
+  uint32_t  ppc = npc - SHORT_INSTRLEN;
+  uint16_t  instr16;
+
+  if (!thread->readMem16 (ppc, instr16))
+    {
+      // This could happen for all sorts of reasons, and treat as SEGV, but
+      // treat the case where the next PC is zero as "special".
+      if (TargetControl::IVT_SYNC == npc)
+	return TARGET_SIGNAL_PWR;
+      else
+	return TARGET_SIGNAL_SEGV;
+    }
 
   if (BKPT_INSTR == instr16)
     return  TARGET_SIGNAL_TRAP;
@@ -926,7 +978,7 @@ GdbServer::findStopReason (Thread *thread)
   if (IDLE_INSTR == instr16)
     return  TARGET_SIGNAL_STOP;
 
-  switch (pc)
+  switch (ppc)
     {
     case TargetControl::IVT_SYNC:
       // Don't expect to get this
@@ -967,8 +1019,8 @@ GdbServer::findStopReason (Thread *thread)
   // Is it a TRAP? Find the first preceding non-NOP instruction
   while (NOP_INSTR == instr16)
     {
-      pc -= SHORT_INSTRLEN;
-      instr16 = thread->readMem16 (pc);
+      ppc -= SHORT_INSTRLEN;
+      instr16 = thread->readMem16 (ppc);
     }
 
   if (getOpcode10 (instr16) == TRAP_INSTR)
@@ -1048,7 +1100,7 @@ GdbServer::rspContinue ()
       haveAddr = false;		// Default will use current PC
     }
 
-  rspContinueGeneric (currentCThread, haveAddr, addr, TARGET_SIGNAL_NONE);
+  rspContinueGeneric (mContinueThread, haveAddr, addr, TARGET_SIGNAL_NONE);
 
 }	// rspContinue ()
 
@@ -1078,7 +1130,7 @@ GdbServer::rspContinueWithSignal ()
       sig = TARGET_SIGNAL_NONE;
     }
 
-  rspContinueGeneric (currentCThread, haveAddr, addr, sig);
+  rspContinueGeneric (mContinueThread, haveAddr, addr, sig);
 
 }	// rspContinueWithSignal ()
 
@@ -1125,9 +1177,7 @@ GdbServer::rspContinueGeneric (Thread*       thread,
 
   if (NON_STOP == mDebugMode)
     {
-      // Report stopped threads later.
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
+      // Do nothing - let notifications do it later.
     }
   else
     {
@@ -1154,7 +1204,7 @@ GdbServer::rspContinueGeneric (Thread*       thread,
 void
 GdbServer::rspFileIOreply ()
 {
-  Thread* thread = currentCThread;
+  Thread* thread = mContinueThread;
 
   long int result_io = -1;
   long int host_respond_error_code;
@@ -1529,7 +1579,7 @@ GdbServer::hostWrite (const char* intro,
 void
 GdbServer::rspReadAllRegs ()
 {
-  assert (NULL != currentGThread);
+  assert (NULL != mGeneralThread);
 
   // Start timing if debugging
   if (si->debugStopResumeDetail ())
@@ -1542,7 +1592,7 @@ GdbServer::rspReadAllRegs ()
       unsigned int pktOffset = r * TargetControl::E_REG_BYTES * 2;
 
       // Not all registers are necessarily supported.
-      if (currentGThread->readReg (r, val))
+      if (mGeneralThread->readReg (r, val))
 	Utils::reg2Hex (val, &(pkt->data[pktOffset]));
       else
 	for (unsigned int i = 0; i < TargetControl::E_REG_BYTES * 2; i++)
@@ -1583,11 +1633,11 @@ GdbServer::rspReadAllRegs ()
 void
 GdbServer::rspWriteAllRegs ()
 {
-  assert (NULL != currentGThread);
+  assert (NULL != mGeneralThread);
 
   // All registers
   for (unsigned int r = 0; r < NUM_REGS; r++)
-      (void) currentGThread->writeReg (r, Utils::hex2Reg (&(pkt->data[r * 8])));
+      (void) mGeneralThread->writeReg (r, Utils::hex2Reg (&(pkt->data[r * 8])));
 
   // Acknowledge (always OK for now).
   pkt->packStr ("OK");
@@ -1607,10 +1657,9 @@ void
 GdbServer::rspSetThread ()
 {
   char  c;
-  int  tid;
   Thread* thread;
 
-  if (2 != sscanf (pkt->data, "H%c%x:", &c, &tid))
+  if (1 != sscanf (pkt->data, "H%c", &c))
     {
       cerr << "Warning: Failed to recognize RSP set thread command: "
 	   << pkt->data << endl;
@@ -1619,10 +1668,17 @@ GdbServer::rspSetThread ()
       return;
     }
 
-  assert (tid >= -1);			// Sanity check
+  int tid = readThreadId (&(pkt->data[2]));
 
   switch (tid)
     {
+    case -2:
+      cerr << "Warning: Failed to recognize RSP thread to set: "
+	   << pkt->data << endl;
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+
     case -1:
       thread = NULL;
       break;
@@ -1638,8 +1694,8 @@ GdbServer::rspSetThread ()
 
   switch (c)
     {
-    case 'c': currentCThread = thread; break;
-    case 'g': currentGThread = thread; break;
+    case 'c': mContinueThread = thread; break;
+    case 'g': mGeneralThread = thread; break;
 
     default:
       cerr << "Warning: Failed RSP set thread command '"
@@ -1679,7 +1735,7 @@ GdbServer::rspReadMem ()
   int len;			// Number of bytes to read
   int off;			// Offset into the memory
 
-  assert (NULL != currentGThread);
+  assert (NULL != mGeneralThread);
 
   if (2 != sscanf (pkt->data, "m%x,%x:", &addr, &len))
     {
@@ -1710,7 +1766,7 @@ GdbServer::rspReadMem ()
     char buf[len];
 
     bool retReadOp =
-      currentGThread->readMemBlock (addr, (unsigned char *) buf, len);
+      mGeneralThread->readMemBlock (addr, (unsigned char *) buf, len);
 
     if (!retReadOp)
       {
@@ -1765,7 +1821,7 @@ GdbServer::rspWriteMem ()
   uint32_t addr;		// Where to write the memory
   int len;			// Number of bytes to write
 
-  assert (NULL != currentGThread);
+  assert (NULL != mGeneralThread);
 
   if (2 != sscanf (pkt->data, "M%x,%x:", &addr, &len))
     {
@@ -1793,7 +1849,7 @@ GdbServer::rspWriteMem ()
   // Write the bytes to memory
   {
     //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl;
-    if (!currentGThread->writeMemBlock (addr, (unsigned char *) symDat, len))
+    if (!mGeneralThread->writeMemBlock (addr, (unsigned char *) symDat, len))
       {
 	pkt->packStr ("E01");
 	rsp->putPkt (pkt);
@@ -1819,7 +1875,7 @@ GdbServer::rspWriteMem ()
 void
 GdbServer::rspReadReg ()
 {
-  assert (NULL != currentGThread);
+  assert (NULL != mGeneralThread);
 
   unsigned int regnum;
   uint32_t regval;
@@ -1840,7 +1896,7 @@ GdbServer::rspReadReg ()
     }
 
   // Get the relevant register
-  if (!currentGThread->readReg (regnum, regval))
+  if (!mGeneralThread->readReg (regnum, regval))
     {
       pkt->packStr ("E03");
       rsp->putPkt (pkt);
@@ -1865,7 +1921,7 @@ GdbServer::rspReadReg ()
 void
 GdbServer::rspWriteReg ()
 {
-  assert (NULL != currentGThread);
+  assert (NULL != mGeneralThread);
 
   unsigned int regnum;
   char valstr[9];		// Allow for EOS on the string
@@ -1886,7 +1942,7 @@ GdbServer::rspWriteReg ()
     }
 
   // Set the relevant register
-  if (! currentGThread->writeReg (regnum, Utils::hex2Reg (valstr)))
+  if (! mGeneralThread->writeReg (regnum, Utils::hex2Reg (valstr)))
     {
       pkt->packStr ("E03");
       rsp->putPkt (pkt);
@@ -1912,9 +1968,11 @@ GdbServer::rspQuery ()
       // Return the current thread ID (unsigned hex). A null response
       // indicates to use the previously selected thread. We use the G thread,
       // since C thread should be handled by vCont anyway.
+      if (NULL == mGeneralThread)
+	sprintf (pkt->data, "QC");		// -1 is not a valid return
+      else
+	sprintf (pkt->data, "QC%x", mGeneralThread->tid ());
 
-      sprintf (pkt->data, "QC%x",
-	       (NULL == currentGThread) ? -1 : currentGThread->tid ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -2190,8 +2248,8 @@ GdbServer::rspCommand ()
     }
   else if (strcmp ("coreid", cmd) == 0)
     {
-      CoreId absCCoreId = currentCThread->readCoreId ();
-      CoreId absGCoreId = currentGThread->readCoreId ();
+      CoreId absCCoreId = mContinueThread->readCoreId ();
+      CoreId absGCoreId = mGeneralThread->readCoreId ();
       CoreId relCCoreId = fTargetControl->abs2rel (absCCoreId);
       CoreId relGCoreId = fTargetControl->abs2rel (absGCoreId);
       ostringstream  oss;
@@ -2414,21 +2472,21 @@ GdbServer::rspCmdProcess (char* cmd)
       // This may have invalidated the current threads. If so correct
       // them. This is really a big dodgy - ultimately this needs proper
       // process handling.
-      if ((NULL != currentCThread)
-	  && (! mCurrentProcess->hasThread (currentCThread)))
+      if ((NULL != mContinueThread)
+	  && (! mCurrentProcess->hasThread (mContinueThread)))
 	{
-	  currentCThread = *(mCurrentProcess->threadBegin ());
-	  oss << "- switching control thread to " << currentCThread << "."
+	  mContinueThread = *(mCurrentProcess->threadBegin ());
+	  oss << "- switching control thread to " << mContinueThread << "."
 	      << endl;
 	  pkt->packHexstr (oss.str ().c_str ());
 	  rsp->putPkt (pkt);
 	}
 
-      if ((NULL != currentGThread)
-	  && (! mCurrentProcess->hasThread (currentGThread)))
+      if ((NULL != mGeneralThread)
+	  && (! mCurrentProcess->hasThread (mGeneralThread)))
 	{
-	  currentGThread = *(mCurrentProcess->threadBegin ());
-	  oss << "- switching general thread to " << currentGThread << "."
+	  mGeneralThread = *(mCurrentProcess->threadBegin ());
+	  oss << "- switching general thread to " << mGeneralThread << "."
 	      << endl;
 	  pkt->packHexstr (oss.str ().c_str ());
 	  rsp->putPkt (pkt);
@@ -3043,7 +3101,7 @@ GdbServer::rspSet ()
 void
 GdbServer::rspRestart ()
 {
-  currentCThread->writePc (0);
+  mContinueThread->writePc (0);
 
 }				// rspRestart()
 
@@ -3055,13 +3113,15 @@ GdbServer::rspRestart ()
 //! for any valid thread, we return OK.
 
 //! @todo Do we need to handle -1 (all threads) and 0 (any thread).
+
+//! @todo Perhaps an IDLE thread is dead?
 //---------------------------------------------------------------------------
 void
 GdbServer::rspIsThreadAlive ()
 {
-  int tid;
+  int tid = readThreadId (&(pkt->data[1]));
 
-  if (1 != sscanf (pkt->data, "T%x", &tid))
+  if (-2 == tid)
     {
       cerr << "Warning: Failed to recognize RSP 'T' command : "
 	   << pkt->data << endl;
@@ -3070,10 +3130,18 @@ GdbServer::rspIsThreadAlive ()
       return;
     }
 
+  if (tid <= 0)
+    {
+      cerr << "Warning: Can't request status for thread ID <= 0" << endl;
+      pkt->packStr ("E02");
+      rsp->putPkt (pkt);
+      return;
+    }
+
   if (mThreads.find (tid) == mThreads.end ())
     {
       cerr << "Warning: Invalid thread in 'T' command: " << tid << endl;
-      pkt->packStr ("E02");
+      pkt->packStr ("E03");
       rsp->putPkt (pkt);
       return;
     }
@@ -3083,7 +3151,7 @@ GdbServer::rspIsThreadAlive ()
   if (mCurrentProcess->hasThread (mThreads[tid]))
     pkt->packStr ("OK");
   else
-    pkt->packStr ("E03");
+    pkt->packStr ("E04");
 
   rsp->putPkt (pkt);
 
@@ -3140,8 +3208,9 @@ GdbServer::rspVpkt ()
     }
   else if (0 == strcmp ("vCont?", pkt->data))
     {
-      // Support this for multi-threading
-      pkt->packStr ("OK");
+      // Support this for multi-threading. Note we have to support 's' and
+      // 'S', even though we think they will never be requested.
+      pkt->packStr ("vCont;c;C;s;S;t");
       rsp->putPkt (pkt);
       return;
     }
@@ -3196,6 +3265,10 @@ GdbServer::rspVpkt ()
       rspRestart ();
       pkt->packStr ("S05");
       rsp->putPkt (pkt);
+    }
+  else if (0 == strncmp ("vStopped", pkt->data, strlen ("vStopped")))
+    {
+      rspReportStopped (mCurrentProcess);
     }
   else
     {
@@ -3277,6 +3350,8 @@ GdbServer::rspVCont ()
 
   if (NON_STOP == mDebugMode)
     {
+      mNotifyingP = false;		// Ready to start a new reporting
+					// sequence.
       // In non-stop mode we return immediately.
       pkt->packStr ("OK");
       rsp->putPkt (pkt);
@@ -3501,7 +3576,7 @@ GdbServer::getStopInstr (Thread *thread)
 void
 GdbServer::rspWriteMemBin ()
 {
-  Thread *thread = currentGThread;
+  Thread *thread = mGeneralThread;
 
   uint32_t addr;		// Where to write the memory
   int len;			// Number of bytes to write
@@ -3588,7 +3663,7 @@ GdbServer::rspRemoveMatchpoint ()
     case BP_MEMORY:
       // Memory breakpoint - replace the original instruction. If we are
       // talking about all threads, we need to do all the threads.
-      if (NULL == currentCThread)
+      if (NULL == mGeneralThread)
 	{
 	  for (set <Thread*>::iterator it = mCurrentProcess->threadBegin ();
 	       it != mCurrentProcess->threadEnd ();
@@ -3601,8 +3676,8 @@ GdbServer::rspRemoveMatchpoint ()
 	}
       else
 	{
-	  if (mpHash->remove (type, addr, currentCThread, &instr))
-	    currentCThread->writeMem16 (addr, instr);
+	  if (mpHash->remove (type, addr, mGeneralThread, &instr))
+	    mGeneralThread->writeMem16 (addr, instr);
 	}
 
       pkt->packStr ("OK");
@@ -3681,7 +3756,7 @@ GdbServer::rspInsertMatchpoint ()
     case BP_MEMORY:
       // Memory breakpoint - substitute a BKPT instruction If we are
       // talking about all threads, we need to do all the threads.
-      if (NULL == currentCThread)
+      if (NULL == mGeneralThread)
 	{
 	  for (set <Thread *>::iterator it = mCurrentProcess->threadBegin ();
 	       it != mCurrentProcess->threadEnd ();
@@ -3696,9 +3771,9 @@ GdbServer::rspInsertMatchpoint ()
 	}
       else
 	{
-	  currentCThread->readMem16 (addr, bpMemVal);
-	  mpHash->add (type, addr, currentCThread, bpMemVal);
-	  currentCThread->insertBreakpoint (addr);
+	  mGeneralThread->readMem16 (addr, bpMemVal);
+	  mpHash->add (type, addr, mGeneralThread, bpMemVal);
+	  mGeneralThread->insertBreakpoint (addr);
 	}
 
 
@@ -3749,9 +3824,9 @@ void
 GdbServer::targetSwReset ()
 {
   for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
-    (void) currentCThread->writeReg (RESETCORE_REGNUM, 1);
+    (void) mGeneralThread->writeReg (RESETCORE_REGNUM, 1);
 
-  (void) currentCThread->writeReg (RESETCORE_REGNUM, 0);
+  (void) mGeneralThread->writeReg (RESETCORE_REGNUM, 0);
 
 }	// targetSWreset()
 
