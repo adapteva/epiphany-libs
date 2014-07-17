@@ -1,3 +1,11 @@
+2014-07-17  Ben Chaco  <bchaco@x3-c.com>
+
+	* build-libs.sh:
+	Changed default EPIPHANY_PREFIX from "e-" to "epiphany-elf-". 
+	Removed explicit CROSS_COMPILE variable from the Make command so
+	that the environment variable will be used. Tabified the script
+	to remove mixed uses of TAB characters and whitespace.
+
 2014-06-12  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/src/epiphany-hal.c (int e_init):
