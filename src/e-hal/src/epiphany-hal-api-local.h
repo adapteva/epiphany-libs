@@ -33,6 +33,8 @@ extern "C"
 {
 #endif
 
+#define EPIPHANY_DEV "/dev/epiphany"
+
 /////////////////////////////////
 // Device communication functions
 //

@@ -42,7 +42,8 @@ C_SRCS      = \
 	e_mutex_trylock.c 					\
 	e_mutex_unlock.c 					\
 	e_reg_read.c 						\
-	e_reg_write.c 
+	e_reg_write.c 						\
+	e_shm.c
 
 S_SRCS = \
 	e_ctimer_get.s \

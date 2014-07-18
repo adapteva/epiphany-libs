@@ -76,7 +76,8 @@ int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 
 	if (dev && pemem)
 	{
-		// TODO: this is barely scalable. Really need to test ext. mem size to load
+        // Allocate External DRAM for the epiphany executable code
+        // TODO: this is barely scalable. Really need to test ext. mem size to load
 		// and possibly split the ext. mem accesses into 1MB chunks.
 		if (e_alloc(pemem, 0, EMEM_SIZE))
 		{

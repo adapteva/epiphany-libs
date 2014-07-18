@@ -1,9 +1,9 @@
 /*
-  File: e_reg_read.c
+  File: epiphany-shm-manager.h
 
   This file is part of the Epiphany Software Development Kit.
 
-  Copyright (C) 2013 Adapteva, Inc.
+  Copyright (C) 2014 Adapteva, Inc.
   See AUTHORS for list of contributors.
   Support e-mail: <support@adapteva.com>
 
@@ -23,25 +23,35 @@
   <http://www.gnu.org/licenses/>.
 */
 
-#include "e_regs.h"
-#include "e_coreid.h"
+#ifndef __EPIPHANY_SHM_MANAGER_H__
+#define __EPIPHANY_SHM_MANAGER_H__
 
-unsigned e_reg_read(e_core_reg_id_t reg_id)
-{
-	register volatile unsigned reg_val;
-	unsigned *addr;
+/**
+ * Note: the epiphany shm manager prototypes for the public API 
+ * are provided in the file epiphany-hal-api.h. Only private 
+ * API function prototypes are provided in this header.
+ */
 
-	// TODO: function affects integer flags. Add special API for STATUS
-	switch (reg_id)
-	{
-	case E_REG_CONFIG:
-		__asm__ __volatile__ ("MOVFS %0, CONFIG" : "=r" (reg_val) : );
-		return reg_val;
-	case E_REG_STATUS:
-		__asm__ __volatile__ ("MOVFS %0, STATUS" : "=r" (reg_val) : );
-		return reg_val;
-	default:
-		addr = (unsigned *) e_get_global_address(e_group_config.core_row, e_group_config.core_col, (void *) reg_id);
-		return *addr;
-	}
-}
+/*
+** Type definitions
+*/
+
+
+
+/*
+** Function prototypes.
+*/
+
+/**
+ * Initialize the shared memory manager
+ * FIXME: this is an internal function - hide it!
+ */
+int e_shm_init();
+
+/**
+ * Teardown the shared memory manager
+ * FIXME: this is an internal function - hide it!
+ */
+void e_shm_finalize(void);
+
+#endif    /*  __EPIPHANY_SHM_MANAGER_H__ */

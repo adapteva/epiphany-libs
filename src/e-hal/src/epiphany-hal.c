@@ -14,12 +14,12 @@
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   and the GNU Lesser General Public License along with this program,
-  see the files COPYING and COPYING.LESSER.  If not, see
+  see the files COPYING and COPYING.LESSER.	 If not, see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -34,6 +34,7 @@
 #include <stdlib.h>
 
 #include "e-hal.h"
+#include "epiphany-shm-manager.h"	/* For private APIs */
 #include "epiphany-hal-api-local.h"
 
 #pragma GCC diagnostic push
@@ -46,15 +47,18 @@ typedef unsigned long ulong;
 #define diag(vN) if (e_host_verbose >= vN)
 
 //static int e_host_verbose = 0;
-int   e_host_verbose; //__attribute__ ((visibility ("hidden"))) = 0;
-FILE *diag_fd             __attribute__ ((visibility ("hidden")));
+int	  e_host_verbose; //__attribute__ ((visibility ("hidden"))) = 0;
+FILE *diag_fd			  __attribute__ ((visibility ("hidden")));
 
 char *OBJTYPE[64] = {"NULL", "EPI_PLATFORM", "EPI_CHIP", "EPI_GROUP", "EPI_CORE", "EXT_MEM"};
 
 char const esdk_path[] = "EPIPHANY_HOME";
 char const hdf_env_var_name[] = "EPIPHANY_HDF";
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 e_platform_t e_platform = { E_EPI_PLATFORM };
+#pragma GCC diagnostic pop
 
 /////////////////////////////////
 // Device communication functions
@@ -67,11 +71,11 @@ int e_init(char *hdf)
 	char *hdf_env, *esdk_env, hdf_dfl[1024];
 	int i;
 
-    // Init global file descriptor
-    diag_fd = stderr;
+	// Init global file descriptor
+	diag_fd = stderr;
 
-	e_platform.objtype     = E_EPI_PLATFORM;
-	e_platform.hal_ver     = 0x050d0705; // TODO: update ver
+	e_platform.objtype	   = E_EPI_PLATFORM;
+	e_platform.hal_ver	   = 0x050d0705; // TODO: update ver
 	e_platform.initialized = E_FALSE;
 	e_platform.num_chips   = 0;
 	e_platform.num_emems   = 0;
@@ -89,8 +93,8 @@ int e_init(char *hdf)
 			// Try opening .../bsps/current/platform.hdf
 			warnx("e_init(): No Hardware Definition File (HDF) is specified. Trying \"platform.hdf\".");
 			esdk_env = getenv(esdk_path);
-			strcpy(hdf_dfl, esdk_env);
-			strcat(hdf_dfl, "/bsps/current/platform.hdf");
+			strncpy(hdf_dfl, esdk_env, sizeof(hdf_dfl));
+			strncat(hdf_dfl, "/bsps/current/platform.hdf", sizeof(hdf_dfl));
 			hdf = hdf_dfl;
 		}
 	}
@@ -115,8 +119,8 @@ int e_init(char *hdf)
 	}
 
 	// Find the minimal bounding box of Epiphany chips. This defines the reference frame for core-groups.
-	e_platform.row  = 0x3f;
-	e_platform.col  = 0x3f;
+	e_platform.row	= 0x3f;
+	e_platform.col	= 0x3f;
 	e_platform.rows = 0;
 	e_platform.cols = 0;
 	for (i=0; i<e_platform.num_chips; i++)
@@ -136,8 +140,13 @@ int e_init(char *hdf)
 	}
 	e_platform.rows = e_platform.rows - e_platform.row + 1;
 	e_platform.cols = e_platform.cols - e_platform.col + 1;
-	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(row,col)   = (%d,%d)\n", e_platform.row, e_platform.col); }
+	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(row,col)	  = (%d,%d)\n", e_platform.row, e_platform.col); }
 	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
+
+	if ( E_OK != e_shm_init() ) {
+		warnx("e_init(): Failed to initialize the Epiphany Shared Memory Manager.");
+		return E_ERR;
+	}
 
 	e_platform.initialized = E_TRUE;
 
@@ -153,6 +162,8 @@ int e_finalize(void)
 		warnx("e_finalize(): Platform was not initiated.");
 		return E_ERR;
 	}
+
+	e_shm_finalize();
 
 	e_platform.initialized = E_FALSE;
 
@@ -194,16 +205,16 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	}
 
 	dev->objtype = E_EPI_GROUP;
-	dev->type    = e_platform.chip[0].type; // TODO: assumes one chip type in platform
+	dev->type	 = e_platform.chip[0].type; // TODO: assumes one chip type in platform
 
 	// Set device geometry
 	// TODO: check if coordinates and size are legal.
 	diag(H_D2) { fprintf(diag_fd, "e_open(): platform.(row,col)=(%d,%d)\n", e_platform.row, e_platform.col); }
-	dev->row         = row + e_platform.row;
-	dev->col         = col + e_platform.col;
-	dev->rows        = rows;
-	dev->cols        = cols;
-	dev->num_cores   = dev->rows * dev->cols;
+	dev->row		 = row + e_platform.row;
+	dev->col		 = col + e_platform.col;
+	dev->rows		 = rows;
+	dev->cols		 = cols;
+	dev->num_cores	 = dev->rows * dev->cols;
 	diag(H_D2) { fprintf(diag_fd, "e_open(): dev.(row,col,rows,cols)=(%d,%d,%d,%d), (row,col)=(%d,%d), num_cores=%d\n", dev->row, dev->col, dev->rows, dev->cols, row, col, dev->num_cores); }
 	dev->base_coreid = ee_get_id_from_coords(dev, 0, 0);
 
@@ -212,10 +223,10 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 
 	// Open memory device
-	dev->memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	dev->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 	if (dev->memfd == -1)
 	{
-		warnx("e_open(): /dev/epiphany file open failure.");
+		warnx("e_open(): EPIPHANY_DEV file open failure.");
 		return E_ERR;
 	}
 
@@ -248,7 +259,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 			diag(H_D2) { fprintf(diag_fd, "e_open(): core (%d,%d), CoreID = 0x%03x\n", curr_core->row, curr_core->col, curr_core->id); }
 
-			//    |-------------|     req'd map
+			//	  |-------------|	  req'd map
 			// +--0-+--1-+--2-+--3-+  O/S pages
 			// |--x-------------|  gen'd map; x = offset
 
@@ -328,9 +339,9 @@ int e_close(e_epiphany_t *dev)
 // Read a memory block from a core in a group
 ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf, size_t size)
 {
-	ssize_t       rcount;
+	ssize_t		  rcount;
 	e_epiphany_t *edev;
-	e_mem_t      *mdev;
+	e_mem_t		 *mdev;
 
 	switch (*((e_objtype_t *) dev))
 	{
@@ -364,10 +375,10 @@ ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf
 // Write a memory block to a core in a group
 ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
-	ssize_t       wcount;
+	ssize_t		  wcount;
 	unsigned int  reg;
 	e_epiphany_t *edev;
-	e_mem_t      *mdev;
+	e_mem_t		 *mdev;
 
 	switch (*((e_objtype_t *) dev))
 	{
@@ -403,8 +414,8 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
 	volatile int *pfrom;
-	int           data;
-	ssize_t       size;
+	int			  data;
+	ssize_t		  size;
 
 	size = sizeof(int);
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
@@ -425,8 +436,8 @@ int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from
 // Write a word to SRAM of a core in a group
 ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	int     *pto;
-	ssize_t  size;
+	int		*pto;
+	ssize_t	 size;
 
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
@@ -447,9 +458,9 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 // Read a memory block from SRAM of a core in a group
 ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
-	const void   *pfrom;
+	const void	 *pfrom;
 	unsigned int  addr_from, addr_to, align;
-	int           i;
+	int			  i;
 
 	if (((from_addr + size) > dev->core[row][col].mems.map_size) || (from_addr < 0))
 	{
@@ -466,8 +477,8 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 		// The following code is a fix for the E64G401 anomaly of bursting reads from eCore
 		// internal memory back to host, from rows #1 and #2.
 		addr_from = (unsigned int) pfrom;
-		addr_to   = (unsigned int) buf;
-		align     = (addr_from | addr_to | size) & 0x7;
+		addr_to	  = (unsigned int) buf;
+		align	  = (addr_from | addr_to | size) & 0x7;
 
 		switch (align) {
 		case 0x0:
@@ -523,9 +534,9 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
 	volatile int *pfrom;
-	off_t         addr;
-	int           data;
-	ssize_t       size;
+	off_t		  addr;
+	int			  data;
+	ssize_t		  size;
 
 	addr = from_addr;
 	if (addr >= E_CORE_GP_REG_BASE)
@@ -535,7 +546,7 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	if (((addr + size) > dev->core[row][col].regs.map_size) || (addr < 0))
 	{
 		diag(H_D2) { fprintf(diag_fd, "ee_read_reg(): from_addr=0x%08x, size=0x%08x, map_size=0x%08x\n", (uint) from_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
-		warnx("ee_read_reg(): Buffer range is out of bounds.");
+		warnx("ee_read_reg(): Address is out of bounds.");
 		return E_ERR;
 	}
 
@@ -544,16 +555,14 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	data  = *pfrom;
 
 	return data;
-
-	return data;
 }
 
 
 // Write to a core register of a core in a group
 ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	int     *pto;
-	ssize_t  size;
+	int		*pto;
+	ssize_t	 size;
 
 	if (to_addr >= E_CORE_GP_REG_BASE)
 		to_addr = to_addr - E_CORE_GP_REG_BASE;
@@ -562,7 +571,7 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	if (((to_addr + size) > dev->core[row][col].regs.map_size) || (to_addr < 0))
 	{
 		diag(H_D2) { fprintf(diag_fd, "ee_write_reg(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) dev->core[row][col].regs.map_size); }
-		warnx("ee_write_reg(): Buffer range is out of bounds.");
+		warnx("ee_write_reg(): Address is out of bounds.");
 		return E_ERR;
 	}
 
@@ -572,7 +581,6 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 
 	return sizeof(int);
 }
-
 
 // External Memory access
 //
@@ -587,10 +595,10 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 
 	mbuf->objtype = E_EXT_MEM;
 
-	mbuf->memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	mbuf->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 	if (mbuf->memfd == -1)
 	{
-		warnx("e_alloc(): /dev/epiphany file open failure.");
+		warnx("e_alloc(): EPIPHANY_DEV file open failure.");
 		return E_ERR;
 	}
 
@@ -607,7 +615,7 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 	mbuf->ephy_base = (e_platform.emem[0].ephy_base + base); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
-	diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
+	diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
 
 	if (mbuf->mapped_base == MAP_FAILED)
 	{
@@ -618,10 +626,13 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 	return E_OK;
 }
 
-
 // Free a memory buffer in external memory
 int e_free(e_mem_t *mbuf)
 {
+	if (NULL == mbuf) {
+		return E_ERR;
+	}
+
 	munmap(mbuf->mapped_base, mbuf->map_size);
 	close(mbuf->memfd);
 
@@ -655,14 +666,14 @@ ssize_t ee_mwrite(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
 int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 {
 	volatile int *pfrom;
-	int           data;
-	ssize_t       size;
+	int			  data;
+	ssize_t		  size;
 
 	size = sizeof(int);
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
 		diag(H_D2) { fprintf(diag_fd, "ee_mread_word(): writing to from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
-		warnx("ee_mread_word(): Buffer range is out of bounds.");
+		warnx("ee_mread_word(): Address is out of bounds.");
 		return E_ERR;
 	}
 
@@ -677,14 +688,14 @@ int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 // Write a word to an external memory buffer
 ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data)
 {
-	int     *pto;
-	ssize_t  size;
+	int		*pto;
+	ssize_t	 size;
 
 	size = sizeof(int);
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
 		diag(H_D2) { fprintf(diag_fd, "ee_mwrite_word(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
-		warnx("ee_mwrite_word(): Buffer range is out of bounds.");
+		warnx("ee_mwrite_word(): Address is out of bounds.");
 		return E_ERR;
 	}
 
@@ -704,7 +715,7 @@ ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t siz
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
 		diag(H_D2) { fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
-		warnx("ee_mread_buf(): Buffer range is out of bounds.");
+		warnx("ee_mread_buf(): Address is out of bounds.");
 		return E_ERR;
 	}
 
@@ -724,7 +735,7 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
 		diag(H_D2) { fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
-		warnx("ee_mwrite_buf(): Buffer range is out of bounds.");
+		warnx("ee_mwrite_buf(): Address is out of bounds.");
 		return E_ERR;
 	}
 
@@ -742,16 +753,16 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 // Read a word from an address in the platform space
 int ee_read_esys(off_t from_addr)
 {
-	e_mmap_t      esys;
-	int           memfd;
+	e_mmap_t	  esys;
+	int			  memfd;
 	volatile int *pfrom;
-	int           data;
+	int			  data;
 
 	// Open memory device
-	memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 	if (memfd == -1)
 	{
-		warnx("ee_read_esys(): /dev/epiphany file open failure.");
+		warnx("ee_read_esys(): EPIPHANY_DEV file open failure.");
 		return E_ERR;
 	}
 
@@ -786,14 +797,14 @@ int ee_read_esys(off_t from_addr)
 ssize_t ee_write_esys(off_t to_addr, int data)
 {
 	e_mmap_t  esys;
-	int       memfd;
-	int      *pto;
+	int		  memfd;
+	int		 *pto;
 
 	// Open memory device
-	memfd = open("/dev/epiphany", O_RDWR | O_SYNC);
+	memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 	if (memfd == -1)
 	{
-		warnx("ee_write_esys(): /dev/epiphany file open failure.");
+		warnx("ee_write_esys(): EPIPHANY_DEV file open failure.");
 		return E_ERR;
 	}
 
@@ -840,13 +851,13 @@ int e_reset_system(void)
 	if ((e_platform.type == E_ZEDBOARD1601) || (e_platform.type == E_PARALLELLA1601))
 	{
 		e_epiphany_t dev;
-		int          data;
+		int			 data;
 		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
 		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
-        {
-            warnx("e_reset_system(): e_open() failure.");
-            return E_ERR;
-        }
+		{
+			warnx("e_reset_system(): e_open() failure.");
+			return E_ERR;
+		}
 
 		ee_write_esys(E_SYS_CONFIG, 0x50000000);
 		data = 1;
@@ -949,7 +960,7 @@ int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 // Start all programs loaded on a workgroup
 int e_start_group(e_epiphany_t *dev)
 {
-	int             irow, icol;
+	int				irow, icol;
 	e_return_stat_t retval;
 
 	retval = E_OK;
@@ -1098,7 +1109,7 @@ e_bool_t e_is_addr_on_chip(void *addr)
 	{
 		curr_chip = &(e_platform.chip[i]);
 		if ((row >= curr_chip->row) && (row < (curr_chip->row + curr_chip->rows)) &&
-		    (col >= curr_chip->col) && (col < (curr_chip->col + curr_chip->cols)))
+			(col >= curr_chip->col) && (col < (curr_chip->col + curr_chip->cols)))
 			return E_TRUE;
 	}
 
@@ -1121,7 +1132,6 @@ e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr)
 	return E_FALSE;
 }
 
-
 e_hal_diag_t e_set_host_verbosity(e_hal_diag_t verbose)
 {
 	e_hal_diag_t old_host_verbose;
@@ -1140,7 +1150,7 @@ e_hal_diag_t e_set_host_verbosity(e_hal_diag_t verbose)
 
 int ee_parse_hdf(e_platform_t *dev, char *hdf)
 {
-	int   ret = E_ERR;
+	int	  ret = E_ERR;
 	char *ext;
 
 	if (strlen(hdf) >= 4)
@@ -1163,9 +1173,9 @@ int ee_parse_hdf(e_platform_t *dev, char *hdf)
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 {
-	FILE       *fp;
-	int         chip_num;
-	int         emem_num;
+	FILE	   *fp;
+	int			chip_num;
+	int			emem_num;
 	e_chip_t   *curr_chip = NULL;
 	e_memseg_t *curr_emem = NULL;
 
@@ -1196,7 +1206,7 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 
 
 		// Platform definition
-		if      (!strcmp("PLATFORM_VERSION", etag))
+		if		(!strcmp("PLATFORM_VERSION", etag))
 		{
 			sscanf(eval, "%s", dev->version);
 			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): platform version = %s\n", dev->version); }
@@ -1303,9 +1313,10 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 
 int ee_parse_xml_hdf(e_platform_t *dev, char *hdf)
 {
-    (void)dev;
-    (void)hdf;
-	warnx("e_init(): XML file format is not yet supported. Please use simple HDF format.");
+	(void)dev;
+	(void)hdf;
+	warnx("ee_parse_xml_hdf(): XML file format is not yet supported. "
+		  "Please use simple HDF format.");
 
 	return E_ERR;
 }
@@ -1313,17 +1324,17 @@ int ee_parse_xml_hdf(e_platform_t *dev, char *hdf)
 
 // Platform data structures
 typedef struct {
-	e_objtype_t      objtype;     // object type identifier
-	e_platformtype_t type;        // Epiphany platform part number
-	char             version[32]; // version name of Epiphany chip
+	e_objtype_t		 objtype;	  // object type identifier
+	e_platformtype_t type;		  // Epiphany platform part number
+	char			 version[32]; // version name of Epiphany chip
 } e_platform_db_t;
 
 #define NUM_PLATFORM_VERSIONS 7
 e_platform_db_t platform_params_table[NUM_PLATFORM_VERSIONS] = {
-//       objtype         type              version
-		{E_EPI_PLATFORM, E_GENERIC,        "GENERIC"},
-		{E_EPI_PLATFORM, E_EMEK301,        "EMEK301"},
-		{E_EPI_PLATFORM, E_EMEK401,        "EMEK401"},
+//		 objtype		 type			   version
+		{E_EPI_PLATFORM, E_GENERIC,		   "GENERIC"},
+		{E_EPI_PLATFORM, E_EMEK301,		   "EMEK301"},
+		{E_EPI_PLATFORM, E_EMEK401,		   "EMEK401"},
 		{E_EPI_PLATFORM, E_ZEDBOARD1601,   "ZEDBOARD1601"},
 		{E_EPI_PLATFORM, E_ZEDBOARD6401,   "ZEDBOARD6401"},
 		{E_EPI_PLATFORM, E_PARALLELLA1601, "PARALLELLA1601"},
@@ -1355,25 +1366,25 @@ int ee_set_platform_params(e_platform_t *platform)
 
 
 typedef struct {
-	e_objtype_t      objtype;     // object type identifier
-	e_chiptype_t     type;        // Epiphany chip part number
-	char             version[32]; // version name of Epiphany chip
-	unsigned int     arch;        // architecture generation
-	unsigned int     rows;        // number of rows in chip
-	unsigned int     cols;        // number of cols in chip
-	unsigned int     sram_base;   // base offset of core SRAM
-	unsigned int     sram_size;   // size of core SRAM
-	unsigned int     regs_base;   // base offset of core registers
-	unsigned int     regs_size;   // size of core registers segment
-	off_t            ioregs_n;    // base address of north IO register
-	off_t            ioregs_e;    // base address of east IO register
-	off_t            ioregs_s;    // base address of south IO register
-	off_t            ioregs_w;    // base address of west IO register
+	e_objtype_t		 objtype;	  // object type identifier
+	e_chiptype_t	 type;		  // Epiphany chip part number
+	char			 version[32]; // version name of Epiphany chip
+	unsigned int	 arch;		  // architecture generation
+	unsigned int	 rows;		  // number of rows in chip
+	unsigned int	 cols;		  // number of cols in chip
+	unsigned int	 sram_base;	  // base offset of core SRAM
+	unsigned int	 sram_size;	  // size of core SRAM
+	unsigned int	 regs_base;	  // base offset of core registers
+	unsigned int	 regs_size;	  // size of core registers segment
+	off_t			 ioregs_n;	  // base address of north IO register
+	off_t			 ioregs_e;	  // base address of east IO register
+	off_t			 ioregs_s;	  // base address of south IO register
+	off_t			 ioregs_w;	  // base address of west IO register
 } e_chip_db_t;
 
 #define NUM_CHIP_VERSIONS 2
 e_chip_db_t chip_params_table[NUM_CHIP_VERSIONS] = {
-//       objtype     type       version  arch r  c sram_base sram_size regs_base regs_size io_n     io_e        io_s        io_w
+//		 objtype	 type		version	 arch r	 c sram_base sram_size regs_base regs_size io_n		io_e		io_s		io_w
 		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x083f0000, 0x0c2f0000, 0x080f0000},
 		{E_EPI_CHIP, E_E64G401, "E64G401", 4, 8, 8, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
 };
@@ -1396,19 +1407,19 @@ int ee_set_chip_params(e_chip_t *chip)
 		chip_ver = 0;
 	}
 
-	chip->type      = chip_params_table[chip_ver].type;
-	chip->arch      = chip_params_table[chip_ver].arch;
-	chip->rows      = chip_params_table[chip_ver].rows;
-	chip->cols      = chip_params_table[chip_ver].cols;
+	chip->type		= chip_params_table[chip_ver].type;
+	chip->arch		= chip_params_table[chip_ver].arch;
+	chip->rows		= chip_params_table[chip_ver].rows;
+	chip->cols		= chip_params_table[chip_ver].cols;
 	chip->num_cores = chip->rows * chip->cols;
 	chip->sram_base = chip_params_table[chip_ver].sram_base;
 	chip->sram_size = chip_params_table[chip_ver].sram_size;
 	chip->regs_base = chip_params_table[chip_ver].regs_base;
 	chip->regs_size = chip_params_table[chip_ver].regs_size;
-	chip->ioregs_n  = chip_params_table[chip_ver].ioregs_n;
-	chip->ioregs_e  = chip_params_table[chip_ver].ioregs_e;
-	chip->ioregs_s  = chip_params_table[chip_ver].ioregs_s;
-	chip->ioregs_w  = chip_params_table[chip_ver].ioregs_w;
+	chip->ioregs_n	= chip_params_table[chip_ver].ioregs_n;
+	chip->ioregs_e	= chip_params_table[chip_ver].ioregs_e;
+	chip->ioregs_s	= chip_params_table[chip_ver].ioregs_s;
+	chip->ioregs_w	= chip_params_table[chip_ver].ioregs_w;
 
 	return E_OK;
 }
@@ -1416,11 +1427,11 @@ int ee_set_chip_params(e_chip_t *chip)
 
 void ee_trim_str(char *a)
 {
-    char *b = a;
-    while (isspace(*b))   ++b;
-    while (*b)            *a++ = *b++;
-    *a = '\0';
-    while (isspace(*--a)) *a = '\0';
+	char *b = a;
+	while (isspace(*b))	  ++b;
+	while (*b)			  *a++ = *b++;
+	*a = '\0';
+	while (isspace(*--a)) *a = '\0';
 }
 
 

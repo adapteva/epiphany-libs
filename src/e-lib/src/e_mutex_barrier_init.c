@@ -27,10 +27,9 @@
 #include <e_mutex.h>
 
 // TODO: use asingle pointer to store barrier addresses
-
 void e_barrier_init(volatile e_barrier_t bar_array[], e_barrier_t *tgt_bar_array[])
 {
-	int corenum, numcores, i, j;
+	unsigned int corenum, numcores, i, j;
 
 	numcores = e_group_config.group_rows * e_group_config.group_cols;
 	corenum  = e_group_config.core_row * e_group_config.group_cols + e_group_config.core_col;

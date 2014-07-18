@@ -35,6 +35,7 @@
 #include <e_mem.h>
 #include <e_mutex.h>
 #include <e_coreid.h>
+#include <e_shm.h>
 
 #endif /* __ELIB_H__ */
 

@@ -25,6 +25,8 @@
 
 #include "e_coreid.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
 void *e_get_global_address(unsigned row, unsigned col, const void *ptr)
 {
 	unsigned   uptr;
@@ -48,3 +50,4 @@ void *e_get_global_address(unsigned row, unsigned col, const void *ptr)
 
 	return (void *) uptr;
 }
+#pragma GCC diagnostic pop

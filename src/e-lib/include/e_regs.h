@@ -139,6 +139,7 @@ typedef enum {
 	E_REG_DMA1STATUS       = E_CORE_SP_REG_BASE + 0x053C,
 
 	// Memory Protection Registers
+	E_REG_MEMSTATUS        = E_CORE_SP_REG_BASE + 0x0604,
 	E_REG_MEMPROTECT       = E_CORE_SP_REG_BASE + 0x0608,
 
 	// Node Registers
