@@ -82,14 +82,14 @@ int e_shm_init()
 		return E_ERR;
 	}
 
-	diag(H_D1) { fprintf(stderr, "e_shm_init(): mapped shm: handle 0x%08lx, "
+	diag(H_D2) { fprintf(stderr, "e_shm_init(): mapped shm: handle 0x%08lx, "
 						 "uvirt 0x%08lx, size 0x%08lx\n", shm_alloc.mmap_handle,
 						 shm_alloc.uvirt_addr, shm_alloc.size); }
 
 	/** The shm table is initialized by the Epiphany driver. */
 	shm_table = (e_shmtable_t*)shm_alloc.uvirt_addr;
 
-	diag(H_D0) { fprintf(stderr, "e_shm_init(): shm table size is 0x%08x\n",
+	diag(H_D2) { fprintf(stderr, "e_shm_init(): shm table size is 0x%08x\n",
 						 sizeof(e_shmtable_t)); }
 	
 
@@ -107,7 +107,7 @@ int e_shm_init()
 		return E_ERR;
 	}
 
-	diag(H_D1) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
+	diag(H_D2) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
 
 	return E_OK;
 }
@@ -117,7 +117,7 @@ void e_shm_finalize(void)
 	sem_unlink(SHM_LOCK_NAME);
 	sem_close(shm_table->lock);
 	munmap((void*)shm_table, shm_table_length);
-	diag(H_D1) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
+	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }
 
 e_shmseg_t* e_shm_alloc(const char *name, size_t size)
