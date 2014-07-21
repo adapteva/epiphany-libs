@@ -7,7 +7,8 @@ EXTRALINKFLAGS  =
 
 INCLUDES    = \
 	-I../../e-hal/src		\
-	-I../../e-loader/src
+	-I../../e-loader/src	\
+	-I$(PARALLELLA_LINUX_HOME)/include/uapi
 
 LIB_PATHS   = \
 	-L../../e-hal/Release
@@ -16,7 +17,8 @@ DBG_LIB_PATHS = \
 	-L../../e-hal/Debug
 
 LIBS        = \
-	-le-hal
+	-le-hal			\
+	-lpthread
 
 C_SRCS      = \
 	e-write.c

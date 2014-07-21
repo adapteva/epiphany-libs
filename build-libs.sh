@@ -9,6 +9,13 @@ if [[ -z $EPIPHANY_PREFIX ]]; then
 	EPIPHANY_PREFIX=epiphany-elf-
 fi
 
+if [[ -z $PARALLELLA_LINUX_HOME ]]; then
+	echo "Please define the environment variable PARALLELLA_LINUX_HOME"
+	exit 1
+else
+	echo $PARALLELLA_LINUX_HOME
+fi
+
 function build-xml() {
 	# Build the XML parser library
 	echo '==============================='

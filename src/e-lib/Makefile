@@ -11,7 +11,8 @@ EXTRACFLAGS  	= -O3 -falign-loops=8 -fmessage-length=0 -ffp-contract=fast \
 
 # List of include search paths
 INCLUDES    = \
-	-I./include
+	-I./include							\
+	-I$(PARALLELLA_LINUX_HOME)/include/uapi
 
 C_SRCS      = \
 	e_coreid_config.c 					\

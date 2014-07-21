@@ -6,8 +6,9 @@ EXTRACFLAGS  	= -fmessage-length=0
 EXTRALINKFLAGS  =
 
 INCLUDES    = \
-	-I../../e-hal/src 			\
-	-I../../e-loader/src
+	-I../../e-hal/src 							\
+	-I../../e-loader/src						\
+	-I$(PARALLELLA_LINUX_HOME)/include/uapi	
 
 LIB_PATHS   = \
 	-L../../e-hal/Release 		\
@@ -19,7 +20,8 @@ DBG_LIB_PATHS = \
 
 LIBS        = \
 	-le-hal						\
-	-le-loader
+	-le-loader					\
+	-lpthread
 
 C_SRCS      = \
 	e-loader.c

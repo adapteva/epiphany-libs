@@ -15,9 +15,10 @@ EXTRACFLAGS  	= -fmessage-length=0 -Wno-int-to-pointer-cast -Wno-pointer-to-int-
 
 # List of include search paths
 INCLUDES    = \
-	-I../						\
-	-I../e-hal/src				\
-	-I../e-loader/src
+	-I../										\
+	-I../e-hal/src								\
+	-I../e-loader/src							\
+	-I$(PARALLELLA_LINUX_HOME)/include/uapi
 
 C_SRCS      = \
 	e-loader.c			\
