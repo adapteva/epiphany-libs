@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <semaphore.h>
 
+#include <linux/epiphany.h>
+
 #include "epiphany-hal.h"
 #include "epiphany-hal-api-local.h"
 #include "epiphany-shm-manager.h"
@@ -57,20 +59,23 @@ int e_shm_init()
 {
 	epiphany_alloc_t shm_alloc;
 	int devfd = 0;
+	int retval = E_OK;
 	const unsigned sem_perms = S_IRUSR | S_IWUSR;
 
 	/* Map the epiphany global shared memory into process address space */
 	devfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 	if ( -1 == devfd ) {
 		warnx("e_init(): EPIPHANY_DEV file open failure.");
-		return E_ERR;
+		retval = E_ERR;
+		goto err;
 	}
 
 	memset(&shm_alloc, 0, sizeof(shm_alloc));
 	if ( -1 == ioctl(devfd, EPIPHANY_IOC_GETSHM, &shm_alloc) ) {
 		warnx("e_shm_init(): Failed to obtain the global "
 			  "shared memory. Error is %s\n", strerror(errno));
-		return E_ERR;
+		retval = E_ERR;
+		goto err;
 	}
 	shm_table_length = shm_alloc.size;
 
@@ -82,34 +87,56 @@ int e_shm_init()
 		return E_ERR;
 	}
 
-	diag(H_D2) { fprintf(stderr, "e_shm_init(): mapped shm: handle 0x%08lx, "
+	diag(H_D1) { fprintf(stderr, "e_shm_init(): mapped shm: handle 0x%08lx, "
 						 "uvirt 0x%08lx, size 0x%08lx\n", shm_alloc.mmap_handle,
 						 shm_alloc.uvirt_addr, shm_alloc.size); }
 
 	/** The shm table is initialized by the Epiphany driver. */
 	shm_table = (e_shmtable_t*)shm_alloc.uvirt_addr;
 
-	diag(H_D2) { fprintf(stderr, "e_shm_init(): shm table size is 0x%08x\n",
+	diag(H_D1) { fprintf(stderr, "e_shm_init(): shm table size is 0x%08x\n",
 						 sizeof(e_shmtable_t)); }
 	
-
-	if ( shm_table->magic != SHM_MAGIC ) {
-		warnx("e_shm_init(): Bad shm magic. Expected 0x%08x found 0x%08x\n",
-			  SHM_MAGIC, shm_table->magic);
-		return E_ERR;
-	}
-
-	/* Init the shm lock semaphore. Init unlocked */
-	shm_table->lock = sem_open(SHM_LOCK_NAME, O_CREAT, sem_perms, 1);
+	/* Init the shm lock semaphore. Init locked */
+	shm_table->lock = sem_open(SHM_LOCK_NAME, O_CREAT, sem_perms, 0);
 	if ( SEM_FAILED == (sem_t*)shm_table->lock ) {
 		warnx("e_shm_init(): Failed to open the shared memory semaphore. "
 			  "Error is %s\n", strerror(errno));
 		return E_ERR;
 	}
 
-	diag(H_D2) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
+	if ( !shm_table->initialized ) {
+		/*
+		 * Note - the epiphany driver will have zeroed the
+		 * global shared memory region
+		 */
+		shm_table->magic			= SHM_MAGIC;
+		shm_table->paddr_epi		= shm_alloc.bus_addr;
+		shm_table->paddr_cpu		= shm_alloc.phy_addr;
+		shm_table->free_space		= GLOBAL_SHM_SIZE - sizeof(*shm_table);
+		shm_table->next_free_offset = sizeof(*shm_table); 
+		shm_table->initialized = 1;
 
-	return E_OK;
+		diag(H_D1) { fprintf(stderr, "e_shm_init(): initialized shm table\n"); }
+	} else {
+		diag(H_D1) { fprintf(stderr, "e_shm_init(): shm table already initialized\n"); }
+
+		/*
+		 * The shm table has already been initialized - check the magic field
+		 */
+		if ( shm_table->magic != SHM_MAGIC ) {
+			warnx("e_shm_init(): Bad shm magic. Expected 0x%08x found 0x%08x\n",
+				  SHM_MAGIC, shm_table->magic);
+			retval = E_ERR;
+		}
+	}
+
+	diag(H_D1) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
+
+	sem_post(shm_table->lock);
+
+ err:
+	return retval;
 }
 
 void e_shm_finalize(void)

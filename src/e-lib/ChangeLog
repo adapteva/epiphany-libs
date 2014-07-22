@@ -1,3 +1,8 @@
+2014-07-22  Ben Chaco  <bchaco@x3-c.com>
+
+ 	* src/e-lib/include/e_shm.h:
+	Added Shared Memory structure definitions.
+
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-lib/Debug/makefile: Removed file.

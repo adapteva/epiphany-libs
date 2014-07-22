@@ -14,29 +14,17 @@
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   and the GNU Lesser General Public License along with this program,
-  see the files COPYING and COPYING.LESSER.  If not, see
+  see the files COPYING and COPYING.LESSER.	 If not, see
   <http://www.gnu.org/licenses/>.
 */
 
 #ifndef __EPIPHANY_SHM_MANAGER_H__
 #define __EPIPHANY_SHM_MANAGER_H__
-
-/**
- * Note: the epiphany shm manager prototypes for the public API 
- * are provided in the file epiphany-hal-api.h. Only private 
- * API function prototypes are provided in this header.
- */
-
-/*
-** Type definitions
-*/
-
-
 
 /*
 ** Function prototypes.
@@ -54,4 +42,4 @@ int e_shm_init();
  */
 void e_shm_finalize(void);
 
-#endif    /*  __EPIPHANY_SHM_MANAGER_H__ */
+#endif	  /*  __EPIPHANY_SHM_MANAGER_H__ */

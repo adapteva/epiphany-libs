@@ -14,12 +14,12 @@
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   and the GNU Lesser General Public License along with this program,
-  see the files COPYING and COPYING.LESSER.  If not, see
+  see the files COPYING and COPYING.LESSER.	 If not, see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -27,7 +27,7 @@
 #define __E_HAL_API_H__
 
 #include <sys/types.h>
-#include <linux/epiphany.h> /* <kernel>/include/uapi/linux/epiphany.h> */
+#include "epiphany-shm-manager.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -38,15 +38,15 @@ extern "C"
 // Device communication functions
 //
 // Platform configuration
-int     e_init(char *hdf);
-int     e_get_platform_info(e_platform_t *platform);
-int     e_finalize(void);
+int		e_init(char *hdf);
+int		e_get_platform_info(e_platform_t *platform);
+int		e_finalize(void);
 // Epiphany access
-int     e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
-int     e_close(e_epiphany_t *dev);
+int		e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
+int		e_close(e_epiphany_t *dev);
 // External memory access
-int     e_alloc(e_mem_t *mbuf, off_t base, size_t size);
-int     e_free(e_mem_t *mbuf);
+int		e_alloc(e_mem_t *mbuf, off_t base, size_t size);
+int		e_free(e_mem_t *mbuf);
 
 //
 // Data transfer
@@ -57,14 +57,14 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 ///////////////////////////
 // System control functions
 #define e_reset e_reset_system
-int     e_reset_system(void);
-int     e_reset_chip(void);
-int     e_reset_group(e_epiphany_t *dev);
-int     e_start(e_epiphany_t *dev, unsigned row, unsigned col);
-int     e_start_group(e_epiphany_t *dev);
-int     e_signal(e_epiphany_t *dev, unsigned row, unsigned col);
-int     e_halt(e_epiphany_t *dev, unsigned row, unsigned col);
-int     e_resume(e_epiphany_t *dev, unsigned row, unsigned col);
+int		e_reset_system(void);
+int		e_reset_chip(void);
+int		e_reset_group(e_epiphany_t *dev);
+int		e_start(e_epiphany_t *dev, unsigned row, unsigned col);
+int		e_start_group(e_epiphany_t *dev);
+int		e_signal(e_epiphany_t *dev, unsigned row, unsigned col);
+int		e_halt(e_epiphany_t *dev, unsigned row, unsigned col);
+int		e_resume(e_epiphany_t *dev, unsigned row, unsigned col);
 
 ////////////////////////////////////////////
 // Shared Memory Manager function prototypes
@@ -82,7 +82,7 @@ int     e_resume(e_epiphany_t *dev, unsigned row, unsigned col);
  * to one of the following:
  *
  * ENOMEM - no free regions are available to satisfy the
- *     request.
+ *	   request.
  * EEXIST - a shared region with name already exists
  */
 e_shmseg_t* e_shm_alloc(const char *name, size_t size);
@@ -117,7 +117,7 @@ e_shmtable_t* e_shm_get_shmtable(void);
 ////////////////////
 // Utility functions
 unsigned e_get_num_from_coords(e_epiphany_t *dev, unsigned row, unsigned col);
-void     e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *row, unsigned *col);
+void	 e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *row, unsigned *col);
 //
 e_bool_t e_is_addr_on_chip(void *addr);
 e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr);

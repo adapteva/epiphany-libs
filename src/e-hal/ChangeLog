@@ -1,3 +1,14 @@
+2014-07-22  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-hal/src/epiphany-hal-api.h:
+	* src/e-hal/src/epiphany-hal-data.h:
+	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init):
+	* src/e-hal/src/epiphany-shm-manager.h:
+	Changes to shared memory table initialization: The shared memory table is now
+	initialized during the first call to e_shm_init rather than during the Epiphany
+	driver init. The Shared Memory structure definitions are now defined in
+	epiphany-hal-data.h rather than in the Epiphany Driver header (epiphany.h).
+
 2014-06-25  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/src/epiphany-hal-legacy.c:
@@ -7,7 +18,7 @@
 	Fixed a segfault due to fprintf being called with an uninitialized file pointer.
 	Renamed global diagnostics file pointer from fd to diag_fd.
 	Changed explicit fprintf calls to warnx calls.
-	
+
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/Debug/makefile: Removed file.
