@@ -85,7 +85,7 @@ int		e_resume(e_epiphany_t *dev, unsigned row, unsigned col);
  *	   request.
  * EEXIST - a shared region with name already exists
  */
-e_shmseg_t* e_shm_alloc(const char *name, size_t size);
+int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size);
 
 /**
  * Attach to a shared region identifiable by name
@@ -96,7 +96,7 @@ e_shmseg_t* e_shm_alloc(const char *name, size_t size);
  * @return - a pointer to the e_shmseg_t represnting the region
  * or NULL if a region with name does not exists
  */
-e_shmseg_t* e_shm_attach(const char *name);
+int e_shm_attach(e_mem_t *mbuf, const char *name);
 
 /**
  * Free a shared memory region, given by name, that was allocated

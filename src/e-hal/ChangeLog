@@ -1,9 +1,11 @@
-2014-07-22  Ben Chaco  <bchaco@x3-c.com>
+2014-07-24  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/src/epiphany-hal-api.h:
 	* src/e-hal/src/epiphany-hal-data.h:
+	* src/e-hal/src/epiphany-hal-data-local.h:
 	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init):
 	* src/e-hal/src/epiphany-shm-manager.h:
+	* src/e-hal/src/epiphany-hal.c:
 	Changes to shared memory table initialization: The shared memory table is now
 	initialized during the first call to e_shm_init rather than during the Epiphany
 	driver init. The Shared Memory structure definitions are now defined in

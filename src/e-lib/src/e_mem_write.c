@@ -14,12 +14,12 @@
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   and the GNU Lesser General Public License along with this program,
-  see the files COPYING and COPYING.LESSER.  If not, see
+  see the files COPYING and COPYING.LESSER.	 If not, see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -31,10 +31,15 @@ void *e_write(const void *remote, const void *src, unsigned row, unsigned col, v
 {
 	void *gdst;
 
-	if (*((e_objtype_t *) remote) == E_EPI_GROUP)
+	if (*((e_objtype_t *) remote) == E_EPI_GROUP) {
 		gdst = e_get_global_address(row, col, dst);
-	else
+	} else if (*((e_objtype_t *) remote) == E_SHARED_MEM) {
+		// dst is ignored for shared memory writes
+		e_memseg_t *pmem = (e_memseg_t *)remote;
+		gdst = (void*)pmem->ephy_base;
+	} else {
 		gdst = (void *) (e_emem_config.base + (unsigned) dst);
+	}
 
 	memcpy(gdst, src, n);
 

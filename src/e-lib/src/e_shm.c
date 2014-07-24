@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "e_types.h"
+#include "e_coreid.h"
 #include "e_regs.h"
 #include "e_shm.h"
 
@@ -101,15 +102,25 @@ shm_lookup_region(const char *name)
  * WARNING: we cannot serialize access to the shm table from the Epiphany
  * cores so treat the SHM Table as read-only!! 
  */
-const e_shmseg_t* e_shm_attach(const char* name)
+int e_shm_attach(e_memseg_t *mem, const char* name)
 {
-	e_shmseg_pvt_t		*region = NULL;
-	e_shmseg_t			*retval = NULL;
+	const e_shmseg_pvt_t  *region = NULL;
+	int					   retval = E_ERR;
+
+	if ( !mem || !name ) {
+		return retval;
+	}
 
 	if ( E_OK == check_shmtable() ) {
-		region = (e_shmseg_pvt_t*)shm_lookup_region(name);
+		region = shm_lookup_region(name);
 		if ( region ) {
-			retval = &region->shm_seg;
+			mem->objtype	 = E_SHARED_MEM;
+			mem->phy_base	 = shm_table->paddr_cpu + region->shm_seg.offset;
+			mem->ephy_base	 = (unsigned)(region->shm_seg.paddr);
+			mem->size		 = region->shm_seg.size;
+			mem->type		 = E_RDWR;
+
+			retval			 = E_OK;
 		}
 	}
 

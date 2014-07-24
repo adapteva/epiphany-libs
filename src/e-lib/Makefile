@@ -2,7 +2,7 @@
 BUILD_ROOT  	= ../..
 
 ## This library is always compiled for the epiphany cores
-CROSS_COMPILE=e-
+CROSS_COMPILE=epiphany-elf-
 
 LIBNAME			= e-lib
 

@@ -52,6 +52,7 @@ typedef enum {
 	E_EPI_CORE     = 4,
 	E_EXT_MEM      = 5,
 	E_MAPPING      = 6,
+    E_SHARED_MEM   = 7
 } e_objtype_t;
 
 typedef enum {

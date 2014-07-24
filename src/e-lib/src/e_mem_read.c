@@ -14,12 +14,12 @@
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   and the GNU Lesser General Public License along with this program,
-  see the files COPYING and COPYING.LESSER.  If not, see
+  see the files COPYING and COPYING.LESSER.	 If not, see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -31,10 +31,15 @@ void *e_read(const void *remote, void *dst, unsigned row, unsigned col, const vo
 {
 	void *gsrc;
 
-	if (*((e_objtype_t *) remote) == E_EPI_GROUP)
+	if (*((e_objtype_t *) remote) == E_EPI_GROUP) {
 		gsrc = e_get_global_address(row, col, src);
-	else
+	} else if (*((e_objtype_t *) remote) == E_SHARED_MEM) {
+		// src is ignored for shared memory reads
+		e_memseg_t *pmem = (e_memseg_t *)remote;
+		gsrc = (void*)pmem->ephy_base;
+	} else {
 		gsrc = (void *) (e_emem_config.base + (unsigned) src);
+	}
 
 	memcpy(dst, gsrc, n);
 

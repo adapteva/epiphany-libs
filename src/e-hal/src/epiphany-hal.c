@@ -356,6 +356,7 @@ ssize_t e_read(void *dev, unsigned row, unsigned col, off_t from_addr, void *buf
 		}
 		break;
 
+	case E_SHARED_MEM:	// Fall-through
 	case E_EXT_MEM:
 		diag(H_D2) { fprintf(diag_fd, "e_read(): detected EXT_MEM object.\n"); }
 		mdev = (e_mem_t *) dev;
@@ -394,6 +395,7 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 		}
 		break;
 
+	case E_SHARED_MEM:	// Fall-through
 	case E_EXT_MEM:
 		diag(H_D2) { fprintf(diag_fd, "e_write(): detected EXT_MEM object.\n"); }
 		mdev = (e_mem_t *) dev;
@@ -585,7 +587,7 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 // External Memory access
 //
 // Allocate a buffer in external memory
-int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
+int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 {
 	if (e_platform.initialized == E_FALSE)
 	{
@@ -602,17 +604,17 @@ int e_alloc(e_mem_t *mbuf, off_t base, size_t size)
 		return E_ERR;
 	}
 
-	diag(H_D2) { fprintf(diag_fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) base); }
+	diag(H_D2) { fprintf(diag_fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) offset); }
 
-	mbuf->phy_base = (e_platform.emem[0].phy_base + base); // TODO: this takes only the 1st segment into account
+	mbuf->phy_base = (e_platform.emem[0].phy_base + offset); // TODO: this takes only the 1st segment into account
 	mbuf->page_base = ee_rndl_page(mbuf->phy_base);
 	mbuf->page_offset = mbuf->phy_base - mbuf->page_base;
 	mbuf->map_size = size + mbuf->page_offset;
 
 	mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
-	mbuf->base = mbuf->mapped_base + mbuf->page_offset;
+	mbuf->base = (void*)(((char*)mbuf->mapped_base) + mbuf->page_offset);
 
-	mbuf->ephy_base = (e_platform.emem[0].ephy_base + base); // TODO: this takes only the 1st segment into account
+	mbuf->ephy_base = (e_platform.emem[0].ephy_base + offset); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
 	diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
@@ -633,8 +635,11 @@ int e_free(e_mem_t *mbuf)
 		return E_ERR;
 	}
 
-	munmap(mbuf->mapped_base, mbuf->map_size);
-	close(mbuf->memfd);
+	if ( E_SHARED_MEM == mbuf->objtype ) {
+		// The shared memory mapping is persistent - don't unmap
+		munmap(mbuf->mapped_base, mbuf->map_size);
+		close(mbuf->memfd);
+	}
 
 	return E_OK;
 }
@@ -714,13 +719,18 @@ ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t siz
 
 	if (((from_addr + size) > mbuf->map_size) || (from_addr < 0))
 	{
-		diag(H_D2) { fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) from_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mread_buf(): Address is out of bounds.");
 		return E_ERR;
 	}
 
 	pfrom = mbuf->base + from_addr;
-	diag(H_D2) { fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (uint) size); }
+
+	diag(H_D1) {
+		fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, "
+				"offset=0x%08x, size=%d, map_size=0x%x\n", (uint) pfrom,
+				(uint)from_addr, (uint) size, (uint) mbuf->map_size);
+	}
+
 	memcpy(buf, pfrom, size);
 
 	return size;
@@ -734,13 +744,19 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 
 	if (((to_addr + size) > mbuf->map_size) || (to_addr < 0))
 	{
-		diag(H_D2) { fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, size=%d, map_size=0x%x\n", (uint) to_addr, (uint) size, (uint) mbuf->map_size); }
 		warnx("ee_mwrite_buf(): Address is out of bounds.");
 		return E_ERR;
 	}
 
 	pto = mbuf->base + to_addr;
-	diag(H_D2) { fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (uint) size); }
+
+	if ( E_SHARED_MEM == mbuf->objtype ) {
+		diag(H_D1) {
+		  fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, "
+				  "offset=0x%08x, size=%d, map_size=0x%x\n", (uint) pto,
+				  (uint)to_addr, (uint) size, (uint) mbuf->map_size);
+		}
+	}
 	memcpy(pto, buf, size);
 
 	return size;

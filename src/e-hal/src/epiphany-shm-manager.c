@@ -44,6 +44,7 @@
 
 static e_shmtable_t *shm_table = 0;
 static size_t shm_table_length = 0;
+static int epiphany_devfd	   = 0;
 
 static e_shmseg_pvt_t* shm_lookup_region(const char *name);
 static e_shmseg_pvt_t* shm_alloc_region(const char *name, size_t size);
@@ -69,6 +70,7 @@ int e_shm_init()
 		retval = E_ERR;
 		goto err;
 	}
+	epiphany_devfd = devfd;
 
 	memset(&shm_alloc, 0, sizeof(shm_alloc));
 	if ( -1 == ioctl(devfd, EPIPHANY_IOC_GETSHM, &shm_alloc) ) {
@@ -147,13 +149,13 @@ void e_shm_finalize(void)
 	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }
 
-e_shmseg_t* e_shm_alloc(const char *name, size_t size)
+int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 {
 	e_shmtable_t   *tbl	   = NULL;
 	e_shmseg_pvt_t *region = NULL; 
-	e_shmseg_t	   *retval = NULL;
+	int				retval = E_ERR;
 
-	if ( !name || !size ) {
+	if ( !mbuf || !name || !size ) {
 		errno = EINVAL;
 		goto err2;
 	}
@@ -167,6 +169,7 @@ e_shmseg_t* e_shm_alloc(const char *name, size_t size)
 		goto err2;
 	}
 
+	// Enter critical section
 	sem_wait(tbl->lock);
 
 	if ( shm_lookup_region(name) ) {
@@ -187,29 +190,61 @@ e_shmseg_t* e_shm_alloc(const char *name, size_t size)
 	if ( region ) {
 		region->valid = 1;
 		region->refcnt = 1;
-		retval = &region->shm_seg;
+
+		mbuf->objtype = E_SHARED_MEM;
+		mbuf->memfd = epiphany_devfd;
+		mbuf->phy_base = tbl->paddr_cpu; // + sizeof(*tbl);
+		mbuf->ephy_base = tbl->paddr_epi; // + sizeof(*tbl); 
+		mbuf->page_base = 0; // Not used ??
+		mbuf->page_offset = region->shm_seg.offset;
+		mbuf->map_size = region->shm_seg.size;
+		mbuf->mapped_base = ((char*)(tbl));
+		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
+		mbuf->emap_size = region->shm_seg.size;
+
+		retval = E_OK;
 	}
 
- err1:	  
+ err1:
+	// Exit critical section
 	sem_post(shm_table->lock);
 
  err2:
 	return retval;
 }
 
-e_shmseg_t* e_shm_attach(const char *name)
+int e_shm_attach(e_mem_t *mbuf, const char *name)
 {
 	e_shmtable_t   *tbl	   = NULL;
 	e_shmseg_pvt_t *region = NULL;
-	e_shmseg_t	   *retval = NULL;
+	int				retval = E_ERR;
+
+	if ( !mbuf || !name ) {
+		return E_ERR;
+	}
 
 	tbl = e_shm_get_shmtable();
+
+	// Enter critical section
 	sem_wait(tbl->lock);
 	region = shm_lookup_region(name);
 	if ( region ) {
 		++region->refcnt;
-		retval = &region->shm_seg;
+
+		mbuf->objtype = E_SHARED_MEM;
+		mbuf->memfd = epiphany_devfd;
+		mbuf->phy_base = tbl->paddr_cpu + sizeof(*tbl);
+		mbuf->ephy_base = tbl->paddr_epi + sizeof(*tbl); 
+		mbuf->page_base = 0; // Not used ??
+		mbuf->page_offset = region->shm_seg.offset;
+		mbuf->map_size = region->shm_seg.size;
+		mbuf->mapped_base = ((char*)(tbl));
+		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
+		mbuf->emap_size = region->shm_seg.size;
+
+		retval = E_OK;
 	}
+	// Exit critical section
 	sem_post(tbl->lock);
 
 	return retval;
@@ -307,7 +342,7 @@ shm_alloc_region(const char *name, size_t size)
 			tbl->free_space -= size;
 			tbl->next_free_offset += size;
 
-			diag(H_D2) {
+			diag(H_D1) {
 				fprintf(stderr, "e_hal::shm_alloc_region(): allocated shm "
 						"region: name %s, addr 0x%08lx, paddr 0x%08lx, "
 						"offset 0x%08x, size 0x%08x\n", region->shm_seg.name,

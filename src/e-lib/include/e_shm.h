@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 #include "e_common.h"
+#include "e_mem.h"
 
 #define MAX_SHM_REGIONS				   64
 
@@ -42,23 +43,23 @@
  * NOTE: The Shared Memory types must match those defined
  * in the e-hal.
  *
- * FIXME: Make a common include file for e-hal/e-lib shared
- * data structures.
+ * TODO: Make a common include file for e-hal/e-lib shared
+ * data structures??
  */
 
 /** Shared memory segment */
 typedef struct ALIGN(8) e_shmseg {
-	void	 *addr;			/* Virtual address */
-	char	  name[256];	/* Region name */
-	size_t	  size;			/* Region size in bytes */
-	void	 *paddr;		/* Physical Address accessible from Epiphany cores */
-	off_t	  offset;		/* Offset from shm base address */
+	void	*addr;		  /* Virtual address */
+	char	 name[256];	  /* Region name */
+	size_t	 size;		  /* Region size in bytes */
+	void	*paddr;		  /* Physical Address accessible from Epiphany cores */
+	off_t	 offset;	  /* Offset from shm base address */
 } e_shmseg_t;
 
 typedef struct ALIGN(8) e_shmseg_pvt	{
-	e_shmseg_t		shm_seg;  /* The shared memory segment */
-	unsigned		refcnt;	  /* host app reference count */
-	unsigned		valid;	  /* 1 if the region is in use, 0 otherwise */
+	e_shmseg_t	shm_seg;  /* The shared memory segment */
+	unsigned	refcnt;	  /* host app reference count */
+	unsigned	valid;	  /* 1 if the region is in use, 0 otherwise */
 } e_shmseg_pvt_t;
 
 typedef struct ALIGN(8) e_shmtable {
@@ -76,7 +77,7 @@ typedef struct ALIGN(8) e_shmtable {
 #pragma pack(pop)
 
 /** Attach to a shared region identifiable by name */
-const e_shmseg_t* e_shm_attach(const char* const name);
+int e_shm_attach(e_memseg_t *mem, const char* name);
 
 /** Release a shared region allocated with e_shm_attach() */
 int e_shm_release(const char* name);
