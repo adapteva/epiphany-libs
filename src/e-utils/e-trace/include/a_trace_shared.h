@@ -35,9 +35,6 @@
  * Offset on parallella 16 should be 16+8M = 24M (0x0010 0000 x 0x18) = 0x0180 0000
  *
  */
-//#define SHARED_DATA_BUF_OFFSET (0x00100000)
-//#define SHARED_DATA_BUF_SIZE (0x00040000) //
-//#define HOST_TRACE_BUF_OFFSET  (0x00140000) /*16K from start */
 #define HOST_TRACE_BUF_SIZE	(0x200000) /* 1024 by 256 by 8 byte buffer (2M) */
 #define HOST_TRACE_SHM_NAME "trace_buffer"   /* Shared memory region name */
 

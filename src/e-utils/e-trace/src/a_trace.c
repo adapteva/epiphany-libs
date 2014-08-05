@@ -68,7 +68,7 @@ int trace_init()
 	e_platform_t platform; // platform information
 
 	e_set_loader_verbosity(L_D0);
-	e_set_host_verbosity(H_D4);
+	e_set_host_verbosity(H_D0);
 
 	if ( E_OK != e_init(0) ) {
 		fprintf(stderr, "Failed to initialize epiphany HAL.\n");
@@ -210,7 +210,10 @@ int trace_read_n(unsigned long long *buffer, unsigned max_data)
 		if(traceMultiNextCore >=traceNumCores) traceMultiNextCore = 0;
 		coreCnt++; // increment tested number of cores
 	}
-	fprintf(stderr,"Number buffers checked: %d NumData: %d\n", coreCnt, dtaCnt);
+
+	// Debugging output
+	//fprintf(stderr,"Number buffers checked: %d NumData: %d\n", coreCnt, dtaCnt);
+
 	return dtaCnt;
 }
 
