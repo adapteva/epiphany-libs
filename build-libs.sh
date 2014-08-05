@@ -68,27 +68,48 @@ function build-utils() {
 	echo '================================='
 	echo '============ E-UTILS ============'
 	echo '================================='
+
 	cd src/e-utils
+
 	echo 'Building e-reset'
 	cd e-reset
 	${MAKE} $CLEAN all
 	cd ../
+
 	echo 'Building e-loader'
 	cd e-loader
 	${MAKE} $CLEAN all
 	cd ../
+
 	echo 'Building e-read'
 	cd e-read
 	${MAKE} $CLEAN all
 	cd ../
+
 	echo 'Building e-write'
 	cd e-write
 	${MAKE} $CLEAN all
 	cd ../
+
 	echo 'Building e-hw-rev'
 	cd e-hw-rev
 	${MAKE} $CLEAN all
 	cd ../
+
+	echo 'Building e-trace'
+	cd e-trace
+	${MAKE} $CLEAN all
+	cd ../
+
+	echo 'Building e-trace-server'
+	cd e-trace-server
+	${MAKE} $CLEAN all
+	cd ../
+
+	cd e-trace-dump
+	${MAKE} $CLEAN all
+	cd ../
+
 	cd ../../
 }
 
