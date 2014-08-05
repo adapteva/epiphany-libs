@@ -1,4 +1,3 @@
-#BUILD_ROOT  	= $(EPIPHANY_HOME)/../
 BUILD_ROOT  	= ../..
 
 ## This library is always compiled for the epiphany cores
@@ -6,12 +5,13 @@ CROSS_COMPILE=epiphany-elf-
 
 LIBNAME			= e-lib
 
-EXTRACFLAGS  	= -O3 -falign-loops=8 -fmessage-length=0 -ffp-contract=fast \
+EXTRACFLAGS  	= -falign-loops=8 -fmessage-length=0 -ffp-contract=fast \
 	 -mlong-calls -mfp-mode=round-nearest
 
 # List of include search paths
 INCLUDES    = \
-	-I./include							\
+	-I./include								\
+	-I../e-utils/e-trace/include			\
 	-I$(PARALLELLA_LINUX_HOME)/include/uapi
 
 C_SRCS      = \
@@ -44,7 +44,8 @@ C_SRCS      = \
 	e_mutex_unlock.c 					\
 	e_reg_read.c 						\
 	e_reg_write.c 						\
-	e_shm.c
+	e_shm.c								\
+	e_trace.c
 
 S_SRCS = \
 	e_ctimer_get.s \

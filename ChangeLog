@@ -1,3 +1,17 @@
+2014-08-05  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-hal/src/epiphany-hal-data.h:
+	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init):
+	(void e_shm_finalize):
+	(int e_shm_alloc):
+	(int e_shm_attach):
+	(int e_shm_release):
+	Moved shm lock semaphore definiition out of the shm_table
+	strucuture and into a global variable
+
+	* src/e-lib/Makefile:
+	Removed -O3 optimization level option from EXTRACFLAGS
+	
 2014-07-17  Ben Chaco  <bchaco@x3-c.com>
 
 	* build-libs.sh:

@@ -42,9 +42,10 @@
 #include "epiphany-hal-api-local.h"
 #include "epiphany-shm-manager.h"
 
-static e_shmtable_t *shm_table = 0;
-static size_t shm_table_length = 0;
-static int epiphany_devfd	   = 0;
+static e_shmtable_t *shm_table        = 0;
+static sem_t*        shm_table_lock   = 0;
+static size_t        shm_table_length = 0;
+static int           epiphany_devfd   = 0;
 
 static e_shmseg_pvt_t* shm_lookup_region(const char *name);
 static e_shmseg_pvt_t* shm_alloc_region(const char *name, size_t size);
@@ -100,8 +101,8 @@ int e_shm_init()
 						 sizeof(e_shmtable_t)); }
 	
 	/* Init the shm lock semaphore. Init locked */
-	shm_table->lock = sem_open(SHM_LOCK_NAME, O_CREAT, sem_perms, 0);
-	if ( SEM_FAILED == (sem_t*)shm_table->lock ) {
+	shm_table_lock = sem_open(SHM_LOCK_NAME, O_CREAT, sem_perms, 0);
+	if ( SEM_FAILED == shm_table_lock ) {
 		warnx("e_shm_init(): Failed to open the shared memory semaphore. "
 			  "Error is %s\n", strerror(errno));
 		return E_ERR;
@@ -135,7 +136,7 @@ int e_shm_init()
 
 	diag(H_D1) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
 
-	sem_post(shm_table->lock);
+	sem_post(shm_table_lock);
 
  err:
 	return retval;
@@ -144,7 +145,8 @@ int e_shm_init()
 void e_shm_finalize(void)
 {
 	sem_unlink(SHM_LOCK_NAME);
-	sem_close(shm_table->lock);
+	sem_close(shm_table_lock);
+	shm_table_lock = 0;
 	munmap((void*)shm_table, shm_table_length);
 	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }
@@ -170,7 +172,7 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 	}
 
 	// Enter critical section
-	sem_wait(tbl->lock);
+	sem_wait(shm_table_lock);
 
 	if ( shm_lookup_region(name) ) {
 		errno = EEXIST;
@@ -193,9 +195,9 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 
 		mbuf->objtype = E_SHARED_MEM;
 		mbuf->memfd = epiphany_devfd;
-		mbuf->phy_base = tbl->paddr_cpu; // + sizeof(*tbl);
-		mbuf->ephy_base = tbl->paddr_epi; // + sizeof(*tbl); 
-		mbuf->page_base = 0; // Not used ??
+		mbuf->phy_base = tbl->paddr_cpu;
+		mbuf->ephy_base = tbl->paddr_epi;
+		mbuf->page_base = 0; // Not used for shared memory regions
 		mbuf->page_offset = region->shm_seg.offset;
 		mbuf->map_size = region->shm_seg.size;
 		mbuf->mapped_base = ((char*)(tbl));
@@ -207,7 +209,7 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 
  err1:
 	// Exit critical section
-	sem_post(shm_table->lock);
+	sem_post(shm_table_lock);
 
  err2:
 	return retval;
@@ -226,7 +228,7 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 	tbl = e_shm_get_shmtable();
 
 	// Enter critical section
-	sem_wait(tbl->lock);
+	sem_wait(shm_table_lock);
 	region = shm_lookup_region(name);
 	if ( region ) {
 		++region->refcnt;
@@ -245,7 +247,7 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 		retval = E_OK;
 	}
 	// Exit critical section
-	sem_post(tbl->lock);
+	sem_post(shm_table_lock);
 
 	return retval;
 }
@@ -257,7 +259,7 @@ int e_shm_release(const char *name)
 	int				  retval = E_ERR;
 
 	tbl = e_shm_get_shmtable();
-	sem_wait(tbl->lock);
+	sem_wait(shm_table_lock);
 
 	region = shm_lookup_region(name);
 
@@ -269,7 +271,7 @@ int e_shm_release(const char *name)
 		retval = E_OK;
 	}
 
-	sem_post(tbl->lock);
+	sem_post(shm_table_lock);
 	return retval;
 }
 

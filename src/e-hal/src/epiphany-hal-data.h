@@ -247,29 +247,28 @@ typedef struct {
 
 /** Shared memory segment */
 typedef struct ALIGN(8) e_shmseg {
-	void	 *addr;			/* Virtual address */
-	char	  name[256];	/* Region name */
-	size_t	  size;			/* Region size in bytes */
-	void	 *paddr;		/* Physical Address accessible from Epiphany cores */
-	off_t	  offset;		/* Offset from shm base address */
+	void     *addr;         /* Virtual address */
+	char      name[256];    /* Region name */
+	size_t    size;         /* Region size in bytes */
+	void     *paddr;        /* Physical Address accessible from Epiphany cores */
+	off_t     offset;       /* Offset from shm base address */
 } e_shmseg_t;
 
 typedef struct ALIGN(8) e_shmseg_pvt	{
-	e_shmseg_t		shm_seg;  /* The shared memory segment */
-	unsigned		refcnt;	  /* host app reference count */
-	unsigned		valid;	  /* 1 if the region is in use, 0 otherwise */
+	e_shmseg_t      shm_seg;  /* The shared memory segment */
+	unsigned        refcnt;   /* host app reference count */
+	unsigned        valid;    /* 1 if the region is in use, 0 otherwise */
 } e_shmseg_pvt_t;
 
 typedef struct ALIGN(8) e_shmtable {
-	unsigned int	 magic;
-	unsigned int	 initialized;
-	e_shmseg_pvt_t	 regions[MAX_SHM_REGIONS];
-	unsigned int	 free_space;
-	off_t			 next_free_offset;
-	unsigned long	 paddr_epi;	/* Physical address of the shm region as seen by epiphany */
-	unsigned long	 paddr_cpu;	/* Physical address of the shm region as seen by the host cpu */
-	char			*heap;
-	sem_t			*lock;		/* User-space semaphore */
+	unsigned int     magic;
+	unsigned int     initialized;
+	e_shmseg_pvt_t   regions[MAX_SHM_REGIONS];
+	unsigned int     free_space;
+	off_t            next_free_offset;
+	unsigned long    paddr_epi; /* Physical address of the shm region as seen by epiphany */
+	unsigned long    paddr_cpu;	/* Physical address of the shm region as seen by the host cpu */
+	char            *heap;
 } e_shmtable_t;
 
 #pragma pack(pop)
