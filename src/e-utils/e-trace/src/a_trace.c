@@ -16,7 +16,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <e-hal.h>
-//#include <e-loader.h>
 #include "a_trace_shared.h"
 #include "a_trace.h"
 
@@ -211,7 +210,7 @@ int trace_read_n(unsigned long long *buffer, unsigned max_data)
 		coreCnt++; // increment tested number of cores
 	}
 
-	// Debugging
+	// Debugging output
 	//fprintf(stderr,"Number buffers checked: %d NumData: %d\n", coreCnt, dtaCnt);
 
 	return dtaCnt;
