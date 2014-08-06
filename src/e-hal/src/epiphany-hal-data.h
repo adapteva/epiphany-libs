@@ -264,11 +264,8 @@ typedef struct ALIGN(8) e_shmtable {
 	unsigned int     magic;
 	unsigned int     initialized;
 	e_shmseg_pvt_t   regions[MAX_SHM_REGIONS];
-	unsigned int     free_space;
-	off_t            next_free_offset;
 	unsigned long    paddr_epi; /* Physical address of the shm region as seen by epiphany */
 	unsigned long    paddr_cpu;	/* Physical address of the shm region as seen by the host cpu */
-	char            *heap;
 } e_shmtable_t;
 
 #pragma pack(pop)

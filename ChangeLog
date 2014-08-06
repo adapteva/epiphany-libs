@@ -1,3 +1,27 @@
+2014-08-06  Ben Chaco  <bchaco@x3-c.com>
+
+	* src/e-hal/Makefile:
+	Link libmemman.a
+	* src/e-hal/src/epiphany-hal-data.h:
+	* src/e-hal/src/epiphany-hal.h:
+	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init):
+	(int e_shm_alloc):
+	(int e_shm_attach):
+	(int e_shm_release):
+	(shm_alloc_region):
+	(shm_compact_heap):
+	Added memory manager for shm allocations
+	* src/e-memman/Makefile:
+	* src/e-memman/include/memman.h:
+	* src/e-memman/src/memman.c (int memman_init):
+	(void *memman_alloc):
+	(static void coalesce):
+	(void memman_free):
+	Initial import
+	* src/e-utils/e-trace/src/a_trace.c (int trace_init):
+	(int trace_read_n):
+	Don't set loader verbosity, set host verbosity to H_D0
+
 2014-08-05  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/src/epiphany-hal-data.h:
@@ -6,7 +30,7 @@
 	(int e_shm_alloc):
 	(int e_shm_attach):
 	(int e_shm_release):
-	Moved shm lock semaphore definiition out of the shm_table
+	Moved shm lock semaphore definition out of the shm_table
 	strucuture and into a global variable
 
 	* src/e-lib/Makefile:

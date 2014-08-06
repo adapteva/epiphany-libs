@@ -13,16 +13,20 @@ LIBNAME			= e-hal
 #LIBVERMIN       = .0
 #LIBVERBLD       = .0
 
+LIB_PATHS   = \
+    -L$(BUILD_ROOT)/src/e-memman/Release
+
 # Libraries to link with
-LIBS			= 
+LIBS			= \
+	-lmemman
 
 EXTRACFLAGS  	= -fmessage-length=0 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
 # List of include search paths
 INCLUDES    = \
-	-I../						\
-	-I./src						\
-	-I../e-loader/src			\
+	-I../										\
+	-I./src										\
+	-I$(BUILD_ROOT)/src/e-memman/include	\
 	-I$(PARALLELLA_LINUX_HOME)/include/uapi
 
 C_SRCS      = \

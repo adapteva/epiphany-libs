@@ -35,8 +35,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <semaphore.h>
-
 #include <linux/epiphany.h>
+#include <memman.h>
 
 #include "epiphany-hal.h"
 #include "epiphany-hal-api-local.h"
@@ -49,7 +49,6 @@ static int           epiphany_devfd   = 0;
 
 static e_shmseg_pvt_t* shm_lookup_region(const char *name);
 static e_shmseg_pvt_t* shm_alloc_region(const char *name, size_t size);
-static void shm_compact_heap(void);
 
 extern int	 e_host_verbose;
 #define diag(vN) if (e_host_verbose >= vN)
@@ -60,8 +59,11 @@ extern int	 e_host_verbose;
 int e_shm_init()
 {
 	epiphany_alloc_t shm_alloc;
-	int devfd = 0;
-	int retval = E_OK;
+	int              devfd       = 0;
+	int              retval      = E_OK;
+	unsigned int     heap        = 0;
+	unsigned int     heap_length = 0;
+
 	const unsigned sem_perms = S_IRUSR | S_IWUSR;
 
 	/* Map the epiphany global shared memory into process address space */
@@ -97,9 +99,6 @@ int e_shm_init()
 	/** The shm table is initialized by the Epiphany driver. */
 	shm_table = (e_shmtable_t*)shm_alloc.uvirt_addr;
 
-	diag(H_D1) { fprintf(stderr, "e_shm_init(): shm table size is 0x%08x\n",
-						 sizeof(e_shmtable_t)); }
-	
 	/* Init the shm lock semaphore. Init locked */
 	shm_table_lock = sem_open(SHM_LOCK_NAME, O_CREAT, sem_perms, 0);
 	if ( SEM_FAILED == shm_table_lock ) {
@@ -113,14 +112,12 @@ int e_shm_init()
 		 * Note - the epiphany driver will have zeroed the
 		 * global shared memory region
 		 */
-		shm_table->magic			= SHM_MAGIC;
-		shm_table->paddr_epi		= shm_alloc.bus_addr;
-		shm_table->paddr_cpu		= shm_alloc.phy_addr;
-		shm_table->free_space		= GLOBAL_SHM_SIZE - sizeof(*shm_table);
-		shm_table->next_free_offset = sizeof(*shm_table); 
+		shm_table->magic      = SHM_MAGIC;
+		shm_table->paddr_epi  = shm_alloc.bus_addr;
+		shm_table->paddr_cpu  = shm_alloc.phy_addr;
+
 		shm_table->initialized = 1;
 
-		diag(H_D1) { fprintf(stderr, "e_shm_init(): initialized shm table\n"); }
 	} else {
 		diag(H_D1) { fprintf(stderr, "e_shm_init(): shm table already initialized\n"); }
 
@@ -133,6 +130,16 @@ int e_shm_init()
 			retval = E_ERR;
 		}
 	}
+
+	heap = shm_alloc.uvirt_addr + sizeof(*shm_table);
+	heap_length = GLOBAL_SHM_SIZE - (heap - shm_alloc.uvirt_addr);
+
+	diag(H_D1) { fprintf(stderr, "e_shm_init(): initializing memory manager."
+						 " Heap addr is 0x%08x, length is 0x%08x\n",
+						 heap, heap_length); }
+
+	/* Initialize the memory manager */
+	memman_init((void*)heap, heap_length);
 
 	diag(H_D1) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
 
@@ -179,14 +186,8 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 		goto err1;
 	}
 
-	if ( size > shm_table->free_space ) {
-		shm_compact_heap();
-		
-		if ( size > shm_table->free_space ) {
-			errno = ENOMEM;
-			goto err1;
-		}
-	}
+	diag(H_D1) { fprintf(stderr, "e_shm_alloc(): alloc request for 0x%08x "
+						 "bytes named %s\n", size, name); }
 
 	region = shm_alloc_region(name, size);
 	if ( region ) {
@@ -205,6 +206,11 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 		mbuf->emap_size = region->shm_seg.size;
 
 		retval = E_OK;
+	} else {
+		diag(H_D1) { fprintf(stderr, "e_shm_alloc(): alloc request for 0x%08x "
+							 "bytes named %s failed\n", size, name); }
+
+		errno = ENOMEM;
 	}
 
  err1:
@@ -254,19 +260,17 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 
 int e_shm_release(const char *name)
 {
-	e_shmtable_t	 *tbl	 = NULL;
-	e_shmseg_pvt_t	 *region = NULL;
-	int				  retval = E_ERR;
+	e_shmseg_pvt_t   *region = NULL;
+	int               retval = E_ERR;
 
-	tbl = e_shm_get_shmtable();
 	sem_wait(shm_table_lock);
 
 	region = shm_lookup_region(name);
 
 	if ( region ) {
 		if ( 0 == --region->refcnt ) {
-			tbl->free_space -= region->shm_seg.size;
 			region->valid = 0;
+			memman_free(region->shm_seg.addr);
 		}
 		retval = E_OK;
 	}
@@ -289,9 +293,9 @@ e_shmtable_t* e_shm_get_shmtable(void)
 static e_shmseg_pvt_t*
 shm_lookup_region(const char *name)
 {
-	e_shmseg_pvt_t	 *retval = NULL;
-	e_shmtable_t	 *tbl	 = NULL;
-	int				  i		 = 0;
+	e_shmseg_pvt_t   *retval = NULL;
+	e_shmtable_t     *tbl    = NULL;
+	int               i      = 0;
 
 	tbl = e_shm_get_shmtable();
 	
@@ -315,34 +319,40 @@ shm_lookup_region(const char *name)
 static e_shmseg_pvt_t*
 shm_alloc_region(const char *name, size_t size)
 {
-	e_shmseg_pvt_t	 *region = NULL;
-	e_shmtable_t	 *tbl	 = NULL;
-	int				  i		 = 0;
+	e_shmseg_pvt_t   *region = NULL;
+	e_shmtable_t     *tbl    = NULL;
+	int               i      = 0;
 
 	tbl = e_shm_get_shmtable();
 
 	for ( i = 0; i < MAX_SHM_REGIONS; ++i ) {
 		if ( !tbl->regions[i].valid ) {
+
 			region = &tbl->regions[i];
 			strncpy(region->shm_seg.name, name, sizeof(region->shm_seg.name));
 
+			region->shm_seg.addr = memman_alloc(size);
+			if ( !region->shm_seg.addr ) {
+				/* Allocation failed */
+				diag(H_D1) { fprintf(stderr, "shm_alloc_region(): alloc request for 0x%08x "
+									 "bytes named %s failed\n", size, name); }
+
+				region = NULL;
+				break;
+			}
+
 			/*
 			 * Note: the shm heap follows the shm table in memory.
-			 * The next_free_offset field is initialized by the
-			 * epiphany driver
 			 */
-			region->shm_seg.offset = sizeof(*tbl) + tbl->next_free_offset;
+			region->shm_seg.offset = ((char*)region->shm_seg.addr) -
+				((char*)tbl);
 
-			region->shm_seg.addr = ((char*)tbl) + region->shm_seg.offset;
 			region->shm_seg.paddr = ((char*)tbl->paddr_epi) + 
 				region->shm_seg.offset;
 			
 			region->shm_seg.size = size;
 
 			tbl->regions[i].valid = 1;
-
-			tbl->free_space -= size;
-			tbl->next_free_offset += size;
 
 			diag(H_D1) {
 				fprintf(stderr, "e_hal::shm_alloc_region(): allocated shm "
@@ -361,8 +371,3 @@ shm_alloc_region(const char *name, size_t size)
 	return region;
 }
 
-static void
-shm_compact_heap()
-{
-	/* Not yet implemented */
-}
