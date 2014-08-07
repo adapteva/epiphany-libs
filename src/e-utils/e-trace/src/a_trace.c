@@ -203,6 +203,9 @@ int trace_read_n(unsigned long long *buffer, unsigned max_data)
 	coreCnt = 0;
 	dtaCnt = 0;
 	while(dtaCnt < max_data && coreCnt < traceNumCores && !done) {
+		// Debugging output
+		//fprintf(stderr,"trace_read core %d: Ptr=%p Data %016llx\n", traceMultiNextCore,
+		//		traceBufRdPtr[traceMultiNextCore], *traceBufRdPtr[traceMultiNextCore]);
 		dtaCnt += trace_read_coreNo_n(&(buffer[dtaCnt]), max_data - dtaCnt, traceMultiNextCore);
 		if(dtaCnt >= max_data) done = 1; // we are done
 		traceMultiNextCore++; // next time look at the next core
@@ -230,7 +233,10 @@ int trace_read_coreNo_n(unsigned long long *buffer, unsigned max_data, unsigned 
 	cnt = 0;
 	while(cnt < max_data && *traceBufRdPtr[coreNo] != 0) {
 		// make a small delay so that e-core can finish its write if it is the middle
-		fprintf(stderr,"RD_Core %d: Ptr=%p Data %016llx\n", coreNo, traceBufRdPtr[coreNo], *traceBufRdPtr[coreNo]);
+
+		// Debugging output
+		//fprintf(stderr,"RD_Core %d: Ptr=%p Data %016llx\n", coreNo, traceBufRdPtr[coreNo], *traceBufRdPtr[coreNo]);
+
 		*buffer = *traceBufRdPtr[coreNo];
 		*traceBufRdPtr[coreNo] = 0; //make sure it is 0x0
 		cnt++;
