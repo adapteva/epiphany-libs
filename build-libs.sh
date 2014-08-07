@@ -39,6 +39,16 @@ function build-loader() {
 
 
 function build-hal() {
+	# Build the memory management library
+	echo '==============================='
+	echo '========== E-MEMMAN ==========='
+	echo '==============================='
+
+	echo 'Building e-memman library'
+	cd src/e-memman
+	${MAKE} $CLEAN all
+	cd ../../
+
 	# Build the Epiphnay HAL library
 	echo '==============================='
 	echo '============ E-HAL ============'
@@ -96,7 +106,7 @@ function build-utils() {
 	${MAKE} $CLEAN all
 	cd ../
 
-	echo 'Building e-trace'
+	echo 'Building e-trace library'
 	cd e-trace
 	${MAKE} $CLEAN all
 	cd ../

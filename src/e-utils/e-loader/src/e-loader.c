@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include <string.h>
 
 #include "e-hal.h"
+#include "e-loader.h"
 
 void usage();
 

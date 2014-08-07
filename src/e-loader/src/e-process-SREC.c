@@ -32,6 +32,7 @@
 
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
+#include "e-loader.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
