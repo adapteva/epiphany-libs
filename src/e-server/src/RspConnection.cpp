@@ -670,15 +670,11 @@ RspConnection::getRspChar (bool  blockP)
 	  break;
 
 	case 0:
-	  // OK if non-blocking
-	  if (blockP)
-	    {
-	      cerr << "Warning: Non-blocking read of zero chars: "
-		   << "Closing client connection: " << endl;
-	      return -1;
-	    }
-	  else
-	    return -2;
+	  // Even if non-blocking, this indicates end of file, i.e. the
+	  // connection has been closed.
+	  cerr << "Warning: Non-blocking read of zero chars: "
+	       << "Closing client connection: " << endl;
+	  return -1;
 
 	default:
 	  return c & 0xff;	// Success, we can return (no sign extend!)

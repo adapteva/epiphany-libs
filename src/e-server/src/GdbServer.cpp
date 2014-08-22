@@ -2082,10 +2082,11 @@ GdbServer::rspQuery ()
     }
   else if (0 == strncmp ("qAttached", pkt->data, strlen ("qAttached")))
     {
-      //Querying remote process attach state
-      //The remote target doesn't run under any OS suppling the, dteaching and killing in will have a same effect
-      //cerr << "Warning: RSP 'qAttached' not supported: ignored" << endl;
-      pkt->packStr ("");
+      // Querying remote process attach state. We need to support this, since
+      // we are pretending we have threads (cores) and processes (workgroups).
+
+      // We are always attaching to an exising process.
+      pkt->packStr ("1");
       rsp->putPkt (pkt);
     }
   else
