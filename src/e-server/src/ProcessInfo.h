@@ -38,34 +38,57 @@
 
 using std::set;
 
+class Thread;
+
 
 //-----------------------------------------------------------------------------
 //! Class describing an Epiphany GDB process
 
 //! A process corresponds to an Epiphany workgroup, and the cores to threads
 //! within the process.
+
+//! We also associate a list of threads which have stopped and need
+//! reporting.
+
+//! Each process has an integer identifier, which is the positive value
+//! associated with this process by GDB.
 //-----------------------------------------------------------------------------
 class ProcessInfo
 {
 public:
 
   // Constructor and destructor
-  ProcessInfo ();
+  ProcessInfo (const int  pid);
   ~ProcessInfo ();
 
   // Accessors
   int  pid () const;
 
-  set <int>::iterator threadBegin () const;
-  set <int>::iterator threadEnd () const;
-  bool addThread (int tid);
-  bool eraseThread (int tid);
-  bool hasThread (int tid);
+  set <Thread *>::iterator  threadBegin () const;
+  set <Thread *>::iterator  threadEnd () const;
+  bool  addThread (Thread* threadPtr);
+  bool  eraseThread (Thread* threadPtr);
+  bool  hasThread (Thread* threadPtr);
+  bool  addStoppedThread (Thread* threadPtr);
+  void  clearStoppedThreads ();
+  Thread* getStoppedThread ();
+  Thread* popStoppedThread ();
+  int  numStoppedThreads ();
 
 private:
 
+  //! Our process ID as supplied by the GDB client
+  int  mPid;
+
   //! The threads making up the process
-  set <int> mThreads;
+  set <Thread *> mThreads;
+
+  //! Threads to be reported as stopped.
+
+  //! For all-stop mode this is the thread which triggered the stop (since by
+  //! definition all threads will be stopped when reporting). For non-stop
+  //! mode it is the set of threads to report.
+  set <Thread *> mStoppedThreads;
 
 };	// ProcessInfo ()
 

@@ -91,20 +91,24 @@ public:
   void rspClose ();
   bool isConnected ();
 
-  // Public interface: get packets from the stream and put them out
-  bool getPkt (RspPacket * pkt);
-  bool putPkt (RspPacket * pkt);
+  // Public interface: get packets from the stream and put them out.
+  // Non-blocking version for use with non-stop mode.
+  int  getPkt (RspPacket* pkt,
+ 	       bool  blockP);
+  bool  putPkt (RspPacket* pkt);
+  bool  putNotification (RspPacket* pkt);
 
-  bool getBreakCommand ();
+  bool  getBreak ();
 
 private:
 
-  // Generic initializer
-  void rspInit (int _portNum);
-
   // Internal routines to handle individual chars
   bool putRspChar (char c);
-  int getRspChar ();
+  int getRspChar (bool blockP);
+
+  // Utilties to set read/write mode
+  bool setBlocking ();
+  bool setNonBlocking ();
 
   //! Pointer to the server info
   ServerInfo *si;
@@ -115,7 +119,7 @@ private:
   //! The client file descriptor
   int clientFd;
 
-};				// RspConnection()
+};	// RspConnection
 
 #endif // RSP_CONNECTION__H
 

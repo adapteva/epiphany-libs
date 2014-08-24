@@ -79,18 +79,19 @@ using std::setw;
 
 
 //-----------------------------------------------------------------------------
-//! Constructor when using a port number
+//! Constructor
 
 //! Calls the generic initializer.
 
 //! @param[in] _si    The server information
 //-----------------------------------------------------------------------------
 RspConnection::RspConnection (ServerInfo* _si) :
-  si (_si)
+  si (_si),
+  clientFd (-1)
 {
-  rspInit (si->port ());
+  portNum = si->port ();
 
-}				// RspConnection()
+}	// RspConnection()
 
 
 //-----------------------------------------------------------------------------
@@ -103,29 +104,6 @@ RspConnection::~RspConnection ()
   this->rspClose ();		// Don't confuse with any other close()
 
 }				// ~RspConnection()
-
-
-//-----------------------------------------------------------------------------
-//! Generic initialization routine specifying both port number and service
-//! name.
-
-//! Private, since this is not intended to be called by users. The service
-//! name is only used if port number is zero.
-
-//! Allocate the two fifos from packets from the client and to the client.
-
-//! We only use a single packet in transit at any one time, so allocate that
-//! packet here (rather than getting a new one each time.
-
-//! @param[in] _portNum       The port number to connect to
-//-----------------------------------------------------------------------------
-void
-RspConnection::rspInit (int _portNum)
-{
-  portNum = _portNum;
-  clientFd = -1;
-
-}				// init()
 
 
 //-----------------------------------------------------------------------------
@@ -148,30 +126,14 @@ RspConnection::rspInit (int _portNum)
 //! @return  TRUE if the connection was established or can be retried. FALSE
 //!          if the error was so serious the program must be aborted.
 //-----------------------------------------------------------------------------
-bool RspConnection::rspConnect ()
+bool
+RspConnection::rspConnect ()
 {
-  // 0 is used as the RSP port number to indicate that we should use the
-  // service name instead.
-//      if (0 == portNum)
-//      {
-//              struct servent *service = getservbyname(serviceName, "tcp");
-//
-//              if (NULL == service)
-//              {
-//                      cerr << "ERROR: RSP unable to find service \"" << serviceName
-//                           << "\": " << strerror(errno) << endl;
-//                      return false;
-//              }
-//
-//              portNum = ntohs(service->s_port);
-//      }
   assert (0 != portNum);
 
-  //cerr << "port " << portNum << endl;
-
   // Open a socket on which we'll listen for clients
-  int
-    tmpFd = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  int tmpFd = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
   if (tmpFd < 0)
     {
       cerr << "ERROR: Cannot open RSP socket for port " << portNum << endl;
@@ -179,14 +141,12 @@ bool RspConnection::rspConnect ()
     }
 
   // Allow rapid reuse of the port on this socket
-  int
-    optval = 1;
+  int optval = 1;
   setsockopt (tmpFd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval,
 	      sizeof (optval));
 
   // Bind the port to the socket
-  struct sockaddr_in
-    sockAddr;
+  struct sockaddr_in  sockAddr;
   sockAddr.sin_family = PF_INET;
   sockAddr.sin_port = htons (portNum);
   sockAddr.sin_addr.s_addr = INADDR_ANY;
@@ -197,7 +157,6 @@ bool RspConnection::rspConnect ()
       return false;
     }
 
-  //cerr << "bind done " << portNum << endl;
   // Listen for (at most one) client
   if (listen (tmpFd, 1))
     {
@@ -209,8 +168,7 @@ bool RspConnection::rspConnect ()
   cerr << "Listening for RSP on port " << dec << portNum << endl << flush;
 
   // Accept a client which connects
-  socklen_t
-    len = sizeof (sockAddr);	// Size of the socket address
+  socklen_t len = sizeof (sockAddr);	// Size of the socket address
   clientFd = accept (tmpFd, (struct sockaddr *) &sockAddr, &len);
 
   if (-1 == clientFd)
@@ -234,8 +192,8 @@ bool RspConnection::rspConnect ()
   close (tmpFd);		// No longer need this
   signal (SIGPIPE, SIG_IGN);	// So we don't exit if client dies
 
-  cerr << "Remote debugging from host " << inet_ntoa (sockAddr.
-						      sin_addr) << endl;
+  cerr << "Remote debugging from host " << inet_ntoa (sockAddr.sin_addr)
+       << endl;
   return true;
 
 }				// rspConnect()
@@ -261,7 +219,8 @@ RspConnection::rspClose ()
 
 //! @return  TRUE if we are connected, FALSE otherwise
 //-----------------------------------------------------------------------------
-bool RspConnection::isConnected ()
+bool
+RspConnection::isConnected ()
 {
   return -1 != clientFd;
 
@@ -283,55 +242,57 @@ bool RspConnection::isConnected ()
 //! Since this is SystemC, if we hit something that is not a packet and
 //! requires a restart/retransmission, we wait so another thread gets a lookin.
 
-//! @param[in] pkt  The packet for storing the result.
-
-//! @return  TRUE to indicate success, FALSE otherwise (means a communications
-//!          failure)
+//! @param[in] pkt     The packet for storing the result.
+//! @param[in] blockP  TRUE if this is a blocking read, FALSE otherwise.
+//! @return  0 to indicate success in getting a packet, -1 to indicate failure
+//!          and -2 to indicate a successful non-blocking read that did not
+//!          get a packet.
 //-----------------------------------------------------------------------------
-
-bool RspConnection::getPkt (RspPacket * pkt)
+int
+RspConnection::getPkt (RspPacket* pkt,
+		       bool       blockP)
 {
   // Keep getting packets, until one is found with a valid checksum
   while (true)
     {
-      int
-	bufSize = pkt->getBufSize ();
-      unsigned char
-	checksum;		// The checksum we have computed
-      int
-	count;			// Index into the buffer
-      int
-	ch;			// Current character
+      int  bufSize = pkt->getBufSize ();
+      unsigned char checksum;		// The checksum we have computed
+      int           count;		// Index into the buffer
+      int           ch;			// Current character
 
-
-      // Wait around for the start character ('$'). Ignore all other
+      // Do we have a start character ('$'). Ignore all other
       // characters
-      ch = getRspChar ();
-
-      // once read char from GDB --- lock the read -- TODO should be protected by timeout in case of gdb fails
+      ch = getRspChar (blockP);
 
       while (ch != '$')
 	{
-	  if (-1 == ch)
+	  switch (ch)
 	    {
-	      return false;	// Connection failed
-	    }
-	  else
-	    {
-	      ch = getRspChar ();
+	    case -2:
+	      // OK if we are non-blocking
+	      return  blockP ? -1 : -2;
+
+	    case -1:
+	      return -1;	// Connection failed
+
+	    default:
+	      ch = getRspChar (blockP);
+	      break;
 	    }
 	}
 
-      // Read until a '#' or end of buffer is found
+      // Read until a '#' or end of buffer is found. Once we have our start
+      // character all the reads are blocking, irrespective of the value of
+      // blockP.
       checksum = 0;
       count = 0;
       while (count < bufSize - 1)
 	{
-	  ch = getRspChar ();
+	  ch = getRspChar (true);
 
 	  if (-1 == ch)
 	    {
-	      return false;	// Connection failed
+	      return -1;	// Connection failed
 	    }
 
 	  // If we hit a start of line char begin all over again
@@ -367,17 +328,17 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	  unsigned char
 	    xmitcsum;		// The checksum in the packet
 
-	  ch = getRspChar ();
+	  ch = getRspChar (true);
 	  if (-1 == ch)
 	    {
-	      return false;	// Connection failed
+	      return -1;	// Connection failed
 	    }
 	  xmitcsum = Utils::char2Hex (ch) << 4;
 
-	  ch = getRspChar ();
+	  ch = getRspChar (true);
 	  if (-1 == ch)
 	    {
-	      return false;	// Connection failed
+	      return -1;	// Connection failed
 	    }
 
 	  xmitcsum += Utils::char2Hex (ch);
@@ -392,21 +353,21 @@ bool RspConnection::getPkt (RspPacket * pkt)
 		<< setfill (' ') << dec << endl;
 	      if (!putRspChar ('-'))	// Failed checksum
 		{
-		  return false;	// Comms failure
+		  return -1;	// Comms failure
 		}
 	    }
 	  else
 	    {
 	      if (!putRspChar ('+'))	// successful transfer
 		{
-		  return false;	// Comms failure
+		  return -1;	// Comms failure
 		}
 	      else
 		{
 		  if (si->debugTrapAndRspCon ())
 		    cerr << "[" << portNum << "]:" << " getPkt: " << *pkt <<
 		      endl;
-		  return true;	// Success
+		  return 0;	// Success
 		}
 	    }
 	}
@@ -416,8 +377,9 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	}
     }
 
-  return false;			// shouldn't get here anyway!
-}				// getPkt()
+  return -1;			// shouldn't get here anyway!
+
+}	// getPkt()
 
 
 //-----------------------------------------------------------------------------
@@ -436,21 +398,18 @@ bool RspConnection::getPkt (RspPacket * pkt)
 //! @return  TRUE to indicate success, FALSE otherwise (means a communications
 //!          failure).
 //-----------------------------------------------------------------------------
-bool RspConnection::putPkt (RspPacket * pkt)
+bool
+RspConnection::putPkt (RspPacket* pkt)
 {
-  int
-    len = pkt->getLen ();
-  int
-    ch;				// Ack char
+  int len = pkt->getLen ();
+  int ch;				// Ack char
 
   // Construct $<packet info>#<checksum>. Repeat until the GDB client
   // acknowledges satisfactory receipt.
   do
     {
-      unsigned char
-	checksum = 0;		// Computed checksum
-      int
-	count = 0;		// Index into the buffer
+      unsigned char  checksum = 0;	// Computed checksum
+      int            count = 0;		// Index into the buffer
 
       if (!putRspChar ('$'))	// Start char
 	{
@@ -461,49 +420,35 @@ bool RspConnection::putPkt (RspPacket * pkt)
       // Body of the packet
       for (count = 0; count < len; count++)
 	{
-	  unsigned char
-	    ch = pkt->data[count];
+	  unsigned char  uch = pkt->data[count];
 
 	  // Check for escaped chars
-	  if (('$' == ch) || ('#' == ch) || ('*' == ch) || ('}' == ch))
+	  if (('$' == uch) || ('#' == uch) || ('*' == uch) || ('}' == uch))
 	    {
-	      ch ^= 0x20;
+	      uch ^= 0x20;
 	      checksum += (unsigned char) '}';
 	      if (!putRspChar ('}'))
-		{
-		  return false;	// Comms failure
-		}
-
+		return false;	// Comms failure
 	    }
 
-	  checksum += ch;
-	  if (!putRspChar (ch))
-	    {
-	      return false;	// Comms failure
-	    }
+	  checksum += uch;
+	  if (!putRspChar (uch))
+	    return false;	// Comms failure
 	}
 
       if (!putRspChar ('#'))	// End char
-	{
-	  return false;		// Comms failure
-	}
+	return false;		// Comms failure
 
       // Computed checksum
       if (!putRspChar (Utils::hex2Char (checksum >> 4)))
-	{
-	  return false;		// Comms failure
-	}
+	return false;		// Comms failure
       if (!putRspChar (Utils::hex2Char (checksum % 16)))
-	{
-	  return false;		// Comms failure
-	}
+	return false;		// Comms failure
 
-      // Check for ack of connection failure
-      ch = getRspChar ();
+      // Check for ack or connection failure
+      ch = getRspChar (true);	// Always blocking
       if (-1 == ch)
-	{
-	  return false;		// Comms failure
-	}
+	return false;		// Comms failure
     }
   while ('+' != ch);
 
@@ -512,7 +457,102 @@ bool RspConnection::putPkt (RspPacket * pkt)
 
   return true;
 
-}				// putPkt()
+}	// putPkt()
+
+
+//-----------------------------------------------------------------------------
+//! Put the packet out as a notification on the RSP connection
+
+//! Put out the data preceded by a '%', followed by a '#' and a one byte
+//! checksum.  There are never any characters that need escaping.
+
+//! Unlike ordinary packets, notifications are not acknowledged by the GDB
+//! client with '+'.
+
+//! @param[in] pkt  The Packet to transmit as a notification.
+
+//! @return  TRUE to indicate success, FALSE otherwise (means a communications
+//!          failure).
+//-----------------------------------------------------------------------------
+bool
+RspConnection::putNotification (RspPacket* pkt)
+{
+  unsigned char  checksum = 0;		// Computed checksum
+  int            count = 0;		// Index into the buffer
+
+  if (!putRspChar ('%'))	// Start char
+    return false;		// Comms failure
+
+  int len = pkt->getLen ();
+
+  // Body of the packet
+  for (count = 0; count < len; count++)
+    {
+      unsigned char uch = pkt->data[count];
+
+      checksum += uch;
+      if (!putRspChar (uch))
+	return false;	// Comms failure
+    }
+
+  if (!putRspChar ('#'))	// End char
+    return false;		// Comms failure
+
+  // Computed checksum
+  if (!putRspChar (Utils::hex2Char (checksum >> 4)))
+    return false;		// Comms failure
+  if (!putRspChar (Utils::hex2Char (checksum % 16)))
+    return false;		// Comms failure
+
+  if (si->debugTrapAndRspCon ())
+    cerr << "[" << portNum << "]:" << " putNotification: " << *pkt << endl;
+
+  return true;
+
+}	// putNotification ()
+
+
+//-----------------------------------------------------------------------------
+//! Check if there is an out-of-band BREAK command on the serial link.
+
+//! @todo  This is not right. We need a way to "unread" if we get a char that
+//!        is not a break character
+
+//! @return  TRUE if we got a BREAK, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+RspConnection::getBreak ()
+{
+  unsigned char c;
+  bool gotChar = false;
+
+  setNonBlocking ();
+
+  while (!gotChar)
+    {
+      int n = read (clientFd, &c, sizeof (c));
+
+      switch (n)
+	{
+	case -1:
+	  if (EINTR == errno)
+	    break;		// Retry
+	  else
+	    return false;	// Not necessarily serious could be temporary
+				// unavailable resource.
+	case 0:
+	  return false;		// No break character there
+
+	default:
+	  gotChar = true;
+	}
+    }
+
+  // @todo Not sure this is really right. What other characters are we
+  //       throwing away if it is not 0x03?
+  return (gotChar && (c == 0x03));
+
+}	// getBreak ()
 
 
 //-----------------------------------------------------------------------------
@@ -521,11 +561,13 @@ bool RspConnection::putPkt (RspPacket * pkt)
 //! Utility routine. This should only be called if the client is open, but we
 //! check for safety.
 
-//! @param[in] c         The character to put out
+//! Unlike getting a char, this is always blocking.
 
+//! @param[in] c       The character to put out
 //! @return  TRUE if char sent OK, FALSE if not (communications failure)
 //-----------------------------------------------------------------------------
-bool RspConnection::putRspChar (char c)
+bool
+RspConnection::putRspChar (char  c)
 {
   if (-1 == clientFd)
     {
@@ -533,6 +575,9 @@ bool RspConnection::putRspChar (char c)
 	<< "' to unopened RSP client: Ignored" << endl;
       return false;
     }
+
+  // @todo We really want to do this at a higher level, not on every char.
+  setBlocking ();
 
   // Write until successful (we retry after interrupts) or catastrophic
   // failure.
@@ -569,10 +614,12 @@ bool RspConnection::putRspChar (char c)
 //! Utility routine. This should only be called if the client is open, but we
 //! check for safety.
 
-//! @return  The character received or -1 on failure
+//! @param[in] blockP  TRUE if we should use blocking read.
+//! @return  The character received or -1 on failure or -2 on non-blocking
+//!          read gettting nothing.
 //-----------------------------------------------------------------------------
 int
-RspConnection::getRspChar ()
+RspConnection::getRspChar (bool  blockP)
 {
   if (-1 == clientFd)
     {
@@ -580,6 +627,12 @@ RspConnection::getRspChar ()
 	<< "unopened RSP client: Ignored" << endl;
       return -1;
     }
+
+  // @todo We really want to do this at a higher level, not on every char.
+  if (blockP)
+    setBlocking ();
+  else
+    setNonBlocking ();
 
   // Blocking read until successful (we retry after interrupts) or
   // catastrophic failure.
@@ -591,15 +644,36 @@ RspConnection::getRspChar ()
 	{
 	case -1:
 	  // Error: only allow interrupts
-	  if (EINTR != errno)
+	  switch (errno)
 	    {
+	    case EINTR:
+	      break;			// Allow interrupts
+
+	    case EAGAIN:
+	      // OK if non-blocking
+	      if (blockP)
+		{
+		  cerr << "Warning: Failed to read from RSP client: "
+		       << "Closing client connection: " << strerror (errno)
+		       << " (" << errno << ")" << endl;
+		  return -1;
+		}
+	      else
+		return -2;
+
+	    default:
 	      cerr << "Warning: Failed to read from RSP client: "
-		<< "Closing client connection: " << strerror (errno) << endl;
+		   << "Closing client connection: " << strerror (errno) << " ("
+		   << errno << ")" << endl;
 	      return -1;
 	    }
 	  break;
 
 	case 0:
+	  // Even if non-blocking, this indicates end of file, i.e. the
+	  // connection has been closed.
+	  cerr << "Warning: Non-blocking read of zero chars: "
+	       << "Closing client connection: " << endl;
 	  return -1;
 
 	default:
@@ -612,72 +686,69 @@ RspConnection::getRspChar ()
 
 
 //-----------------------------------------------------------------------------
-//! Check if there is an out-of-band BREAK command on the serial link.
+//! Set the I/O mode on the client file descriptor to blocking
 
-//! @return  TRUE if we got a BREAK, FALSE otherwise.
+//! Utility routine. This should only be called if the client is open.
+
+//! @return TRUE if we successfully set the file descriptor to blocking, FALSE
+//!          otherwise.
 //-----------------------------------------------------------------------------
 bool
-RspConnection::getBreakCommand ()
+RspConnection::setBlocking ()
 {
-  int flags;
+  int  flags;
+
+  // Set socket blocking
+  if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
+    {
+      cerr << "Warning: setBlocking: fcntl initial get flags: "
+	   << strerror (errno) << "." << endl;
+      return  false;
+    }
+
+  if (fcntl (clientFd, F_SETFL, flags & (~O_NONBLOCK)) < 0)
+    {
+      cerr << "Warning: SetBlocking: fcntl set blocking: "
+	   << strerror (errno) << "." << endl;
+      return  false;
+    }
+
+  return true;
+
+}	// setBlocking ()
+
+
+//-----------------------------------------------------------------------------
+//! Set the I/O mode on the client file descriptor to blocking
+
+//! Utility routine. This should only be called if the client is open.
+
+//! @return TRUE if we successfully set the file descriptor to non-blocking,
+//!          FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+RspConnection::setNonBlocking ()
+{
+  int  flags;
 
   // Set socket non-blocking
   if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
     {
-      cerr << "Warning: getBreakCommand: fcntl initial get flags: "
+      cerr << "Warning: setNonBlocking: fcntl initial get flags: "
 	   << strerror (errno) << "." << endl;
       return  false;
     }
 
   if (fcntl (clientFd, F_SETFL, flags | O_NONBLOCK) < 0)
     {
-      cerr << "Warning: getBreakCommand fcntl set non-blocking: "
+      cerr << "Warning: setNonBlocking: fcntl set non-blocking: "
 	   << strerror (errno) << "." << endl;
       return  false;
     }
 
-  unsigned char c;
-  bool gotChar = false;
+  return true;
 
-  while (!gotChar)
-    {
-      int n = read (clientFd, &c, sizeof (c));
-
-      switch (n)
-	{
-	case -1:
-	  if (EINTR == errno)
-	    break;		// Retry
-	  else
-	    return false;	// Not necessarily serious could be temporary
-				// unavailable resource.
-	case 0:
-	  return false;		// No break character there
-
-	default:
-	  gotChar = true;
-	}
-    }
-
-  // Set socket to blocking
-
-  if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
-    {
-      cerr << "Error: fcntl get" << strerror (errno) << endl;
-      return false;
-    }
-
-
-  if (fcntl (clientFd, F_SETFL, flags & (~O_NONBLOCK)) < 0)
-    {
-      cerr << "Error: fcntl set blocking" << strerror (errno) << endl;
-      return false;
-    }
-
-  // @todo Not sure this is really right. What other characters are we
-  //       throwing away if it is not 0x03?
-  return (gotChar && (c == 0x03));
-}
+}	// setBlocking ()
 
 
 // Local Variables:

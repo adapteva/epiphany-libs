@@ -1,3 +1,254 @@
+2014-08-22  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Report we are attaching
+	to an existing process.
+	* src/RspConnection.cpp (RspConnection::getRspChar): Zero length
+	return is failure even if non-blocking.
+
+2014-07-14  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp: Rename currentCThread and mContinueThread and
+	currentGThread as mGeneralThread throughout.
+	(GdbServer::GdbServer): initialize nNotifyingP.
+	(GdbServer::rspServer): reset mNotifyingP on new connection.
+	(GdbServer::rspClientRequest): Use unified version of getPkt for
+	non-stop.  Reset mNotifyingP on '?' packet.
+	(GdbServer::rspClientNotifications): Provide implementation.
+	(GdbServer::readThreadId): Created.
+	(GdbServer::getThread): Use our own assert method.
+	(GdbServer::rspReportStopped): Deal with zero threads in
+	non-stop mode.  Use hex format for thread IDs.
+	(GdbServer::findStopReason): Deal with case of reset when we are
+	at location 0.
+	(GdbServer::rspContinueGeneric): No reply in non-stop mode.
+	(GdbServer::rspSetThread): Use readThreadId to get TID.
+	(GdbServer::rspQuery): -1 is not a valid return.
+	(GdbServer::rspIsThreadAlive): Use readThreadId to get TID.
+	(GdbServer::rspVpkt): Report support of 's' packets with vCont,
+	even though we don't think we'll get them.
+	(GdbServer::rspVCont): Clear mNotifyingP on new continue.
+	* src/GdbServer.h: Rename currentCThread and mContinueThread and
+	currentGThread as mGeneralThread throughout.  Add mNotifyingP and
+	declarations of new member methods.
+	* src/RspConnection.cpp (RspConnection::RspConnection): Subsume
+	functionality of rspInit.
+	(RspConnection::rspInit): Deleted.
+	(RspConnection::rspConnect): Remove obsolete servername code.
+	(RspConnection::getPkt): Modify to allow non-blocking reads
+	(bool RspConnection::getPktNonBlock): Deleted.
+	(RspConnection::putNotification): Created.
+	(RspConnection::getBreak): Simplified to use non-blocking read.
+	(RspConnection::putRspChar): Always blocking.
+	(RspConnection::getRspChar): Provide option to be non-blocking.
+	(RspConnection::setBlocking): Created.
+	(RspConnection::setNonBlocking): Created.
+	* src/RspConnection.h: Add new methods.
+	* src/TargetControlHardware.cpp (TargetControlHardware::readMem):
+	Don't put out warning message.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/Thread.cpp (Thread::readMem32): Clearer error message.
+	(Thread::readMem16): Likewise.
+	(Thread::readMem8): Likewise.
+	(Thread::readReg): Likewise.
+	(Utils::rspAssert): Created.
+	* src/Utils.h: Added new method.
+
+2014-07-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): In non-stop mode
+	activate all threads when connecting.
+	(GdbServer::initProcesses): Renamed mProcessList as mProcesses.
+	(GdbServer::findStoppedThreads): Likewise.
+	(GdbServer::waitAllThreads):No need to clear stopped threads here.
+	(GdbServer::activateThread): Created.
+	(GdbServer::activateAllThreads): Created.
+	(GdbServer::continueThread): Deleted version specifying address
+	(GdbServer::continueAllThreads): Report pid when debugging.
+	(GdbServer::rspReportStopped): Use hex thread ID with 'T' packet.
+	(GdbServer::rspContinueGeneric): Use continueAllThreads rather than
+	iterating through current process.  Use non-address form of
+	continueThread.
+	(GdbServer::rspSetThread): Add missing 'break' statements in switch.
+	(GdbServer::rspQuery): Separate QNonStop with semi-colon.
+	(GdbServer::rspCmdWorkgroup): Renamed mProcessList as mProcesses.
+	(GdbServer::rspCmdProcess): Likewise.
+	(GdbServer::rspOsDataProcesses): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspSet): Don't delete pkt on unrecognized request,
+	just return empty packet.
+	(GdbServer::rspVCont): Use non-address form of continueThread.
+	* src/GdbServer.h: Add activateThread/activateAllThreads.  Delete
+	address version of continueThread and move default argument
+	definition of remaining continueThread to definition file.
+	* src/Thread.cpp (Thread::activate): Correct typo in error message.
+
+2014-07-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	First compilable version of new GDB server.
+
+	* src/GdbServer.cpp (GdbServer::rspAttach): Deleted.
+	(GdbServer::rspDetach): Use threads, not thread IDs
+	(GdbServer::rspClientRequest): Correct handling of '?'.  Remove
+	host file IO support for now.
+	(GdbServer::rspClientNotifications): Created as placeholder.
+	(GdbServer::findStoppedThreads): Created.
+	(GdbServer::waitAllThreads): Rewritten to use findStoppedThreads.
+	Stopped thread info now added to process, not returned via second
+	arg.
+	(GdbServer::haltAllThreads): Use threads, not thread IDs.
+	(GdbServer::continueThread): Use Utils for hex output.
+	(GdbServer:continueThread): Use threads, not thread IDs.
+	(GdbServer::rspReportStopped): Simplified.
+	(GdbServer::findStopReason): Completed support for system calls.
+	(GdbServer::rspContinueGeneric): Use threads, not thread IDs.
+	(GdbServer::rspSuspend): Deleted.
+	(GdbServer::rspFileIOreply): Commented out.
+	(GdbServer::redirectStdioOnTrap): Commented out.
+	(GdbServer::rspSetThread): Add missing indirection and fix syntax
+	error.
+	(GdbServer::rspWriteReg): Correct typo.
+	(GdbServer::rspCommand): Pass current process to haltAllThreads.
+	(GdbServer::rspCmdWorkgroup): Pass process ID when creating new
+	process.  Use threads, not thread IDs.
+	(GdbServer::rspCmdProcess): Correct typo.
+	(GdbServer::rspOsDataProcesses): Get process ID from process.
+	(GdbServer::rspIsThreadAlive): Deal with invalid thread ID.
+	(GdbServer::rspVCont): Add missing indirection.  Ensure signal
+	variable is set before using.  Don't use stoppedThreads set.
+	(GdbServer::doFileIO): Commented out.
+	(GdbServer::rspRemoveMatchpoint): Hash on thread, not threadID.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	* src/GdbServer.h: Add new methods and comment out
+	fileIO methods.  Add new signals to enum and define more register
+	number constants.
+	(MpHash::add): Use thread not thread ID.
+	(MpHash::lookup): Likewise.
+	(MpHash::remove): Likewise.
+	* src/MpHash.h: Likewise.
+	* src/ProcessInfo.cpp (ProcessInfo::pid): Created.
+	(ProcessInfo::eraseThread): Also remove from stopped threads.
+	(ProcessInfo::addStoppedThread): Created.
+	(ProcessInfo::clearStoppedThreads): Created.
+	(ProcessInfo::getStoppedThread): Created.
+	(ProcessInfo::popStoppedThread): Created.
+	(ProcessInfo::numStoppedThreads): Created.
+	* src/ProcessInfo.h: Added new methods.  Added
+	mStoppedThreads set.
+	* src/RspConnection.cpp
+	(bool RspConnection::getPktNonBlock): Created as placeholder.
+	* src/RspConnection.h: Added new method.
+	* src/Thread.cpp (Thread::Thread): Add thread ID to
+	args.
+	(Thread::tid): Correct return type.
+	(Thread::activate): Correct typo.
+	(Thread::breakpointIVT): Correct typos.
+	(Thread::getException): Correct sanity checking.
+ 	* src/Thread.h: Rename reported as isReported.
+
+2014-06-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Work in progress to support non-stop mode
+
+	* src/GdbServer.cpp (GdbServer::rspServer): New flow for non-stop
+	mode.
+	(GdbServer::initProcesses): Use processes directly, not pids
+	(GdbServer::rspAttach): Use threads not thread IDs
+	(GdbServer::rspDetach): Likewise.
+	(GdbServer::rspClientRequest): Simplify handling of continue and
+	step packets, let client sort out single stepping.
+	(GdbServer::waitAllThreads): Created.
+	(GdbServer::haltThread): Simplified.
+	(GdbServer::haltAllThreads): Created.
+	(GdbServer:continueThread): Created.
+	(GdbServer::continueAllThreads): Created.
+	(GdbServer::rspReportStopped): Replaces RspReportException.
+	(GdbServer::findStopReason): Created.
+	(GdbServer::rspContinue): Simplified.
+	(GdbServer::rspContinueWithSignal): Created.
+	(GdbServer::rspContinueGeneric): Created.
+	(GdbServer::rspSuspend): Use threads not thread ID.
+	(GdbServer::hostWrite): Likwise.
+	(GdbServer::rspReadAllRegs): Likwise.
+	(GdbServer::rspWriteAllRegs): Likwise.
+	(GdbServer::rspSetThread): Likwise.
+	(GdbServer::rspReadMem): Likwise.
+	(GdbServer::rspWriteMem): Likwise.
+	(GdbServer::rspReadReg): Likwise.
+	(GdbServer::rspWriteReg): Likwise.
+	(GdbServer::rspQuery): Likwise.
+	(GdbServer::rspQThreadInfo): Likwise.
+	(GdbServer::rspCommand): Likwise.
+	(GdbServer::rspCmdWorkgroup): Likwise.
+	(GdbServer::rspCmdProcess): Likwise.
+	(GdbServer::rspOsDataProcesses): Likwise.
+	(GdbServer::rspSet): Likwise.
+	(GdbServer::rspRestart): Likwise.
+	(GdbServer::rspIsThreadAlive): Likwise.
+	(GdbServer::is32BitsInstr): Likwise.
+	(GdbServer::rspVpkt): Likwise.
+	(GdbServer::rspVCont): Rewritten and simplified for non-stop.
+	(GdbServer::parseVContArgs): Created.
+	(GdbServer::extractVContAction): Created.
+	(GdbServer::pendingStop): Deleted.
+	(GdbServer::markPendingStops): Deleted.
+	(GdbServer::removePendingStop): Deleted.
+	(GdbServer::doStep): Deleted.
+	(GdbServer::continueThread): Deleted.
+	(GdbServer::doContinue): Deleted.
+	(GdbServer::doFileIO): Use threads not thread ID.
+	(GdbServer::rspWriteMemBin): Likewise.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::targetSwReset): Likewise.
+	(GdbServer::targetHWReset): Likewise.
+	(GdbServer::getProcess): Likewise.
+	(GdbServer::resumeAllThreads): Deleted
+	* src/GdbServer.h: Add/remove methods created/deleted from definition.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo): Use threads not
+	thread ID.
+	(ProcessInfo::threadBegin): Likewise.
+	(ProcessInfo::threadEnd): Likewise.
+	(ProcessInfo::addThread): Likewise.
+	(ProcessInfo::eraseThread): Likewise.
+	(ProcessInfo::hasThread): Likewise.
+	* src/ProcessInfo.h (class ProcessInfo): Adjust methods to match
+	changes in definitions.
+	* src/RspConnection.cpp (bool RspConnection::getPkt): Fix layout
+	* src/TargetControl.h: Change EXCAUSE bits for Epiphany III/IV
+	* src/Thread.cpp (Thread::Thread): Add TID argument
+	(Thread::tid): Created.
+	(Thread::isReported): Created.
+	(Thread::markReported): Created.
+	(Thread::halt): Add control of reported status.
+	(Thread::resume): Likewise.
+	(Thread::activate): Likewise.
+	(Thread:breakpointIVT): Do actual saving.
+	(Thread::insertBreakpoint): Renamed from inserBkptInstr.
+	(Thread::insertBkptInstr): Renamed as insertBreakpoint.
+	(Thread::getException): Deal with new EXCAUSE values
+	* src/Thread.h (class Thread): Add new methods, change prototypes
+	of existing methods.
+
+2014-06-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp (ServerInfo::chipVersion): Created two
+	versions to get and set.
+	* src/ServerInfo.h: Added two versions of ChipVersion.
+	* src/main.cpp (initPlatform): Set chip version in server info.
+
+2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Fix typos in previous
+	commit, stop attached processes in all stop mode.
+	(GdbServer::stopAttachedProcesses): Created as dummy.
+	* src/GdbServer.h: Add stopAttachedProcesses, delete printfWrapper
+	declaration, since no-longer needed.
+
+2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Add support for
+	enabling non-stop mode.
+
 2014-05-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* Makefile: Remove trailing spaces throughout. Add copyright
