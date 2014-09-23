@@ -1,11 +1,8 @@
-// GDB Server Utilties: declaration
+// Core ID class: Declaration.
 
-// Copyright (C) 2008, 2009, 2014 Embecosm Limited
-// Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2014 Embecosm Limited
 
-// Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
-// Contributor: Oleg Raikhman <support@adapteva.com>
-// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
 // This file is part of the Adapteva RSP server.
 
@@ -34,56 +31,72 @@
 
 // Commenting is Doxygen compatible.
 
-//-----------------------------------------------------------------------------
+#ifndef CORE_ID__H
+#define CORE_ID__H
 
-#ifndef UTILS_H
-#define UTILS_H
-
-#include <ctime>
-#include <inttypes.h>
+#include <iomanip>
+#include <iostream>
 #include <string>
 
+//! @todo We would prefer to use <cstdint> here, but that requires ISO C++ 2011.
+#include <stdint.h>
 
+
+using std::istream;
+using std::ostream;
+using std::setfill;
+using std::setw;
 using std::string;
 
 
 //-----------------------------------------------------------------------------
-//! A class offering a number of convenience utilities for the GDB Server.
+//! Class describing an Epiphany Core ID
 
-//! All static functions. This class is not intended to be instantiated.
+//! The Epiphany processor arranges its cores in a square. The Core ID is a
+//! 12-bit value, with the MS 6 bits being the row and the LS 6 bits being the
+//! column.
+
+//! We provide constructors, accessors and stream handling.
 //-----------------------------------------------------------------------------
-class Utils
+class CoreId
 {
 public:
 
-  static uint8_t char2Hex (int c);
-  static char hex2Char (uint8_t d);
-  static void reg2Hex (uint32_t val, char *buf);
-  static uint32_t hex2Reg (char *buf);
-  static void ascii2Hex (char *dest, const char *src);
-  static void hex2Ascii (char *dest, const char *src);
-  static int rspUnescape (char *buf, int len);
-  static void microSleep (unsigned long us);
+  // Constructors. Default copy constructor and destructor are fine
+  CoreId (unsigned int coreId = 0);
+  CoreId (unsigned int row,
+	  unsigned int col);
 
-  static string  intStr (int  val,
-			 int  base = 10,
-			 int  width = 0);
+  // Accessors
+  unsigned int  row () const;
+  unsigned int  col () const;
+  uint16_t      coreId () const;
 
+  // Member operators
+  bool operator< (const CoreId& coreId) const;
+  string operator+ (const string& str);
 
 private:
 
-  // Private constructor cannot be instantiated
-    Utils ()
-  {
-  };
+  //! The row
+  uint8_t mRow;
 
-};				// class Utils
+  //! The column
+  uint8_t mCol;
 
-#endif // UTILS_H
+};	// CoreId ()
+
+
+// Global Operators
+ostream& operator<< (ostream& os, const CoreId &coreId);
+istream& operator>> (istream& is, CoreId &coreId);
+string operator+ (const string& str, const CoreId &coreId);
+const string& operator+= (string& str, const CoreId &coreId);
+
+#endif // CORE_ID__H
 
 
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
-// show-trailing-whitespace: t
 // End:

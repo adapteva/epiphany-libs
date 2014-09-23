@@ -1,33 +1,11 @@
-/*
-  File: Utils.cpp
+// GDB Server Utilties: definition
 
-  This file is part of the Epiphany Software Development Kit.
-
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
-
-// GDB Server Utilties: implementation
-
-// Copyright (C) 2008, 2009, Embecosm Limited
-// Copyright (C) 2009 Adapteva Inc.
+// Copyright (C) 2008, 2009, 2014 Embecosm Limited
+// Copyright (C) 2009-2014 Adapteva Inc.
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
 
 // This file is part of the Adapteva RSP server.
 
@@ -45,14 +23,14 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 //-----------------------------------------------------------------------------
-// This RSP server for the Adapteva ATDSP was written by Jeremy Bennett on
+// This RSP server for the Adapteva Epiphany was written by Jeremy Bennett on
 // behalf of Adapteva Inc.
 
 // Implementation is based on the Embecosm Application Note 4 "Howto: GDB
 // Remote Serial Protocol: Writing a RSP Server"
 // (http://www.embecosm.com/download/ean4.html).
 
-// Note that the ATDSP is a little endian architecture.
+// Note that the Epiphany is a little endian architecture.
 
 // Commenting is Doxygen compatible.
 
@@ -68,10 +46,24 @@
 // $Id: Utils.cpp 967 2011-12-29 07:07:27Z oraikhman $
 //-----------------------------------------------------------------------------
 
-#include "Utils.h"
-#include <stdlib.h>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
-#include <string.h>
+#include <sstream>
+
+#include "Utils.h"
+
+
+using std::cerr;
+using std::endl;
+using std::ostringstream;
+using std::setbase;
+using std::setfill;
+using std::setw;
+
 
 //-----------------------------------------------------------------------------
 //!Utility to give the value of a hex char
@@ -83,13 +75,12 @@
 //! @return  The value of the hex character, or -1 if the character is
 //!          invalid.
 //-----------------------------------------------------------------------------
-uint8_t
-Utils::char2Hex(int  c)
+uint8_t Utils::char2Hex (int c)
 {
-	return ((c >= 'a') && (c <= 'f')) ? c - 'a' + 10 :
-	       ((c >= '0') && (c <= '9')) ? c - '0' :
-	       ((c >= 'A') && (c <= 'F')) ? c - 'A' + 10 : -1;
-} // char2Hex()
+  return ((c >= 'a') && (c <= 'f')) ? c - 'a' + 10 :
+    ((c >= '0') && (c <= '9')) ? c - '0' :
+    ((c >= 'A') && (c <= 'F')) ? c - 'A' + 10 : -1;
+}				// char2Hex()
 
 
 //-----------------------------------------------------------------------------
@@ -97,28 +88,27 @@ Utils::char2Hex(int  c)
 
 //! @param[in] d  A hexadecimal digit. Any non-hex digit returns a NULL char
 //-----------------------------------------------------------------------------
-const char
-Utils::hex2Char(uint8_t d)
+char
+Utils::hex2Char (uint8_t d)
 {
-	static const char map [] = "0123456789abcdef"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	                         "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+  static const char map[] = "0123456789abcdef"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
-	return map[d];
-} // hex2Char()
+  return map[d];
+}				// hex2Char()
 
 
 //-----------------------------------------------------------------------------
@@ -132,17 +122,17 @@ Utils::hex2Char(uint8_t d)
 //! @param[out] buf  The buffer for the text string
 //-----------------------------------------------------------------------------
 void
-Utils::reg2Hex(uint32_t val, char *buf)
+Utils::reg2Hex (uint32_t val, char *buf)
 {
-	for (int n=0; n<8; n+=2)
-	{
-		buf[n]   = hex2Char ((val / 16) & 0xf);
-		buf[n+1] = hex2Char ( val       & 0xf);
-		val /= 256;
-	}
+  for (int n = 0; n < 8; n += 2)
+    {
+      buf[n] = hex2Char ((val / 16) & 0xf);
+      buf[n + 1] = hex2Char (val & 0xf);
+      val /= 256;
+    }
 
-	buf[8] = 0; // Useful to terminate as string
-} // reg2hex()
+  buf[8] = 0;			// Useful to terminate as string
+}				// reg2hex()
 
 
 //-----------------------------------------------------------------------------
@@ -156,18 +146,18 @@ Utils::reg2Hex(uint32_t val, char *buf)
 
 //! @return  The value to convert
 //-----------------------------------------------------------------------------
-uint32_t
-Utils::hex2Reg(char *buf)
+uint32_t Utils::hex2Reg (char *buf)
 {
-	uint32_t val = 0; // The result
+  uint32_t
+    val = 0;			// The result
 
-	for (int n=6; n>=0; n-=2)
-	{
-		val = val * 256 + char2Hex(buf[n]) * 16 + char2Hex(buf[n + 1]);
-	}
+  for (int n = 6; n >= 0; n -= 2)
+    {
+      val = val * 256 + char2Hex (buf[n]) * 16 + char2Hex (buf[n + 1]);
+    }
 
-	return val;
-}// hex2reg()
+  return val;
+}				// hex2reg()
 
 
 //-----------------------------------------------------------------------------
@@ -179,21 +169,21 @@ Utils::hex2Reg(char *buf)
 //! @param[in]  src   The ASCII string (null terminated)                      */
 //-----------------------------------------------------------------------------
 void
-Utils::ascii2Hex(char *dest, char *src)
+Utils::ascii2Hex (char *dest, const char *src)
 {
-	int i;
+  int i;
 
-	// Step through converting the source string
-	for (i = 0; src[i] != '\0'; i++)
-	{
-		char ch = src[i];
+  // Step through converting the source string
+  for (i = 0; src[i] != '\0'; i++)
+    {
+      char ch = src[i];
 
-		dest[i * 2]     = hex2Char(ch >> 4 & 0xf);
-		dest[i * 2 + 1] = hex2Char(ch      & 0xf);
-	}
+      dest[i * 2] = hex2Char (ch >> 4 & 0xf);
+      dest[i * 2 + 1] = hex2Char (ch & 0xf);
+    }
 
-	dest[i * 2] = '\0';
-} // ascii2hex()
+  dest[i * 2] = '\0';
+}				// ascii2hex()
 
 
 //-----------------------------------------------------------------------------
@@ -205,18 +195,20 @@ Utils::ascii2Hex(char *dest, char *src)
 //! @param[in]  src   Buffer holding the hex digit pairs (null terminated)
 //-----------------------------------------------------------------------------
 void
-Utils::hex2Ascii(char *dest, char *src)
+Utils::hex2Ascii (char *dest, const char *src)
 {
-	int i;
+  int i;
 
-	// Step through convering the source hex digit pairs
-	for (i = 0; src[i*2] != '\0' && src[i*2+1] != '\0'; i++)
-	{
-		dest[i] = ((char2Hex (src[i*2]) & 0xf) << 4) | (char2Hex (src[i*2+1]) & 0xf);
-	}
+  // Step through convering the source hex digit pairs
+  for (i = 0; src[i * 2] != '\0' && src[i * 2 + 1] != '\0'; i++)
+    {
+      dest[i] =
+	((char2Hex (src[i * 2]) & 0xf) << 4) | (char2Hex (src[i * 2 + 1]) &
+						0xf);
+    }
 
-	dest[i] = '\0';
-} // hex2ascii()
+  dest[i] = '\0';
+}				// hex2ascii()
 
 
 //-----------------------------------------------------------------------------
@@ -232,98 +224,90 @@ Utils::hex2Ascii(char *dest, char *src)
 //! @return  The number of bytes AFTER conversion
 //-----------------------------------------------------------------------------
 int
-Utils::rspUnescape(char *buf, int len)
+Utils::rspUnescape (char *buf, int len)
 {
-	int fromOffset = 0; // Offset to source char
-	int toOffset   = 0; // Offset to dest char
+  int fromOffset = 0;		// Offset to source char
+  int toOffset = 0;		// Offset to dest char
 
-	while (fromOffset < len)
+  while (fromOffset < len)
+    {
+      // Is it escaped
+      if ('}' == buf[fromOffset])
 	{
-		// Is it escaped
-		if ('}' == buf[fromOffset])
-		{
-			fromOffset++;
-			buf[toOffset] = buf[fromOffset] ^ 0x20;
-		}
-		else
-		{
-			buf[toOffset] = buf[fromOffset];
-		}
-
-		fromOffset++;
-		toOffset++;
+	  fromOffset++;
+	  buf[toOffset] = buf[fromOffset] ^ 0x20;
+	}
+      else
+	{
+	  buf[toOffset] = buf[fromOffset];
 	}
 
-	return toOffset;
+      fromOffset++;
+      toOffset++;
+    }
 
-} // rspUnescape()
+  return toOffset;
 
-
-//-----------------------------------------------------------------------------
-//! Convert 32-bit value from host to target endianness
-
-//! The ATDSP is always little endian.
-
-//! @param[in] hostVal  The value in host endianness
-
-//! @return  The value in target endianness
-//-----------------------------------------------------------------------------
-uint32_t
-Utils::htotl(uint32_t hostVal)
-{
-	uint8_t targetBytes[4];
-
-	targetBytes[0] = hostVal;
-	targetBytes[1] = hostVal / 256;
-	targetBytes[2] = hostVal / 256 / 256;
-	targetBytes[3] = hostVal / 256 / 256 / 256;
-
-	return *((uint32_t *)targetBytes);
-} // htotl()
+}	// rspUnescape()
 
 
 //-----------------------------------------------------------------------------
-//! Convert 32-bit value from target to host endianness
+//! Microsecond sleep with interrupt handling
 
-//! The ATDSP is always little endian.
+//! Replaces the old NanoSleepThread function, since we never want to sleep
+//! less than 1 us, and we also want to deal with interruptions.
 
-//! @param[in] targetVal  The value in target endianness
+//! Repeat the sleep if interrupted. Any failure is a disaster and we give
+//! up.
 
-//! @return  The value in target endianness
+//! @param[in] us  Number of microseconds to sleep
 //-----------------------------------------------------------------------------
-uint32_t
-Utils::ttohl(uint32_t targetVal)
-{
-	uint8_t *targetBytes = (uint8_t *)(&targetVal);
-	uint32_t hostVal;
-
-	hostVal =                 targetBytes[3];
-	hostVal = hostVal * 256 + targetBytes[2];
-	hostVal = hostVal * 256 + targetBytes[1];
-	hostVal = hostVal * 256 + targetBytes[0];
-
-	return hostVal;
-} // ttohl()
-
-
-//-----------------------------------------------------------------------------
-//! use the same memory allocation routines as Cgen simulator
-
-//-----------------------------------------------------------------------------
-void *
-zalloc(unsigned long size)
-{
-	void *memory = (void *) malloc(size);
-	if (!memory) {
-		std::cerr << "ERROR malloc failed for stdio buffer allocation ?????????, size " << size << std::endl;
-		exit(4);
-	}
-	memset(memory, 0, size);
-	return memory;
-}
-
 void
-zfree(void *data)
+Utils::microSleep (unsigned long int  us)
 {
-	free (data);
-}
+  struct timespec sleepTime;
+  struct timespec remainingSleepTime;
+
+  sleepTime.tv_sec  = us / 1000000;
+  sleepTime.tv_nsec = us % 1000000;
+
+  while (0 != nanosleep (&sleepTime, &remainingSleepTime))
+    {
+      if (EINTR == errno)
+	sleepTime = remainingSleepTime;
+      else
+	{
+	  cerr << "ERROR: Unexpected failure in microsleep: "
+	       << strerror (errno) << ": Exiting." << endl;
+	  exit (EXIT_FAILURE);
+	}
+    }
+}	// microSleep ()
+
+
+//-----------------------------------------------------------------------------
+//! Convenience function to turn an integer into a string
+
+//! @param[in] val    The value to convert
+//! @param[in] base   The base for conversion. Default 10, valid values 8, 10
+//!                   or 16. Other values will reset the iostream flags.
+//! @param[in] width  The width to pad (with zeros).
+//-----------------------------------------------------------------------------
+string
+Utils::intStr (int  val,
+	       int  base,
+	       int  width)
+{
+  ostringstream  os;
+
+  os << setbase (base) << setfill ('0') << setw (width) << val;
+  return os.str ();
+
+}	// intStr ()
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// show-trailing-whitespace: t
+// End:

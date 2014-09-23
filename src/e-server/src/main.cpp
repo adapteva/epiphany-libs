@@ -1,400 +1,467 @@
-/*
-  File: main.cpp
+// Main program for the Epiphany GDB Remote Serial Protocol Server
 
-  This file is part of the Epiphany Software Development Kit.
+// This file is part of the Epiphany Software Development Kit.
 
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
+// Copyright (C) 2013-2014 Adapteva, Inc.
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
 
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details.
 
+// You should have received a copy of the GNU General Public License along
+// with this program (see the file COPYING).  If not, see
+// <http://www.gnu.org/licenses/>.
 
-const char *copyrigth = "Copyright (C) 2010, 2011, 2012 Adapteva Inc.\n";
-bool haltOnAttach = true;
-static char const * revision= "$Rev: 1362 $";
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 #include <string.h>
 #include <unistd.h>
 
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
 
-using namespace std;
-
-#include "maddr_defs.h"
-#include <e-xml/src/epiphany_xml.h>
-
-unsigned int PORT_BASE_NUM;
-
-char const hdf_env_var_name[] = "EPIPHANY_HDF";
-char TTY_[1024];
+#include "GdbServer.h"
+#include "ServerInfo.h"
+#include "TargetControlHardware.h"
+#include "epiphany_xml.h"
+#include "epiphany-hal-data.h"
 
 
-// accesses by all threads
-int  debug_level = 0;
-bool show_memory_map= false;
-FILE *tty_out = 0;
-bool with_tty_support = false;
-bool dont_check_hw_address = false;
+// Up to the builder to specify a revision.
+#define XDOREVSTR(s) DOREVSTR(s)
+#define DOREVSTR(s) #s
+#ifdef REVISION
+#define REVSTR XDOREVSTR (REVISION)
+#else
+#define REVSTR XDOREVSTR (undefined)
+#endif
 
-void *CreateGdbServer(void *ptr);
+using std::cerr;
+using std::cout;
+using std::dec;
+using std::hex;
+using std::map;
+using std::ostream;
+using std::pair;
+using std::stringstream;
 
-string plafrom_args;
-bool skip_platform_reset = false;
 
+//! Put the summary usage message out on the given stream
 
-void usage()
+//! Typically std::cout if this is standard help and std::cerr if this is in
+//! response to bad arguments.
+
+//! @param[in] s  Stream on which to output the summyar usage.
+static void
+usage_summary (ostream& s)
 {
-	cerr << "\033[4mUsage:\033[0m" << endl;
-	cerr << endl;
-	cerr << "e-server -hdf <hdf-file> [-p <base-port-number>] [--show-memory-map]" << endl;
-	cerr << "         [-Wpl,<options>] [-Xpl <arg>] [--version]" << endl;
-	cerr << endl;
-	cerr << "\033[4mProgram options:\033[0m" << endl;
-	cerr << endl;
-	cerr << "  \033[1m-hdf\033[0m <hdf-file>" << endl;
-	cerr << "\t\tSpecify a platform definition file. This parameter is mandatory if no" << endl;
-	cerr << "                EPIPHANY_HDF environment variable is set" << endl;
-	cerr << "  \033[1m-p\033[0m" << endl;
-	cerr << "\t\tBase port number. Default is 51000" << endl;
-	cerr << "  \033[1m--show-memory-map\033[0m" << endl;
-	cerr << "\t\tPrint out the supported memory map" << endl;
-	cerr << "  \033[1m-Wpl,\033[0m <options>" << endl;
-	cerr << "\t\tPass comma-separated <options> on to the platform driver" << endl;
-	cerr << "  \033[1m-Xpl\033[0m <arg>" << endl;
-	cerr << "\t\tPass <arg> on to the platform driver" << endl;
-	cerr << "  \033[1m--version\033[0m" << endl;
-	cerr << "\t\tDisplay the version number and copyrights" << endl;
-}
+  s << "Usage:" << endl;
+  s << endl;
+  s << "e-server -hdf <hdf_file [-p <port-number>] [--show-memory-map]"
+    << endl;
+  s << "         [--tty <terminal>] [--version] [--h | --help]"
+    << endl;
+  s << "         [-d <debug-level>] [--hal-debug <level> [--check-hw-address]"
+    << endl;
+  s << "         [--dont-halt-on-attach] [-skip-platform-reset] "
+    << endl;
+  s << "         [-Wpl,<options>] [-Xpl <arg>]"
+    << endl;
 
-void usage_hidden()
+}	// usage_summary ()
+
+
+//! Put the full usage message out on the given stream.
+
+//! Typically std::cout if this is standard help and std::cerr if this is in
+//! response to bad arguments.
+
+//! @param[in] s  Stream on which to output the usage.
+static void
+usage_full (ostream& s)
 {
-	cerr << endl;
-	cerr << "Debug options: [-d <debug-level>] [--tty <terminal>] [--dont-halt-on-attach]\n" << endl;
-	cerr << "  -d <debug-level>\n\t\tRun the e-server in debug mode. Default is 0 (silent)" << endl;
-	cerr << "  --tty <terminal>\n\t\tRedirect the e_printf to terminal with tty name" << endl;
-	cerr << "  --dont-halt-on-attach\n\t\tWhen starting an e-gdb session, the debugger initiates an attachment\n\t\tprocedure when executing the 'target remote:' command. By default,\n\t\tthis procedure includes a reset sequence sent to the attached core.\n\t\tUse this option to disable the intrusive attachment and perform a non\n\t\t-intrusive one that does not change the core's state. This allows to\n\t\tconnect and monitor a core that is currently running a program." << endl;
-	cerr << "  --dont-check-hw-address\n\t\tThe e-server filters out transactions if the address is invalid (not\n\t\tincluded in the device supported memeory map). Use this option to\n\t\tdisable this protection" << endl;
-	cerr << "\nTarget validation/check additional options:" << endl;
-	cerr << endl;
-	cerr << "  -skip-platform-reset\n\t\tDon't make the hardware reset during initialization" << endl;
-}
+  usage_summary (s);
 
-void copyright()
+  s << endl;
+  s << "Standard program options:" << endl;
+  s << endl;
+  s << "  -hdf <hdf-file>" << endl;
+  s << endl;
+  s << "    Specify a platform definition file. This parameter is mandatory and"
+    << endl;
+  s << "    should be the XML equivalent of the text file specified by the "
+    << endl;
+  s << "    EPIPHANY_HDF environment variable." << endl;
+  s << endl;
+  s << "  -p <port-number>" << endl;
+  s << endl;
+  s << "    Port number on which GDB should connnect. Default is 51000."
+    << endl;
+  s << endl;
+  s << "  --show-memory-map" << endl;
+  s << endl;
+  s << "    Print out the supported memory map." << endl;
+  s << endl;
+  s << "  --tty <terminal>" << endl;
+  s << endl;
+  s << "    Redirect the e_printf to terminal with tty name <terminal>."
+    << endl;
+  s << endl;
+  s << "  --version" << endl;
+  s << endl;
+  s << "    Display the version number and copyright information." << endl;
+  s << endl;
+  s << "  --h | --help" << endl;
+  s << endl;
+  s << "    Display this help message." << endl;
+  s << endl;
+  s << "Debug options:" << endl;
+  s << endl;
+  s << "  -d stop-resume" << endl;
+  s << "  -d trap-and-rsp-con" << endl;
+  s << "  -d stop-resume-detail" << endl;
+  s << "  -d target-wr" << endl;
+  s << "  -d ctrl-c-wait" << endl;
+  s << "  -d tran-detail" << endl;
+  s << "  -d hw-detail" << endl;
+  s << "  -d timing" << endl;
+  s << endl;
+  s << "    Enable specified class of debug messages. Use multiple times for"
+    << endl;
+  s << "    multiple classes of debug message. Default no debug." << endl;
+  s << endl;
+  s << "  --hal-debug <level>" << endl;
+  s << endl;
+  s << "    Enable HAL debug level <level>. Default 0 (no debug). Permitted"
+    << endl;
+  s << "    values are 0 to 4, larger values will be treated as 4 with a"
+    << endl;
+  s << "    warning." << endl;
+  s << endl;
+  s << "Advanced options:" << endl;
+  s << endl;
+  s << "  --check-hw-address" << endl;
+  s << endl;
+  s << "    If set, the e-server will fail with an error if given an address"
+    << endl;
+  s << "    that does not correspond to a valid core or external memory. "
+    << endl;
+  s << "    Otherwise all addresses are accepted without checking. Note that"
+    << endl;
+  s << "    selecting this option carries some performance penalty."
+    << endl;
+  s << endl;
+  s << "  --dont-halt-on-attach" << endl;
+  s << endl;
+  s << "    When starting an e-gdb session, the debugger initiates an" << endl;
+  s << "    attachment procedure when executing the 'target remote:' command."
+    << endl;
+  s << "    By default, this procedure includes a reset sequence sent to the"
+    << endl;
+  s << "    attached core.  Use this option to disable the intrusive attachment"
+    << endl;
+  s << "    and perform a non-intrusive one that does not change the core's"
+    << endl;
+  s << "    state.  This allows connection to and monitoring of a core that is"
+    << endl;
+  s << "    currently running a program." << endl;
+  s << endl;
+  s << "  -skip-platform-reset" << endl;
+  s << endl;
+  s << "    Don't make the hardware reset during initialization." << endl;
+  s << endl;
+  s << "  -Wpl <options>" << endl;
+  s << endl;
+  s << "    Pass comma-separated <options> on to the platform driver."
+    << endl;
+  s << endl;
+  s << "  -Xpl <arg>" << endl;
+  s << endl;
+  s << "    Pass <arg> on to the platform driver." << endl;
+
+}	// usage_full ()
+
+
+//! Printout version and copyright information
+static void
+copyright ()
 {
-	std::cerr << "e-server " << "(compiled on " << __DATE__ << ")";
-	std::cerr << "<" << string(revision).substr(string(revision).find(" "), string(revision).rfind("$") - string(revision).find(" "))
-	          << ">" << std::endl;
+  cout << "e-server revision " << REVSTR << " (compiled on "
+       << __DATE__ << ")" << endl;
+  cout << "Copyright (C) 2010-2013 Adapteva Inc." << endl;
+  cout << "The Epiphany XML Parser uses the XML library developed by Michael "
+       << "Chourdakis." << endl;
+  cout << "Please report bugs to: support-sdk@adapteva.com" << endl;
 
-	std::cerr << copyrigth << std::endl;
-	std::cerr << "The Epiphany XML Parser uses the XML library developed by Michael Chourdakis\n";
-}
-
-
-extern int InitHWPlatform(platform_definition_t *platform);
+}	// copyright ()
 
 
-int main(int argc, char *argv[])
+//! Initialize the hardware platform
+
+//! @todo Contrary to previous advice, the system will
+//! barf if you don't set the environment variable. But the -hdf argument is
+//! necesary for now, since it specifies the XML equivalent of the
+//! environment variable text file. We need to fix this!
+
+//! @param[in] si            Server information with HDF file name and command
+//!                          line flags.
+//! @param[in] platformArgs  Additional args (if any) to be passed to the
+//!                          platform.
+static TargetControl*
+initPlatform (ServerInfo *si,
+	      string      platformArgs)
 {
-	//int iret = 0;
-	int mainRetStatus = 0;
+  const char * hdfFile = si->hdfFile ();
+  if (NULL != hdfFile)
+    cout << "Using the HDF file: " << hdfFile << endl;
+  else
+    {
+      cerr << "Please specify the -hdf argument." << endl << endl;
+      usage_summary (cerr);
+      exit (EXIT_FAILURE);
+    }
 
-	char *hdf_file = getenv(hdf_env_var_name);
+  EpiphanyXML *xml = new EpiphanyXML ((char *) hdfFile);
+  if (xml->Parse ())
+    {
+      cerr << "Can't parse Epiphany HDF file: " << hdfFile << "." << endl;
+      delete xml;
+      exit (EXIT_FAILURE);
+    }
 
-	PORT_BASE_NUM = 51000;
+  platform_definition_t *platform = xml->GetPlatform ();
+  if (!platform)
+    {
+      cerr << "Can't extract platform info from " << hdfFile << "." << endl;
+      delete xml;
+      exit (EXIT_FAILURE);
+    }
 
-	sprintf(TTY_, "tty");
+  // Record the chip version in the ServerInfo
+  si->chipVersion (atoi (platform->chips[0].version));
+  assert ((3 == si->chipVersion()) || (4 == si->chipVersion()));
 
-	/////////////////////////////
-	// parse command line options
-	for (int n = 1; n < argc; n++)
+  // prepare args list to hardware driver library
+  string initArgs = platformArgs + " " + platform->libinitargs;
+  platform->libinitargs = (char *) initArgs.c_str ();
+
+  // Set up the hardware
+  TargetControlHardware* tCntrl = new TargetControlHardware (si);
+
+  // populate the chip and ext_mem list of memory ranges and optionally show
+  // it.
+  tCntrl->initMaps (platform);
+  if (si->showMemoryMap ())
+    {
+      xml->PrintPlatform ();
+      cout << endl;
+      tCntrl->showMaps ();
+    }
+
+  // initialize the device
+  tCntrl->initHwPlatform (platform);
+
+  //! @todo. The XML is somehow corrupted. If we delete this, then the stack
+  //!        will be corrupted. Needs some valgrind work.
+  // delete xml;
+  return tCntrl;
+
+}	// initPlatform ()
+
+
+int
+main (int argc, char *argv[])
+{
+  ServerInfo *si = new ServerInfo;
+  string platformArgs;
+
+  /////////////////////////////
+  // parse command line options
+  for (int n = 1; n < argc; n++)
+    {
+      if (!strcmp (argv[n], "--version"))
 	{
-		if (!strcmp(argv[n], "--version"))
-		{
-			copyright();
-			cerr << "\n\033[4mPlease report bugs to:\033[0m \033[1m<support-sdk@adapteva.com>\033[0m" << endl;
-			return 1;
-		}
-
-		if ((!strcmp(argv[n], "-h")) || (!strcmp(argv[n], "--help")))
-		{
-			usage();
-			return 1;
-		}
-
-		if (!strcmp(argv[n], "-help-hidden"))
-		{
-			usage();
-			usage_hidden();
-			return 1;
-		}
-
-		if (!strcmp(argv[n], "--dont-check-hw-address"))
-		{
-			dont_check_hw_address = true;
-		}
-
-		if (!strcmp(argv[n], "--dont-halt-on-attach"))
-		{
-			haltOnAttach = false;
-		}
-
-
-		if (!strcmp(argv[n], "-skip-platform-reset"))
-		{
-			skip_platform_reset = true;
-
-		}
-
-		if (!strcmp(argv[n], "-Xpl")) {
-			n += 1;
-			if (n< argc)
-			{
-				plafrom_args += string(argv[n]) + " ";
-
-			} else {
-				usage();
-				return 3;
-			}
-			continue;
-		}
-
-		if (!strncmp(argv[n], "-Wpl,",strlen("-Wpl,"))) {
-			//-Wpl,-abc,-123,-reset_timeout,4
-
-			string str = string(argv[n]);
-			char const *delim = ",";
-			char *pch = strtok((char*)str.c_str(), delim);
-			if (pch) pch = strtok(NULL, delim);
-			while (pch != NULL) {
-				plafrom_args += " " + string(pch);
-				pch = strtok(NULL, delim);
-			}
-
-			continue;
-		}
-
-		if (!strcmp(argv[n], ""))
-		{
-			return 1;
-		}
-
-
-
-		if (!strcmp(argv[n], "-p"))
-		{
-			n += 1;
-			if (n < argc)
-			{
-				PORT_BASE_NUM = atoi(argv[n]);
-				std::cout << "Setting base port number to " << PORT_BASE_NUM << "." << std::endl;
-			} else {
-				usage();
-				return 3;
-			}
-			continue;
-		}
-
-		if (!strcmp(argv[n], "--tty"))
-		{
-			n += 1;
-			if (n< argc)
-			{
-				with_tty_support = true;
-				strncpy(TTY_, (char *) argv[n], sizeof(TTY_));
-			} else {
-				usage();
-				return 3;
-			}
-			continue;
-		}
-
-		if (!strcmp(argv[n], "-d"))
-		{
-			n += 1;
-			if (n< argc)
-			{
-				debug_level = atoi(argv[n]);
-				std::cout << "setting debug level to " << debug_level << std::endl;
-			} else {
-				usage();
-				return 3;
-			}
-			continue;
-		}
-
-		if (!strcmp(argv[n], "--show-memory-map"))
-		{
-			show_memory_map = true;
-		}
-
-		if (!strcmp(argv[n], "-hdf"))
-		{
-			n += 1;
-			if (n >= argc)
-			{
-				usage();
-				return 3;
-			}
-			else
-			{
-				if (hdf_file) {
-					cerr << "Warning: The HDF environment variable <" << hdf_env_var_name << "> is overwritten by command line option." << endl;
-				}
-				hdf_file = argv[n];
-			}
-		}
+	  copyright ();
+	  exit (EXIT_SUCCESS);
 	}
-
-
-	////////////////
-	// parse the HDF
-	if (hdf_file == 0)
+      else if ((!strcmp (argv[n], "-h")) || (!strcmp (argv[n], "--help")))
 	{
-		cerr << "Please specify a platform definition file." << endl << endl;
-		usage();
-		return 3;
+	  usage_full (cout);
+	  exit (EXIT_SUCCESS);
 	}
-
-	cout << "Using the HDF file: " << hdf_file << endl;
-	EpiphanyXML *xml = new EpiphanyXML((char *) hdf_file);
-	if (xml->Parse())
+      else if (!strcmp (argv[n], "-hdf"))
+        {
+	  n += 1;
+	  if (n < argc)
+	    si->hdfFile (argv[n]);
+	  else
+	    {
+	      usage_summary (cerr);
+	      return 3;
+	    }
+	}
+      else if (!strcmp (argv[n], "--check-hw-address"))
+	si->checkHwAddr (true);
+      else if (!strcmp (argv[n], "--dont-halt-on-attach"))
+	si->haltOnAttach (false);
+      else if (!strcmp (argv[n], "-skip-platform-reset"))
+	si->skipPlatformReset (true);
+      else if (!strcmp (argv[n], "--show-memory-map"))
+	si->showMemoryMap (true);
+      else if (!strcmp (argv[n], "--hal-debug"))
 	{
-		delete xml;
-		cerr << "Can't parse Epiphany HDF file: " << hdf_file << endl;
-		exit(3);
+	  n += 1;
+	  if (n < argc)
+	    si->halDebug ((e_hal_diag_t) atoi (argv[n]));
+	  else
+	    {
+	      usage_summary (cerr);
+	      exit (EXIT_FAILURE);
+	    }
 	}
-	platform_definition_t *platform = xml->GetPlatform();
-	if (!platform)
+      else if (!strcmp (argv[n], "-Xpl"))
 	{
-		delete xml;
-		cerr << "Could not extract platform information from " << hdf_file << endl;
-		exit(3);
+	  n += 1;
+	  if (n < argc)
+	      platformArgs += " " + string (argv[n]);
+	  else
+	    {
+	      usage_summary (cerr);
+	      exit (EXIT_FAILURE);
+	    }
 	}
-
-	// prepare args list to fardware driver library
-	plafrom_args += string(" ") + string(platform->libinitargs);
-	platform->libinitargs = (char *) plafrom_args.c_str();
-
-	//////////////////////////////////////////////////////
-	// populate the chip and ext_mem list of memory ranges
-	extern unsigned InitDefaultMemoryMap(platform_definition_t *);
-	unsigned ncores = InitDefaultMemoryMap(platform);
-
-	extern map<unsigned, pair<unsigned long, unsigned long> > memory_map;
-	extern map<unsigned, pair<unsigned long, unsigned long> > register_map;
-
-	if (show_memory_map)
+      else if (!strncmp (argv[n], "-Wpl,", strlen ("-Wpl,")))
 	{
-		xml->PrintPlatform();
-		cout << "Supported registers map: " << endl;
-		for (map<unsigned, pair<unsigned long, unsigned long> >::iterator ii=register_map.begin(); ii!=register_map.end(); ++ii)
-		{
-			unsigned long startAddr = (*ii).second.first;
-			unsigned long endAddr   = (*ii).second.second;
-			cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
-		}
-		unsigned core_num = 0;
-		cout << "Supported memory map: " << endl;
-		for (map<unsigned, pair<unsigned long, unsigned long> >::iterator ii=memory_map.begin(); ii!=memory_map.end(); ++ii)
-		{
-			unsigned long startAddr = (*ii).second.first;
-			unsigned long endAddr   = (*ii).second.second;
+	  //-Wpl,-abc,-123,-reset_timeout,4
+	  stringstream   ss (argv[n]);
+	  string         subarg;
 
-			if (core_num < ncores)
-			{
-				cout << "";
-			} else {
-				cout << "External: ";
-			}
-			cout << " [" << hex << startAddr << "," << endAddr << dec << "]\n";
-			core_num++;
-		}
+	  // Break out the sub-args
+	  getline (ss, subarg, ',');	// Skip the -Wpl
+
+	  while (getline (ss, subarg, ','))
+	    platformArgs += " " + subarg;
 	}
-
-	// open terminal
-	if (with_tty_support)
+      else if (!strcmp (argv[n], "-p"))
 	{
-		tty_out = fopen(TTY_, "w");
-		if (tty_out == NULL)
+	  n += 1;
+	  if (n < argc)
+	    {
+	      si->port ((unsigned int) atoi (argv[n]));
+	      if (si->validPort ())
+		cout << "Port number " << si->port () << "." << endl;
+	      else
 		{
-			cerr << "Can't open tty " << TTY_ << endl;
-			exit(2);
+		  cerr << "ERROR: Invalid port number: " << si->port () << "."
+		       << endl;
+		  exit (EXIT_FAILURE);
 		}
+	    }
+	  else
+	    {
+	      usage_summary (cerr);
+	      exit (EXIT_FAILURE);
+	    }
 	}
-
-
-	////////////////////////
-	// initialize the device
-	InitHWPlatform(platform);
-
-
-	if (true) {
-		// Create independent threads each of which will execute function
-		// FIXME: switch to dynamic port creation model
-		// n threads for gdb, thread for loader, thread for reset client (Used in Eclipse)
-		unsigned portsNum[ncores];
-
-		// loader
-///		portsNum[ncores] = PORT_BASE_NUM-1;
-		// host reset proxy
-///		portsNum[ncores+1] = PORT_BASE_NUM-2;
-
-		for (unsigned i=0; i<ncores; i++)
+      else if (!strcmp (argv[n], "--tty"))
+	{
+	  n += 1;
+	  if (n < argc)
+	    {
+	      si->ttyOut (fopen (argv[n], "w"));
+	      if (NULL == si->ttyOut ())
 		{
-			portsNum[i] = PORT_BASE_NUM + i;
+		  cerr << "ERRORL: Can't open tty " << argv[n] << endl;
+		  exit (EXIT_FAILURE);
 		}
-
-		pthread_t thread[ncores];
-
-		//////////////////////////////////////////////
-		// create and execute the thread for the cores
-		for (unsigned i=0; i<ncores; i++)
-		{
-			pthread_create(&(thread[i]), NULL, CreateGdbServer, (void *) (portsNum+i));
-			//iret = pthread_create(&(thread[i]), NULL, CreateGdbServer, (void *) (portsNum+i));
-		}
-
-		sleep(1);
-
-		/////////////////////////////
-		// wait for threads to finish
-		/* Wait till threads are complete before main continues. Unless we */
-		/* wait we run the risk of executing an exit which will terminate  */
-		/* the process and all threads before the threads have completed.  */
-		for (unsigned i=0; i<(ncores); i++)
-		{
-			pthread_join((thread[i]), NULL);
-		}
-
+	    }
+	  else
+	    {
+	      usage_summary (cerr);
+	      exit (EXIT_FAILURE);
+	    }
 	}
-
-	if (tty_out) {
-		fclose(tty_out);
+      else if (!strcmp (argv[n], "-d"))
+	{
+	  n += 1;
+	  if (n < argc)
+	    {
+	      if (0 == strcasecmp (argv[n], "stop-resume"))
+		si->debugStopResume (true);
+	      else if (0 == strcasecmp (argv[n], "trap-and-rsp-con"))
+		si->debugTrapAndRspCon (true);
+	      else if (0 == strcasecmp (argv[n], "stop-resume-detail"))
+		{
+		  si->debugStopResume (true);		// Implied
+		  si->debugStopResumeDetail (true);
+		}
+	      else if (0 == strcasecmp (argv[n], "target-wr"))
+		si->debugTargetWr (true);
+	      else if (0 == strcasecmp (argv[n], "ctrl-c-wait"))
+		si->debugCtrlCWait (true);
+	      else if (0 == strcasecmp (argv[n], "tran-detail"))
+		si->debugTranDetail (true);
+	      else if (0 == strcasecmp (argv[n], "hw-detail"))
+		si->debugHwDetail (true);
+	      else if (0 == strcasecmp (argv[n], "timing"))
+		si->debugTiming (true);
+	      else
+		{
+		  cerr << "WARNING: Unrecognized debug flag " << argv[n]
+		       << ": ignored." << endl;
+		}
+	    }
+	  else
+	    {
+	      usage_summary (cerr);
+	      exit (EXIT_FAILURE);
+	    }
 	}
+      else
+	{
+	  cerr << "ERROR: Unrecognized argument: " << argv[n] << "." << endl;
+	  usage_summary (cerr);
+	  exit (EXIT_FAILURE);
+	}
+    }
 
-	delete xml;
+  // Create the single port listening for GDB RSP packets.
+  // @todo We may need a separate thread to listen for BREAK.
+  GdbServer* rspServerP = new GdbServer (si);
 
-	return mainRetStatus;
-}
+  // @todo We really need this for just one port.
+  TargetControl* tCntrl = initPlatform (si, platformArgs);
+  rspServerP->rspServer (tCntrl);
 
+  // Tidy up
+  if (NULL != si->ttyOut ())
+    fclose (si->ttyOut ());
+
+  delete tCntrl;
+  delete si;
+
+  exit (EXIT_SUCCESS);
+
+}	// main ()
+
+
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// show-trailing-whitespace: t
+// End:
