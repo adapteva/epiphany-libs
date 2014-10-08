@@ -2,9 +2,12 @@
 
 set -e
 
-ELIBS="${EPIPHANY_HOME}/tools/host/lib"
-EHDF="${EPIPHANY_HOME}/bsps/current/platform.hdf"
-EXML="${EPIPHANY_HOME}/bsps/current/platform.xml"
+d=$(dirname "$0")
+EH=$(cd "$d/../../.." && pwd)
 
-LD_LIBRARY_PATH=${ELIBS} EPIPHANY_HDF=${EHDF} ${EPIPHANY_HOME}/tools/host/bin/e-server.e -hdf ${EXML} $@
+ELIBS="${EH}/tools/host/lib"
+EHDF="${EH}/bsps/current/platform.hdf"
+EXML="${EH}/bsps/current/platform.xml"
+
+LD_LIBRARY_PATH=${ELIBS} EPIPHANY_HDF=${EHDF} ${EH}/tools/host/bin/e-server.e -hdf ${EXML} $@
 
