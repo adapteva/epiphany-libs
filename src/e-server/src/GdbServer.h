@@ -300,8 +300,8 @@ private:
 		  uint32_t    len);
   bool  is32BitsInstr (uint32_t iab_instr);
 
-  //! Non-stop support
-  void  stopAttachedProcesses ();
+  //! Wrapper to avoid external memory problems.
+  void printfWrapper (char *result_str, const char *fmt, const char *args_buf);
 
   //! Extraction opcode fields.
   uint32_t  getOpcode1_4 (uint32_t  instr);

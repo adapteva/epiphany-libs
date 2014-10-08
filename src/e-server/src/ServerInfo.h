@@ -75,9 +75,6 @@ public:
   void haltOnAttach (const bool _haltOnAttachFlag);
   bool haltOnAttach () const;
 
-  // Other accessors
-  void chipVersion (const int  version);
-  int chipVersion (void) const;
 private:
 
   // Debug flag bits
@@ -117,11 +114,7 @@ private:
   bool showMemoryMapFlag;		//!< Show memory and register maps
   bool skipPlatformResetFlag;           //!< Don't reset on init
   bool checkHwAddrFlag;			//!< Check HW address when used
-  bool haltOnAttachFlag;		//!< Don't halt processor when
-					//!attaching
-
-  // The version of the chip we are working with
-  int  mChipVersion;
+  bool haltOnAttachFlag;		//!< Don't halt processor when attaching
 
 };	// ServerInfo
 

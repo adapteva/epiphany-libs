@@ -45,6 +45,7 @@ using std::endl;
 //-----------------------------------------------------------------------------
 ProcessInfo::ProcessInfo ()
 {
+
 }	// ProcessInfo ()
 
 
@@ -122,6 +123,19 @@ bool
 ProcessInfo::hasThread (int tid)
 {
   return  mThreads.find (tid) != mThreads.end ();
+
+}	// eraseThread ()
+
+
+//-----------------------------------------------------------------------------
+//! How many threads do we have?
+
+//! @return  The number of threads
+//-----------------------------------------------------------------------------
+int
+ProcessInfo::numThreads ()
+{
+  return  mThreads.size ();
 
 }	// eraseThread ()
 

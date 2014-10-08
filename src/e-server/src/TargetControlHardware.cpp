@@ -177,11 +177,7 @@ TargetControlHardware::readMem (CoreId  coreId,
 
   size_t res = readFrom (fullAddr, (void *) buf, len);
   if (res != len)
-    {
-      cerr << "Warning: readMem failed for addr 0x" << intStr (addr, 16, 8)
-	   << ", length " << len << ", result " << res << endl;
-      return false;
-    }
+    return false;
   else
     {
       // pack returned data
@@ -230,12 +226,7 @@ TargetControlHardware::writeMem (CoreId  coreId,
 
   size_t res = writeTo (fullAddr, (void *) buf, len);
   if (res != len)
-    {
-      cerr << "Warning: writeMem failed for addr 0x" << intStr (addr, 16, 8)
-	   << ":0x" << intStr (fullAddr, 16, 8) << ", length " << len
-	   << ", result " << res << endl;
-      return false;
-    }
+    return false;
 
   return true;
 
@@ -661,7 +652,7 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
   *(void **) (&hwResetFunc) = findSharedFunc ("esrv_hw_reset");
 
   // add signal handler to close target connection
-  if (signal (SIGINT, breakSignalHandler) < 0)
+  if (SIG_ERR == signal (SIGINT, breakSignalHandler))
     {
       cerr << "ERROR: Failed to register BREAK signal handler: "
 	   << strerror (errno) << "." << endl;

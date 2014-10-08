@@ -6,5 +6,5 @@ ELIBS="${EPIPHANY_HOME}/tools/host/lib"
 EHDF="${EPIPHANY_HOME}/bsps/current/platform.hdf"
 EXML="${EPIPHANY_HOME}/bsps/current/platform.xml"
 
-sudo -E LD_LIBRARY_PATH=${ELIBS} EPIPHANY_HDF=${EHDF} ${EPIPHANY_HOME}/tools/host/bin/e-server.e -hdf ${EXML} $@
+LD_LIBRARY_PATH=${ELIBS} EPIPHANY_HDF=${EHDF} ${EPIPHANY_HOME}/tools/host/bin/e-server.e -hdf ${EXML} $@
 

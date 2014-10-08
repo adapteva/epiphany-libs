@@ -1,3 +1,38 @@
+2014-10-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Remove assertion side effects and document reversions.
+
+	* e-server.sh: Don't use sudo.
+	* src/GdbServer.cpp (GdbServer::initProcesses):
+	Remove side-effects from assert.
+	(GdbServer::rspQuery): Ignore qNonStop packets.
+	(GdbServer::rspCmdWorkgroup): Ignore qNonStop packets.  Remove
+	side-effects from assert.
+	(GdbServer::getThread): Better error message.
+	(GdbServer::stopAttachedProcesses): Deleted.
+	* src/GdbServer.h: Remove stopAttachedProcesses.  Add
+	voidprintfWrapper.
+	* src/ProcessInfo.cpp:
+	(ProcessInfo::numThreads): Created.
+	* src/ProcessInfo.h: Add numThreads.
+	* src/ServerInfo.cpp (ServerInfo::chipVersion): Deleted.
+	* src/ServerInfo.h: Remove chipVersion.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readMem): Remove routine warning.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::initHwPlatform): Correct return from signal.
+	* src/Thread.cpp (Thread::readMem32): Better error
+	message.
+	(Thread::readMem16): Likewise.
+	(Thread::readMem8): Likewise.
+	* src/main.cpp (initPlatform): Don't record chip version in
+	ServerInfo.
+
+2014-10-02  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Revert out changes back to 11 Jun 2014, updating ChangeLog
+	appropriately.
+
 2014-09-23  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Overarching patch of all changes in a single commit. Details in

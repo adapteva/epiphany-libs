@@ -61,6 +61,7 @@ public:
   bool addThread (int tid);
   bool eraseThread (int tid);
   bool hasThread (int tid);
+  int numThreads ();
 
 private:
 

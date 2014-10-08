@@ -252,10 +252,6 @@ initPlatform (ServerInfo *si,
       exit (EXIT_FAILURE);
     }
 
-  // Record the chip version in the ServerInfo
-  si->chipVersion (atoi (platform->chips[0].version));
-  assert ((3 == si->chipVersion()) || (4 == si->chipVersion()));
-
   // prepare args list to hardware driver library
   string initArgs = platformArgs + " " + platform->libinitargs;
   platform->libinitargs = (char *) initArgs.c_str ();

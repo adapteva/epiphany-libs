@@ -502,7 +502,8 @@ Thread::readMem32 (uint32_t  addr) const
 {
   uint32_t val;
   if (!mTarget->readMem32 (mCoreId, addr, val))
-    cerr << "Warning: readMem32 failed." << endl;
+    cerr << "Warning: Core " << mCoreId << ": readMem32 from 0x"
+	 << Utils::intStr (addr, 16, 8) << " failed." << endl;
   return val;
 
 }	// readMem32 ()
@@ -557,7 +558,8 @@ Thread::readMem16 (uint32_t  addr) const
 {
   uint16_t val;
   if (!mTarget->readMem16 (mCoreId, addr, val))
-    cerr << "Warning: readMem16 failed." << endl;
+    cerr << "Warning: Core " << mCoreId << ": readMem16 from 0x"
+	 << Utils::intStr (addr, 16, 8) << " failed." << endl;
   return val;
 
 }	// readMem16 ()
@@ -611,7 +613,8 @@ Thread::readMem8 (uint32_t  addr) const
 {
   uint8_t val;
   if (!mTarget->readMem8 (mCoreId, addr, val))
-    cerr << "Warning: readMem8 failed." << endl;
+    cerr << "Warning: Core " << mCoreId << ": readMem8 from 0x"
+	 << Utils::intStr (addr, 16, 8) << " failed." << endl;
   return val;
 
 }	// readMem8 ()

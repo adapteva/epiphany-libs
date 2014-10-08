@@ -191,7 +191,8 @@ GdbServer::initProcesses ()
   mIdleProcess = new ProcessInfo;
   mNextPid = IDLE_PID;
   pair <int, ProcessInfo *> entry (mNextPid, mIdleProcess);
-  assert (mProcesses.insert (entry).second);
+  bool res = mProcesses.insert (entry).second;
+  assert (res);
   mNextPid++;
 
   // Initialize a thread for each core. A thread is referenced by its thread
@@ -210,7 +211,8 @@ GdbServer::initProcesses ()
       mCore2Tid [coreId] = tid;
 
       // Add to idle process
-      assert (mIdleProcess->addThread (tid));
+      res = mIdleProcess->addThread (tid);
+      assert (res);
     }
 
   currentPid = IDLE_PID;
@@ -1628,19 +1630,6 @@ GdbServer::rspQuery ()
       pkt->packStr ("qM001");
       rsp->putPkt (pkt);
     }
-  else if (0 == strcmp ("qNonStop:0", pkt->data))
-    {
-      mDebugMode = ALL_STOP;
-      stopAttachedProcesses ();
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-    }
-  else if (0 == strcmp ("qNonStop:1", pkt->data))
-    {
-      mDebugMode = NON_STOP;
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-    }
   else if (0 == strcmp ("qOffsets", pkt->data))
     {
       // Report any relocation
@@ -1671,7 +1660,7 @@ GdbServer::rspQuery ()
       // supported as well. Note that the packet size allows for 'G' + all the
       // registers sent to us, or a reply to 'g' with all the registers and an
       // EOS so the buffer is a well formed string.
-      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+,QNonStop+",
+      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+",
 	       pkt->getBufSize ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
@@ -1999,7 +1988,8 @@ GdbServer::rspCmdWorkgroup (char* cmd)
   ProcessInfo *process = new ProcessInfo;
   int pid = mNextPid;
   pair <int, ProcessInfo *> entry (pid, process);
-  assert (mProcesses.insert (entry).second);
+  bool res = mProcesses.insert (entry).second;
+  assert (res);
   mNextPid++;
 
   for (unsigned int r = 0; r < rows; r++)
@@ -2008,7 +1998,10 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 	CoreId coreId (row + r, col + c);
 	int thread = mCore2Tid[coreId];
 	if (mIdleProcess->eraseThread (thread))
-	  assert (process->addThread (thread));
+	  {
+	    res = process->addThread (thread);
+	    assert (res);
+	  }
 	else
 	  {
 	    // Yuk - blew up half way. Put all the threads back into the idle
@@ -2017,12 +2010,15 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 		 it != process->threadEnd ();
 		 it++)
 	      {
-		assert (process->eraseThread (*it));
-		assert (mIdleProcess->addThread (*it));
+		res = process->eraseThread (*it);
+		assert (res);
+		res = mIdleProcess->addThread (*it);
+		assert (res);
 	      }
 
 	    --mNextPid;
-	    assert (mProcesses.erase (mNextPid) == 1);
+	    int numRes = mProcesses.erase (mNextPid);
+	    assert (numRes == 1);
 	    delete process;
 
 	    cerr << "Warning: failed to add thread " << thread
@@ -4135,7 +4131,7 @@ GdbServer::getProcess (int  pid)
 //! This is for threads > 0 (i.e. not -1 meaning all threads or 0 meaning any
 //! thread). In those circumstances we do something sensible.
 
-//! @param[in] tid   The thread ID to translate
+//! @param[in] tid   The thraed ID to translate
 //! @param[in] mess  Optional supplementary message in the event of
 //!                  problems. Defaults to NULL.
 //! @return  A coreID
@@ -4157,7 +4153,8 @@ GdbServer::getThread (int         tid,
       int newTid = *(process->threadBegin ());
 
       cerr << "Warning: Cannot use thread ID " << tid << oss.str ()
-	   << ": using " << newTid << " instead." << endl;
+	   << ": using " << newTid << " from current process ID " << currentPid
+	   << " instead." << endl;
       tid = newTid;
       doBacktrace ();
     }
@@ -4223,22 +4220,6 @@ GdbServer::resumeAllThreads ()
   return allResumed;
 
 }	// resumeAllThreads ()
-
-
-//-----------------------------------------------------------------------------
-//! Stop all attached processes
-
-//! Required when switching to all-stop mode. For now we can't attach to more
-//! than one process, so it is a null operation.
-
-//! @todo Make this work for multiple attached processes.
-//-----------------------------------------------------------------------------
-void
-GdbServer::stopAttachedProcesses ()
-{
-  // Nothing for now
-
-}	// stopAttachedProcesses ()
 
 
 //-----------------------------------------------------------------------------
