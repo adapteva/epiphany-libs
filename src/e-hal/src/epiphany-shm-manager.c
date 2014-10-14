@@ -107,28 +107,31 @@ int e_shm_init()
 		return E_ERR;
 	}
 
+	/* Check the magic field for corruption */
+	if ( shm_table->magic != SHM_MAGIC && shm_table->initialized) {
+
+		/* Print a warning and set initialized to 0, which will trigger the reset
+		   code below.
+		   Some other program probably screw the shm_table up,
+		   (.shared_dram == *shm_table with current and previous linker scripts).
+		*/
+		warnx("e_shm_init(): Bad shm magic. Expected 0x%08x found 0x%08x. Resetting shm table\n",
+			SHM_MAGIC, shm_table->magic);
+
+		shm_table->initialized = 0;
+	}
+
 	if ( !shm_table->initialized ) {
 		/*
 		 * Note - the epiphany driver will have zeroed the
 		 * global shared memory region
 		 */
+		memset(shm_table, 0, sizeof(*shm_table));
 		shm_table->magic      = SHM_MAGIC;
 		shm_table->paddr_epi  = shm_alloc.bus_addr;
 		shm_table->paddr_cpu  = shm_alloc.phy_addr;
 
 		shm_table->initialized = 1;
-
-	} else {
-		diag(H_D1) { fprintf(stderr, "e_shm_init(): shm table already initialized\n"); }
-
-		/*
-		 * The shm table has already been initialized - check the magic field
-		 */
-		if ( shm_table->magic != SHM_MAGIC ) {
-			warnx("e_shm_init(): Bad shm magic. Expected 0x%08x found 0x%08x\n",
-				  SHM_MAGIC, shm_table->magic);
-			retval = E_ERR;
-		}
 	}
 
 	heap = shm_alloc.uvirt_addr + sizeof(*shm_table);

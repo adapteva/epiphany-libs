@@ -1,4 +1,8 @@
 2014-10-14 Ola Jeppsson <ola@adapteva.com>
+	* src/e-hal/src/epiphany-shm-manager.c:
+	Force reset of shm table if it is corrupted, instead of failing.
+
+2014-10-14 Ola Jeppsson <ola@adapteva.com>
 	* src/e-hal/Makefile:
 	Link with -lpthreads. e-shm API uses POSIX semaphores.
 
