@@ -17,8 +17,7 @@ LIB_PATHS   = \
     -L$(BUILD_ROOT)/src/e-memman/Release
 
 # Libraries to link with
-LIBS			= \
-	-lmemman
+LIBS= -lmemman -lpthread
 
 EXTRACFLAGS  	= -fmessage-length=0 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 

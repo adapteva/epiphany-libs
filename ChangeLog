@@ -1,3 +1,7 @@
+2014-10-14 Ola Jeppsson <ola@adapteva.com>
+	* src/e-hal/Makefile:
+	Link with -lpthreads. e-shm API uses POSIX semaphores.
+
 2014-08-14 Andreas Olofsson <andreas@adapteva.com>
 	* creating 2014.08.rc release branch
 
