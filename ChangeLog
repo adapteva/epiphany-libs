@@ -1,3 +1,10 @@
+2014-10-17  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-shm-manager.c:
+	Use lockf() instead of POSIX semaphores for synchronization.
+	* src/e-hal/Makefile:
+	Don't link with pthreads.
+
 2014-10-14 Ola Jeppsson <ola@adapteva.com>
 	* src/e-hal/Makefile:
 	Link with -lpthreads. e-shm API uses POSIX semaphores.

@@ -34,7 +34,7 @@
 #include <err.h>
 #include <assert.h>
 #include <stdio.h>
-#include <semaphore.h>
+#include <unistd.h>
 #include <linux/epiphany.h>
 #include <memman.h>
 
@@ -43,15 +43,22 @@
 #include "epiphany-shm-manager.h"
 
 static e_shmtable_t *shm_table        = 0;
-static sem_t*        shm_table_lock   = 0;
 static size_t        shm_table_length = 0;
 static int           epiphany_devfd   = 0;
 
 static e_shmseg_pvt_t* shm_lookup_region(const char *name);
 static e_shmseg_pvt_t* shm_alloc_region(const char *name, size_t size);
 
+static int shm_lock_file(const int fd, const char* fn);
+static int shm_unlock_file(const int fd, const char* fn);
+
+/* Convenience macros */
+#define LOCK_SHM_TABLE() shm_lock_file(epiphany_devfd, __func__)
+#define UNLOCK_SHM_TABLE() shm_unlock_file(epiphany_devfd, __func__)
+
 extern int	 e_host_verbose;
 #define diag(vN) if (e_host_verbose >= vN)
+
 
 /**
  * Initialize the shared memory manager.
@@ -64,14 +71,11 @@ int e_shm_init()
 	unsigned int     heap        = 0;
 	unsigned int     heap_length = 0;
 
-	const unsigned sem_perms = S_IRUSR | S_IWUSR;
-
 	/* Map the epiphany global shared memory into process address space */
 	devfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 	if ( -1 == devfd ) {
 		warnx("e_init(): EPIPHANY_DEV file open failure.");
-		retval = E_ERR;
-		goto err;
+		return E_ERR;
 	}
 	epiphany_devfd = devfd;
 
@@ -79,8 +83,7 @@ int e_shm_init()
 	if ( -1 == ioctl(devfd, EPIPHANY_IOC_GETSHM, &shm_alloc) ) {
 		warnx("e_shm_init(): Failed to obtain the global "
 			  "shared memory. Error is %s\n", strerror(errno));
-		retval = E_ERR;
-		goto err;
+		return E_ERR;
 	}
 	shm_table_length = shm_alloc.size;
 
@@ -99,13 +102,9 @@ int e_shm_init()
 	/** The shm table is initialized by the Epiphany driver. */
 	shm_table = (e_shmtable_t*)shm_alloc.uvirt_addr;
 
-	/* Init the shm lock semaphore. Init locked */
-	shm_table_lock = sem_open(SHM_LOCK_NAME, O_CREAT, sem_perms, 0);
-	if ( SEM_FAILED == shm_table_lock ) {
-		warnx("e_shm_init(): Failed to open the shared memory semaphore. "
-			  "Error is %s\n", strerror(errno));
+	// Enter critical section
+	if ( E_OK != LOCK_SHM_TABLE() )
 		return E_ERR;
-	}
 
 	if ( !shm_table->initialized ) {
 		/*
@@ -128,6 +127,7 @@ int e_shm_init()
 			warnx("e_shm_init(): Bad shm magic. Expected 0x%08x found 0x%08x\n",
 				  SHM_MAGIC, shm_table->magic);
 			retval = E_ERR;
+			goto err;
 		}
 	}
 
@@ -143,17 +143,16 @@ int e_shm_init()
 
 	diag(H_D1) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
 
-	sem_post(shm_table_lock);
-
  err:
+	if ( E_OK != UNLOCK_SHM_TABLE() )
+		retval = E_ERR;
+
 	return retval;
+
 }
 
 void e_shm_finalize(void)
 {
-	sem_unlink(SHM_LOCK_NAME);
-	sem_close(shm_table_lock);
-	shm_table_lock = 0;
 	munmap((void*)shm_table, shm_table_length);
 	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }
@@ -179,7 +178,8 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 	}
 
 	// Enter critical section
-	sem_wait(shm_table_lock);
+	if ( E_OK != LOCK_SHM_TABLE() )
+		goto err2;
 
 	if ( shm_lookup_region(name) ) {
 		errno = EEXIST;
@@ -215,7 +215,8 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 
  err1:
 	// Exit critical section
-	sem_post(shm_table_lock);
+	if ( E_OK != UNLOCK_SHM_TABLE() )
+		retval = E_ERR;
 
  err2:
 	return retval;
@@ -234,7 +235,9 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 	tbl = e_shm_get_shmtable();
 
 	// Enter critical section
-	sem_wait(shm_table_lock);
+	if ( E_OK != LOCK_SHM_TABLE() )
+		return E_ERR;
+
 	region = shm_lookup_region(name);
 	if ( region ) {
 		++region->refcnt;
@@ -253,7 +256,8 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 		retval = E_OK;
 	}
 	// Exit critical section
-	sem_post(shm_table_lock);
+	if ( E_OK != UNLOCK_SHM_TABLE() )
+		return E_ERR;
 
 	return retval;
 }
@@ -263,7 +267,9 @@ int e_shm_release(const char *name)
 	e_shmseg_pvt_t   *region = NULL;
 	int               retval = E_ERR;
 
-	sem_wait(shm_table_lock);
+	// Enter critical section
+	if ( E_OK != LOCK_SHM_TABLE() )
+		return E_ERR;
 
 	region = shm_lookup_region(name);
 
@@ -275,7 +281,10 @@ int e_shm_release(const char *name)
 		retval = E_OK;
 	}
 
-	sem_post(shm_table_lock);
+	// Exit critical section
+	if ( E_OK != UNLOCK_SHM_TABLE() )
+		return E_ERR;
+
 	return retval;
 }
 
@@ -370,4 +379,35 @@ shm_alloc_region(const char *name, size_t size)
 
 	return region;
 }
+
+/**
+ * The belows two functions provide mutual exclusion to the
+ * SHM table.
+ *
+ * lockf() is good for simple things like these, but if we ever need more
+ * advanced locking features we might have to resort to fcntl().
+ */
+
+static int shm_lock_file(const int fd, const char* fn)
+{
+	diag(H_D3) { fprintf(stderr, "shm_lock_file(): Taking lock...\n"); }
+	if ( lockf(fd, F_LOCK, 0) ) {
+		warnx("%s(): Failed to lock shared memory. Error is %s\n",
+				fn, strerror(errno));
+		return E_ERR;
+	}
+	diag(H_D3) { fprintf(stderr, "shm_lock_file(): Lock acquired.\n"); }
+	return E_OK;
+}
+
+static int shm_unlock_file(const int fd, const char* fn)
+{
+	if ( lockf(fd, F_ULOCK, 0) ) {
+		warnx("%s(): Failed to unlock shared memory. Error is %s\n",
+				fn, strerror(errno));
+		return E_ERR;
+	}
+	return E_OK;
+}
+
 
