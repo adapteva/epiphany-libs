@@ -1,3 +1,17 @@
+2014-10-20  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-shm-manager.h (int e_shm_reset):
+	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_reset):
+	Add shm table reset function
+	* src/e-hal/src/epiphany-shm-manager.c (int shm_table_sanity_check):
+	(int e_shm_init):
+	(int e_shm_alloc):
+	(void e_shm_finalize):
+	(int e_shm_attach):
+	Defer shm table integrity check until it is actually used.
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system):
+	Call e_shm_reset()
+
 2014-10-17  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-shm-manager.c:

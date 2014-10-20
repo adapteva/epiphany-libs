@@ -42,12 +42,14 @@
 #include "epiphany-hal-api-local.h"
 #include "epiphany-shm-manager.h"
 
-static e_shmtable_t *shm_table        = 0;
-static size_t        shm_table_length = 0;
-static int           epiphany_devfd   = 0;
+static e_shmtable_t    *shm_table        = 0;
+static size_t           shm_table_length = 0;
+static int              epiphany_devfd   = 0;
+static epiphany_alloc_t shm_alloc        = { 0 };
 
 static e_shmseg_pvt_t* shm_lookup_region(const char *name);
 static e_shmseg_pvt_t* shm_alloc_region(const char *name, size_t size);
+static int shm_table_sanity_check(e_shmtable_t *tbl);
 
 static int shm_lock_file(const int fd, const char* fn);
 static int shm_unlock_file(const int fd, const char* fn);
@@ -65,11 +67,7 @@ extern int	 e_host_verbose;
  */
 int e_shm_init()
 {
-	epiphany_alloc_t shm_alloc;
-	int              devfd       = 0;
-	int              retval      = E_OK;
-	unsigned int     heap        = 0;
-	unsigned int     heap_length = 0;
+	int devfd = 0;
 
 	/* Map the epiphany global shared memory into process address space */
 	devfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
@@ -102,53 +100,45 @@ int e_shm_init()
 	/** The shm table is initialized by the Epiphany driver. */
 	shm_table = (e_shmtable_t*)shm_alloc.uvirt_addr;
 
+	return E_OK;
+}
+
+/**
+ * Reset the shared memory manager.
+ */
+int e_shm_reset(void)
+{
+	unsigned int     heap        = 0;
+	unsigned int     heap_length = 0;
+
+
 	// Enter critical section
 	if ( E_OK != LOCK_SHM_TABLE() )
 		return E_ERR;
 
-	if ( !shm_table->initialized ) {
-		/*
-		 * Note - the epiphany driver will have zeroed the
-		 * global shared memory region
-		 */
-		shm_table->magic      = SHM_MAGIC;
-		shm_table->paddr_epi  = shm_alloc.bus_addr;
-		shm_table->paddr_cpu  = shm_alloc.phy_addr;
+	memset((void *) shm_table, 0, sizeof(*shm_table));
+	shm_table->magic      = SHM_MAGIC;
+	shm_table->paddr_epi  = shm_alloc.bus_addr;
+	shm_table->paddr_cpu  = shm_alloc.phy_addr;
 
-		shm_table->initialized = 1;
-
-	} else {
-		diag(H_D1) { fprintf(stderr, "e_shm_init(): shm table already initialized\n"); }
-
-		/*
-		 * The shm table has already been initialized - check the magic field
-		 */
-		if ( shm_table->magic != SHM_MAGIC ) {
-			warnx("e_shm_init(): Bad shm magic. Expected 0x%08x found 0x%08x\n",
-				  SHM_MAGIC, shm_table->magic);
-			retval = E_ERR;
-			goto err;
-		}
-	}
+	shm_table->initialized = 1;
 
 	heap = shm_alloc.uvirt_addr + sizeof(*shm_table);
 	heap_length = GLOBAL_SHM_SIZE - (heap - shm_alloc.uvirt_addr);
 
-	diag(H_D1) { fprintf(stderr, "e_shm_init(): initializing memory manager."
+	diag(H_D1) { fprintf(stderr, "e_shm_reset(): initializing memory manager."
 						 " Heap addr is 0x%08x, length is 0x%08x\n",
 						 heap, heap_length); }
 
 	/* Initialize the memory manager */
 	memman_init((void*)heap, heap_length);
 
-	diag(H_D1) { fprintf(stderr, "e_shm_init(): initialization complete\n"); }
+	diag(H_D1) { fprintf(stderr, "e_shm_reset(): reset complete\n"); }
 
- err:
 	if ( E_OK != UNLOCK_SHM_TABLE() )
-		retval = E_ERR;
+		return E_ERR;
 
-	return retval;
-
+	return E_OK;
 }
 
 void e_shm_finalize(void)
@@ -168,18 +158,16 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 		goto err2;
 	}
 
-	tbl = e_shm_get_shmtable();
-
-	if ( !tbl ) {
-		assert(!"Global shm table is NULL, did you forget to call"
-			   " e_shm_init()?");
-		errno = EINVAL;
-		goto err2;
-	}
-
 	// Enter critical section
 	if ( E_OK != LOCK_SHM_TABLE() )
 		goto err2;
+
+	tbl = e_shm_get_shmtable();
+
+	if ( E_OK != shm_table_sanity_check(tbl) ) {
+		errno = EINVAL;
+		goto err1;
+	}
 
 	if ( shm_lookup_region(name) ) {
 		errno = EEXIST;
@@ -232,11 +220,16 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 		return E_ERR;
 	}
 
-	tbl = e_shm_get_shmtable();
-
 	// Enter critical section
 	if ( E_OK != LOCK_SHM_TABLE() )
 		return E_ERR;
+
+	tbl = e_shm_get_shmtable();
+
+	if ( E_OK != shm_table_sanity_check(tbl) ) {
+		retval = E_ERR;
+		goto err;
+	}
 
 	region = shm_lookup_region(name);
 	if ( region ) {
@@ -255,6 +248,8 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 
 		retval = E_OK;
 	}
+
+ err:
 	// Exit critical section
 	if ( E_OK != UNLOCK_SHM_TABLE() )
 		return E_ERR;
@@ -379,6 +374,37 @@ shm_alloc_region(const char *name, size_t size)
 
 	return region;
 }
+
+/**
+ * Sanity-check the shm table
+ *
+ * WARNING: The caller should hold the shm table lock when
+ * calling this function.
+ */
+static int shm_table_sanity_check(e_shmtable_t *tbl)
+{
+	if ( !tbl ) {
+		assert(!"Global shm table is NULL, did you forget to call"
+			   " e_shm_init()?");
+		return E_ERR;
+	}
+
+	if ( !tbl->initialized ) {
+		warnx("shm_table_sanity_check(): shm table is not initialized.\n");
+		return E_ERR;
+	}
+
+	if ( tbl->magic != SHM_MAGIC ) {
+		warnx("shm_table_sanity_check(): Bad shm magic. "
+			  "Expected 0x%08x found 0x%08x\n",
+			  SHM_MAGIC, tbl->magic);
+		return E_ERR;
+	}
+
+	return E_OK;
+}
+
+
 
 /**
  * The belows two functions provide mutual exclusion to the
