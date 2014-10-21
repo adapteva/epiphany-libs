@@ -37,6 +37,12 @@
 int e_shm_init();
 
 /**
+ * Reset the shared memory manager
+ * FIXME: this is an internal function - hide it!
+ */
+int e_shm_reset();
+
+/**
  * Teardown the shared memory manager
  * FIXME: this is an internal function - hide it!
  */
