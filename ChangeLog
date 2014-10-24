@@ -1,3 +1,7 @@
+2014-10-24  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-utils/e-hw-rev/e-hw-rev.c: Quick fix. Reg offsets were wrong.
+
 2014-10-20  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-shm-manager.h (int e_shm_reset):
