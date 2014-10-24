@@ -29,6 +29,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <libgen.h>
+
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -50,6 +52,22 @@
 #else
 #define REVSTR XDOREVSTR (undefined)
 #endif
+
+
+// The below paths conform to the Epiphany SDK Directory Structure.
+// For more information, see the Epiphany SDK Reference Manual.
+
+//! @todo: Define in epiphany-hal-data.h ?
+#ifndef E_DEFAULT_EPIPHANY_HOME
+#define E_DEFAULT_EPIPHANY_HOME "/opt/adapteva/esdk"
+#endif
+#ifndef E_XML_DEFAULT_REL_PATH
+#define E_XML_DEFAULT_REL_PATH "bsps/current/platform.xml"
+#endif
+
+// e-server binary EPIPHANY_HOME relative path
+#define E_HOME_REL_PATH "../../.."
+
 
 using std::cerr;
 using std::cout;
@@ -280,11 +298,63 @@ initPlatform (ServerInfo *si,
 }	// initPlatform ()
 
 
+//! Get absolute path of default XML HDF file
+
+//! @todo Getting the path to the running binary is platform dependent so
+//! we need to implement that every platforms we want to support.
+
+//! @param[out] path         Absolute path to default XML HDF file.
+static void
+getDefaultHdfFile (string& path)
+{
+  char *programAbsPath, *xmlAbsPath;
+  string programDir, xmlRelPath;
+
+#ifdef __linux__
+
+  // Get absolute path to program
+  programAbsPath = realpath ("/proc/self/exe", NULL);
+  if (NULL == programAbsPath)
+    goto fallback_path;
+
+  programDir = dirname (programAbsPath);
+  free (programAbsPath);
+
+  xmlRelPath = programDir + "/" E_HOME_REL_PATH + "/" + E_XML_DEFAULT_REL_PATH;
+
+  // Convert relative XML HDF relative path to absolute path
+  xmlAbsPath = realpath (xmlRelPath.c_str(), NULL);
+  if (NULL == xmlAbsPath)
+    goto fallback_path;
+
+  // Copy path
+  path = xmlAbsPath;
+
+  free (xmlAbsPath);
+
+  return;
+
+#else
+#warning "Platform not supported. Will resort to absolute path. "\
+	 "Please implement me."
+      cerr << "WARNING: getDefaultHdfFile(): Platform not supported." << endl;
+#endif
+
+fallback_path:
+  cerr << "WARNING: getDefaultHdfFile(): Falling back to default path."
+       << endl;
+  path = string("") + E_DEFAULT_EPIPHANY_HOME + "/" + E_XML_DEFAULT_REL_PATH;
+
+}	// getDefaultHdf ()
+
+
+
 int
 main (int argc, char *argv[])
 {
   ServerInfo *si = new ServerInfo;
   string platformArgs;
+  string defaultHdfFile;
 
   /////////////////////////////
   // parse command line options
@@ -434,6 +504,14 @@ main (int argc, char *argv[])
 	  usage_summary (cerr);
 	  exit (EXIT_FAILURE);
 	}
+    }
+
+  // If user did not specify --hdf, use default.
+  if (NULL == si->hdfFile())
+    {
+      getDefaultHdfFile (defaultHdfFile);
+      if (!defaultHdfFile.empty())
+	si->hdfFile (defaultHdfFile.c_str());
     }
 
   // Create the single port listening for GDB RSP packets.
