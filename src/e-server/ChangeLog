@@ -1,3 +1,11 @@
+2014-10-24  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/main.cpp (getDefaultHdfFile):
+	New function. Use path relative to the e-server binary to determine
+	default XML HDF file path.
+	(main): Get default HDF file from getDefaultHdfFile() if user did not
+	explicitly specify it with "-hdf".
+
 2014-10-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* e-server.sh: Remove environment variable dependencies in a

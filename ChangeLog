@@ -1,5 +1,16 @@
 2014-10-24  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-server/e-server.sh:
+	* src/e-utils/e-hw-rev/e-hw-rev.sh:
+	* src/e-utils/e-loader/e-loader.sh:
+	* src/e-utils/e-read/e-read.sh:
+	* src/e-utils/e-reset/e-reset.sh:
+	* src/e-utils/e-reset/run.sh:
+	* src/e-utils/e-write/e-write.sh:
+	Delete. Thanks to the Epiphany device driver these are unnecessary.
+
+2014-10-24  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-utils/e-hw-rev/e-hw-rev.c: Quick fix. Reg offsets were wrong.
 
 2014-10-20  Ola Jeppsson  <ola@adapteva.com>
