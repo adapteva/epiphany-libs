@@ -629,6 +629,21 @@ TargetControlHardware::abs2rel (CoreId  absCoreId)
 }	// abs2rel ();
 
 
+//! Is this a local address?
+
+//! Users who read the CoreId register (which has an absolute value) may want
+//! to know the relative core ID corresponding
+
+//! @param[in] absCoreId  The absolute Core ID to map.
+//! @return  The relative CoreId
+bool
+TargetControlHardware::isLocalAddr (uint32_t  addr) const
+{
+  return addr < CORE_MEM_SPACE;
+
+}	// isLocalAddr ();
+
+
 //! Initialize the hardware platform
 
 //! This involves setting up the shared object functions first, then calling
@@ -844,7 +859,7 @@ TargetControlHardware::convertAddress (CoreId relCoreId,
 {
   CoreId absCoreId = rel2absCore [relCoreId];
 
-  if (address < CORE_MEM_SPACE)
+  if (isLocalAddr (address))
     {
       return (((uint32_t) absCoreId.coreId ()) << 20) | (address & 0x000fffff);
     }

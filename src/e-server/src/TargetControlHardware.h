@@ -79,6 +79,7 @@ public:
   virtual unsigned int  getNumRows ();
   virtual unsigned int  getNumCols ();
   virtual CoreId abs2rel (CoreId absCoreId);
+  virtual bool isLocalAddr (uint32_t  addr) const;
 
   // Initialization functions
   void  initHwPlatform (platform_definition_t* platform);

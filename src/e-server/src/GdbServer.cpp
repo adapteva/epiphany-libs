@@ -3878,6 +3878,17 @@ GdbServer::rspWriteMemBin ()
 //! substituting a breakpoint at the specified address. The implementation must
 //! cope with the possibility of duplicate packets.
 
+//! GDB believes setting a breakpoint sets it in all threads.  For a
+//! conventional thread, the code space is shared, so the breakpoint only
+//! needs to be written once. However for Epiphany, any address in the local
+//! address space (0 - 2^24-1) is not shared.  So if we are asked to set a
+//! breakpoint in this range, we must set it in all threads (i.e. Epiphany
+//! cores) in the process (i.e. Epiphany workgroup)
+
+//! @todo  Do we really need per-thread recording of the replaced
+//!        instruction. Surely they should be the same.  But if they aren't
+//!        what do we do?
+
 //! @todo This doesn't work with icache/immu yet
 //-----------------------------------------------------------------------------
 void
@@ -3910,10 +3921,10 @@ GdbServer::rspRemoveMatchpoint ()
   switch (type)
     {
     case BP_MEMORY:
-      // Memory breakpoint - replace the original instruction. If we are
-      // talking about all threads, we need to do all the threads.
-      if (-1 == currentCTid)
+      // Memory breakpoint - replace the original instruction in all threads.
+      if (fTargetControl->isLocalAddr (addr))
 	{
+	  // Local memory we need to remove in all cores.
 	  ProcessInfo *process = getProcess (currentPid);
 
 	  for (set <int>::iterator it = process->threadBegin ();
@@ -3929,6 +3940,7 @@ GdbServer::rspRemoveMatchpoint ()
 	}
       else
 	{
+	  // Shared memory we only need to remove once.
 	  Thread* thread = getThread (currentCTid);
 
 	  if (mpHash->remove (type, addr, currentCTid, &instr))
@@ -3976,6 +3988,10 @@ GdbServer::rspRemoveMatchpoint ()
 //! substituting a breakpoint at the specified address. The implementation must
 //! cope with the possibility of duplicate packets.
 
+//! GDB believes setting a breakpoint sets it in all threads, so we must
+//! implement this. @see GdbServer::rspRemoveMatchpoint () for more
+//! explanation.
+
 //! @todo This doesn't work with icache/immu yet
 //---------------------------------------------------------------------------*/
 void
@@ -4009,10 +4025,10 @@ GdbServer::rspInsertMatchpoint ()
   switch (type)
     {
     case BP_MEMORY:
-      // Memory breakpoint - substitute a BKPT instruction If we are
-      // talking about all threads, we need to do all the threads.
-      if (-1 == currentCTid)
+      // Memory breakpoint - substitute a BKPT instruction in all  threads.
+      if (fTargetControl->isLocalAddr (addr))
 	{
+	  // Local memory we need to insert in all cores.
 	  ProcessInfo *process = getProcess (currentPid);
 
 	  for (set <int>::iterator it = process->threadBegin ();
@@ -4030,6 +4046,7 @@ GdbServer::rspInsertMatchpoint ()
 	}
       else
 	{
+	  // Shared memory we only need to insert once.
 	  Thread* thread = getThread (currentCTid);
 
 	  thread->readMem16 (addr, bpMemVal);

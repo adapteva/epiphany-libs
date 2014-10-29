@@ -1,3 +1,16 @@
+2014-10-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint): Ensure
+	breakpoints are set in all threads.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	* src/TargetControl.h: Add isLocalAddr () as public pure virtual
+	method.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::isLocalAddr): Created.
+	(TargetControlHardware::convertAddress): Use isLocalAddr.
+	* src/TargetControlHardware.h: Add isLocalAddr () as public
+	method.
+
 2014-10-24  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/main.cpp (getDefaultHdfFile):

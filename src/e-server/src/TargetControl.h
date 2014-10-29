@@ -247,6 +247,7 @@ public:
   virtual unsigned int  getNumRows () = 0;
   virtual unsigned int  getNumCols () = 0;
   virtual CoreId abs2rel (CoreId absCoreId) = 0;
+  virtual bool isLocalAddr (uint32_t  addr) const = 0;
 
   // Control functions
   virtual void platformReset ();
