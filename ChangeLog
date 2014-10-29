@@ -1,3 +1,7 @@
+2014-10-29  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-utils/e-loader/src/e-loader.c: Fixed some segfaults.
+
 2014-10-24  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-server/e-server.sh:

@@ -42,11 +42,22 @@ int main(int argc, char *argv[])
 	unsigned row, col, rows, cols;
 	int iarg, iiarg;
 
-	e_get_platform_info(&plat);
+	if (E_OK != e_init(NULL))
+	{
+		fprintf(stderr, "Epiphany HAL initialization failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (E_OK != e_get_platform_info(&plat))
+	{
+		fprintf(stderr, "Failed to get Epiphany platform info\n");
+		exit(EXIT_FAILURE);
+	}
+
 	ireset = E_FALSE;
 	istart = E_FALSE;
-	row  = plat.row;
-	col  = plat.col;
+	row  = 0;
+	col  = 0;
 	rows = cols  = 1;
 	iarg = iiarg = 1;
 
@@ -84,17 +95,31 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	e_init(NULL);
 
 	if (ireset)
-		e_reset_system();
+	{
+		if (E_OK != e_reset_system())
+		{
+			fprintf(stderr, "Failed to reset Epiphany system\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 
-	e_open(&dev, row, col, rows, cols);
+	if (E_OK != e_open(&dev, row, col, rows, cols))
+	{
+		fprintf(stderr, "Failed to open Epiphany workgroup\n");
+		exit(EXIT_FAILURE);
+	}
 
 	printf("Loading program \"%s\" on cores (%d,%d)-(%d,%d)\n", eprog, row, col, (row+rows-1), (col+cols-1));
 
 	e_set_loader_verbosity(L_D1);
-	e_load_group(eprog, &dev, 0, 0, rows, cols, istart);
+
+	if (E_OK != e_load_group(eprog, &dev, 0, 0, rows, cols, istart))
+	{
+		fprintf(stderr, "Failed loading program to group\n");
+		exit(EXIT_FAILURE);
+	}
 
 	e_close(&dev);
 	e_finalize();
