@@ -1,5 +1,18 @@
 2014-10-29  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-xml/src/epiphany-hal.c (int e_reset_system): Don't call
+	e_shm_reset()
+	* src/e-hal/src-epiphany-shm-manager.c (int e_shm_reset): Remove
+	function
+	(int e_shm_init): Move all shm table initialization and reset.
+	logic here. If the shm table passes the sanity check, do nothing.
+	Otherwise reset it. This needs more work but now programs can
+	access the table concurrently.
+	* src/e-hal/src/epiphany-shm-manager.h: Remove e_shm_reset()
+	function prototype.
+
+2014-10-29  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-utils/e-loader/src/e-loader.c: Fixed some segfaults.
 
 2014-10-24  Ola Jeppsson  <ola@adapteva.com>

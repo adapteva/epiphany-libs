@@ -67,7 +67,9 @@ extern int	 e_host_verbose;
  */
 int e_shm_init()
 {
-	int devfd = 0;
+	int              devfd       = 0;
+	unsigned int     heap        = 0;
+	unsigned int     heap_length = 0;
 
 	/* Map the epiphany global shared memory into process address space */
 	devfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
@@ -80,7 +82,7 @@ int e_shm_init()
 	memset(&shm_alloc, 0, sizeof(shm_alloc));
 	if ( -1 == ioctl(devfd, EPIPHANY_IOC_GETSHM, &shm_alloc) ) {
 		warnx("e_shm_init(): Failed to obtain the global "
-			  "shared memory. Error is %s\n", strerror(errno));
+			  "shared memory. Error is %s", strerror(errno));
 		return E_ERR;
 	}
 	shm_table_length = shm_alloc.size;
@@ -88,7 +90,7 @@ int e_shm_init()
 	shm_alloc.uvirt_addr = (unsigned long)mmap(0, shm_alloc.size,
 		PROT_READ|PROT_WRITE, MAP_SHARED, devfd, (off_t)shm_alloc.mmap_handle);
 	if ( MAP_FAILED == (void*)shm_alloc.uvirt_addr ) {
-		warnx("e_shm_init(): Failed to map global shared memory. Error is %s\n",
+		warnx("e_shm_init(): Failed to map global shared memory. Error is %s",
 			  strerror(errno));
 		return E_ERR;
 	}
@@ -100,40 +102,36 @@ int e_shm_init()
 	/** The shm table is initialized by the Epiphany driver. */
 	shm_table = (e_shmtable_t*)shm_alloc.uvirt_addr;
 
-	return E_OK;
-}
-
-/**
- * Reset the shared memory manager.
- */
-int e_shm_reset(void)
-{
-	unsigned int     heap        = 0;
-	unsigned int     heap_length = 0;
-
 
 	// Enter critical section
 	if ( E_OK != LOCK_SHM_TABLE() )
 		return E_ERR;
 
-	memset((void *) shm_table, 0, sizeof(*shm_table));
-	shm_table->magic      = SHM_MAGIC;
-	shm_table->paddr_epi  = shm_alloc.bus_addr;
-	shm_table->paddr_cpu  = shm_alloc.phy_addr;
+	/* Check whether we have a working SHM table and if not reset it */
+	if ( E_OK != shm_table_sanity_check(shm_table) ) {
+		if (shm_table->initialized)
+			warnx("e_shm_init(): SHM table was corrupted. Will reset it.");
 
-	shm_table->initialized = 1;
+		memset((void *) shm_table, 0, sizeof(*shm_table));
+		shm_table->magic      = SHM_MAGIC;
+		shm_table->paddr_epi  = shm_alloc.bus_addr;
+		shm_table->paddr_cpu  = shm_alloc.phy_addr;
 
+		shm_table->initialized = 1;
+		diag(H_D1) { fprintf(stderr, "e_shm_init(): SHM table was reset.\n"); }
+	}
+
+	/* Finally, calculate heap base and heap size and initialize memory
+	 * manager */
 	heap = shm_alloc.uvirt_addr + sizeof(*shm_table);
 	heap_length = GLOBAL_SHM_SIZE - (heap - shm_alloc.uvirt_addr);
 
-	diag(H_D1) { fprintf(stderr, "e_shm_reset(): initializing memory manager."
+	diag(H_D1) { fprintf(stderr, "e_shm_init(): initializing memory manager."
 						 " Heap addr is 0x%08x, length is 0x%08x\n",
 						 heap, heap_length); }
 
-	/* Initialize the memory manager */
 	memman_init((void*)heap, heap_length);
 
-	diag(H_D1) { fprintf(stderr, "e_shm_reset(): reset complete\n"); }
 
 	if ( E_OK != UNLOCK_SHM_TABLE() )
 		return E_ERR;
@@ -288,6 +286,7 @@ e_shmtable_t* e_shm_get_shmtable(void)
 	return shm_table;
 }
 
+
 /**
  * Search the shm table for a region named by name.
  *
@@ -390,13 +389,13 @@ static int shm_table_sanity_check(e_shmtable_t *tbl)
 	}
 
 	if ( !tbl->initialized ) {
-		warnx("shm_table_sanity_check(): shm table is not initialized.\n");
+		warnx("shm_table_sanity_check(): shm table is not initialized.");
 		return E_ERR;
 	}
 
 	if ( tbl->magic != SHM_MAGIC ) {
 		warnx("shm_table_sanity_check(): Bad shm magic. "
-			  "Expected 0x%08x found 0x%08x\n",
+			  "Expected 0x%08x found 0x%08x",
 			  SHM_MAGIC, tbl->magic);
 		return E_ERR;
 	}
@@ -418,7 +417,7 @@ static int shm_lock_file(const int fd, const char* fn)
 {
 	diag(H_D3) { fprintf(stderr, "shm_lock_file(): Taking lock...\n"); }
 	if ( lockf(fd, F_LOCK, 0) ) {
-		warnx("%s(): Failed to lock shared memory. Error is %s\n",
+		warnx("%s(): Failed to lock shared memory. Error is %s",
 				fn, strerror(errno));
 		return E_ERR;
 	}
@@ -429,7 +428,7 @@ static int shm_lock_file(const int fd, const char* fn)
 static int shm_unlock_file(const int fd, const char* fn)
 {
 	if ( lockf(fd, F_ULOCK, 0) ) {
-		warnx("%s(): Failed to unlock shared memory. Error is %s\n",
+		warnx("%s(): Failed to unlock shared memory. Error is %s",
 				fn, strerror(errno));
 		return E_ERR;
 	}

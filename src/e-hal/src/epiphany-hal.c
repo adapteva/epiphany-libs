@@ -882,12 +882,6 @@ int e_reset_system(void)
 		e_close(&dev);
 	}
 
-	/* Reset shared memory manager */
-	if (E_OK != e_shm_reset()) {
-		warnx("e_reset_system(): Failed to reset the Epiphany Shared Memory Manager.");
-		return E_ERR;
-	}
-
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
