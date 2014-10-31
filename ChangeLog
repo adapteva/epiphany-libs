@@ -1,3 +1,7 @@
+2014-10-31  Ola Jeppsson  <ola@adapteva.com>
+
+	* Create 2014.11 branch
+
 2014-10-29  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-xml/src/epiphany-hal.c (int e_reset_system): Don't call
