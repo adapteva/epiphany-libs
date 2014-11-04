@@ -1,11 +1,8 @@
-// GDB Server Utilties: declaration
+// Process Info class: Declaration.
 
-// Copyright (C) 2008, 2009, 2014 Embecosm Limited
-// Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2014 Embecosm Limited
 
-// Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
-// Contributor: Oleg Raikhman <support@adapteva.com>
-// Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
 // This file is part of the Adapteva RSP server.
 
@@ -34,56 +31,49 @@
 
 // Commenting is Doxygen compatible.
 
-//-----------------------------------------------------------------------------
+#ifndef PROCESS_INFO__H
+#define PROCESS_INFO__H
 
-#ifndef UTILS_H
-#define UTILS_H
+#include <set>
 
-#include <ctime>
-#include <inttypes.h>
-#include <string>
-
-
-using std::string;
+using std::set;
 
 
 //-----------------------------------------------------------------------------
-//! A class offering a number of convenience utilities for the GDB Server.
+//! Class describing an Epiphany GDB process
 
-//! All static functions. This class is not intended to be instantiated.
+//! A process corresponds to an Epiphany workgroup, and the cores to threads
+//! within the process.
 //-----------------------------------------------------------------------------
-class Utils
+class ProcessInfo
 {
 public:
 
-  static uint8_t char2Hex (int c);
-  static char hex2Char (uint8_t d);
-  static void reg2Hex (uint32_t val, char *buf);
-  static uint32_t hex2Reg (char *buf);
-  static void ascii2Hex (char *dest, const char *src);
-  static void hex2Ascii (char *dest, const char *src);
-  static int rspUnescape (char *buf, int len);
-  static void microSleep (unsigned long us);
+  // Constructor and destructor
+  ProcessInfo ();
+  ~ProcessInfo ();
 
-  static string  intStr (int  val,
-			 int  base = 10,
-			 int  width = 0);
+  // Accessors
+  int  pid () const;
 
+  set <int>::iterator threadBegin () const;
+  set <int>::iterator threadEnd () const;
+  bool addThread (int tid);
+  bool eraseThread (int tid);
+  bool hasThread (int tid);
+  int numThreads ();
 
 private:
 
-  // Private constructor cannot be instantiated
-    Utils ()
-  {
-  };
+  //! The threads making up the process
+  set <int> mThreads;
 
-};				// class Utils
+};	// ProcessInfo ()
 
-#endif // UTILS_H
+#endif // PROCESS_INFO__H
 
 
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
-// show-trailing-whitespace: t
 // End:

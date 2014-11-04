@@ -64,7 +64,7 @@ typedef struct {
 
 #define EPIPHANY_DEVICE         "/dev/epiphany"
 #define ESYS_BASE               0x80800000
-#define ESYS_REGS_OFFSET        0xf0000    
+#define ESYS_REGS_BASE          (ESYS_BASE+0xf0000)
 
 // Epiphany System Registers
 #define ESYS_CONFIG    0x0f00
@@ -121,12 +121,12 @@ int e_open(Epiphany_t *dev)
     }
 
     // e-sys regs
-    dev->esys.phy_base = ESYS_BASE;
+    dev->esys.phy_base = ESYS_REGS_BASE;
     dev->esys.map_size = 0x1000;
     dev->esys.map_mask = (dev->esys.map_size - 1);
 
     dev->esys.mapped_base = mmap(0, dev->esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-                                 dev->memfd, ESYS_REGS_OFFSET);
+                                 dev->memfd, ESYS_REGS_BASE);
     dev->esys.base = dev->esys.mapped_base;
 
     if ((dev->esys.mapped_base == MAP_FAILED))

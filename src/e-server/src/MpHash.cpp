@@ -1,33 +1,11 @@
-/*
-  File: MpHash.cpp
+// Matchpoint hash table: definition
 
-  This file is part of the Epiphany Software Development Kit.
-
-  Copyright (C) 2013 Adapteva, Inc.
-  See AUTHORS for list of contributors.
-  Support e-mail: <support@adapteva.com>
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program (see the file COPYING).  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
-
-// Matchpoint hash table: implementation
-
-// Copyright (C) 2008, 2009, Embecosm Limited
-// Copyright (C) 2009 Adapteva Inc.
+// Copyright (C) 2008, 2009, 2014 Embecosm Limited
+// Copyright (C) 2009-2014 Adapteva Inc.
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Oleg Raikhman <support@adapteva.com>
+// Contributor: Yaniv Sapir <support@adapteva.com>
 
 // This file is part of the Adapteva RSP server.
 
@@ -45,14 +23,14 @@
 // with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 //-----------------------------------------------------------------------------
-// This RSP server for the Adapteva ATDSP was written by Jeremy Bennett on
+// This RSP server for the Adapteva Epiphany was written by Jeremy Bennett on
 // behalf of Adapteva Inc.
 
 // Implementation is based on the Embecosm Application Note 4 "Howto: GDB
 // Remote Serial Protocol: Writing a RSP Server"
 // (http://www.embecosm.com/download/ean4.html).
 
-// Note that the ATDSP is a little endian architecture.
+// Note that the Epiphany is a little endian architecture.
 
 // Commenting is Doxygen compatible.
 
@@ -76,32 +54,21 @@
 //-----------------------------------------------------------------------------
 //! Constructor
 
-//! Allocate the hash table
-//! @param[in] size  Number of slots in the  hash table. Defaults to
-//!                  DEFAULT_MP_HASH_SIZE.
+//! Does nothing. Retained for backwards compatibility.
 //-----------------------------------------------------------------------------
-MpHash::MpHash(int _size) :
-size (_size)
+MpHash::MpHash ()
 {
-	// Allocate and clear the hash table
-	hashTab = new MpEntry *[size];
-
-	for (int i=0; i<size; i++)
-	{
-		hashTab[i] = NULL;
-	}
-} // MpHash()
+}	// MpHash()
 
 
 //-----------------------------------------------------------------------------
 //! Destructor
 
-//! Free the hash table
+//! Does nothing. Retained for backwards compatibility.
 //-----------------------------------------------------------------------------
-MpHash::~MpHash()
+MpHash::~MpHash ()
 {
-	delete [] hashTab;
-} // ~MpHash()
+}	// ~MpHash()
 
 
 //-----------------------------------------------------------------------------
@@ -117,61 +84,41 @@ MpHash::~MpHash()
 
 //! @param[in] type   The type of matchpoint
 //! @param[in] addr   The address of the matchpoint
+//! @param[in] tid    The thread ID of the matchpoint
 //! @para[in]  instr  The instruction to associate with the address
 //-----------------------------------------------------------------------------
 void
-MpHash::add(MpType type, uint32_t addr, uint16_t instr)
+MpHash::add (MpType type,
+	     uint32_t addr,
+	     int tid,
+	     uint16_t instr)
 {
-	int      hv = addr % size;
-	MpEntry *curr;
+  MpKey  key = {type, addr, tid};
+  mHashTab[key] = instr;
 
-	// See if we already have the entry
-	for (curr = hashTab[hv]; NULL != curr; curr = curr->next)
-	{
-		if ((type == curr->type) && (addr == curr->addr))
-		{
-			return; // We already have the entry
-		}
-	}
-
-	// Insert the new entry at the head of the chain
-	curr = new MpEntry();
-
-	curr->type  = type;
-	curr->addr  = addr;
-	curr->instr = instr;
-	curr->next  = hashTab[hv];
-
-	hashTab[hv] = curr;
-} // add()
+}	// add()
 
 
 //-----------------------------------------------------------------------------
 //!Look up an entry in the matchpoint hash table
 
-//! The match must be on type AND addr.
+//! The match must be on type, address and thread ID.
 
 //! @param[in] type   The type of matchpoint
 //! @param[in] addr   The address of the matchpoint
+//! @param[in] tid    The thread ID of the matchpoint
 
-//! @return  The entry found, or NULL if the entry was not found
+//! @return  TRUE if an entry is found, FALSE otherwise.
 //-----------------------------------------------------------------------------
-MpEntry *
-MpHash::lookup(MpType type, uint32_t addr)
+bool
+MpHash::lookup (MpType    type,
+		uint32_t  addr,
+		int       tid)
 {
-	int hv = addr % size;
+  MpKey  key = {type, addr, tid};
+  return (mHashTab.find (key) != mHashTab.end ());
 
-	// Search
-	for (MpEntry *curr = hashTab[hv]; NULL != curr; curr = curr->next)
-	{
-		if ((type == curr->type) && (addr == curr->addr))
-		{
-			return curr; // The entry was found
-		}
-	}
-
-	return NULL; // The entry was not found
-} // lookup()
+}	// lookup()
 
 
 //-----------------------------------------------------------------------------
@@ -186,45 +133,34 @@ MpHash::lookup(MpType type, uint32_t addr)
 
 //! @param[in]  type   The type of matchpoint
 //! @param[in]  addr   The address of the matchpoint
-//! @param[out] instr  Location to place the instruction found. If NULL (the
-//!                    default) then the instruction is not written back.
+//! @param[in]  tid    The thread ID of the matchpoint
+//! @param[out] instr  If non-NULL a location for the instruction found.
+//!                    Default NULL.
 
 //! @return  TRUE if an entry was found and deleted
 //-----------------------------------------------------------------------------
 bool
-MpHash::remove(MpType type, uint32_t addr, uint16_t *instr)
+MpHash::remove (MpType    type,
+		uint32_t  addr,
+		int       tid,
+		uint16_t* instr)
 {
-	int      hv   = addr % size;
-	MpEntry *prev = NULL;
-	MpEntry *curr;
+  MpKey  key = {type, addr, tid};
 
-	// Search
-	for (curr = hashTab[hv]; NULL != curr; curr = curr->next)
-	{
-		if ((type == curr->type) && (addr == curr->addr))
-		{
-			// Found - delete. Method depends on whether we are the head of
-			// chain.
-			if (NULL == prev)
-			{
-				hashTab[hv] = curr->next;
-			}
-			else
-			{
-				prev->next = curr->next;
-			}
+  if (NULL != instr)
+    {
+      map <MpKey, uint16_t>::iterator it = mHashTab.find (key);
+      if (it != mHashTab.end ())
+	*instr = it->second;
+    }
 
-			if (NULL != instr)
-			{
-				*instr = curr->instr; // Return the found instruction
-			}
+  return 1 == mHashTab.erase (key);
 
-			delete curr;
-			return true; // Success
-		}
+}	// remove()
 
-		prev = curr;
-	}
 
-	return false; // Not found
-} // remove()
+// Local Variables:
+// mode: C++
+// c-file-style: "gnu"
+// show-trailing-whitespace: t
+// End:

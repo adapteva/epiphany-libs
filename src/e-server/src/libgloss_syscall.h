@@ -1,5 +1,4 @@
-/*
-  File: libgloss_syscall.h
+/* Syscall numbers for interfacing to libgloss
 
   This file is part of the Epiphany Software Development Kit.
 
@@ -85,3 +84,10 @@
 #define SYS_reconfig 25
 
 #endif
+
+
+// Local Variables:
+// mode: C++
+
+// show-trailing-whitespace: t
+// End:

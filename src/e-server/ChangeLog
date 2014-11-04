@@ -1,9 +1,1673 @@
+2014-10-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint): Ensure
+	breakpoints are set in all threads.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	* src/TargetControl.h: Add isLocalAddr () as public pure virtual
+	method.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::isLocalAddr): Created.
+	(TargetControlHardware::convertAddress): Use isLocalAddr.
+	* src/TargetControlHardware.h: Add isLocalAddr () as public
+	method.
+
+2014-10-24  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/main.cpp (getDefaultHdfFile):
+	New function. Use path relative to the e-server binary to determine
+	default XML HDF file path.
+	(main): Get default HDF file from getDefaultHdfFile() if user did not
+	explicitly specify it with "-hdf".
+
+2014-10-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* e-server.sh: Remove environment variable dependencies in a
+	movable way.
+
+2014-10-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Remove assertion side effects and document reversions.
+
+	* e-server.sh: Don't use sudo.
+	* src/GdbServer.cpp (GdbServer::initProcesses):
+	Remove side-effects from assert.
+	(GdbServer::rspQuery): Ignore qNonStop packets.
+	(GdbServer::rspCmdWorkgroup): Ignore qNonStop packets.  Remove
+	side-effects from assert.
+	(GdbServer::getThread): Better error message.
+	(GdbServer::stopAttachedProcesses): Deleted.
+	* src/GdbServer.h: Remove stopAttachedProcesses.  Add
+	voidprintfWrapper.
+	* src/ProcessInfo.cpp:
+	(ProcessInfo::numThreads): Created.
+	* src/ProcessInfo.h: Add numThreads.
+	* src/ServerInfo.cpp (ServerInfo::chipVersion): Deleted.
+	* src/ServerInfo.h: Remove chipVersion.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readMem): Remove routine warning.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::initHwPlatform): Correct return from signal.
+	* src/Thread.cpp (Thread::readMem32): Better error
+	message.
+	(Thread::readMem16): Likewise.
+	(Thread::readMem8): Likewise.
+	* src/main.cpp (initPlatform): Don't record chip version in
+	ServerInfo.
+
+2014-10-02  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Revert out changes back to 11 Jun 2014, updating ChangeLog
+	appropriately.
+
+2014-09-23  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Overarching patch of all changes in a single commit. Details in
+	ChangeLog entries from 2014-01-12.
+
+	* Makefile: Add new source files and include dirs.
+	* src/CoreId.cpp (CoreId::CoreId CoreId::row CoreId::col)
+	(CoreId::coreId CoreId::operator< operator<< operator>>)
+	(CoreId::operator+ operator+ operator+=): Functions/methods added,
+	deleted or modified.
+	* src/CoreId.h (class CoreId): Class declaration modified.
+	* src/GdbServer.cpp (GdbServer::GdbServer GdbServer::~GdbServer)
+	(GdbServer::rspServer GdbServer::initProcesses
+	GdbServer::rspAttach)
+	(GdbServer::rspDetach GdbServer::rspClientRequest)
+	(GdbServer::rspReportException GdbServer::rspContinue)
+	(GdbServer::rspSuspend GdbServer::rspFileIOreply)
+	(GdbServer::redirectStdioOnTrap GdbServer::hostWrite)
+	(GdbServer::rspReadAllRegs GdbServer::rspWriteAllRegs)
+	(GdbServer::rspSetThread GdbServer::rspReadMem)
+	(GdbServer::rspWriteMem GdbServer::rspReadReg)
+	(GdbServer::rspWriteReg GdbServer::rspQuery)
+	(GdbServer::rspQThreadInfo GdbServer::rspQThreadExtraInfo)
+	(GdbServer::rspCommand GdbServer::rspCmdWorkgroup)
+	(GdbServer::rspCmdProcess GdbServer::rspTransfer)
+	(GdbServer::rspOsData GdbServer::rspOsDataProcesses)
+	(GdbServer::rspOsDataLoad GdbServer::rspOsDataTraffic)
+	(GdbServer::rspSet GdbServer::rspRestart GdbServer::rspStep)
+	(GdbServer::rspIsThreadAlive GdbServer::is32BitsInstr)
+	(GdbServer::rspVpkt GdbServer::rspVCont)
+	(GdbServer::extractVContAction GdbServer::pendingStop)
+	(GdbServer::markPendingStops GdbServer::removePendingStop)
+	(GdbServer::doStep GdbServer::continueThread
+	GdbServer::doContinue)
+	(GdbServer::getStopInstr GdbServer::doFileIO)
+	(GdbServer::rspWriteMemBin GdbServer::rspRemoveMatchpoint)
+	(GdbServer::rspInsertMatchpoint GdbServer::targetSwReset)
+	(GdbServer::targetHWReset GdbServer::getProcess)
+	(GdbServer::getThread GdbServer::haltAllThreads)
+	(GdbServer::resumeAllThreads GdbServer::stopAttachedProcesses)
+	(GdbServer::getOpcode1_4 GdbServer::getOpcode1_5)
+	(GdbServer::getOpcode2_4 GdbServer::getOpcode4)
+	(GdbServer::getOpcode4_2_4 GdbServer::getOpcode4_5)
+	(GdbServer::getOpcode4_7 GdbServer::getOpcode4_10)
+	(GdbServer::getOpcode5 GdbServer::getOpcode7
+	GdbServer::getOpcode10)
+	(GdbServer::getRd GdbServer::getRm GdbServer::getRn)
+	(GdbServer::getTrap GdbServer::getBranchOffset GdbServer::getJump)
+	(GdbServer::doBacktrace GdbServer::getfield GdbServer::setfield):
+	Functions/methods added, deleted or modified.
+	* src/GdbServer.h (class GdbServer): Class declaration modified.
+	* GdbServerSC.cpp: Deleted.
+	* GdbServerSC.h: Deleted.
+	* GdbserverCreate.cpp: Deleted.
+	* LoaderServer.h: Deleted.
+	* src/MemRange.cpp (MemRange::MemRange MemRange::~MemRange)
+	(MemRange::operator MemRange::minAddr MemRange::maxAddr)
+	(MemRange::addrRange MemRange::minRegAddr MemRange::maxRegAddr)
+	(MemRange::regAddrRange): Functions/methods added, deleted or
+	modified.
+	* src/MemRange.h (class MemRange): Class declaration modified.
+	* src/MpHash.cpp (MpHash::MpHash MpHash::~MpHash MpHash::add)
+	(MpHash::lookup MpHash::remove): Functions/methods added, deleted
+	or modified.
+	* src/MpHash.h (enum MpType struct MpEntry class MpHash): Class
+	declaration modified.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo)
+	(ProcessInfo::~ProcessInfo ProcessInfo::threadBegin)
+	(ProcessInfo::threadEnd ProcessInfo::addThread)
+	(ProcessInfo::eraseThread ProcessInfo::hasThread):
+	Functions/methods added, deleted or modified.
+	* src/ProcessInfo.h (class ProcessInfo): Class declaration
+	modified.
+	* src/RspConnection.cpp (RspConnection::RspConnection)
+	(RspConnection::~RspConnection RspConnection::rspInit bool)
+	(RspConnection::rspConnect RspConnection::rspClose bool)
+	(RspConnection::isConnected RspConnection::isConnected bool)
+	(RspConnection::getPkt RspConnection::getPkt bool)
+	(RspConnection::putPkt RspConnection::putPkt bool)
+	(RspConnection::putRspChar RspConnection::putRspChar)
+	(RspConnection::getRspChar RspConnection::getBreakCommand):
+	Functions/methods added, deleted or modified.
+	* src/RspConnection.h (class RspConnection): Class declaration
+	modified.
+	* src/RspPacket.cpp (RspPacket::RspPacket RspPacket::~RspPacket)
+	(RspPacket::packStr RspPacket::packNStr RspPacket::packHexstr)
+	(RspPacket::getBufSize RspPacket::getLen RspPacket::setLen
+	ostream)
+	(& operator <<): Functions/methods added, deleted or modified.
+	* src/RspPacket.h (class RspPacket): Class declaration modified.
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo)
+	(ServerInfo::~ServerInfo ServerInfo::hdfFile ServerInfo::ttyOut)
+	(ServerInfo::port ServerInfo::validPort ServerInfo::halDebug)
+	(ServerInfo::debugStopResume ServerInfo::debugTrapAndRspCon)
+	(ServerInfo::debugStopResumeDetail ServerInfo::debugTargetWr)
+	(ServerInfo::debugCtrlCWait ServerInfo::debugTranDetail)
+	(ServerInfo::debugHwDetail ServerInfo::debugTiming)
+	(ServerInfo::showMemoryMap ServerInfo::skipPlatformReset)
+	(ServerInfo::checkHwAddr ServerInfo::haltOnAttach)
+	(ServerInfo::chipVersion): Functions/methods added, deleted or
+	modified.
+	* src/ServerInfo.h (class ServerInfo): Class declaration modified.
+	* src/TargetControl.cpp (TargetControl::TargetControl)
+	(TargetControl::~TargetControl TargetControl::platformReset)
+	(TargetControl::startOfBaudMeasurement)
+	(TargetControl::endOfBaudMeasurement): Functions/methods added,
+	deleted or modified.
+	* src/TargetControl.h (class TargetControl): Class declaration
+	modified.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::TargetControlHardware)
+	(TargetControlHardware::readMem32
+	TargetControlHardware::readMem16)
+	(TargetControlHardware::readMem8
+	TargetControlHardware::writeMem32)
+	(TargetControlHardware::writeMem16
+	TargetControlHardware::writeMem8)
+	(TargetControlHardware::readMem TargetControlHardware::writeMem)
+	(TargetControlHardware::readBurst
+	TargetControlHardware::writeBurst)
+	(TargetControlHardware::platformReset)
+	(TargetControlHardware::resumeAndExit)
+	(TargetControlHardware::initTrace
+	TargetControlHardware::startTrace)
+	(TargetControlHardware::stopTrace)
+	(TargetControlHardware::breakSignalHandler)
+	(TargetControlHardware::coreIdBegin)
+	(TargetControlHardware::coreIdEnd
+	TargetControlHardware::getNumRows)
+	(TargetControlHardware::getNumCols TargetControlHardware::abs2rel)
+	(TargetControlHardware::initHwPlatform)
+	(TargetControlHardware::initMaps TargetControlHardware::showMaps)
+	(TargetControlHardware::getTargetId)
+	(TargetControlHardware::convertAddress)
+	(TargetControlHardware::initPlatform)
+	(TargetControlHardware::closePlatform)
+	(TargetControlHardware::writeTo TargetControlHardware::readFrom)
+	(TargetControlHardware::hwReset)
+	(TargetControlHardware::getDescription)
+	(TargetControlHardware::findSharedFunc)
+	(TargetControlHardware::intStr): Functions/methods added, deleted
+	or modified.
+	* src/TargetControlHardware.h (class TargetControlHardware): Class
+	declaration modified.
+	* src/Thread.cpp (Thread::Thread Thread::~Thread Thread::coreId)
+	(Thread::isHalted Thread::isIdle Thread::isInterruptible)
+	(Thread::halt Thread::resume Thread::idle Thread::activate)
+	(Thread::saveIVT Thread::restoreIVT Thread::insertBkptInstr)
+	(Thread::getException Thread::readMemBlock Thread::writeMemBlock)
+	(Thread::readMem32 Thread::writeMem32 Thread::readMem16)
+	(Thread::writeMem16 Thread::readMem8 Thread::writeMem8)
+	(Thread::readReg Thread::writeReg Thread::readCoreId)
+	(Thread::readStatus Thread::readPc Thread::writePc Thread::readLr)
+	(Thread::writeLr Thread::readFp Thread::writeFp Thread::readSp)
+	(Thread::writeSp Thread::regAddr): Functions/methods added,
+	deleted or modified.
+	* src/Thread.h (class Thread): Class declaration modified.
+	* src/Utils.cpp (uint8_t Utils::char2Hex Utils::char2Hex)
+	(Utils::hex2Char Utils::reg2Hex uint32_t Utils::hex2Reg)
+	(Utils::hex2Reg Utils::ascii2Hex Utils::hex2Ascii)
+	(Utils::rspUnescape Utils::microSleep Utils::intStr zalloc zfree):
+	Functions/methods added, deleted or modified.
+	* src/Utils.h (class Utils): Class declaration modified.
+	* debugVerbose.h: Deleted.
+	* e_printf.cpp: Deleted.
+	* src/libgloss_syscall.h: Code modified.
+	* src/maddr_defs.h: Code modified
+	* src/main.cpp: Code modified.
+	* targetCntrl.h: Deleted.
+	* targetCntrlHardware.cpp: Deleted.
+	* targetCntrlHardware.h: Deleted.
+	* target_param.h: Deleted.
+
+2014-06-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp (ServerInfo::chipVersion): Created two
+	versions to get and set.
+	* src/ServerInfo.h: Added two versions of ChipVersion.
+	* src/main.cpp (initPlatform): Set chip version in server info.
+
+2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Fix typos in previous
+	commit, stop attached processes in all stop mode.
+	(GdbServer::stopAttachedProcesses): Created as dummy.
+	* src/GdbServer.h: Add stopAttachedProcesses, delete printfWrapper
+	declaration, since no-longer needed.
+
+2014-06-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Add support for
+	enabling non-stop mode.
+
+2014-05-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Makefile: Remove trailing spaces throughout. Add copyright
+	header. Remove commented out things which are not relevant. Add
+	-Werror, remote -fmessage-length. Simplify include dirs. Set
+	correct source code list.
+	* src/CoreId.cpp: Remove trailing spaces throughout.
+	(CoreId::operator<): Remove const qualifier from return type.
+	* src/CoreId.h: Likewise.
+	* src/GdbServer.cpp: Remove trailing spaces throughout.
+	(GdbServer::rspContinue): Mark except unused.
+	(GdbServer::redirectStdioOnTrap): Use fprintf direct, not
+	printfWrapper.
+	(GdbServer::printfWrapper): Deleted.
+	(GdbServer::doBacktrace): Check return value from call to system
+	().
+	* src/MemRange.cpp: Remove trailing spaces throughout.
+	(MemRange::minAddr): Remove const qualifier from return type.
+	(MemRange::maxAddr): Likewise.
+	(MemRange::minRegAddr): Likewise.
+	(MemRange::maxRegAddr): Likewise.
+	* src/MemRange.h: Likewise.
+	* src/MpHash.h: Remove trailing spaces throughout.
+	* src/ProcessInfo.h: Remove trailing spaces throughout.
+	* src/RspPacket.cpp: Remove trailing spaces throughout.
+	* src/ServerInfo.h: Remove trailing spaces throughout.  No need to
+	specify directory for HAL header include.
+	* src/TargetControl.h: Remove trailing spaces throughout.
+	* src/TargetControlHardware.cpp: Remove trailing spaces
+	throughout.
+	(TargetControlHardware::breakSignalHandler): Mark signum unused.
+	* src/TargetControlHardware.h: Remove trailing spaces throughout.
+	No need to specify directory for XML and HAL includes.
+	* src/Thread.h: Remove trailing spaces throughout.
+	* src/Utils.cpp (Utils::hex2Char): Remove const qualifier on
+	return value (not needed for static method).
+	* src/Utils.h (class Utils): Likewise.
+	* src/main.cpp (main): Remove trailing spaces throughout.  No need
+	to specify directory for XML and HAL includes.
+
 2014-05-14  Ben Chaco  <bchaco@x3-c.com>
 
-	* src/e-server/Debug/makefile: Removed File.
-	* src/e-server/Debug/objects.mk: Removed File.
-	* src/e-server/Debug/sources.mk: Removed File.
-	* src/e-server/Release/makefile: Removed File.
-	* src/e-server/Release/objects.mk: Removed File.
-	* src/e-server/Release/sources.mk: Removed File.
+	* Debug/makefile: Removed File.
+	* Debug/objects.mk: Removed File.
+	* Debug/sources.mk: Removed File.
+	* Release/makefile: Removed File.
+	* Release/objects.mk: Removed File.
+	* Release/sources.mk: Removed File.
 
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::doFileIO): Don't worry if we
+	aren't at a TRAP instruction.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::doFileIO): Don't flag problem if
+	instruction is IDLE.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::pendingStop): Remove debug message.
+	(GdbServer::markPendingStops): Likewise.
+	(GdbServer::removePendingStop): Likewise.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::markPendingStops): Also remove
+	pending stop for exclusion thread. Reduce debug messages.
+	(GdbServer::doContinue): No need to remove pending stop - done by
+	calling method.
+	(GdbServer::getStopInstr): Remove debug message.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::doContinue): Remove pending stop
+	when deal with breakpoint.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::markPendingStops): Mark iterated
+	thread, not exclusion thread.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::markPendingStops): Use iterated
+	thread, not exclusion thread for check.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::getStopInstr): More detailed error
+	message.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::markPendingStops): More debug
+	messages.
+	(GdbServer::getStopInstr): Likewise.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::pendingStop): Added
+	debug message.
+	(GdbServer::markPendingStops): Likewise.
+	(GdbServer::removePendingStop): Likewise.
+
+2014-03-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	*  src/GdbServer.cpp (GdbServer::doFileIO): Print instruction on
+	problem.
+
+2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp: Pass thread, not thread ID to
+	redirectStdioOnTrap throughout.
+	(GdbServer::redirectStdioOnTrap): Take thread, not thread ID as
+	argument.
+	(GdbServer::markPendingStops): Only mark pending if at BREAK
+	instruction.
+	(GdbServer::getStopInstr): Created.
+	(GdbServer::doFileIO): Take thread, not thread ID as argument, use
+	getStopInstr to get any stop instruction.
+	* src/GdbServer.h: Change getFileIO and redirectStdioOnTrap to
+	take thread, not thread ID.  Ad getStopInstr.
+
+2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspVCont): Correct minor compiler
+	errors.
+	(GdbServer::extractVContAction): Likewise.
+	* src/GdbServer.h: Add declaration of mPendingStops;
+
+2014-03-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Work in progress. Do not use.
+
+	* src/GdbServer.cpp (GdbServer::rspVCont): Simplify logic and deal
+	with pending stops.
+	(GdbServer::extractVContAction): Move warnings about invalid
+	packets here.
+	(GdbServer::pendingStop): Created.
+	(GdbServer::markPendingStops): Created.
+	(GdbServer::removePendingStop): Created.
+	(GdbServer::doStep): Report exception, deal with pending stops.
+
+2014-03-17  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp: Replace haltThreads by haltAllThreads
+	throughout.
+	(GdbServer::rspServer): Remove check for ctrl-C and move to
+	doContinue;
+	(GdbServer::rspClientRequest): resume all threads for 'F' packet,
+	close connection for 'k' packet.
+	(GdbServer::rspContinue): Change call of hash table lookup.
+	(GdbServer::rspSetThread): Do the selection for thread 0 here.
+	(GdbServer::rspCmdProcess): Reset current threads if necessary.
+	(GdbServer::rspIsThreadAlive): Resrict to current process.
+	(GdbServer::rspVCont): Correct logic of splitting out tokens.
+	(GdbServer::doFileIO): Mark target not running and halt all threads.
+	(GdbServer::rspRemoveMatchpoint): Deal with thread ID of -1.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::getThread): Do a backtrace on problem.
+	(GdbServer::haltAllThreads): Renamed from haltThreads.
+	(GdbServer::resumeAllThreads): Renamed from resumeThreads.
+	(GdbServer::doBacktrace): Created.
+	* src/GdbServer.h: Rename haltThreads to haltAllThreads and
+	resumeThreads to resumeAllThreads.  Add doBacktrace.
+	* src/MpHash.cpp (MpHash::MpHash): Reimplement using STL
+	map. Remains as backward-compatible stub.
+	(MpHash::~MpHash): Likewise.
+	(MpHash::add): Reimplement using STL map.
+	(MpHash::lookup): Likewise.
+	(MpHash::remove): Likewise.
+	* src/MpHash.h (struct MpEntry): Deleted.
+	(class MpHash): Reimplement using STL map. Add MpKey private struct.
+
+2014-03-17  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Add Thread.cpp., Thread.o and
+	Thread.d.
+	* Release/src/subdir.mk: Likewise.
+	* src/CoreId.h: Correct declaration of input operator.
+	* src/GdbServer.cpp: Use currentCTid and currentGTid
+	instead of currentCThread and currentGThread throughout.
+	(GdbServer::GdbServer): Define mDebugMode, move sanity checking to
+	Thread class.
+	(GdbServer::initProcesses): Set up thread map from thread ID. Only
+	need for one direction map core ID to thread ID.
+	(GdbServer::rspAttach): Use thread specific calls and apply to all
+	threads in current process.
+	(GdbServer::rspDetach): Restart all threads except for idle process.
+	(GdbServer::rspClientRequest): Use rspDetach on comms failure.
+	(GdbServer::rspReportException): Remove first argument, rewrite to
+	use T packet consistently.
+	(GdbServer::rspContinue): Use thread specific calls. Should now be
+	replaced by vCont anyway.
+	(GdbServer::NanoSleepThread): Deleted, replaced by Utils::microSleep.
+	(GdbServer::targetResume): Deleted, replace by thread specific call.
+	(GdbServer::rspSuspend): Use thread specific calls.
+	(GdbServer::rspFileIOreply): Likewise.
+	(enum TRAP_CODES): Moved into redirectStdioOnTrap
+	(GdbServer::redirectStdioOnTrap): Renamed from redirectSdioOnTrap
+	(GdbServer::redirectSdioOnTrap): Renamed as redirectStdioOnTrap
+	(GdbServer::hostWrite): Created.
+	(GdbServer::rspReadAllRegs): Use thread specific calls.
+	(GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQThreadInfo): Restrict to threads in current process.
+	(GdbServer::rspQThreadExtraInfo): Use thread specific calls.
+	(GdbServer::rspCommand): use thread specific calls. Add "process"
+	command.
+	(GdbServer::rspCmdWorkgroup): Fix bug in removing processes.
+	(GdbServer::rspCmdProcess): Created.
+	(GdbServer::rspOsDataProcesses): Use thread specific calls.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspRestart): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::rspIsThreadAlive): use mThreads instaed of thread2core/
+	(GdbServer::rspVpkt): Support vCont? and vCont.
+	(GdbServer::insertBkptInstr): moved to Thread class.
+	(GdbServer::rspVCont): Created.
+	(GdbServer::isCoreHalted): Moved to Thread class.
+	(GdbServer::isCoreIdle): Likewise.
+	(GdbServer::isCoreGIntsEnabled): Likewise.
+	(GdbServer::extractVContAction): Created.
+	(GdbServer::doStep): Created.
+	(GdbServer::restoreIVT): Moved to Thread class.
+	(GdbServer::continueThread): Created.
+	(GdbServer::doContinue): Created.
+	(GdbServer::doFileIO): Created.
+	(GdbServer::rspWriteMemBin): Use thread specific calls.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::targetSwReset): Likewise.
+	(GdbServer::targetHWReset): Likewise.
+	(GdbServer::readMemBlock): Moved to Thread class.
+	(GdbServer::writeMemBlock): Likewise.
+	(GdbServer::readMem32): Likewise.
+	(GdbServer::writeMem32): Likewise.
+	(GdbServer::readMem16): Likewise.
+	(GdbServer::getProcess): Created.
+	(GdbServer::getThread): Created.
+	(GdbServer::readMem8): Moved to Thread class.
+	(GdbServer::writeMem8): Likewise
+	(GdbServer::haltThreads): Created.
+	(GdbServer::readReg): Moved to Thread class.
+	(GdbServer::writeReg): Likewise.
+	(GdbServer::readCoreId): Likewise.
+	(GdbServer::readStatus): Likewise.
+	(GdbServer::readPc): Likewise.
+	(GdbServer::writePc): Likewise.
+	(GdbServer::readLr): Likewise.
+	(GdbServer::writeLr): Likewise.
+	(GdbServer::readFp): Likewise.
+	(GdbServer::writeFp): Likewise.
+	(GdbServer::readSp): Likewise.
+	(GdbServer::writeSp): Likewise.
+	(GdbServer::resumeThreads): Created.
+	(GdbServer::cCore): Deleted.
+	(GdbServer::gCore): Deleted.
+	(GdbServer::getJump): Use thread, rather than core ID as argument.
+	(GdbServer::regAddr): Moved to Thread class.
+	(GdbServer::intStr): Moved to Utils class.
+	* src/GdbServer.h (class GdbServer): Declare new and
+	remove old member function declarations as per GdbServer.cpp
+	comments.  Make register numbers and constants needed by Thread
+	class public.
+	* src/MemRange.cpp: Minor emacs local variable
+	change.
+	* src/MemRange.h: Likewise.
+	* src/MpHash.cpp: Likewise.
+	* src/MpHash.h: Likewise.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo): No
+	pid in prototypex
+	(ProcessInfo::pid): Deleted.
+	(ProcessInfo::threadEnd): Rename thread as tid for clarity.
+	(ProcessInfo::addThread): Likewise.
+	(ProcessInfo::eraseThread): Likewise.
+	(ProcessInfo::hasThread): Likewise.
+	* src/ProcessInfo.h (class ProcessInfo): Change
+	prototypes to match changes in ProcessInfo.cpp.  Remove pid accessor.
+	* src/RspConnection.cpp: Minor emacs local variable
+	change.
+	* src/RspConnection.h: Likewise.
+	* src/RspPacket.cpp: Likewise.
+	* src/RspPacket.h: Likewise.
+	* src/ServerInfo.cpp: Likewise.
+	* src/ServerInfo.h: Likewise.
+	* src/TargetControl.h: Likewise.
+	* src/TargetControlHardware.cpp: Likewise.
+	* src/TargetControlHardware.h: Likewise.
+	* src/Thread.cpp: Created.
+	* src/Thread.h: Created
+	* src/Utils.cpp (uint32_t Utils::hex2Reg): const
+	second argument
+	(Utils::ascii2Hex): Likewise.
+	(Utils::hex2Ascii): Likewise.
+	(Utils::microSleep): Created
+	(Utils::intStr): Created.
+	(zalloc): Deleted.
+	(zfree): Deleted.
+	* src/Utils.h: Added new functions, removed obsolete
+	ones.
+	* src/libgloss_syscall.h: Minor emacs local variable
+	change.
+	* src/maddr_defs.h: Likewise.
+	* src/main.cpp (main): Likewise.
+
+2014-03-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::initProcesses): Assert thread
+	addition worked.
+	(GdbServer::rspCommand): Add "monitor workgroup" command and rejig
+	logic slightly to accomodate.
+	(GdbServer::rspCmdWorkgroup): Created.
+	* src/GdbServer.h: Add rspCmdWorkgroup.
+	(ProcessInfo::addThread): No error message, just return TRUE of
+	FALSE to indicate success or not.
+	(ProcessInfo::eraseThread): Created.
+	* src/ProcessInfo.h: Add eraseThread, change prototype of addThread.
+
+2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::initProcesses): Use Target
+	hardware iterators
+	(GdbServer::rspAttach): -1 to indicate all threads for exception.
+	(GdbServer::rspClientRequest): Likewise.
+	(GdbServer::rspReportException): Likewise.
+	(GdbServer::rspContinue): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspCommand): General cleanup, and proper return of
+	results.
+	(GdbServer::rspOsDataProcesses): Correctly print the process ID.
+	(GdbServer::rspStep): -1 to indicate all threads for exception.
+	(GdbServer::targetHalt): Take a core ID argument.
+	(GdbServer::readCoreId): Return a core ID
+	* src/GdbServer.h: Change prototype of rspReportException,
+	readCoreId and targetHalt.
+	* src/RspPacket.cpp (RspPacket::packHexstr): Created.
+	* src/RspPacket.h: Add new method.
+	* src/TargetControl.h: Replace listCoreIds by iterator and add
+	abs2rel.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::listCoreIds): Deleted.
+	(TargetControlHardware::coreIdBegin): Created.
+	(TargetControlHardware::coreIdEnd): Likewise.
+	(TargetControlHardware::abs2rel): Likewise.
+	(TargetControlHardware::initMaps): Initialize abs2relCore, replace
+	coreMap by rel2absCore.
+	(TargetControlHardware::showMaps): Replace coreMap by rel2absCore.
+	(TargetControlHardware::convertAddress): Likewise.
+	* src/TargetControlHardware.h: Replace listCoreIds by iterator and
+	add abs2rel, replace coreMap by rel2absCore.
+
+2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/CoreId.cpp (operator<<): Use 2 chars for column as well as row.
+	* src/GdbServer.cpp (GdbServer::regAddr): Increment reg addresses
+	by 4 bytes.
+	* src/GdbServer.h: Make regnums unsigned ints
+	* src/TargetControlHardware.cpp (TargetControlHardware::readMem):
+	Slightly simpler formula to map buf to data.
+
+2014-03-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Added CoreId.
+	* Release/src/subdir.mk: Likewise.
+	* src/CoreId.cpp: Created,
+	* src/CoreId.h: Created
+	* src/GdbServer.cpp: Replace uint32_t addresses by CoreId
+	throughout.
+	* src/GdbServer.h: Likewise.
+	* src/TargetControl.h: Likewise.
+	* src/TargetControlHardware.cpp: Likewise.
+	* src/TargetControlHardware.h: Likewise.
+
+2014-03-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Add ProcessInfo target.
+	* Release/src/subdir.mk: Likewise.
+	* src/GdbServer.cpp (GdbServer::GdbServer): Assert for FSTATUS
+	(GdbServer::rspServer): Rename initThreads as initProcesses.
+	(GdbServer::initProcesses): Renamed from initThreads and add
+	process set up.
+	(GdbServer::initThreads): Renamed as initProcesses.
+	(GdbServer::rspAttach): Correctly report core on attach.
+	(GdbServer::rspClientRequest): Call rspStep () for both 's' and 'S'.
+	(GdbServer::rspOsDataProcesses): Report all processes.
+	(GdbServer::rspStep): No argument form handles both 's' and
+	'S'. Generic form pass in address and signal and whether address
+	was provided (can't get PC until know which threads are to be started).
+	* src/GdbServer.h: Add data structures for processes. Remove one
+	unused rspStep version and change prototype of full version.
+	* src/ProcessInfo.cpp: Created.
+	* src/ProcessInfo.h: Created.
+
+2014-03-09  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspAttach): Force
+	core out of idle state if necessary.
+	(GdbServer::rspSuspend): Replace isTargetIdle by isCoreIdle for
+	consistency.
+	(GdbServer::rspQThreadExtraInfo): Add info about idle, halted and
+	GID state.
+	(GdbServer::rspStep): Correct test for expected breakpoint destination.
+	(GdbServer::isCoreHalted): Remove test commenting.
+	(GdbServer::isCoreIdle): Created.
+	(GdbServer::isCoreGIntsEnabled): Created.
+	(GdbServer::isTargetIdle): Renamed as isCoreIdle for consistency.
+	* src/GdbServer.h: Add FSTATUS register number,
+	rename isTargetIdle by isCoreIlde, add isCoreGIntsEnabled.
+
+2014-03-08  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): Make debug depend on
+	TranDetail.
+	(GdbServer::rspReportException): Consistent debug message format.
+	(GdbServer::rspContinue): Use TargetSignal for exceptions.
+	(GdbServer::targetResume): Coding error - only print warning
+	message if write fails.
+	(GdbServer::rspSuspend): Use TargetSignal for exceptions.
+	(GdbServer::rspReadMem): Make timing depend on debugTiming flag.
+	(GdbServer::targetHalt): Minor grammar fix in debug message,
+	fuller error message, improved logic on retry.
+	(GdbServer::isCoreHalted): Add commented out test logic pro tem.
+	* src/GdbServer.h: Pass signals as TargetSignal.
+	* src/ServerInfo.cpp (ServerInfo::debugHwDetail): New functions
+	for debugTiming flag.
+	(ServerInfo::debugTiming): Created.
+	* src/ServerInfo.h: Add new DebugTiming
+	* src/TargetControlHardware.cpp (TargetControlHardware::readMem):
+	Fuller debug message.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/main.cpp (usage_full): Add new debugTiming flag.
+	(main): Likewise.
+
+2014-03-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Work in progress. Commit fixes some thread handling problems.
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Pass core ID to
+	targetResume, call new function rspIsThreadAlive for 'T' packet.
+	(GdbServer::rspContinue): Pass core ID to getException.
+	(GdbServer::targetResume): Take core ID as argument, and pass when
+	resuming or testing for halt.
+	(GdbServer::rspSuspend): Simplified handling of exception signals,
+	pass core ID when resuming.
+	(GdbServer::redirectSdioOnTrap): Pass core ID when resuming.
+	(GdbServer::rspStep): Signal argument is of type TargetSignal,
+	rewrite for simplification and clarity.
+	(GdbServer::rspIsThreadAlive): Created.
+	(GdbServer::targetHalt): Pass CoreID to when halting and testing
+	for halt. Consistent trace messaging.
+	(GdbServer::insertBkptInstr): Renamed from
+	putBreakPointInstruction, cleaner trace message.
+	(GdbServer::isCoreHalted): rename from IsTargetInDebugState, take
+	coreID as argument and use when reading reg.
+	(GdbServer::isTargetExceptionState): Replaced by getException.
+	(GdbServer::getException): Rewrite of isTargetExceptionState to
+	take core ID as argument and return signal.
+	(GdbServer::saveIVT): Take core ID as argument and use when
+	reading memory.
+	(GdbServer::restoreIVT): Take core ID as argument and use when
+	writing memory.
+	(GdbServer::rspVpkt): Return S05 for attach.
+	(GdbServer::rspInsertMatchpoint): Rename putBreakPointInstruction
+	as insertBkptInstr.
+	(GdbServer::cCore): Deal with 0 and -1 as threads
+	(GdbServer::gCore): Likewise.
+	(GdbServer::getOpcode1_4): Created.
+	(GdbServer::getOpcode1_5): Created.
+	(GdbServer::getOpcode2_4): Created.
+	(GdbServer::getOpcode4): Created.
+	(GdbServer::getOpcode4_2_4): Created.
+	(GdbServer::getOpcode4_5): Created.
+	(GdbServer::getOpcode4_7): Created.
+	(GdbServer::getOpcode4_10): Created.
+	(GdbServer::getOpcode5): Created.
+	(GdbServer::getOpcode7): Created.
+	(GdbServer::getOpcode10): Created.
+	(GdbServer::getRd): Created.
+	(GdbServer::getRm): Created.
+	(GdbServer::getRn): Created.
+	(GdbServer::getTrap): Created.
+	(GdbServer::getBranchOffset): Created.
+	(GdbServer::getJump): Created.
+	* src/GdbServer.h: Remove SPECIAL_INSTR_OPCODES and add IDLE_INSTR
+	as constant.  Change rspStep prototypes to use TargetSignal for
+	exceptions. Rename putBreakPointInstruction as insertBkptInstr.
+	Replace isTargetExceptionState by getException.  Pass core ID to
+	isCoreHalted, getException, saveIVT, restoreIVT.  Add declarations
+	of instruction field access methods.
+	* src/RspConnection.cpp (RspConnection::getBreakCommand): Remove
+	warning messave if signal interrupts read. Always return bool as result.
+	* src/TargetControl.h: Add status exception causes.
+	* src/TargetControlHardware.cpp (TargetControlHardware::writeMem8):
+	(TargetControlHardware::readMem): Rewritten for clarity. Pass
+	coreID when converting address.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::readBurst): Likewise.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::writeTo): Better trace message.
+	* src/TargetControlHardware.h: Change size constants and
+	parameters to type size_t consistently.
+
+2014-03-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspContinue): Pass
+	core when reading registers, memory or core ID.
+	(GdbServer::targetResume): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::rspFileIOreply): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspReadAllRegs): Likewise.
+	(GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQuery): Likewise.
+	(GdbServer::rspCommand): Likewise.
+	(GdbServer::rspSet): Likewise.
+	(GdbServer::rspRestart): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::targetHalt): Likewise.
+	(GdbServer::putBreakPointInstruction): Likewise.
+	(GdbServer::isHitInBreakPointInstruction): Likewise.
+	(GdbServer::isTargetInDebugState): Likewise.
+	(GdbServer::isTargetExceptionState): Likewise.
+	(GdbServer::isTargetIdle): Likewise.
+	(GdbServer::saveIVT): Likewise.
+	(GdbServer::restoreIVT): Likewise.
+	(GdbServer::rspWriteMemBin): Likewise.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::targetSwReset): Likewise.
+	(GdbServer::targetHWReset): Likewise.
+	(GdbServer::readMemBlock): Pass coreId as argument.
+	(GdbServer::writeMemBlock): Likewise.
+	(GdbServer::readMem32): Likewise.
+	(GdbServer::writeMem32): Likewise.
+	(GdbServer::readMem16): Likewise.
+	(GdbServer::writeMem16): Likewise.
+	(GdbServer::readMem8): Likewise.
+	(GdbServer::writeMem8): Likewise.
+	(GdbServer::readReg): Likewise.
+	(GdbServer::writeReg): Likewise.
+	(GdbServer::readCoreId): Likewise.
+	(GdbServer::readStatus): Likewise.
+	(GdbServer::readPc): Likewise.
+	(GdbServer::writePc): Likewise.
+	(GdbServer::readLr): Likewise.
+	(GdbServer::writeLr): Likewise.
+	(GdbServer::readFp): Likewise.
+	(GdbServer::writeFp): Likewise.
+	(GdbServer::readSp): Likewise.
+	(GdbServer::writeSp): Likewise.
+	(GdbServer::cCore): Created.
+	(GdbServer::gCore): Created.
+	* src/GdbServer.h: Change prototypes of headers to include coreId.
+	* src/LoaderServer.h: Deleted.
+	* src/ServerInfo.cpp (ServerInfo::debugTranDetail): Created
+	(ServerInfo::debugHwDetail): Created.
+	* src/ServerInfo.h: Add new debug category and functions.
+	* src/TargetControl.h: Add core ID to functions accessing memory.
+	* src/TargetControlHardware.cpp: No need for target_param.h
+	(TargetControlHardware::TargetControlHardware): Remove concept of
+	current core/thread.
+	(TargetControlHardware::readMem32): Add coreId as parameter.
+	(TargetControlHardware::readMem16): Likewise.
+	(TargetControlHardware::readMem8): Likewise.
+	(TargetControlHardware::writeMem32): Likewise.
+	(TargetControlHardware::writeMem16): Likewise.
+	(TargetControlHardware::writeMem8): Likewise.
+	(TargetControlHardware::readBurst): Likewise.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::setThreadGeneral): Deleted.
+	(TargetControlHardware::setThreadExecute): Deleted.
+	(TargetControlHardware::initMaps): Remove current core ID.
+	(TargetControlHardware::convertAddress): Take relative core ID as
+	argument.
+	(TargetControlHardware::readMem): Add coreId as parameter.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::initPlatform): Add debug messaging.
+	(TargetControlHardware::closePlatform): Add debug messaging.
+	(TargetControlHardware::writeTo): Add debug messaging.
+	(TargetControlHardware::readFrom): Add debug messaging.
+	(TargetControlHardware::hwReset): Add debug messaging.
+	(TargetControlHardware::getDescription): Add debug messaging.
+	* src/TargetControlHardware.h: Change prototypes to use coreId,
+	incorporate values from target_param.h.
+	* src/main.cpp (usage_full): Describe hw-detail debug flag.
+	(main): Add hw-detail debug flag.
+	* src/target_param.h: Deleted.
+
+2014-03-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::~GdbServer):
+	Initialize both current thread variables.
+	(GdbServer::rspAttach): Move after rspServer.
+	(GdbServer::rspDetach): Likewise.
+	(GdbServer::rspServer): Move thread initialization into separate
+	function.
+	(GdbServer::initThreads): Created.
+	(GdbServer::rspSetThread): Just set current thread as appropriate.
+	(GdbServer::rspQuery): Use currentGThread for qC.
+	(GdbServer::rspQThreadInfo): Get cores from thread to core map.
+	(GdbServer::rspQThreadExtraInfo): Use thread to core map.
+	(GdbServer::rspOsDataProcesses): Get cores from thread to core map.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspThreadSubOperation): Deleted (unused).
+	* src/GdbServer.h: Add current threads for G and C
+	use and maps between thread ID and core ID.  Remove
+	rspThreadSubOperation.
+
+2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Provide useful functionality for thread operations.
+
+	* src/GdbServer.cpp (GdbServer::GdbServer):
+	Initialize currentThread.
+	(GdbServer::rspServer): Initialize coreIds vector.
+	(GdbServer::rspQuery): Replace E_TID by currentThread, call out to
+	custom functions for qfThreadInfo, qsThreadInfo and qThreadExtraInfo.
+	(GdbServer::rspQThreadInfo): Created.
+	(GdbServer::rspQThreadExtraInfo): Return core ID of specified thread.
+	(GdbServer::rspOsDataProcesses): Use member variable coreIds.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspThreadSubOperation): Set currentThread.
+	* src/GdbServer.h: Replace E_TID by currentThread,
+	add vector for CoreIds.  Add newly created functions.
+
+2014-02-26  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/TargetControl.h: Make destructor virtual to
+	allow save deletion of derived classes.
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::targetResume): Use TargetControl
+	flags when writing to register, simplify trace messages.
+	(GdbServer::rspContinue): Replace ATDSP_BKPT_INSTR by BKPT_INSTR,
+	ATDSP_BKPT_INSTLEN by BKPT_INSTLEN and ATDSP_TRAP_INSTR by
+	TRAP_INSTR.
+	(GdbServer::rspReadAllRegs): Tidy up commenting.
+	(GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQuery): Replace ATDSP_TID with E_TID.
+	(GdbServer::rspCommand): Use TargetControl ILAT flag values.
+	(GdbServer::targetHalt): Use TargetControl flag falues, rename
+	ATSDP_BKPT_INSTR as BKPT_INSTR.
+	(GdbServer::putBreakPointInstruction): Rename ATSDP_BKPT_INSTR as
+	BKPT_INSTR.
+	(GdbServer::isHitInBreakPointInstruction): Likewise.
+	(GdbServer::isTargetInDebugState): Restructure logic, using
+	TargetControl flag values.
+	(GdbServer::saveIVT): Remove obsolete comments and use
+	TargetControl flag values.
+	(GdbServer::restoreIVT): Likewise.
+	(GdbServer::rspStep): Restructure and include all IVT entries from
+	current architecture, use TargetControl flags, rename
+	ATSDP_BKPT_INSTR as BKPT_INSTR and ATSDP_TRAP_INSTR as TRAP_INSTR,
+	simplify tracing.
+	(GdbServer::rspRemoveMatchpoint):Rename ATSDP_BKPT_INSTR as
+	BKPT_INSTR.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::readMemBlock): Created.
+	(GdbServer::writeMemBlock): Created.
+	(GdbServer::readMem32): Created.
+	(GdbServer::writeMem32): Created.
+	(GdbServer::readMem16): Created.
+	(GdbServer::writeMem16): Created.
+	(GdbServer::readMem8): Created.
+	(GdbServer::writeMem8): Created.
+	(GdbServer::readReg): Add warning.
+	(GdbServer::rspQThreadExtraInfo): Replace ATDSP by Epihany.
+	* src/GdbServer.h: Update copyright notice, replace ATDSP by
+	Epiphany throughout, remove AtdspDebugStates,
+	AtdspOutStandingTransationPendingState, EDebugState,
+	ATDSP_NUM_ENTRIES_IN_IVT, ATDSP_GPR_MEM_BASE,
+	ATDSP_SCR_MEM_BASE. ATDSP_IDLE_INSTR, ATDSP_RTI_INSTR,
+	ATDSP_EXCEPT_RESET, ATDSP_EXCEPT_NMI, ATDSP_EXCEPT_FPE,
+	ATDSP_EXCEPT_IRQH, ATDSP_EXCEPT_TIMER, ATDSP_EXCEPT_DMA,
+	ATDSP_EXCEPT_IRQL, ATDSP_EXCEPT_SWI, ATDSP_VECTOR_RESET,
+	ATDSP_VECTOR_NMI, ATDSP_VECTOR_FPE, ATDSP_VECTOR_IRQH,
+	ATDSP_VECTOR_TIMER, ATDSP_VECTOR_DMA, ATDSP_VECTOR_IRQL and
+	ATDSP_VECTOR_SWI.  Add IVT_ENTRIES.  Replace ATDSP_NOP_INSTR by
+	NOP_INSTR, ATDSP_BKPT_INSTR by BKPT_INSTR, ATDSP_TRAP_INSTR by
+	TRAP_INSTR, ATDSP_BKPT_INSTLEN by BKPT_INSTLEN, ATDSP_TRAP_INSTLEN
+	by TRAP_INSTLEN and ATDSP_TID by E_TID.  Add new methods
+	readMemBlock, writeMemBlock, readMem32 of two versions,
+	writeMem32, readMem16 of two versions, writeMem16, readMem8 of two
+	versions and writeMem8.
+	* src/MpHash.cpp: Update copyright notice, replace ATDSP by
+	Epiphany throughout.
+	* src/MpHash.h: Likewise.
+	* src/RspConnection.cpp: Likewise.
+	* src/RspConnection.h: Likewise.
+	* src/RspPacket.cpp: Likewise.
+	* src/RspPacket.h: Likewise.
+	* src/TargetControl.h: Add E_INSTR_BYTES.
+	* src/TargetControlHardware.h: Replace ATDSP by Epiphany
+	throughout.
+	* src/Utils.cpp: Update copyright notice, replace ATDSP by
+	Epiphany throughout.
+	* src/Utils.h: Likewise.
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Remove last dependencies on maddr_defs.h.
+
+	* src/TargetControl.h (class TargetControl): Define CORE_MEM_SPACE.
+	* src/TargetControlHardware.cpp: Remove include of maddr_defs.h.
+	(TargetControlHardware::showMaps): Trivial layout fix.
+	(TargetControlHardware::convertAddress): Repace CORE_SPACE by
+	CORE_MEM_SPACE.
+	* src/main.cpp: Remove include of maddr_defs.h.
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Bring list of SCRs up to date, and rationalize division of
+	declarations between GDB server (GDB numbering) and target
+	hardware (memory addresses).
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Add
+	documentation of what a process and thread mean on Epiphany.
+	Perform sanity checking of GDB register numbering.
+	(GdbServer::targetResume): Use writeReg and GDB register number.
+	(GdbServer::rspSuspend): Use isTargetIdle.
+	(GdbServer::rspFileIOreply): Use writeReg instead of writeGpr.
+	(GdbServer::redirectSdioOnTrap): Use readReg instead of readGpr.
+	(GdbServer::rspReadAllRegs): Rewritten completely using readReg.
+	(GdbServer::rspWriteAllRegs): Rewritten completely using writeReg.
+	(GdbServer::rspReadReg): Rewritten completely using readReg.
+	(GdbServer::rspWriteReg): Rewritten completely using writeReg.
+	(GdbServer::rspCommand): Use writeReg instad of writeScrGrp0.
+	(GdbServer::targetHalt): Use writeReg and readReg with GDB
+	register number instead of writeMem32 and readMem32 with hardware
+	address.
+	(GdbServer::isTargetInDebugState): Use readReg with GDB register
+	number instead ofreadMem32 with hardware address.
+	(GdbServer::isTargetExceptionState): Replace readCoreStatus with
+	readStatus.
+	(GdbServer::isTargetIdle): Renamed from isTargetInIldeState.  Use
+	symbolic names for flags and fields.
+	(GdbServer::rspStep):  Replace readCoreStatus with
+	readStatus, readScrGrp0 and readGpr with readReg.
+	(GdbServer::rspVpkt): remove double semicolon.
+	(GdbServer::rspInsertMatchpoint): Replace MESH_SWRESET by
+	RESETCORE_REGNUM.
+	(GdbServer::targetSwReset): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readReg): Created.
+	(GdbServer::writeReg): Created.
+	(GdbServer::readCoreId): Use readReg with GDB register number
+	instead ofreadMem32 with hardware address.
+	(GdbServer::readStatus): Renamed from readCoreStatus and rewritten
+	to use readReg with GDB register number instead ofreadMem32 with
+	hardware address.
+	(GdbServer::readPc): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writePc): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readLr): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writeLr): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readFp): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writeFp): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readSp): Use readReg with GDB register number instead
+	ofreadMem32 with hardware address.
+	(GdbServer::writeSp): Use writeReg with GDB register number
+	instead of writeMem32 with hardware address.
+	(GdbServer::readGpr): Deleted.
+	(GdbServer::writeGpr): Deleted.
+	(GdbServer::readScrGrp0): Deleted.
+	(GdbServer::writeScrGrp0): Deleted.
+	(GdbServer::readScrDMA): Deleted.
+	(GdbServer::writeScrDMA): Deleted.
+	(GdbServer::regAddr): Created
+	* src/GdbServer.h: Remove include of maddr_defs.h.  Remove
+	declaration of constants ATDSP_NUM_GPRS, ATDSP_NUM_SCRS,
+	ATDSP_NUM_S, ATDSP_R0_REGNUM, ATDSP_RV_REGNUM, ATDSP_SP_REGNUM,
+	ATDSP_PC_REGNUM, ATDSP_SR_REGNUM, ATDSP_FP_REGNUM,
+	ATDSP_LR_REGNUM, ATDSP_IRET_REGNUM, ATDSP_SB_REGNUM,
+	ATDSP_SL_REGNUM, ATDSP_IP_REGNUM. Add declaration of constants
+	NUM_GPRS, NUM_SCRS, NUM_REGS, R0_REGNUM, RV_REGNUM, SB_REGNUM,
+	SL_REGNUM, FP_REGNUM, IP_REGNUM, SP_REGNUM, LR_REGNUM,
+	CONFIG_REGNUM, STATUS_REGNUM, PC_REGNUM, DEBUGSTATUS_REGNUM,
+	IRET_REGNUM, IMASK_REGNUM, ILAT_REGNUM, DEBUGCMD_REGNUM,
+	RESETCORE_REGNUM, COREID_REGNUM.  Add declaration of methods
+	readReg, writeReg.  Remove declaration of methods readGpr, write
+	Gpr, readScrGrp0, writeScrGrp0, readScrDMA, writeScrDMA. Rename
+	methods readCoreStatus as readStatus, isTargetInIldeState as
+	isTargetIdle.
+	* src/TargetControl.h (class TargetControl): Make declaration of
+	Epiphany sizes public and add E_REG_BYTES. Declare addresses of
+	registers and static constants.  Delete fAttachedCoreId (unused).
+
+2014-02-20  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	Remove all instances of "flush", present due to a misunderstanding
+	of output.
+
+	* src/GdbServer.cpp: No using std::flush.
+	(GdbServer::rspServer): Remove flush.
+	(GdbServer::rspClientRequest): Likewise.
+	(GdbServer::rspReportException): Likewise.
+	(GdbServer::rspContinue): Likewise.
+	(GdbServer::targetResume): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::rspFileIOreply): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspReadAllRegs): Likewise.
+	(GdbServer::rspReadMem): Likewise.
+	(GdbServer::rspWriteMem): Likewise.
+	(GdbServer::rspReadReg): Likewise.
+	(GdbServer::rspWriteReg): Likewise.
+	(GdbServer::rspQuery): Likewise.
+	(GdbServer::rspCommand): Likewise.
+	(GdbServer::rspSet): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::targetHalt): Likewise.
+	(GdbServer::putBreakPointInstruction): Likewise.
+	(GdbServer::isTargetExceptionState): Likewise.
+	(GdbServer::isTargetInIldeState): Likewise.
+	(GdbServer::rspVpkt): Likewise.
+	(GdbServer::rspWriteMemBin): Likewise.
+	(GdbServer::rspRemoveMatchpoint): Likewise.
+	(GdbServer::rspInsertMatchpoint): Likewise.
+	(GdbServer::readPc): Likewise.
+	(GdbServer::readLr): Likewise.
+	(GdbServer::readFp): Likewise.
+	(GdbServer::readSp): Likewise.
+	(GdbServer::writePc): Likewise.
+	(GdbServer::writeLr): Likewise.
+	(GdbServer::writeFp): Likewise.
+	(GdbServer::writeSp): Likewise.
+	(GdbServer::rspQThreadExtraInfo): Likewise.
+	(GdbServer::rspThreadSubOperation): Likewise.
+
+2014-02-19  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspOsDataProcesses):
+	Replace intStr with coreIdStr when presenting core IDs.
+	(GdbServer::rspOsDataLoad): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::intStr): Declare const.
+	(GdbServer::coreIdStr): Created.
+	* src/GdbServer.h: Declare intStr const, add coreIdStr.
+
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspOsDataTraffic): Provide values
+	for incoming traffic on edges.
+
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspOsData): Created.
+	(GdbServer::rspOsDataProcesses): Tidy up trace message, no space
+	after commas in list of cores, print cores as 4 char octal.
+	* src/GdbServer.h: Add osInforeply and rspOsData.
+
+2014-02-18  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Debug/src/subdir.mk: Bring files into line with Release version.
+
+2014-02-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspOsDataTraffic): Updated format
+	of output.
+
+2014-02-13  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspOsDataLoad):
+	Update to new format,  only print debug if offset is zero.
+	(GdbServer::rspOsDataTraffic): Likewise.
+
+2014-02-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspTransfer): Add
+	support for "load" and "traffic" values for annex.
+	(GdbServer::rspOsDataProcesses): Simplify implemenation and use
+	intStr, correct use of extension packets.
+	(GdbServer::rspOsDataLoad): Created.
+	(GdbServer::rspOsDataTraffic): Created.
+	(GdbServer::intStr): Created.
+	* src/GdbServer.h: Add osProcessReply, osLoadReply,
+	osTrafficReply, rspOsDataLoad, rspOsDataTraffic and intStr.
+	* src/TargetControl.h: Add pure virtual getNumRows
+	and getNumCols.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::listCoreIds): Return pre-computed vector.
+	(TargetControlHardware::getNumRows): Created.
+	(TargetControlHardware::getNumCols): Created.
+	(TargetControlHardware::initMaps): Clear all maps, sets and
+	vectors and member variables for cores, rows and columns. Compute
+	number of rows and columns and initialize vector of relative core
+	IDs.
+	* src/TargetControlHardware.h: Add getNumRows,
+	getNumCols, relCoreIds, numRows and numCols.
+
+2014-02-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/RspConnection.cpp (RspConnection::rspInit): Remove
+	references to pthread_mutex_lock/pthread_mutex_unlock.
+	(bool RspConnection::rspConnect): Likewise.
+	(bool RspConnection::isConnected): Likewise.
+	(bool RspConnection::getPkt): Likewise.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readBurst): Likewise.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::platformReset): Likewise.
+	(TargetControlHardware::readMem): Likewise.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/main.cpp: Don't include pthread.h
+
+2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Tidy up
+	error message, report support for qXferosdata:read with
+	qSupported, handle qXfer.
+	(GdbServer::rspTransfer): Created.
+	(GdbServer::rspOsDataProcesses): Created.
+	* src/GdbServer.h: Add rspTransfer and
+	rspOsDataProcesses.
+	* src/RspPacket.cpp (RspPacket::packNStr): Created.
+	* src/RspPacket.h: Add packNStr.
+	* src/TargetControl.h: Add listCoreIds.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::listCoreIds): Created.
+	* src/TargetControlHardware.h: Add listCoreIds.
+
+2014-02-11  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): Correct capitalization
+	of getBreakCommand.
+	(GdbServer::rspClientRequest): Provide handler for 'H' packets
+	(GdbServer::rspSetThread): Created.
+	* src/GdbServer.h: Add rspSetThread.
+	* src/RspConnection.cpp
+	(RspConnection::getBreakCommand): Use gotChar, not n in return.
+	* src/TargetControl.h: Add SetThreadIdGeneral and
+	SetThreadIdExecute as pure virtual methods.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::TargetControlHardware): Initialize
+	threadIdGeneral and threadIdExecute.
+	(TargetControlHardware::setThreadGeneral): Created.
+	(TargetControlHardware::setThreadExecute): Created.
+	* src/TargetControlHardware.h: Add declarations of
+	setThreadGeneral, setThreadExecute, threadIdGeneral and
+	threadIdExecute.
+
+2014-02-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Set all
+	member variables in prototype.
+	(GdbServer::~GdbServer): Remove call to releaseGdbCmdSelectedCoreId.
+	(GdbServer::rspAttach): Rewritten to not reset and remove
+	commented out code.
+	(GdbServer::rspDetach): Remove call to releaseGdbCmdSelectedCoreId
+	and remove commented out code.
+	(GdbServer::rspServer): Tidy up error messages, remove mutex.
+	(GdbServer::rspClientRequest): Tidy up error messages
+	(GdbServer::redirectSdioOnTrap): Remove mutex.
+	(GdbServer::targetHalt): Rewritten from scratch.
+	(GdbServer::targetSwReset): Renamed from targetSWReset.
+	* src/GdbServer.h: Reorder memver variables, rename
+	targetSWReset as targetSwReset.
+	(RspConnection::getBreakCommand): Renamed from GetBreakCommand,
+	tidy up error messages.
+	* src/RspConnection.h: Rename GetBreakCommand as
+	getBreakCommand.
+
+2014-02-05  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): Remove CoreID from
+	messages.
+	(GdbServer::rspClientRequest): Likewise.
+	(GdbServer::rspReportException): Likewise.
+	(GdbServer::targetResume): Likewise.
+	(GdbServer::rspContinue): Likewise.
+	(GdbServer::rspSuspend): Likewise.
+	(GdbServer::rspFileIOreply): Likewise.
+	(GdbServer::redirectSdioOnTrap): Likewise.
+	(GdbServer::rspReadAllRegs): Likewise.
+	(GdbServer::rspQuery): Likewise.
+	(GdbServer::rspCommand): Likewise.
+	(GdbServer::rspStep): Likewise.
+	(GdbServer::getAttachedTargetCoreId): Deleted.
+	(GdbServer::targetHalt): Remove CoreID from messages.
+	(GdbServer::putBreakPointInstruction): Likewise.
+	* src/GdbServer.h: Deleted getAttachedTargetCoreId.
+	* src/TargetControl.cpp	(TargetControl::initAttachedCoreId): Deleted.
+	(TargetControl::getAttachedCoreId): Likewise.
+	(TargetControl::setAttachedCoreId): Likewise.
+	* src/TargetControl.h: Deleted initAttachedCoreId,
+	getAttachedCoreId and setAttachedCoreId.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readBurst): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::writeBurst): Completely rewritten for
+	clarity and debug visibility.
+	(TargetControlHardware::platformReset): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::breakSignalHandler): Likewise.
+	(TargetControlHardware::initHwPlatform): Rename private names of
+	links, replace dynamically loaded function references by wrapper
+	functions.
+	(TargetControlHardware::initMaps): Set sensible default
+	currentCoreId, clean up error message.
+	(TargetControlHardware::showMaps): Better layout of messages.
+	(TargetControlHardware::getTargetId): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::convertAddress): Better error message.
+	(TargetControlHardware::readMem): Replace dynamically loaded
+	function references by wrapper functions.
+	(TargetControlHardware::writeMem): Likewise.
+	(TargetControlHardware::initPlatform): Created.
+	(TargetControlHardware::closePlatform): Created.
+	(TargetControlHardware::writeTo): Created.
+	(TargetControlHardware::readFrom): Created.
+	(TargetControlHardware::hwReset): Created.
+	(TargetControlHardware::getDescription): Created.
+	* src/TargetControlHardware.h: Add initPlatform, closePlatform,
+	writeTo, readFrom, hwReset and getDescription wrapper functions,
+	rename pointers to dynamically loaded functions.
+	* src/main.cpp (main): No INFO messages for debug settings.
+
+2014-02-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp (ServerInfo::debugStopResume):
+	Mask for flag using AND rather than OR.
+	(ServerInfo::debugTrapAndRspCon): Likewise.
+	(ServerInfo::debugStopResumeDetail): Likewise.
+	(ServerInfo::debugTargetWr): Likewise.
+	(ServerInfo::debugCtrlCWait): Likewise.
+	(ServerInfo::debugTranDetail): Likewise.
+
+2014-02-04  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Add src/MemRange.cpp, src/MemRange.o and
+	src/MemRange.d.
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Replace
+	dontCheckHwAddrFlag with checkHwAddrFlag and invert default.
+	(ServerInfo::dontCheckHwAddr): Renamed as checkHwAddr.
+	(ServerInfo::checkHwAddr): Replaces dontCheckHwAddr.
+	* src/ServerInfo.h: Replace dontCheckHwAddr by checkHwAddr throughout.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::TargetControlHardware): Remove
+	_indexInMemMap param.
+	(TargetControlHardware::readBurst): Replace call to
+	si->dontCheckHwAddr by call to si->checkHwAddr and invert result.
+	(TargetControlHardware::writeBurst): Likewise.
+	(TargetControlHardware::getMemoryMap): Deleted.
+	(TargetControlHardware::getRegisterMap): Deleted.
+	(TargetControlHardware::initAttachedCoreId): Deleted.
+	(TargetControlHardware::setAttachedCoreId): Deleted.
+	(TargetControlHardware::initDefaultMemoryMap): Deleted.
+	(TargetControlHardware::initMaps): Created.
+	(TargetControlHardware::showMaps): Created.
+	(TargetControlHardware::convertAddress): Rewritten to use
+	currentCoreId and new memory maps.
+	(TargetControlHardware::readMem): Replace call to
+	si->dontCheckHwAddr by call to si->checkHwAddr and invert result.
+	(TargetControlHardware::writeMem): Likewise.
+	* src/TargetControlHardware.h (class TargetControlHardware):
+	Remove _indexInMemMap param to consturctor.  Delete member
+	functions getMemoryMap, getRegisterMap, initAttachedCoreId,
+	setAttachedCoreId and initDefaultMemoryMap.  Add member functions
+	initMaps and showMaps.  Remove member variables indexInMemMap,
+	memory_map and register_map.  Add membervariables coreMap,
+	coreMemMap, reverseCoreMemMap, extMemSet and currentCoreId.
+	* src/main.cpp (usage_summary): Add missing options and change
+	--dont-check-hw-address to --check-hw-address.
+	(usage_full): Change --dont-check-hw-address to
+	--check-hw-address.
+	(showMaps): Deleted.
+	(initPlatform): Use initMaps for tCntrl initialzation and tCntrl
+	showMaps function instead of local function.
+	(main): Change argument --dont-check-hw-address to
+	--check-hw-address.
+
+2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/main.cpp (usage_summary): Created from initial part of usage.
+	(usage): Deleted
+	(usage_full): Created from all but initial part of usage.
+	(initPlatform): Call usage_summary instead of usage.
+	(main): Call usage_summary instead of usage, except in the case of
+	-h/--help when we call usage_full. Deal with case of unrecognized
+	arguments, which were previously silently ignored.
+
+2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp: portNum initialized to
+	DEFAULT_RSP_PORT.
+	* src/ServerInfo.h: Define DEFAULT_RSP_PORT.
+	* src/main.cpp (initPlatform): Do not delete xml at
+	end of function, since it causes stack corruption. BUG TO BE FIXED.
+
+2014-02-03  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Initialize
+	halDebugLevel.
+	(ServerInfo::halDebug): Created (two versions).
+	* src/ServerInfo.h: Include epiphany-hal-data from e-hal. New
+	accessor methods halDebug (set and get), and new private data
+	halDebugLevel.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initHwPlatform): initialize platform using
+	halDebug from ServerInfo. No need to call e_set_host_verbosity,
+	since called from init.
+	* src/main.cpp (usage): Document new flag --hal-debug
+	(main): Capture --hal-debug value.
+
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Added reference to ServerInfo.c,
+	ServerInfo.o and ServerInfo.d.
+	* src/debugVerbose.h: Deleted.
+	* src/GdbServer.cpp: Replace references to rspPort by si->port
+	throughout, replace references to haltOnAttach by si->haltOnAttach
+	throughout, replace references to ttyOut by si->ttyOut throughout,
+	replace references to debug_level by calls to ServerInfo debug
+	accessors throughout.
+	(GdbServer): Initalize from ServerInfo, pass ServerInfo to
+	RspConnection.
+	* src/GdbServer.h: Constructor takes just ServerInfo as parameter,
+	remove rspPort, haltOnAttach and ttyOut and replace by si, remove
+	external ref to debug_level and include of debugVerbose.h.
+	* src/RspConnection.cpp: Include ServerInfo.h
+	(RspConnection): Take ServerInfo and sole parameter and extract
+	portNum from this, remover overloaded version taking serviceName
+	parameter, since nevery used.
+	(rspInit): Remove serviceName parameter.
+	(getPkt, putPkt): Replace debug_level by debugTrapAndRspConn.
+	* src/RspConnection.h: Include ServerInfo.h, pass ServerInfo as
+	sole paramter to RspConnection, and remove variant constructor
+	with service name, remove serviceName parameter from rspInit, add
+	private member to point to ServerInfo, remove serviceName.
+	* src/ServerInfo.cpp: Created.
+	* src/ServerInfo.h: Created.
+	* src/TargetControlHardware.cpp: Remove incldue of debugVerbose
+	and add include of maddr_defs.h
+	(TargetControlHardware): Pass ServerInfo instead of
+	dontCheckHwAddr and skipPlatformReset.
+	(readBurst, writeBurst): Replace dontCheckHwAddr with ref to
+	ServerInfo.
+	(initHwPlatform): Replace debug_level with ServerInfo
+	debugTrapAndRspCon, replace skipPlatformReset with ref to
+	ServerInfo
+	(readMem, writeMem): Replace dontCheckHwAddr with ref to
+	ServerInfo, replace debug_level with ServerInfo debugTargetWr
+	* src/TargetControlHardware.h: Initialize constructor with
+	ServerInfo instead of flags, remove CORE_SPACE, add si member var.
+	* src/main.cpp: Include ServerInfo:
+	(PORT_BASE_NUM, TTY_, debug_level): Deleted.
+	(usage): Add new debug flags.
+	(showMaps): Renamed from showMemoryMap, add ServerInfo parameter.
+	(initPlatform): Pass all but last arg as ServerInfo class, pass on
+	to tCntrl and showMaps.
+	(main): Create ServerInfo instance and repace corresponding flags
+	throughout - doShowMemoryMap, skipPlatformReset,
+	dontCheckHwAddress,haltOnAttach, ttyOut, PORT_BASE_NUN.  Remove
+	withTtySupport - now use NULL ttyOut instead, validate port
+	number, use named debug flags.
+
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Added TargetControl.cpp.
+	* src/GdbServer.cpp: Put contributors in header, tidy up
+	organization of included headers.
+	(rspServer, rspClientRequest, rspReportException, targetResume)
+	(getAttachedTargetCoreId): Use getAttachedCoreId rather than
+	GetAttachedCoreId.
+	(rspReadAllRegs, rspReadMem): use startOfBaudMeasurement member
+	function instead of StartOfBaudMeasurement, rename ReadBurst to
+	readBurst, use endOfBaudMeasurement member function instead of
+	EndOfBaudMeasurement.
+	(rspWriteMem, rspWriteMemBin, restoreIVT): Rename WriteBurst to
+	writeBurst.
+	(rspQuery): Rename SetAttachedTargetCoreId as
+	setAttachedTargetCoreId
+	(isTargetInIldeState): Rename ReadBurst to readBurst.
+	(targetHWReset): Rename PlatformReset to platformReset.
+	* src/GdbServer.h: Put contributors in header, make guard macro
+	naming consistent.
+	* src/TargetControl.cpp: Created.
+	* src/TargetControl.h: Put contributors in header, include
+	sys/time.h, remove local typedefs of uint32_t, uint8_t and
+	uint16_t, rename WriteBurst as writeBurst, ReadBurst as readBurst,
+	PlatformReset as platformReset and ResumeAndExit as resumeAndExit
+	for consistency, add initAttachedCoreId, add E_BYTE_BYTES,
+	E_SHORT_BYTES, E_WORD_BYTES and E_DOUBLE_BYTES, make
+	convertAddress a member function, add startTime as member
+	variable.
+	* src/TargetControlHardware.cpp: Put contributors in header,
+	remove enum of _BYTE_, _SHORT_, _WORD_ and _DOUBLE_ and replace by
+	E_BYTE_BYTES, E_SHORT_BYTES, E_WORD_BYTES and E_DOUBLE_BYTES
+	throughout, tidy up headers and remove duplicate includes, add
+	explicit using declarations.
+	(init_platform, close_platform, write_to, read_from, hw_reset)
+	(get_description, get_memory_map, get_number_supported_cores)
+	(set_chip_x_y, e_open, e_close, e_read, e_write, e_reset)
+	(e_set_host_verbosity): Deleted and replaced by member variables.
+	(IsAddressLocal): Deleted.
+	(CORE_SPACE): Deleted and replaced by member constant.
+	(PlatformReset): Deleted and replaced by platformReset throughout.
+	(platformReset): Created from PlatformReset.
+	(ReadBurst): Deleted and replaced by readBurst throughout.
+	(readBurst): Created from ReadBurst.
+	(WriteBurst): Deleted and replaced by writeBurst throughout.
+	(writeBurst): Created from WriteBurst.
+	(SetAttachedCoreId): Deleted and replaced by setAttachedCoreId
+	throughout.
+	(setAttachedCoreId): Created from SetAttachedCoreId.
+	(GetTargetId): Deleted and replaced by getTargetId throughout.
+	(getTargetId): Created from GetTargetId.
+	(ConvertAddress): Deleted and replaced by member function
+	convertAddress throughout.
+	(convertAddress): Created from ConvertAddress.
+	(TargetControlHardware): Add parameters for command line switches
+	instead of using global variables.
+	(dontCheckHwAddr): Renamed from dontCheckHwAddress throughout.
+	(BreakSignalHander): Deleted and replaced by static member
+	function breakSignalHander.
+	(breakSignalHandler): Created, and all references to member
+	variables commented out.
+	(initHwPlatform): Made member function, use helper to find DSO
+	entries.
+	(initDefaultMemoryMap): Made member function.
+	(initAttachedCoreId): Created
+	(startOfBaudMeasurement, endOfBaudMeasurement, findSharedFunc)
+	(getMemoryMap, getRegisterMap): Created.
+	* src/TargetControlHardware.h: Extend constructor arguments,
+	rename WriteBurst as writeBurst, ReadBurst as readBurst,
+	PlatformReset as platformReset, SetAttachedCoreId as
+	setAttachedCoreId, ResumeAndExit as resumeAndExit and GetTargetId
+	as getTargetId, make ConvertAddress member function
+	convertAddress, add new member functions initHwPlatform,
+	initDefaultMemoryMap, getMemoryMap, getRegisterMap,
+	initAttachedCoreId, findSharedFunc, add pointers to DSO functions
+	init_platform, close_platform, write_to, read_from, hw_reset,
+	get_description, get_memory_map, get_number_supported_cores,
+	set_chip_x_y, e_open, e_close, e_read, e_write, e_reset and
+	e_set_host_verbosity
+	* src/main.cpp: Add missing using declarations
+	(skip_platform_reset): Deleted, now arg to constructor.
+	(showMemoryMap): Get maps through accessors
+	(initPlatform): Pass command line switches as arguments, ,
+	initialze tCntrl and return as result.
+	(main): Use EXIT_FAILURE and EXIT_SUCCESS result codes for
+	consistency.
+
+2014-01-28  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/main.cpp (initPlatform): Created from code to initialize in
+	main function.
+	(main): Remove initialization code into initPlatform.
+
+2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/main.cpp (ThreadData, createGdbServer): Deleted.
+	(main): Remove mainRetStatus, create a single port GdbServer.
+
+2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/main.cpp: Include sstream.
+	(platform_args): Deleted (replaced by platformArgs local to main.
+	(show_memory_map): Deleted (replaced by doShowMemoryMap) local to
+	main.
+	(showMemoryMap): Created, based on code previously in main.
+	(main): Make declaration of hdf_file local and change to hdfFile,
+	make arg check use if-then-else structure, use stringstream to
+	parse -Wpl, move code to show memory map to its own routine.
+
+2014-01-27  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Add CPPFLAGS to command line.
+	* src/RspConnection.cpp (rspConnect): Add mutex around listen
+	error message and report error details.
+	* src/main.cpp: Make explicit which functions using applies to.
+	(copyrightStr): Move as literal to copyright
+	function.
+	(revision): Delete and replace by defined value.
+	(XDOREVSTR, DOREVSTR, REVSTR): New macros.
+	(usage): Rewritten to include all options and remove all terminal
+	specific control codes, takes argument to specify output stream.
+	(usage_hidden): Deleted.
+	(copyright): Unified to print all information consistently, using
+	supplied revision string.
+	(main): Return success if printing version or help, remove
+	--help-hidden, replace usage and usage_hidden by usage with either
+	cout or cerr as parameters, don't use designated initializer for
+	ThreadData, since not standard C++ (C99 only).
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer): Pass haltOnAttach, ttyOut and
+	withTtySupport flags to constructor, rather than as global variables.
+	* src/GdbServer.h: New prototype for constructor, haltOnAttach,
+	ttyOut and withTtySupport as member variables.
+	* src/TargetControlHardware.cpp: Move e-xml and e-hal header
+	includes to header file
+	(TargetControlHardware): Pass in dontCheckHwAddress flag to
+	constructor rather than as global variable.
+	(initHwPlatform): New static member function rather than global.
+	(initDefaultMemoryMap): New static member function rather than global.
+	* src/TargetControlHardware.h: Add e-xml and e-hal header
+	includes, update constructor prototype, new static functions
+	initHwPlatform and initDefaultMemoryMap
+	* src/main.cpp: haltOnAttach, ttyOut, withTtySupport and
+	dontCheckHwAddress passed through relevant
+	constructors. initHwPlatform and initDefaultMemoryMap as static
+	member functions.
+	(ThreadData): Struct for data to be used with pthread_create.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Removed e_printf.c
+	* src/e_printf.c: Deleted.
+	* src/GdbServer.cpp (printWrapper): Created, based on
+	printf_wrapper.
+	* src/GdbServer.h (printfWrapper): New private member function
+	replacing the global printf_wrapper.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Renamed targetCntrlHardware as
+	TargetControlHardware.
+	* src/TargetControl.h: Renamed from targetCntrl.h for consistency.
+	* src/TargetControlHardware.cpp: Renamed from
+	targetCntrlHardware.cpp for consistency.
+	* src/TargetControlHardware.h: Renamed from
+	targetCntrlHardware.h for consistency.
+	* src/GdbServer.h: Changed all references to targetCtrl to
+	TargetControl.
+	* src/TargetControl.h: Likewise.
+	* src/TargetControlHardware.cpp: Likewise.
+	* src/TargetControlHardware.h: Likewise.
+	* src/main.cpp: Likewise.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* GdbServer.cpp: Replace SystemC types throughout.
+	(GdbServer): Move constructor to this file from header.
+	(is32BitsInstr): Made member function, replacing global Is32BitsInstr.
+	(getfield, setfield): Made member functions, replacing global
+	equivalents.
+	(getAttachedTargetCoreId): Implementation moved here from
+	definition file.
+	* GdbServer.h: Remove all SystemC typedefs, replacing by the
+	equivalent inttypes.h entry. Consolidate public and private member
+	functions for clarity, move constructor to implementation file
+	from definition file, make global functions member functions.
+	(GdbServer): Implementation moved to implementation file.
+	(getAttachedTargetCoreId): Made private and renamed from
+	GetAttachedTargetCoreId, implementation moved to implementation
+	file.
+	(releaseGdbCmdSelectedCoreId): Made private and renamed from
+	ReleaseGdbCmdSelectedCoreId.
+	* targetCntrl.h: Get rid of typedefs for SystemC types, and
+	replace with inttypes througout.
+	* targetCntrlHardware.cpp: Likewise.
+	* targetCntrlHardware.h: Likewise.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* Release/src/subdir.mk: Remove unneeded Gdbservercreate and rename
+	GdbServerSC as GdbServer.
+	* GdbServer.cpp: Renamed from GdbServerSC.cpp and all references
+	internally updated.
+	* GdbServer.h: Renamed from GdbServerSC.h and all references
+	internally updated.
+	* GdbserverCreate.cpp: Deleted
+	* libgloss_syscall.h: Header comment change.
+	* main.cpp: Incorporate GdbserverCreate and change reference to
+	GdbServer from GdbServerSC.
+	(createGdbServer): Renamed from CreateGdbServer.
+
+2014-01-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* ChangeLog: Created.
+	* Release/src/subdir.mk: Make stricter in error testing.
+	* src/GdbServerSC.cpp: Return to GNU style, and enforce for emacs
+	to facilitate comparision against upstream codebase.
+	* src/GdbServerSC.h: Likewise.
+	* src/GdbserverCreate.cpp: Likewise.
+	* src/LoaderServer.h: Likewise.
+	* src/MpHash.cpp: Likewise.
+	* src/MpHash.h: Likewise.
+	* src/RspConnection.cpp: Likewise.
+	* src/RspConnection.h: Likewise.
+	* src/RspPacket.cpp: Likewise.
+	* src/RspPacket.h: Likewise.
+	* src/Utils.cpp: Likewise.
+	* src/Utils.h: Likewise.
+	* src/debugVerbose.h: Likewise.
+	* src/e_printf.cpp: Likewise.
+	* src/libgloss_syscall.h: Likewise.
+	* src/maddr_defs.h: Likewise.
+	* src/main.cpp: Likewise.
+	* src/targetCntrl.h: Likewise.
+	* src/targetCntrlHardware.cpp: Likewise.
+	* src/targetCntrlHardware.h: Likewise.
+	* src/target_param.h: Likewise.

@@ -116,7 +116,13 @@ function build-utils() {
 	${MAKE} $CLEAN all
 	cd ../
 
+	echo 'Building e-trace-dump'
 	cd e-trace-dump
+	${MAKE} $CLEAN all
+	cd ../
+
+	echo 'Building e-clear-shmtable'
+	cd e-clear-shmtable
 	${MAKE} $CLEAN all
 	cd ../
 

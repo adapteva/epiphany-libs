@@ -72,14 +72,14 @@ int		e_resume(e_epiphany_t *dev, unsigned row, unsigned col);
 /**
  * Allocate a shared region identifiable by name.
  *
+ * @param mbuf - a pointer to an instance of e_mem_t that, upon
+ * sucessful return will describe the allocated shared memory region.
  * @param name - the region name. The maximum name length
  * is 256 characters.
  * @param size - the length of the shared region
  *
- * @return a pointer to the e_shmseg_t representing
- * the newly allocated shared region or NULL if an
- * error occurs. If an error occurs errno will be set
- * to one of the following:
+ * @return E_OK on success, E_ERR on failure. On failure errno will be 
+ * set to one of the following:
  *
  * ENOMEM - no free regions are available to satisfy the
  *	   request.
@@ -90,11 +90,13 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size);
 /**
  * Attach to a shared region identifiable by name
  *
+ * @param mbuf - a pointer to an instance of e_mem_t that, upon
+ * sucessful return will describe the attached shared memory region.
  * @param name - the name of the shared region to attach to.
  * the region must have been allocated with e_shm_alloc
  *
- * @return - a pointer to the e_shmseg_t represnting the region
- * or NULL if a region with name does not exists
+ * @return E_OK on success, E_ERR on failure
+ * (a region with name does nt exist).
  */
 int e_shm_attach(e_mem_t *mbuf, const char *name);
 

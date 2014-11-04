@@ -1,3 +1,67 @@
+2014-10-31  Ola Jeppsson  <ola@adapteva.com>
+
+	* Create 2014.11 branch
+
+2014-10-29  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-xml/src/epiphany-hal.c (int e_reset_system): Don't call
+	e_shm_reset()
+	* src/e-hal/src-epiphany-shm-manager.c (int e_shm_reset): Remove
+	function
+	(int e_shm_init): Move all shm table initialization and reset.
+	logic here. If the shm table passes the sanity check, do nothing.
+	Otherwise reset it. This needs more work but now programs can
+	access the table concurrently.
+	* src/e-hal/src/epiphany-shm-manager.h: Remove e_shm_reset()
+	function prototype.
+
+2014-10-29  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-utils/e-loader/src/e-loader.c: Fixed some segfaults.
+
+2014-10-24  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-server/e-server.sh:
+	* src/e-utils/e-hw-rev/e-hw-rev.sh:
+	* src/e-utils/e-loader/e-loader.sh:
+	* src/e-utils/e-read/e-read.sh:
+	* src/e-utils/e-reset/e-reset.sh:
+	* src/e-utils/e-reset/run.sh:
+	* src/e-utils/e-write/e-write.sh:
+	Delete. Thanks to the Epiphany device driver these are unnecessary.
+
+2014-10-24  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-utils/e-hw-rev/e-hw-rev.c: Quick fix. Reg offsets were wrong.
+
+2014-10-20  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-shm-manager.h (int e_shm_reset):
+	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_reset):
+	Add shm table reset function
+	* src/e-hal/src/epiphany-shm-manager.c (int shm_table_sanity_check):
+	(int e_shm_init):
+	(int e_shm_alloc):
+	(void e_shm_finalize):
+	(int e_shm_attach):
+	Defer shm table integrity check until it is actually used.
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system):
+	Call e_shm_reset()
+
+2014-10-17  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-shm-manager.c:
+	Use lockf() instead of POSIX semaphores for synchronization.
+	* src/e-hal/Makefile:
+	Don't link with pthreads.
+
+2014-10-14 Ola Jeppsson <ola@adapteva.com>
+	* src/e-hal/Makefile:
+	Link with -lpthreads. e-shm API uses POSIX semaphores.
+
+2014-08-14 Andreas Olofsson <andreas@adapteva.com>
+	* creating 2014.08.rc release branch
+
 2014-08-06  Ben Chaco  <bchaco@x3-c.com>
 
 	* src/e-hal/Makefile:
