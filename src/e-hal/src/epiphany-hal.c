@@ -74,8 +74,8 @@ int e_init(char *hdf)
 	// Init global file descriptor
 	diag_fd = stderr;
 
-	e_platform.objtype	   = E_EPI_PLATFORM;
-	e_platform.hal_ver	   = 0x050d0705; // TODO: update ver
+	e_platform.objtype     = E_EPI_PLATFORM;
+	e_platform.hal_ver     = 0x050d0705; // TODO: update ver
 	e_platform.initialized = E_FALSE;
 	e_platform.num_chips   = 0;
 	e_platform.num_emems   = 0;
@@ -862,26 +862,6 @@ int e_reset_system(void)
 	ee_write_esys(E_SYS_RESET, 0);
 	usleep(200000);
 
-	// Perform post-reset, platform specific operations
-//	if (e_platform.chip[0].type == E_E16G301) // TODO: assume one chip
-	if ((e_platform.type == E_ZEDBOARD1601) || (e_platform.type == E_PARALLELLA1601))
-	{
-		e_epiphany_t dev;
-		int			 data;
-		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
-		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
-		{
-			warnx("e_reset_system(): e_open() failure.");
-			return E_ERR;
-		}
-
-		ee_write_esys(E_SYS_CONFIG, 0x50000000);
-		data = 1;
-		e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int));
-		ee_write_esys(E_SYS_CONFIG, 0x00000000);
-		e_close(&dev);
-	}
-
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
@@ -1035,7 +1015,7 @@ int e_resume(e_epiphany_t *dev, unsigned row, unsigned col)
 
 
 ////////////////////
-// Utility functions
+// Utility functions (not public)
 
 // Convert core coordinates to core-number within a group. No bounds check is performed.
 unsigned e_get_num_from_coords(e_epiphany_t *dev, unsigned row, unsigned col)
