@@ -858,9 +858,46 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
-	ee_write_esys(E_SYS_RESET, 0);
-	usleep(200000);
+  unsigned int data;
+  diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
+  
+  //Turn on chip clock to low speed
+  ee_write_esys(E_REG_ESYSCFGCLK,0x1);
+  
+  //Bring into reset
+  ee_write_esys(E_REG_SYSRESET, 0x1);	
+  
+  //Turn off chip clock (for Errata workaround)
+  ee_write_esys(E_REG_ESYSCFGCLK,0x0);
+  
+  //Bring Epiphany out of reset
+  ee_write_esys(E_REG_SYSRESET, 0x0);	
+  
+  //Turn on clock to Epiphany (to default speed)
+  ee_write_esys(E_REG_ESYSCFGCLK,0x4);
+  
+  //Turn on Host eLink Transmitter
+  ee_write_esys(E_REG_ESYSCFGTX,0x1);
+  
+  //Turn on Host eLink Receiver
+  ee_write_esys(E_REG_ESYSCFGRX,0x1);
+  
+  //Turn on clock gating mode in Epiphany
+  e_open(&dev, 0, 0, platform.rows, platform.cols);       
+  for (i=0; i<platform.rows; i++) {
+    for (j=0; j<platform.cols; j++) {
+      //eCore clock gating
+      data=0x00400000;
+      e_write(&dev, i, j, E_REG_CONFIG, &data, sizeof(data));
+      //eMesh clock gating
+      data=0x00000002;
+      e_write(&dev, i, j, E_REG_MESHCONFIG, &data, sizeof(data));
+    }
+  }
+  
+        // Close the workgroup
+        e_close(&dev);
+
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
