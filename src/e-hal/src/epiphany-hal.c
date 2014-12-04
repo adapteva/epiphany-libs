@@ -515,7 +515,8 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 // Write a memory block to SRAM of a core in a group
 ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
-	void *pto;
+	char *pto;
+	char *pfrom;
 
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
 	{
@@ -526,7 +527,13 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 
 	pto = dev->core[row][col].mems.base + to_addr;
 	diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
-	memcpy(pto, buf, size);
+	pfrom = buf;
+	while (size > 4) {
+		memcpy(pto, pfrom, 4);
+		pto += 4; pfrom += 4; size -= 4;
+	}
+	if (size)
+		memcpy(pto, pfrom, size);
 
 	return size;
 }
