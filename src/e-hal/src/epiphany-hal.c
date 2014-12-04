@@ -858,33 +858,103 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
-	ee_write_esys(E_SYS_RESET, 0);
-	usleep(200000);
+	unsigned int   resetcfg;
+	e_syscfg_tx_t  txcfg, rxcfg;
+	e_syscfg_clk_t clkcfg;
 
+	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Asserting RESET\n"); }
+	resetcfg = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
+	txcfg.reg = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		goto err;
+	rxcfg.reg = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
+	clkcfg.field.divider = 7; // Full speed
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		goto err;
+
+	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
+	clkcfg.field.divider = 0; // Stop clock
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Clearing RESET\n"); }
+	resetcfg = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
+	clkcfg.field.divider = 7; // Full speed
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
+	txcfg.field.clkmode = 0; // Full speed
+	txcfg.field.enable  = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
+	rxcfg.field.enable = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+		goto err;
+
+#if 0
+	// TODO: Can this go away?
 	// Perform post-reset, platform specific operations
-//	if (e_platform.chip[0].type == E_E16G301) // TODO: assume one chip
-	if ((e_platform.type == E_ZEDBOARD1601) || (e_platform.type == E_PARALLELLA1601))
-	{
+	// TODO: assume one chip
+	if (e_platform.type == E_ZEDBOARD1601) || e_platform.type == E_PARALLELLA1601) {
 		e_epiphany_t dev;
-		int			 data;
+		int rc, data;
+
+		rc = E_ERR;
+
 		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
+
 		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
 		{
 			warnx("e_reset_system(): e_open() failure.");
-			return E_ERR;
+			goto err;
 		}
 
-		ee_write_esys(E_SYS_CONFIG, 0x50000000);
+		txcfg.field.ctrlmode = 0x5; /* Force east */
+		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+			goto cleanup_platform;
+
 		data = 1;
-		e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int));
-		ee_write_esys(E_SYS_CONFIG, 0x00000000);
+		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int)))
+			goto cleanup_platform;
+
+		txcfg.field.ctrlmode = 0x0;
+		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+			goto cleanup_platform;
+
+		rc = E_OK;
+
+cleanup_platform:
 		e_close(&dev);
+		if (rc != E_OK)
+			goto err;
 	}
+#endif
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
+
+err:
+	warnx("e_reset_system(): Failed\n");
+	usleep(100);
+	return E_ERR;
 }
 
 

@@ -1,3 +1,10 @@
+2014-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal-data.h: Update to match new PL eLink
+	interface.
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system):
+	Likewise.
+
 2014-10-31  Ola Jeppsson  <ola@adapteva.com>
 
 	* Create 2014.11 branch
