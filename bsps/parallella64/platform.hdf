@@ -1,7 +1,7 @@
 // Platform description for the
 // 64-core parallella board
 PLATFORM_VERSION PARALLELLA6401
-ESYS_REGS_BASE       0x808f0f00
+ESYS_REGS_BASE       0x70000000
 
 NUM_CHIPS                     1
 CHIP                    E64G401

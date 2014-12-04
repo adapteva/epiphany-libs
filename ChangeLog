@@ -1,5 +1,11 @@
 2014-12-04  Ola Jeppsson  <ola@adapteva.com>
 
+	* bsps/parallella64/platform.hdf: Adjust ESYS register base to
+	match new eLink PL.
+	* bsps/parallella_E16G3_1GB/parallella_E16G3_1GB.hdf: Likewise.
+
+2014-12-04  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-hal/src/epiphany-hal.c (ssize_t ee_write_buf): Temporarily
 	limit writes to 4 byte chunks to work around temporary limitations
 	new eLink programmable logic.
