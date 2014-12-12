@@ -54,8 +54,10 @@ Thread::Thread (CoreId         coreId,
   mCoreId (coreId),
   mTarget (target),
   mSi (si),
+  mIVTSavedP (false),
   mDebugState (DEBUG_RUNNING),
-  mRunState (RUN_UNKNOWN)
+  mRunState (RUN_UNKNOWN),
+  mReportedState (UNREPORTED)
 {
   // Some sanity checking that numbering has not got misaligned! This is a
   // consequence of our desire to have properly typed constants.
@@ -102,6 +104,19 @@ Thread::coreId () const
 
 
 //-----------------------------------------------------------------------------
+//! Get the thraed ID
+
+//! @return  The thead ID
+//-----------------------------------------------------------------------------
+CoreId
+Thread::tid () const
+{
+  return  mTid;
+
+}	// tid ()
+
+
+//-----------------------------------------------------------------------------
 //! Are we halted?
 
 //! If we are already halted, no need to inquire again. If we were previously
@@ -124,10 +139,12 @@ Thread::isHalted ()
   if (haltStatus == TargetControl::DEBUGSTATUS_HALT_HALTED)
     {
       mDebugState = DEBUG_HALTED;
+      mReportedState = UNREPORTED;	// Must be when we change state
       return true;
     }
   else
     {
+      assert (mReportedState == UNREPORTED);	// Sanity check
       mDebugState = DEBUG_RUNNING;
       return false;
     }
@@ -181,6 +198,30 @@ Thread::isInterruptible () const
 
 
 //-----------------------------------------------------------------------------
+//! Check if this thread has been reported
+
+//! @return  TRUE if the thread was resumed for stepping, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+Thread::isReported () const
+{
+  return mReportedState == REPORTED;
+
+}	// isReported ()
+
+
+//-----------------------------------------------------------------------------
+//! Mark this thread as having been reported
+//-----------------------------------------------------------------------------
+void
+Thread::markReported ()
+{
+  mReportedState = REPORTED;
+
+}	// isInterruptible ()
+
+
+//-----------------------------------------------------------------------------
 //! Force the thread to halt
 
 //! @return  TRUE if we halt successfully, FALSE otherwise.
@@ -218,11 +259,13 @@ Thread::halt ()
 		 << endl;
 
 	  mDebugState = DEBUG_RUNNING;
+	  mReportedState = UNREPORTED;		// Sane thing to do?
 	  return false;
 	}
     }
 
   mDebugState = DEBUG_HALTED;
+  mReportedState = UNREPORTED;		// Must be when we change state
   return true;
 
 }	// halt ();
@@ -231,6 +274,11 @@ Thread::halt ()
 //-----------------------------------------------------------------------------
 //! Force the thread to resume
 
+//! We record whether this is resumed for stepping or continuing. This does
+//! not really matter to the thread, but it helps the calling routines to know
+//! what to do when the thread halts.
+
+//! @param[in] setpping  TRUE if we are resuming for a single step
 //! @return  TRUE if we resume successfully, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
@@ -239,6 +287,7 @@ Thread::resume ()
   // Whatever happens this will be the state. Even if we fail, we cannot be
   // sure we are still halted.
   mDebugState = DEBUG_RUNNING;
+  mReportedState = UNREPORTED;	// Must be the case when we change state
 
   // We need to do this, even if we were previously running, in case we have
   // since halted.
@@ -356,29 +405,93 @@ Thread::activate ()
 
 
 //-----------------------------------------------------------------------------
-//! Save IVT.
+//! Put breakpoints throughout the IVT
 
-//! @return  TRUE if we saved successfully, FALSE otherwise.
+//! This should not happen twice at the same time for one thread. The only
+//! place we don't put a breakpoint is at the PC itself. If we are already in
+//! the IVT, we have dealt with the interrupt.
+
+//! @note The result is an indication of whether the IVT was saved, not if the
+//!       breakpoints were successfully inserted. So it is possible that some
+//!       breakpoints may not be inserted.
+//! @return  TRUE if we save the IVT successfully, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-Thread::saveIVT ()
+Thread:breakpointIVT ()
 {
-  return  readMemBlock (TargetControl::IVT_SYNC, mIVTSaveBuf,
-	 	       sizeof (mIVTSaveBuf));
+  assert (!mIVTSavedP);			// Sanity check
 
-}	// saveIVT ()
+  // First make sure we can save the IVT
+  if (!readMemBlock (TargetControl::IVT_SYNC, mIVTSaveBuf,
+		     sizeof (mIVTSaveBuf)))
+    {
+      cerr << "Warning: Failed to save IVT: exceptions not caught" << endl;
+      return FALSE;
+    }
+
+  mIVTSavedP = true;
+
+  // Now breakpoint all the addresses EXCEPT the current PC and SYNC (aka
+  // RESET).
+  static uint32_t IVTAddresses [] =
+    {
+      TargetControl::IVT_SYNC,
+      TargetControl::IVT_SWE,
+      TargetControl::IVT_PROT,
+      TargetControl::IVT_TIMER0,
+      TargetControl::IVT_TIMER1,
+      TargetControl::IVT_MSG,
+      TargetControl::IVT_DMA0,
+      TargetControl::IVT_DMA1,
+      TargetControl::IVT_WAND,
+      TargetControl::IVT_USER
+    }
+  static int IVTAddressesSize= sizeof (IVTAddresses) / sizeof (IVTAddresses[0]);
+
+  uint32_t pc = readPc ();
+
+  for (int i = 0; i < IVTAddressesSize; i++)
+    {
+      uint32_t  entry = IVTAddresses[i];
+
+      if ((entry != TargetControl::IVT_SYNC) && (entry != pc))
+	insertBreakpoint (entry);
+    }
+
+  return true;
+
+}	// breakpointIVT ()
 
 
 //-----------------------------------------------------------------------------
 //! Restore instructions to IVT
 
-//! @return  TRUE if we restored successfully, FALSE otherwise.
+//! We might be asked to restore the same thread several times, but we ignore
+//! subsequent occasions.
+
+//! @return  TRUE if we restored successfully of we were already restored,
+//!          FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
 Thread::restoreIVT ()
 {
-  return  writeMemBlock (TargetControl::IVT_SYNC, mIVTSaveBuf,
-			 sizeof (mIVTSaveBuf));
+  if (mIVTSavedP)
+    {
+      if (writeMemBlock (TargetControl::IVT_SYNC, mIVTSaveBuf,
+			 sizeof (mIVTSaveBuf)))
+	{
+	  mIVTSavedP = false;
+	  return  true;
+	}
+      else
+	{
+	  cerr << "Warning: failed to restore IVT: IVT may be corrupted."
+	       << endl;
+	  return  false;
+	}
+    }
+  else
+    return  true;		// Already done
 
 }	// restoreIVT ()
 
@@ -389,7 +502,7 @@ Thread::restoreIVT ()
 //! @param [in] addr  Where to put the breakpoint
 //-----------------------------------------------------------------------------
 void
-Thread::insertBkptInstr (uint32_t addr)
+Thread::insertBreakpoint (uint32_t addr)
 {
   writeMem16 (addr, GdbServer::BKPT_INSTR);
 
@@ -397,40 +510,76 @@ Thread::insertBkptInstr (uint32_t addr)
     cerr << "DebugStopResumeDetail: insert breakpoint for core " << mCoreId
 	 << "at " << addr << endl;
 
-}	// insertBkptInstr ()
+}	// insertBreakpoint ()
 
 
 //-----------------------------------------------------------------------------
 //! Get the current exception
 
-//! @param[in] coreId  The core to check.
+//! @param[in] version  Version of Epiphany to check.
 //! @return  The GDB signal corresponding to any exception.
 //-----------------------------------------------------------------------------
-//GdbServer::TargetSignal
-int
-Thread::getException ()
+GdbServer::TargetSignal
+Thread::getException (int  version)
 {
+  assert ((3 == version) || (4 == version));	// Sanity check
+
   uint32_t coreStatus = readStatus ();
   uint32_t exbits = coreStatus & TargetControl::STATUS_EXCAUSE_MASK;
 
-  switch (exbits)
+  switch (version)
     {
-    case TargetControl::STATUS_EXCAUSE_NONE:
-      return GdbServer::TARGET_SIGNAL_NONE;
+    case 3:
 
-    case TargetControl::STATUS_EXCAUSE_LDST:
-      return GdbServer::TARGET_SIGNAL_BUS;
+      switch (exbits)
+	{
+	case TargetControl::STATUS_EXCAUSE3_UNIMPL:
+	  return GdbServer::TARGET_SIGNAL_ILL;
 
-    case TargetControl::STATUS_EXCAUSE_FPU:
-      return GdbServer::TARGET_SIGNAL_FPE;
+	case TargetControl::STATUS_EXCAUSE3_SWI:
+	  return GdbServer::TARGET_SIGNAL_INT;
 
-    case TargetControl::STATUS_EXCAUSE_UNIMPL:
-      return GdbServer::TARGET_SIGNAL_ILL;
+	case TargetControl::STATUS_EXCAUSE3_UNALIGN:
+	  return GdbServer::TARGET_SIGNAL_BUS;
 
-    default:
-      // @todo Can we get this? Corresponds to STATUS_EXCAUSE_LSTALL or
-      //       STATUS_EXCAUSE_FSTALL being set.
-      return GdbServer::TARGET_SIGNAL_ABRT;
+	case TargetControl::STATUS_EXCAUSE3_ILLEGAL:
+	  return GdbServer::TARGET_SIGNAL_SEGV;
+
+	case TargetControl::STATUS_EXCAUSE3_FPU:
+	  return GdbServer::TARGET_SIGNAL_FPE;
+
+	default:
+	  // @todo Can we get this?
+	  cerr << "Warning: Unexpected software exception cause 0x" << hex
+	       << exbits << dec << ": treated as ABORT signal." << endl;
+	  return GdbServer::TARGET_SIGNAL_ABRT;
+	}
+
+    case 4:
+
+      switch (exbits)
+	{
+	case TargetControl::STATUS_EXCAUSE4_UNIMPL:
+	  return GdbServer::TARGET_SIGNAL_ILL;
+
+	case TargetControl::STATUS_EXCAUSE4_SWI:
+	  return GdbServer::TARGET_SIGNAL_INT;
+
+	case TargetControl::STATUS_EXCAUSE4_UNALIGN:
+	  return GdbServer::TARGET_SIGNAL_BUS;
+
+	case TargetControl::STATUS_EXCAUSE4_ILLEGAL:
+	  return GdbServer::TARGET_SIGNAL_SEGV;
+
+	case TargetControl::STATUS_EXCAUSE4_FPU:
+	  return GdbServer::TARGET_SIGNAL_FPE;
+
+	default:
+	  // @todo Can we get this?
+	  cerr << "Warning: Unexpected software exception cause 0x" << hex
+	       << exbits << dec << ": treated as ABORT signal." << endl;
+	  return GdbServer::TARGET_SIGNAL_ABRT;
+	}
     }
 }	// getException ()
 

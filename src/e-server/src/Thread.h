@@ -48,39 +48,41 @@ class GdbServer;
 //! A thread corresponds to an Epiphany core. This class provides all the
 //! functionality a thread needs.
 
-//! @note The thread is referred to externally by a thread ID, but the thread
-//!       does not itself know about the thread ID. Instead it knows which
-//!       core it is running on and has access to the target to manipulate
-//!       that core.
+//! @note The thread is referred to externally by a GDB thread ID.
 //-----------------------------------------------------------------------------
 class Thread
 {
 public:
 
   // Constructor and destructor
-  Thread (CoreId         coreId,
+  Thread (const CoreId   coreId,
 	  TargetControl* target,
-	  ServerInfo*    si);
+	  ServerInfo*    si,
+	  const int      tid);
   ~Thread ();
 
   // Accessors
   CoreId  coreId () const;
+  int   tid () const;
   bool  isHalted ();
   bool  isIdle ();
   bool  isInterruptible () const;
+  bool  reported () const;
+  void  markReported ();
+
+  // Control of the thread
   bool  halt ();
   bool  resume ();
   bool  idle ();
   bool  activate ();
 
-  // Save and restore the Interrupt Vector Table
-  bool saveIVT ();
+  // Breakpoint and restore the Interrupt Vector Table
+  bool breakpointIVT ();
   bool restoreIVT ();
 
   // Code manipulation
-  void insertBkptInstr (uint32_t addr);
-  int getException ();
-  // GdbServer::TargetSignal getException ();
+  void insertBreakpoint (uint32_t addr);
+  GdbServer::TargetSignal getException (int  version);
 
   // Main functions for reading and writing memory
   bool readMemBlock (uint32_t  addr,
@@ -139,8 +141,14 @@ private:
   //! Local pointer to server info
   ServerInfo *mSi;
 
+  //! Our GDB thread ID
+  int  mTid;
+
   //! A save buffer for the IVT
-  uint8_t mIVTSaveBuf[IVT_ENTRIES * TargetControl::E_INSTR_BYTES];
+  uint8_t  mIVTSaveBuf[IVT_ENTRIES * TargetControl::E_INSTR_BYTES];
+
+  //! Has the IVT been saved and breakpointed?
+  bool  mIVTSavedP;
 
   //! Our debug state
   enum
@@ -156,6 +164,13 @@ private:
       RUN_ACTIVE,
       RUN_IDLE
     } mRunState;
+
+  //! Whether our stop state has been reported to the client
+  enum
+    {
+      UNREPORTED,		//!< Stopped, not reported to the client
+      REPORTED			//!< Stopped, reported to the client
+    } mReportedState;
 
   // Helper routines for target access
   uint32_t regAddr (unsigned int  regnum) const;

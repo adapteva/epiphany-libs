@@ -58,6 +58,7 @@
 
 using std::string;
 using std::map;
+using std::vector;
 
 
 class Thread;
@@ -75,27 +76,34 @@ public:
   //! Definition of GDB target signals. Data taken from the GDBsource. Only
   //! those we use defined here.
   enum TargetSignal
-  {
-    // Used some places (e.g. stop_signal) to record the concept that there is
-    // no signal.
-    TARGET_SIGNAL_NONE = 0,
-    TARGET_SIGNAL_FIRST = 0,
-    TARGET_SIGNAL_HUP = 1,
-    TARGET_SIGNAL_INT = 2,
-    TARGET_SIGNAL_QUIT = 3,
-    TARGET_SIGNAL_ILL = 4,
-    TARGET_SIGNAL_TRAP = 5,
-    TARGET_SIGNAL_ABRT = 6,
-    TARGET_SIGNAL_EMT = 7,
-    TARGET_SIGNAL_FPE = 8,
-    TARGET_SIGNAL_KILL = 9,
-    TARGET_SIGNAL_BUS = 10,
-    TARGET_SIGNAL_SEGV = 11,
-    TARGET_SIGNAL_SYS = 12,
-    TARGET_SIGNAL_PIPE = 13,
-    TARGET_SIGNAL_ALRM = 14,
-    TARGET_SIGNAL_TERM = 15,
-  };
+    {
+      // Used some places (e.g. stop_signal) to record the concept that there
+      // is no signal.
+      TARGET_SIGNAL_NONE = 0,
+      TARGET_SIGNAL_FIRST = 0,
+      TARGET_SIGNAL_HUP = 1,
+      TARGET_SIGNAL_INT = 2,
+      TARGET_SIGNAL_QUIT = 3,
+      TARGET_SIGNAL_ILL = 4,
+      TARGET_SIGNAL_TRAP = 5,
+      TARGET_SIGNAL_ABRT = 6,
+      TARGET_SIGNAL_EMT = 7,
+      TARGET_SIGNAL_FPE = 8,
+      TARGET_SIGNAL_KILL = 9,
+      TARGET_SIGNAL_BUS = 10,
+      TARGET_SIGNAL_SEGV = 11,
+      TARGET_SIGNAL_SYS = 12,
+      TARGET_SIGNAL_PIPE = 13,
+      TARGET_SIGNAL_ALRM = 14,
+      TARGET_SIGNAL_TERM = 15,
+      TARGET_SIGNAL_USR1 = 30,
+      TARGET_SIGNAL_USR2 = 31,
+      TARGET_SIGNAL_REALTIME_33 = 45,
+      TARGET_SIGNAL_REALTIME_34 = 46,
+      TARGET_SIGNAL_REALTIME_35 = 47,
+      TARGET_SIGNAL_REALTIME_36 = 48,
+      TARGET_SIGNAL_REALTIME_37 = 49
+    };
 
   // Public architectural constants. Must be consistent with the target
   // hardware.
@@ -155,6 +163,9 @@ private:
   //! Number of the idle process
   static const int IDLE_PID = 1;
 
+  //! Time (in microseconds) between checks for threads having stopped
+  static const unsigned long int WAIT_INTERVAL = 1000;
+
   //! Our debug mode
   enum {
     NON_STOP,
@@ -162,31 +173,28 @@ private:
   } mDebugMode;
 
   //! Map of process ID to process info
-  map <int, ProcessInfo *> mProcesses;
+  vector <ProcessInfo *> mProcessList;
 
   //! The idle process
-  ProcessInfo * mIdleProcess;
+  ProcessInfo* mIdleProcess;
 
   //! Next process ID to use
   int  mNextPid;
 
   //! Current process
-  int  currentPid;
+  ProcessInfo* mCurrentProcess;
 
   //! Map of thread ID to thread
   map <int, Thread *> mThreads;
 
-  //! Map from core to thread
+  //! Map from core ID to thread ID
   map <CoreId, int> mCore2Tid;
 
-  //! Current thread ID for continue/step
-  int  currentCTid;
+  //! Current thread for continue/step
+  Thread*  currentCThread;
 
   //! Current thread ID for general access
-  int  currentGTid;
-
-  //! Set of thread IDs with pending stops
-  set <int> mPendingStops;
+  int  currentGThread;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -221,18 +229,35 @@ private:
 
   // Helper functions for setting up a connection
   void initProcesses ();
-  void rspAttach (int  pid);
-  void rspDetach (int pid);
+  void rspAttach (ProcessInfo* process);
+  void rspDetach (ProcessInfo* process);
 
   // Main RSP request handler
   void rspClientRequest ();
 
+  // General support routines for RSP requests
+  //! Thread control
+  Thread* getThread (int  tid);
+  Thread* waitAllThreads (ProcessInfo*   process,
+			  set <Thread*>  stoppedThreads);
+  bool  haltThread (Thread *thread);
+  bool haltAllThreads (ProcessInfo* process);
+  bool continueThread (Thread*       thread,
+		       uint32_t      addr,
+		       TargetSignal  sig = TARGET_SIGNAL_NONE);
+  bool continueThread (Thread*       thread,
+		       TargetSignal  sig = TARGET_SIGNAL_NONE);
+  bool continueAllThreads (ProcessInfo* process);
+  void rspReportStopped (ProcessInfo* process,
+			 set <Thread*>  stoppedThreads);
+
   // Handle the various RSP requests
-  void rspReportException (int          tid,
-			   TargetSignal sig);
   void rspContinue ();
-  void rspContinue (uint32_t except);
-  void rspContinue (uint32_t addr, uint32_t except);
+  void rspContinueWithSignal ();
+  void rspContinueGeneric (Thread*       thread,
+			   bool          haveAddr,
+			   uint32_t      addr,
+			   TargetSignal  sig);
   void rspReadAllRegs ();
   void rspWriteAllRegs ();
   void rspSetThread ();
@@ -257,21 +282,12 @@ private:
 			 unsigned int length);
   void rspSet ();
   void rspRestart ();
-  void rspStep ();
-  void rspStep (bool haveAddrP, uint32_t addr, TargetSignal except);
   void rspIsThreadAlive ();
   void rspVpkt ();
+  char parseVContArgs (ProcessInfo*     process,
+		       map <int, char>  threadActions);
   void rspVCont ();
   char extractVContAction (string action);
-  bool pendingStop (int  tid);
-  void markPendingStops (ProcessInfo* process,
-			 int          tid);
-  void removePendingStop (int  tid);
-  void doStep (int          tid,
-	       TargetSignal sig = TARGET_SIGNAL_NONE);
-  void continueThread (int       tid,
-		       uint32_t  sig = TARGET_SIGNAL_NONE);
-  void doContinue (int          tid);
   uint16_t  getStopInstr (Thread* thread);
   bool doFileIO (Thread* thread);
   void rspWriteMemBin ();
@@ -284,14 +300,7 @@ private:
   void targetSwReset ();
   void targetHWReset ();
 
-  // Accessors for processes and threads
-  ProcessInfo * getProcess (int  pid);
-  Thread * getThread (int         tid,
-		      const char* mess = NULL);
-  //! Thread control
-  bool haltAllThreads ();
-  bool resumeAllThreads ();
-
+  // Host I/O
   void redirectStdioOnTrap (Thread*  thread,
 			    uint8_t  trap);
   void hostWrite (const char* intro,

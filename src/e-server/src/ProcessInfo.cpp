@@ -42,8 +42,11 @@ using std::endl;
 
 //-----------------------------------------------------------------------------
 //! Constructor.
+
+//! @param[in] pid  The Process ID to associate with this process.
 //-----------------------------------------------------------------------------
-ProcessInfo::ProcessInfo ()
+ProcessInfo::ProcessInfo (const int  pid)
+  : mPid (pid)
 {
 
 }	// ProcessInfo ()
@@ -64,7 +67,7 @@ ProcessInfo::~ProcessInfo ()
 
 //! @return  The begin iterator.
 //-----------------------------------------------------------------------------
-set <int>::iterator
+set <Thread *>::iterator
 ProcessInfo::threadBegin () const
 {
   return  mThreads.begin ();
@@ -77,7 +80,7 @@ ProcessInfo::threadBegin () const
 
 //! @return  The begin iterator.
 //-----------------------------------------------------------------------------
-set <int>::iterator
+set <Thread *>::iterator
 ProcessInfo::threadEnd () const
 {
   return  mThreads.end ();
@@ -88,13 +91,13 @@ ProcessInfo::threadEnd () const
 //-----------------------------------------------------------------------------
 //! Add a thread to the process.
 
-//! @param[in] tid  The thread ID to add
+//! @param[in] threadPtr  Pointer to the thread to add
 //! @return  TRUE if we successfully add the thread, false otherwise
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::addThread (int tid)
+ProcessInfo::addThread (Thread *threadPtr)
 {
-  return  mThreads.insert (tid).second;
+  return  mThreads.insert (threadPtr).second;
 
 }	// addThread ()
 
@@ -102,13 +105,13 @@ ProcessInfo::addThread (int tid)
 //-----------------------------------------------------------------------------
 //! Remove a thread from the process
 
-//! @param[in] tid  The thread ID to remove
+//! @param[in] threadPtr  Pointer to the thread to remove
 //! @return  TRUE if we succeed, and FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::eraseThread (int tid)
+ProcessInfo::eraseThread (Thread *threadPtr)
 {
-  return  mThreads.erase (tid) == 1;
+  return  mThreads.erase (threadPtr) == 1;
 
 }	// eraseThread ()
 
@@ -116,13 +119,13 @@ ProcessInfo::eraseThread (int tid)
 //-----------------------------------------------------------------------------
 //! Is this a thread in this process?
 
-//! @param[in] tid  The thread ID to check
+//! @param[in] threadPtr  Pointer to the thread to check
 //! @return  TRUE if this thread is in this process
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::hasThread (int tid)
+ProcessInfo::hasThread (Thread *threadPtr)
 {
-  return  mThreads.find (tid) != mThreads.end ();
+  return  mThreads.find (threadPtr) != mThreads.end ();
 
 }	// eraseThread ()
 
