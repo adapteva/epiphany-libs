@@ -1,3 +1,12 @@
+2014-12-12  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	This commit tidies up all changes from 2014-06-29 to 2014-08-22.
+
+	* src/GdbServer.cpp (GdbServer::initProcesses): Declare res.
+	(GdbServer::rspCmdWorkgroup): Likewise.
+	* src/GdbServer.h: Declare stopAttachedProcesses.
+	* src/ServerInfo.cpp (ServerInfo::chipVersion): Created.
+
 2014-10-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint): Ensure
@@ -62,7 +71,8 @@
 2014-09-23  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	Overarching patch of all changes in a single commit. Details in
-	ChangeLog entries from 2014-01-12.
+	ChangeLog entries from 2014-01-12 to 2014-06-11.
+
 
 	* Makefile: Add new source files and include dirs.
 	* src/CoreId.cpp (CoreId::CoreId CoreId::row CoreId::col)

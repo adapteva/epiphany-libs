@@ -225,6 +225,7 @@ GdbServer::initProcesses ()
        it != fTargetControl->coreIdEnd ();
        it++)
     {
+      bool  res;
       CoreId coreId = *it;
       int tid = (coreId.row () + 1) * 100 + coreId.col () + 1;
       Thread *thread = new Thread (coreId, fTargetControl, si, tid);
@@ -233,7 +234,7 @@ GdbServer::initProcesses ()
       mCore2Tid [coreId] = tid;
 
       // Add to idle process
-      res = mIdleProcess->addThread (tid);
+      res = mIdleProcess->addThread (thread);
       assert (res);
     }
 
@@ -2383,7 +2384,7 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 	Thread* thread = mThreads[mCore2Tid[coreId]];
 	if (mIdleProcess->eraseThread (thread))
 	  {
-	    res = process->addThread (thread);
+	    bool  res = process->addThread (thread);
 	    assert (res);
 	  }
 	else
@@ -2394,7 +2395,7 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 		 it != process->threadEnd ();
 		 it++)
 	      {
-		res = process->eraseThread (*it);
+		bool  res = process->eraseThread (*it);
 		assert (res);
 		res = mIdleProcess->addThread (*it);
 		assert (res);
