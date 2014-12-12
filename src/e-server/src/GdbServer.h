@@ -96,13 +96,17 @@ public:
       TARGET_SIGNAL_PIPE = 13,
       TARGET_SIGNAL_ALRM = 14,
       TARGET_SIGNAL_TERM = 15,
+      TARGET_SIGNAL_STOP = 17,
       TARGET_SIGNAL_USR1 = 30,
       TARGET_SIGNAL_USR2 = 31,
+      TARGET_SIGNAL_PWR = 32,
       TARGET_SIGNAL_REALTIME_33 = 45,
       TARGET_SIGNAL_REALTIME_34 = 46,
       TARGET_SIGNAL_REALTIME_35 = 47,
       TARGET_SIGNAL_REALTIME_36 = 48,
-      TARGET_SIGNAL_REALTIME_37 = 49
+      TARGET_SIGNAL_REALTIME_37 = 49,
+      TARGET_SIGNAL_REALTIME_38 = 50,
+      TARGET_SIGNAL_REALTIME_39 = 51
     };
 
   // Public architectural constants. Must be consistent with the target
@@ -113,6 +117,9 @@ public:
 
   // Specific GDB register numbers - GPRs
   static const unsigned int R0_REGNUM = 0;
+  static const unsigned int R1_REGNUM = 1;
+  static const unsigned int R2_REGNUM = 2;
+  static const unsigned int R3_REGNUM = 3;
   static const unsigned int RV_REGNUM = 0;
   static const unsigned int SB_REGNUM = 9;
   static const unsigned int SL_REGNUM = 10;
@@ -191,10 +198,10 @@ private:
   map <CoreId, int> mCore2Tid;
 
   //! Current thread for continue/step
-  Thread*  currentCThread;
+  Thread* currentCThread;
 
   //! Current thread ID for general access
-  int  currentGThread;
+  Thread* currentGThread;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -235,21 +242,24 @@ private:
   // Main RSP request handler
   void rspClientRequest ();
 
+  // Main notification handler
+  void rspClientNotifications ();
+
   // General support routines for RSP requests
   //! Thread control
   Thread* getThread (int  tid);
-  Thread* waitAllThreads (ProcessInfo*   process,
-			  set <Thread*>  stoppedThreads);
+  bool  findStoppedThreads (ProcessInfo*   process);
+  void  waitAllThreads (ProcessInfo*   process);
   bool  haltThread (Thread *thread);
-  bool haltAllThreads (ProcessInfo* process);
-  bool continueThread (Thread*       thread,
-		       uint32_t      addr,
-		       TargetSignal  sig = TARGET_SIGNAL_NONE);
-  bool continueThread (Thread*       thread,
-		       TargetSignal  sig = TARGET_SIGNAL_NONE);
-  bool continueAllThreads (ProcessInfo* process);
-  void rspReportStopped (ProcessInfo* process,
-			 set <Thread*>  stoppedThreads);
+  bool  haltAllThreads (ProcessInfo* process);
+  bool  continueThread (Thread*       thread,
+			uint32_t      addr,
+			TargetSignal  sig = TARGET_SIGNAL_NONE);
+  bool  continueThread (Thread*       thread,
+			TargetSignal  sig = TARGET_SIGNAL_NONE);
+  bool  continueAllThreads (ProcessInfo* process);
+  void  rspReportStopped (ProcessInfo* process);
+  TargetSignal  findStopReason (Thread* thread);
 
   // Handle the various RSP requests
   void rspContinue ();
@@ -284,25 +294,24 @@ private:
   void rspRestart ();
   void rspIsThreadAlive ();
   void rspVpkt ();
-  char parseVContArgs (ProcessInfo*     process,
-		       map <int, char>  threadActions);
+  string parseVContArgs (ProcessInfo*           process,
+			 map <Thread*, string>  threadActions);
   void rspVCont ();
   char extractVContAction (string action);
   uint16_t  getStopInstr (Thread* thread);
-  bool doFileIO (Thread* thread);
+  // bool doFileIO (Thread* thread);
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
   void rspFileIOreply ();
-  void rspSuspend ();
 
   // Convenience functions to control and report on the CPU
   void targetSwReset ();
   void targetHWReset ();
 
   // Host I/O
-  void redirectStdioOnTrap (Thread*  thread,
-			    uint8_t  trap);
+  // void redirectStdioOnTrap (Thread*  thread,
+  // 			    uint8_t  trap);
   void hostWrite (const char* intro,
 		  uint32_t    chan,
 		  uint32_t    addr,

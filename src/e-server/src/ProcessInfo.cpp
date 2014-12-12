@@ -48,7 +48,6 @@ using std::endl;
 ProcessInfo::ProcessInfo (const int  pid)
   : mPid (pid)
 {
-
 }	// ProcessInfo ()
 
 
@@ -60,6 +59,19 @@ ProcessInfo::ProcessInfo (const int  pid)
 ProcessInfo::~ProcessInfo ()
 {
 }	// ProcessInfo ()
+
+
+//-----------------------------------------------------------------------------
+//! Accessor for the process ID
+
+//! @return  The process ID
+//-----------------------------------------------------------------------------
+int
+ProcessInfo::pid () const
+{
+  return  mPid;
+
+}	// pid ()
 
 
 //-----------------------------------------------------------------------------
@@ -92,7 +104,8 @@ ProcessInfo::threadEnd () const
 //! Add a thread to the process.
 
 //! @param[in] threadPtr  Pointer to the thread to add
-//! @return  TRUE if we successfully add the thread, false otherwise
+//! @return  TRUE if we successfully add the thread, FALSE if we were already
+//!          in the set.
 //-----------------------------------------------------------------------------
 bool
 ProcessInfo::addThread (Thread *threadPtr)
@@ -105,12 +118,15 @@ ProcessInfo::addThread (Thread *threadPtr)
 //-----------------------------------------------------------------------------
 //! Remove a thread from the process
 
+//! Also remove it from the set of stopped threads if it is there.
+
 //! @param[in] threadPtr  Pointer to the thread to remove
 //! @return  TRUE if we succeed, and FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
 ProcessInfo::eraseThread (Thread *threadPtr)
 {
+  mStoppedThreads.erase (threadPtr);
   return  mThreads.erase (threadPtr) == 1;
 
 }	// eraseThread ()
@@ -131,16 +147,82 @@ ProcessInfo::hasThread (Thread *threadPtr)
 
 
 //-----------------------------------------------------------------------------
-//! How many threads do we have?
+//! Add a thread to the set to be reported as stopped.
 
-//! @return  The number of threads
+//! @param[in] threadPtr  Pointer to the thread to add
+//! @return  TRUE if the thread was added, FALSE if it was already in the set.
+//-----------------------------------------------------------------------------
+bool
+ProcessInfo::addStoppedThread (Thread* threadPtr)
+{
+  return  mStoppedThreads.insert (threadPtr).second;
+
+}	// addStoppedThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Clear the set of threads to be reported as stopped.
+//-----------------------------------------------------------------------------
+void
+ProcessInfo::clearStoppedThreads ()
+{
+  mStoppedThreads.clear ();
+
+}	// clearStoppedThreads ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the next thread to report as stopped.
+
+//! Do not remove the thread from the set of those to be reported.
+
+//! @return  The thread to be reported, or NULL if there are none.
+//-----------------------------------------------------------------------------
+Thread*
+ProcessInfo::getStoppedThread ()
+{
+  if (0 == numStoppedThreads ())
+    return  NULL;
+  else
+    return *(mStoppedThreads.begin ());
+
+}	// getStoppedThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the next thread to report as stopped and remove it
+
+//! Remove the thread from the set of those to be reported. The term "pop" is
+//! not strictly correct, since it is not a stack.
+
+//! @return  The thread to be reported, or NULL if there are none.
+//-----------------------------------------------------------------------------
+Thread*
+ProcessInfo::popStoppedThread ()
+{
+  if (0 == numStoppedThreads ())
+    return  NULL;
+  else
+    {
+      Thread *t = *(mStoppedThreads.begin ());
+
+      mStoppedThreads.erase (t);
+      return  t;
+    }
+}	// popStoppedThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Report the number of stopped threads to be reported
+
+//! @return  The number of stopped threads to be reported.
 //-----------------------------------------------------------------------------
 int
-ProcessInfo::numThreads ()
+ProcessInfo::numStoppedThreads ()
 {
-  return  mThreads.size ();
+  return  mStoppedThreads.size ();
 
-}	// eraseThread ()
+}	// clearStoppedThreads ()
 
 
 // Local Variables:

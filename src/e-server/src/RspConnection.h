@@ -91,8 +91,10 @@ public:
   void rspClose ();
   bool isConnected ();
 
-  // Public interface: get packets from the stream and put them out
+  // Public interface: get packets from the stream and put them out.
+  // Non-blocking version for use with non-stop mode.
   bool getPkt (RspPacket * pkt);
+  bool getPktNonBlock (RspPacket * pkt);
   bool putPkt (RspPacket * pkt);
 
   bool getBreakCommand ();

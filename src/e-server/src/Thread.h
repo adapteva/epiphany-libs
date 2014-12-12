@@ -67,7 +67,7 @@ public:
   bool  isHalted ();
   bool  isIdle ();
   bool  isInterruptible () const;
-  bool  reported () const;
+  bool  isReported () const;
   void  markReported ();
 
   // Control of the thread
