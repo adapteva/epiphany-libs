@@ -232,6 +232,13 @@
 	* targetCntrlHardware.h: Deleted.
 	* target_param.h: Deleted.
 
+2014-08-22  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Report we are attaching
+	to an existing process.
+	* src/RspConnection.cpp (RspConnection::getRspChar): Zero length
+	return is failure even if non-blocking.
+
 2014-07-14  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp: Rename currentCThread and mContinueThread and
