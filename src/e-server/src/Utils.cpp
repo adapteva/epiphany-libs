@@ -50,6 +50,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <execinfo.h>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -304,6 +305,40 @@ Utils::intStr (int  val,
   return os.str ();
 
 }	// intStr ()
+
+
+//-----------------------------------------------------------------------------
+//! Our version of assert, with backtrace
+
+//! @param[in] cond  The condition we assert on.
+//-----------------------------------------------------------------------------
+void
+Utils::rspAssert (bool  cond)
+{
+  if (cond)
+    return;				// AOK
+
+  cerr << "*** ABORT *** Assertiona failed" << endl;
+  cerr << "Please report to developers, with the following backtrace:" << endl;
+
+  void *buffer[BT_LIMIT];
+  int size = backtrace (buffer, BT_LIMIT);
+  char **funcs = backtrace_symbols (buffer, size);
+
+  for (int i = 0; i < size; i++)
+    {
+      ostringstream  os;
+      os << "/opt/adapteva/esdk/tools/e-gnu/bin/epiphany-elf-addr2line -p -f -C -e /opt/adapteva/esdk/tools/host/bin/e-server.e "
+	 << buffer [i] << endl;
+      int res __attribute ((unused));
+      res = system (os.str ().c_str ());
+      // cerr << "  " << buffer[i] << endl;
+    }
+
+  free (funcs);
+  exit (EXIT_FAILURE);
+
+}	// assert ()
 
 
 // Local Variables:

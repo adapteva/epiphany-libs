@@ -197,11 +197,18 @@ private:
   //! Map from core ID to thread ID
   map <CoreId, int> mCore2Tid;
 
-  //! Current thread for continue/step
-  Thread* currentCThread;
+  //! Current thread for continue/step *only*.  Null means "all threads" (the
+  //! equivalent of GDB's -1).  We have no equivalent of GDB's 0, meaning "any
+  //! thread", since we immediately just pick a thread.
+  Thread* mContinueThread;
 
-  //! Current thread ID for general access
-  Thread* currentGThread;
+  //! Current thread ID for general access. When GDB generically refers to the
+  //! "current thread", it is this one it means.  The meanings of the values
+  //! are as for mContinueThread.
+  Thread* mGeneralThread;
+
+  //! Indicate if we are in the middle of a notification sequence.
+  bool mNotifyingP;
 
   //! Local pointer to server info
   ServerInfo *si;
@@ -247,6 +254,7 @@ private:
 
   // General support routines for RSP requests
   //! Thread control
+  int  readThreadId (const char* str);
   Thread* getThread (int  tid);
   bool  findStoppedThreads (ProcessInfo*   process);
   void  waitAllThreads (ProcessInfo*   process);

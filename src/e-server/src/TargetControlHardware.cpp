@@ -224,11 +224,7 @@ TargetControlHardware::writeMem (CoreId  coreId,
 	 << intStr (addr, 16, 8) << ", 0x" << intStr (data, 16, 8)
 	 << ", " << len << ")" << endl;
 
-  size_t res = writeTo (fullAddr, (void *) buf, len);
-  if (res != len)
-    return false;
-
-  return true;
+  return  writeTo (fullAddr, (void *) buf, len) == len;
 
 }	// writeMem ()
 
