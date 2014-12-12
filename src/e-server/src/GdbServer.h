@@ -180,7 +180,7 @@ private:
   } mDebugMode;
 
   //! Map of process ID to process info
-  vector <ProcessInfo *> mProcessList;
+  map <int, ProcessInfo *> mProcesses;
 
   //! The idle process
   ProcessInfo* mIdleProcess;
@@ -252,11 +252,10 @@ private:
   void  waitAllThreads (ProcessInfo*   process);
   bool  haltThread (Thread *thread);
   bool  haltAllThreads (ProcessInfo* process);
+  bool  activateThread (Thread *thread);
+  bool  activateAllThreads (ProcessInfo* process);
   bool  continueThread (Thread*       thread,
-			uint32_t      addr,
-			TargetSignal  sig = TARGET_SIGNAL_NONE);
-  bool  continueThread (Thread*       thread,
-			TargetSignal  sig = TARGET_SIGNAL_NONE);
+			TargetSignal  sig);
   bool  continueAllThreads (ProcessInfo* process);
   void  rspReportStopped (ProcessInfo* process);
   TargetSignal  findStopReason (Thread* thread);

@@ -114,6 +114,8 @@ GdbServer::~GdbServer ()
 //-----------------------------------------------------------------------------
 //! Listen for RSP requests
 
+//! @todo Should we always revert to all-stop mode when connecting?
+
 //! @param[in] _fTargetControl  Pointer to the target API for the actual
 //!                             target.
 //-----------------------------------------------------------------------------
@@ -122,7 +124,8 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 {
   fTargetControl = _fTargetControl;
 
-  initProcesses ();		// Set up the processes and core to thread maps
+  initProcesses ();		// Set up the processes and core to thread
+				// maps and set the current process.
 
   // Loop processing commands forever
   while (true)
@@ -136,6 +139,17 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	      // Serious failure. Must abort execution.
 	      cerr << "ERROR: Failed to reconnect to client. Exiting.";
 	      exit (EXIT_FAILURE);
+	    }
+
+	  // Not clear whether we should always assume we need to revert to
+	  // all-stop on reconnecting.
+	  if (ALL_STOP == mDebugMode)
+	    {
+	      haltAllThreads (mCurrentProcess);
+
+	      // Activate all threads, in case any are idle.
+	      // @todo Is this the right thing to do?
+	      activateAllThreads (mCurrentProcess);
 	    }
 	}
 
@@ -194,7 +208,7 @@ GdbServer::initProcesses ()
   // Create the idle process
   mNextPid = IDLE_PID;
   mIdleProcess = new ProcessInfo (mNextPid);
-  mProcessList[mNextPid] = mIdleProcess;
+  mProcesses[mNextPid] = mIdleProcess;
   mNextPid++;
 
   // Initialize a thread for each core. A thread is referenced by its thread
@@ -202,7 +216,7 @@ GdbServer::initProcesses ()
   // reverse map, to allow us to gte from core to thread ID if we ever need to
   // in the future.
   for (vector <CoreId>::iterator it = fTargetControl->coreIdBegin ();
-       it!= fTargetControl->coreIdEnd ();
+       it != fTargetControl->coreIdEnd ();
        it++)
     {
       CoreId coreId = *it;
@@ -560,8 +574,8 @@ GdbServer::findStoppedThreads (ProcessInfo* process)
   process->clearStoppedThreads ();	// None found yet
 
   // Try all the threads.
-  for (set <Thread *>::iterator it = mCurrentProcess->threadBegin ();
-       it != mCurrentProcess->threadEnd ();
+  for (set <Thread *>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
        it++)
     if ((*it)->isHalted ())
       {
@@ -604,8 +618,6 @@ GdbServer::findStoppedThreads (ProcessInfo* process)
 void
 GdbServer::waitAllThreads (ProcessInfo* process)
 {
-  process->clearStoppedThreads ();	// None found yet
-
   // We must wait until at least one thread halts.
   while (!findStoppedThreads (process))
     Utils::microSleep (WAIT_INTERVAL);
@@ -654,26 +666,43 @@ GdbServer::haltAllThreads (ProcessInfo* process)
 
 
 //-----------------------------------------------------------------------------
-//! Continue execution of a thread with a specific address
+//! Activate a thread
 
-//! This is a convenience for the main thread routine
-
-//! @param[in] thread  The thread to continue.
-//! @param[in] addr    The address at which to continue.
-//! @param[in] sig     The exception to use. Defaults to
-//!                    TARGET_SIGNAL_NONE.  Currently ignored
-//! @return  TRUE if the thread resumed OK.
+//! @param[in] thread  The thread to activate.
+//! @return  TRUE if the thread activates, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::continueThread (Thread*      thread,
-			  uint32_t      addr,
-			  TargetSignal  sig)
+GdbServer::activateThread (Thread *thread)
 {
-  // Set the address and continue the thread
-  thread->writePc (addr);
-  return continueThread (thread, sig);
+  thread->restoreIVT ();		// OK to duplicate
+  return thread->activate ();
 
-}	// continueThread ()
+}	// activateThread ()
+
+
+//-----------------------------------------------------------------------------
+//! Activate all threads in the given process.
+
+//! @todo  Is this ever used in non-stop mode?
+
+//! @param[in] process  The process for which threads should be activated.
+//! @return  TRUE if all threads activate, FALSE otherwise
+//-----------------------------------------------------------------------------
+bool
+GdbServer::activateAllThreads (ProcessInfo* process)
+{
+  bool allActivated = true;
+
+  for (set <Thread*>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
+    {
+      allActivated &= activateThread (*it);
+    }
+
+  return allActivated;
+
+}	// activateAllThreads ()
 
 
 //-----------------------------------------------------------------------------
@@ -683,19 +712,19 @@ GdbServer::continueThread (Thread*      thread,
 //! stopping later.
 
 //! @param[in] thread  The thread to continue.
-//! @param[in] sig     The exception to use. Defaults to
-//!                    TARGET_SIGNAL_NONE.  Currently ignored
+//! @param[in] sig     The exception to use.
 //! @return  TRUE if the thread resumed OK.
 //-----------------------------------------------------------------------------
 bool
-GdbServer::continueThread (Thread*      thread,
-			  TargetSignal  sig)
+GdbServer::continueThread (Thread*       thread,
+			   TargetSignal  sig = TARGET_SIGNAL_NONE)
 {
   if (si->debugStopResume ())
     {
       cerr << "DebugStopResume: continueThread (thread = " << thread
-	   << ", PC = " << Utils::intStr (thread->readPc (), 16, 8)
-	   << ", sig = " << sig << ")." << endl;
+	   << ", thread ID = " << thread->tid () << ", PC = "
+	   << Utils::intStr (thread->readPc (), 16, 8) << ", sig = " << sig
+	   << ")." << endl;
     }
 
   // Set breakpoints in the IVT
@@ -715,6 +744,12 @@ bool
 GdbServer::continueAllThreads (ProcessInfo* process)
 {
   bool allResumed = true;
+
+  if (si->debugStopResume ())
+    {
+      cerr << "DebugStopResume: continueAllThreads (process = " << process
+	   << ", pid = " << process->pid () << ")" << endl;
+    }
 
   for (set <Thread*>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
@@ -748,7 +783,7 @@ GdbServer::continueAllThreads (ProcessInfo* process)
 //! @todo Is there no possibility of ctrl-C in non-stop mode. What if we are
 //!       running synchronously?
 
-//! @param[in] currentProcess  The current process.
+//! @param[in] process  The process to report on.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspReportStopped (ProcessInfo*  process)
@@ -776,7 +811,7 @@ GdbServer::rspReportStopped (ProcessInfo*  process)
 	  thread = process->getStoppedThread ();
 	  sig = findStopReason (thread);
 	  oss << "T" << Utils::intStr (sig, 16, 2) << "thread:"
-	      << thread->tid () << ";";
+	      << Utils::intStr (thread->tid (), 16) << ";";
 	  break;
 
 	default:
@@ -1069,27 +1104,24 @@ GdbServer::rspContinueGeneric (Thread*       thread,
 {
   cerr << "Warning: Using c/C packets with threads deprecated." << endl;
 
-  // NULL thread means all threads
+  // NULL thread means all threads. We believe in this case an address is not
+  // meaningful.
   if (NULL == thread)
     {
       assert (mCurrentProcess);			// Sanity check
+      assert (!haveAddr);
 
-      for (set <Thread*>::iterator tit = mCurrentProcess->threadBegin ();
-	   tit != mCurrentProcess->threadEnd ();
-	   tit++)
-	{
-	  if (haveAddr)
-	    continueThread (thread, addr, sig);
-	  else
-	    continueThread (thread, (*tit)->readPc (), sig);
-	}
+      continueAllThreads (mCurrentProcess);
     }
   else
     {
       if (haveAddr)
-	continueThread (thread, addr, sig);
+	{
+	  thread->writePc (addr);
+	  continueThread (thread, sig);
+	}
       else
-	continueThread (thread, thread->readPc (), sig);
+	continueThread (thread, sig);
     }
 
   if (NON_STOP == mDebugMode)
@@ -1594,12 +1626,15 @@ GdbServer::rspSetThread ()
     {
     case -1:
       thread = NULL;
+      break;
 
     case 0:
       thread = *(mCurrentProcess->threadBegin ());
+      break;
 
     default:
       thread = getThread (tid);
+      break;
     }
 
   switch (c)
@@ -1957,7 +1992,7 @@ GdbServer::rspQuery ()
       // supported as well. Note that the packet size allows for 'G' + all the
       // registers sent to us, or a reply to 'g' with all the registers and an
       // EOS so the buffer is a well formed string.
-      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+,QNonStop+",
+      sprintf (pkt->data, "PacketSize=%x;qXfer:osdata:read+;QNonStop+",
 	       pkt->getBufSize ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
@@ -2319,7 +2354,7 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 	  }
       }
 
-  mProcessList[pid] = process;
+  mProcesses[pid] = process;
   mNextPid++;
 
   ostringstream oss;
@@ -2366,7 +2401,7 @@ GdbServer::rspCmdProcess (char* cmd)
   // Check the PID exists
   unsigned long int pid  = strtoul (tokens[1].c_str (), NULL, 0);
 
-  if ((pid <= 0) || (pid >= mProcessList.size ()))
+  if (mProcesses.find (pid) == mProcesses.end ())
     {
       cerr << "Warning: Non existent PID " << pid << ": ignored." << endl;
       pkt->packHexstr ("Process ID does not exist.\n");
@@ -2377,7 +2412,7 @@ GdbServer::rspCmdProcess (char* cmd)
     }
   else
     {
-      mCurrentProcess = mProcessList[pid];
+      mCurrentProcess = mProcesses[pid];
 
       ostringstream oss;
       oss << "Process ID now " << pid << "." << endl;
@@ -2633,11 +2668,11 @@ GdbServer::rspOsDataProcesses (unsigned int offset,
 
       // Iterate through all processes. We need to temporarily make each
       // process the "current" process
-      for (vector <ProcessInfo *>::iterator pit = mProcessList.begin ();
-	   pit != mProcessList.end ();
+      for (map <int, ProcessInfo *>::iterator pit = mProcesses.begin ();
+	   pit != mProcesses.end ();
 	   pit++)
 	{
-	  ProcessInfo *process = *pit;
+	  ProcessInfo *process = pit->second;
 	  osProcessReply += "  <item>\n"
 	    "    <column name=\"pid\">";
 	  osProcessReply += Utils::intStr (process->pid ());
@@ -2924,7 +2959,21 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 void
 GdbServer::rspSet ()
 {
-  if (0 == strncmp ("QPassSignals:", pkt->data, strlen ("QPassSignals:")))
+  if (0 == strncmp ("QNonStop:0", pkt->data, strlen ("QNonStop:0")))
+    {
+      // Set all-stop mode
+      mDebugMode = ALL_STOP;
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else if (0 == strncmp ("QNonStop:1", pkt->data, strlen ("QNonStop:1")))
+    {
+      // Set non-stop mode
+      mDebugMode = NON_STOP;
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else if (0 == strncmp ("QPassSignals:", pkt->data, strlen ("QPassSignals:")))
     {
       // Passing signals not supported
       pkt->packStr ("");
@@ -2984,7 +3033,8 @@ GdbServer::rspSet ()
   else
     {
       cerr << "Unrecognized RSP set request: ignored" << endl;
-      delete pkt;
+      pkt->packStr ("");
+      rsp->putPkt (pkt);
     }
 }				// rspSet()
 
@@ -3191,22 +3241,19 @@ GdbServer::rspVCont ()
       Thread* thread = *it;
       map <Thread*, string>::iterator ait = threadActions.find (thread);
       string ta = (threadActions.end () == ait)	? defaultAction : ait->second;
-      uint32_t pc;
       TargetSignal sig;
 
       switch (ta[0])
 	{
 	case 'c':
-	  pc = thread->readPc ();
-	  continueThread (thread, pc, TARGET_SIGNAL_NONE);
+	  continueThread (thread, TARGET_SIGNAL_NONE);
 	  break;
 
 	case 'C':
-	  pc = thread->readPc ();
 	  sig = (TargetSignal) strtol (ta.substr (1).c_str (), NULL, 16);
 	  cerr << "Warning: rspVCont: signal " << sig
 	       << " for 'C' action ignored." << endl;
-	  continueThread (thread, pc, sig);
+	  continueThread (thread, sig);
 	  break;
 
 	case 'r':

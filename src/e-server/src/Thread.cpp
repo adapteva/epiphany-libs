@@ -374,7 +374,7 @@ Thread::activate ()
   // @todo Should we force a temporary halt if necessary?
   if (!isHalted ())
     cerr << "Warning: Forcing ACTIVE run state for core " << mCoreId
-	 << "when not halted." << endl;
+	 << " when not halted." << endl;
 
   // We need to do this, even if we were previously active, in case we have
   // since hit an IDLE opcode.

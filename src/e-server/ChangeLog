@@ -232,6 +232,35 @@
 	* targetCntrlHardware.h: Deleted.
 	* target_param.h: Deleted.
 
+2014-07-10  Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::rspServer): In non-stop mode
+	activate all threads when connecting.
+	(GdbServer::initProcesses): Renamed mProcessList as mProcesses.
+	(GdbServer::findStoppedThreads): Likewise.
+	(GdbServer::waitAllThreads):No need to clear stopped threads here.
+	(GdbServer::activateThread): Created.
+	(GdbServer::activateAllThreads): Created.
+	(GdbServer::continueThread): Deleted version specifying address
+	(GdbServer::continueAllThreads): Report pid when debugging.
+	(GdbServer::rspReportStopped): Use hex thread ID with 'T' packet.
+	(GdbServer::rspContinueGeneric): Use continueAllThreads rather than
+	iterating through current process.  Use non-address form of
+	continueThread.
+	(GdbServer::rspSetThread): Add missing 'break' statements in switch.
+	(GdbServer::rspQuery): Separate QNonStop with semi-colon.
+	(GdbServer::rspCmdWorkgroup): Renamed mProcessList as mProcesses.
+	(GdbServer::rspCmdProcess): Likewise.
+	(GdbServer::rspOsDataProcesses): Likewise.
+	(GdbServer::rspOsDataTraffic): Likewise.
+	(GdbServer::rspSet): Don't delete pkt on unrecognized request,
+	just return empty packet.
+	(GdbServer::rspVCont): Use non-address form of continueThread.
+	* src/GdbServer.h: Add activateThread/activateAllThreads.  Delete
+	address version of continueThread and move default argument
+	definition of remaining continueThread to definition file.
+	* src/Thread.cpp (Thread::activate): Correct typo in error message.
+
 2014-07-06  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	First compilable version of new GDB server.
