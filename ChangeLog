@@ -1,3 +1,9 @@
+2014-12-12  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-lib/src/e_trace.c: Remove signum argument from interrupt
+	handlers. There is no signum argument for interrupt handlers.
+	* src/e-lib/src/e_trace_dma.c: Likewise.
+
 2014-10-31  Ola Jeppsson  <ola@adapteva.com>
 
 	* Create 2014.11 branch

@@ -23,18 +23,16 @@
 /**
  * This routine is installed with the interrupt Attach function
  * There will be no signal number attached when invoked
- * @param signum: not used
  */
-void __attribute__((interrupt)) wand_trace_isr(int signum);
+void __attribute__((interrupt)) wand_trace_isr();
 
 
 /**
  * Timer1 ISR
  * This routine is installed with the interrupt Attach function
  * There will be no signal number attached when invoked
- * @param signum: not used
  */
-void __attribute__((interrupt)) timer1_trace_isr(int signum);
+void __attribute__((interrupt)) timer1_trace_isr();
 
  /* **
  * Internal MACRO definitions
@@ -148,11 +146,9 @@ int trace_write(unsigned severity, unsigned event, unsigned breakpoint, unsigned
  * Timer1 ISR
  * This routine is installed with the interrupt Attach function
  * There will be no signal number attached when invoked
- * @param signum: not used
  */
-void __attribute__((interrupt)) timer1_trace_isr(int signum)
+void __attribute__((interrupt)) timer1_trace_isr()
 {
-	(void) signum;
 	e_ctimer_set(E_CTIMER_1, E_CTIMER_MAX);
 	e_ctimer_start(E_CTIMER_1, E_CTIMER_CLK);
 	return;
@@ -171,11 +167,9 @@ int trace_stop()
 /**
  * This routine is installed with the interrupt Attach function
  * There will be no signal number attached when invoked
- * @param signum: not used
  */
-void __attribute__((interrupt)) wand_trace_isr(int signum)
+void __attribute__((interrupt)) wand_trace_isr()
 {
-	(void)signum;
 	//Intentionally left empty
 }
 
