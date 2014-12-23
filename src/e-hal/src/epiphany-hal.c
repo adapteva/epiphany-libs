@@ -32,6 +32,8 @@
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <assert.h>
 
 #include "e-hal.h"
 #include "epiphany-shm-manager.h"	/* For private APIs */
@@ -457,6 +459,81 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 }
 
 
+static inline void *aligned_memcpy(void *__restrict__ dst,
+		const void *__restrict__ src, size_t size)
+{
+	size_t n, aligned_n;
+	uint8_t *d;
+	const uint8_t *s;
+
+	n = size;
+	d = (uint8_t *) dst;
+	s = (const uint8_t *) src;
+
+	if (!(((uintptr_t) d ^ (uintptr_t) s) & 3)) {
+		/* dst and src are evenly WORD (un-)aligned */
+
+		/* Align by WORD */
+		if (n && (((uintptr_t) d) & 1)) {
+			*d++ = *s++; n--;
+		}
+		if (((uintptr_t) d) & 2) {
+			if (n > 1) {
+				*((uint16_t *) d) = *((const uint16_t *) s);
+				d+=2; s+=2; n-=2;
+			} else if (n==1) {
+				*d++ = *s++; n--;
+			}
+		}
+
+		aligned_n = n & (~3);
+		memcpy((void *) d, (void *) s, aligned_n);
+		d += aligned_n; s += aligned_n; n -= aligned_n;
+
+		/* Copy remainder in largest possible chunks */
+		switch (n) {
+		case 2:
+			*((uint16_t *) d) = *((const uint16_t *) s);
+			d+=2; s+=2; n-=2;
+			break;
+		case 3:
+			*((uint16_t *) d) = *((const uint16_t *) s);
+			d+=2; s+=2; n-=2;
+		case 1:
+			*d++ = *s++; n--;
+		}
+	} else if (!(((uintptr_t) d ^ (uintptr_t) s) & 1)) {
+		/* dst and src are evenly half-WORD (un-)aligned */
+
+		/* Align by half-WORD */
+		if (n && ((uintptr_t) d) & 1) {
+			*d++ = *s++; n--;
+		}
+
+		while (n > 1) {
+			*((uint16_t *) d) = *((const uint16_t *) s);
+			d+=2; s+=2; n-=2;
+		}
+
+		/* Copy remaining byte */
+		if (n) {
+			*d++ = *s++; n--;
+		}
+	} else {
+		/* Resort to single byte copying */
+		while (n) {
+			*d++ = *s++; n--;
+		}
+	}
+
+	assert(n == 0);
+	assert((uintptr_t) dst + size == (uintptr_t) d);
+	assert((uintptr_t) src + size == (uintptr_t) s);
+
+	return dst;
+}
+
+
 // Read a memory block from SRAM of a core in a group
 ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
@@ -515,8 +592,7 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 // Write a memory block to SRAM of a core in a group
 ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
-	char *pto;
-	char *pfrom;
+	void *pto;
 
 	if (((to_addr + size) > dev->core[row][col].mems.map_size) || (to_addr < 0))
 	{
@@ -526,14 +602,9 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	}
 
 	pto = dev->core[row][col].mems.base + to_addr;
-	diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
-	pfrom = buf;
-	while (size > 4) {
-		memcpy(pto, pfrom, 4);
-		pto += 4; pfrom += 4; size -= 4;
-	}
-	if (size)
-		memcpy(pto, pfrom, size);
+	diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (uint) size); }
+
+	aligned_memcpy(pto, buf, size);
 
 	return size;
 }
