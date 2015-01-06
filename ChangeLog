@@ -1,5 +1,13 @@
 2015-01-07  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-hal/src/epiphany-hal.c (int ee_disable_system): Created.
+	This function disables the Epiphany chip by stopping the c-clock.
+	(int e_finalize): Call ee_disable_system().
+	* src/e-hal/src/epiphany-hal-api-local.h: Add prototype for
+	ee_disable_system().
+
+2015-01-07  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Remove
 	dead code. Programming the link clock divider is not needed with
 	the new bitstream.

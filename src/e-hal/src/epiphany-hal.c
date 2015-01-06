@@ -167,6 +167,8 @@ int e_finalize(void)
 
 	e_shm_finalize();
 
+	ee_disable_system();
+
 	e_platform.initialized = E_FALSE;
 
 	free(e_platform.chip);
@@ -995,6 +997,17 @@ err:
 	warnx("e_reset_system(): Failed\n");
 	usleep(100);
 	return E_ERR;
+}
+
+// Disable the Epiphany platform (by stopping c-clk)
+int ee_disable_system(void)
+{
+	e_syscfg_clk_t clkcfg = { .field = { .divider = 0 } };
+
+	if (0 < ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		return E_OK;
+	else
+		return E_ERR;
 }
 
 
