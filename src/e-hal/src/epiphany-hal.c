@@ -986,44 +986,6 @@ int e_reset_system(void)
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
 		goto err;
 
-#if 0
-	// TODO: Can this go away?
-	// Perform post-reset, platform specific operations
-	// TODO: assume one chip
-	if (e_platform.type == E_ZEDBOARD1601) || e_platform.type == E_PARALLELLA1601) {
-		e_epiphany_t dev;
-		int rc, data;
-
-		rc = E_ERR;
-
-		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
-
-		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
-		{
-			warnx("e_reset_system(): e_open() failure.");
-			goto err;
-		}
-
-		txcfg.field.ctrlmode = 0x5; /* Force east */
-		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-			goto cleanup_platform;
-
-		data = 1;
-		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int)))
-			goto cleanup_platform;
-
-		txcfg.field.ctrlmode = 0x0;
-		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-			goto cleanup_platform;
-
-		rc = E_OK;
-
-cleanup_platform:
-		e_close(&dev);
-		if (rc != E_OK)
-			goto err;
-	}
-#endif
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 

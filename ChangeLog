@@ -1,3 +1,9 @@
+2015-01-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Remove
+	dead code. Programming the link clock divider is not needed with
+	the new bitstream.
+
 2014-12-23  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-hal.c (static inline void *aligned_memcpy):
