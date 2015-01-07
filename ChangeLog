@@ -1,5 +1,11 @@
 2015-01-07  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-hal/src/epiphany-hal.c (static int enable_clock_gating):
+	Created.
+	(int e_reset_system): Enable clock gating.
+
+2015-01-07  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-hal/src/epiphany-hal.c (int ee_disable_system): Created.
 	This function disables the Epiphany chip by stopping the c-clock.
 	(int e_finalize): Call ee_disable_system().

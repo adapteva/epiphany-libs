@@ -934,7 +934,48 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 
 /////////////////////////
 // Core control functions
-//
+
+static int enable_clock_gating(void)
+{
+	int i, j;
+	int rc = E_OK;
+	uint32_t data;
+	e_epiphany_t dev;
+
+	/* Turn on clock gating mode in Epiphany */
+
+	rc = e_open(&dev, 0, 0, e_platform.rows, e_platform.cols);
+	if (rc != E_OK)
+		return rc;
+
+	for (i = 0; i < e_platform.rows; i++) {
+		for (j = 0; j < e_platform.cols; j++) {
+			/* eCore clock gating */
+			data = 0x00400000;
+			rc = e_write(&dev, i, j, E_REG_CONFIG, &data,
+					sizeof(data));
+			if (rc <= 0)
+				goto err_close;
+
+			/* eMesh clock gating */
+			data = 0x00000002;
+			rc = e_write(&dev, i, j, E_REG_MESHCFG, &data,
+					sizeof(data));
+			if (rc <= 0)
+				goto err_close;
+		}
+	}
+
+	/* Close the workgroup */
+	return e_close(&dev);
+
+err_close:
+	/* Something went wrong, but we still need to close the workgroup */
+	e_close(&dev);
+
+	return rc;
+}
+
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
@@ -988,6 +1029,9 @@ int e_reset_system(void)
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
 		goto err;
 
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
+	if (E_OK != enable_clock_gating())
+		goto err;
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
