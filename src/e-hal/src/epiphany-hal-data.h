@@ -211,7 +211,7 @@ typedef enum {
 
 typedef union {
 	unsigned int reg;
-	struct e_syscfg_tx_st {
+	struct {
 		unsigned int enable:1;
 		unsigned int mmu:1;
 		unsigned int mode:2;      // 0=Normal, 1=GPIO
@@ -230,7 +230,7 @@ typedef union {
 		unsigned int monitor:1;
 		unsigned int resvd:27;
 	} fields;
-} e_syscfg_rx_u;
+} e_syscfg_rx_t;
 
 typedef union {
 	unsigned int reg;

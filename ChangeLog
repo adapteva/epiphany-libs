@@ -1,5 +1,12 @@
 2015-01-13  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-hal/src/epiphany-hal-data.h: Fix inconsistencies with
+	e_syscfg* types.
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Use the right
+	type for rxcfg.
+
+2015-01-13  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-hal/src/epiphany-hal-data.h: Rename all occurrences of
 	'field' in ESYS register structs to 'fields'.
 	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Adjust for

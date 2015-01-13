@@ -980,8 +980,9 @@ err_close:
 int e_reset_system(void)
 {
 	int rc;
-	unsigned int   resetcfg, divider;
-	e_syscfg_tx_t  txcfg, rxcfg;
+	unsigned int resetcfg, divider;
+	e_syscfg_tx_t txcfg;
+	e_syscfg_rx_t rxcfg;
 	e_syscfg_clk_t clkcfg;
 	e_epiphany_t dev;
 
