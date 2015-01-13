@@ -32,6 +32,8 @@
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <assert.h>
 
 #include "e-hal.h"
 #include "epiphany-shm-manager.h"	/* For private APIs */
@@ -164,6 +166,8 @@ int e_finalize(void)
 	}
 
 	e_shm_finalize();
+
+	ee_disable_system();
 
 	e_platform.initialized = E_FALSE;
 
@@ -457,6 +461,81 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 }
 
 
+static inline void *aligned_memcpy(void *__restrict__ dst,
+		const void *__restrict__ src, size_t size)
+{
+	size_t n, aligned_n;
+	uint8_t *d;
+	const uint8_t *s;
+
+	n = size;
+	d = (uint8_t *) dst;
+	s = (const uint8_t *) src;
+
+	if (!(((uintptr_t) d ^ (uintptr_t) s) & 3)) {
+		/* dst and src are evenly WORD (un-)aligned */
+
+		/* Align by WORD */
+		if (n && (((uintptr_t) d) & 1)) {
+			*d++ = *s++; n--;
+		}
+		if (((uintptr_t) d) & 2) {
+			if (n > 1) {
+				*((uint16_t *) d) = *((const uint16_t *) s);
+				d+=2; s+=2; n-=2;
+			} else if (n==1) {
+				*d++ = *s++; n--;
+			}
+		}
+
+		aligned_n = n & (~3);
+		memcpy((void *) d, (void *) s, aligned_n);
+		d += aligned_n; s += aligned_n; n -= aligned_n;
+
+		/* Copy remainder in largest possible chunks */
+		switch (n) {
+		case 2:
+			*((uint16_t *) d) = *((const uint16_t *) s);
+			d+=2; s+=2; n-=2;
+			break;
+		case 3:
+			*((uint16_t *) d) = *((const uint16_t *) s);
+			d+=2; s+=2; n-=2;
+		case 1:
+			*d++ = *s++; n--;
+		}
+	} else if (!(((uintptr_t) d ^ (uintptr_t) s) & 1)) {
+		/* dst and src are evenly half-WORD (un-)aligned */
+
+		/* Align by half-WORD */
+		if (n && ((uintptr_t) d) & 1) {
+			*d++ = *s++; n--;
+		}
+
+		while (n > 1) {
+			*((uint16_t *) d) = *((const uint16_t *) s);
+			d+=2; s+=2; n-=2;
+		}
+
+		/* Copy remaining byte */
+		if (n) {
+			*d++ = *s++; n--;
+		}
+	} else {
+		/* Resort to single byte copying */
+		while (n) {
+			*d++ = *s++; n--;
+		}
+	}
+
+	assert(n == 0);
+	assert((uintptr_t) dst + size == (uintptr_t) d);
+	assert((uintptr_t) src + size == (uintptr_t) s);
+
+	return dst;
+}
+
+
 // Read a memory block from SRAM of a core in a group
 ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
@@ -525,8 +604,9 @@ ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	}
 
 	pto = dev->core[row][col].mems.base + to_addr;
-	diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
-	memcpy(pto, buf, size);
+	diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (uint) size); }
+
+	aligned_memcpy(pto, buf, size);
 
 	return size;
 }
@@ -854,37 +934,160 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 
 /////////////////////////
 // Core control functions
-//
+
+static int enable_clock_gating(void)
+{
+	int i, j;
+	int rc = E_OK;
+	uint32_t data;
+	e_epiphany_t dev;
+
+	/* Turn on clock gating mode in Epiphany */
+
+	rc = e_open(&dev, 0, 0, e_platform.rows, e_platform.cols);
+	if (rc != E_OK)
+		return rc;
+
+	for (i = 0; i < e_platform.rows; i++) {
+		for (j = 0; j < e_platform.cols; j++) {
+			/* eCore clock gating */
+			data = 0x00400000;
+			rc = e_write(&dev, i, j, E_REG_CONFIG, &data,
+					sizeof(data));
+			if (rc <= 0)
+				goto err_close;
+
+			/* eMesh clock gating */
+			data = 0x00000002;
+			rc = e_write(&dev, i, j, E_REG_MESHCFG, &data,
+					sizeof(data));
+			if (rc <= 0)
+				goto err_close;
+		}
+	}
+
+	/* Close the workgroup */
+	return e_close(&dev);
+
+err_close:
+	/* Something went wrong, but we still need to close the workgroup */
+	e_close(&dev);
+
+	return rc;
+}
+
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
-	ee_write_esys(E_SYS_RESET, 0);
-	usleep(200000);
+	int rc;
+	unsigned int   resetcfg, divider;
+	e_syscfg_tx_t  txcfg, rxcfg;
+	e_syscfg_clk_t clkcfg;
+	e_epiphany_t dev;
 
-	// Perform post-reset, platform specific operations
-//	if (e_platform.chip[0].type == E_E16G301) // TODO: assume one chip
-	if ((e_platform.type == E_ZEDBOARD1601) || (e_platform.type == E_PARALLELLA1601))
-	{
-		e_epiphany_t dev;
-		int			 data;
+	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Asserting RESET\n"); }
+	resetcfg = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
+	txcfg.reg = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		goto err;
+	rxcfg.reg = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
+	clkcfg.field.divider = 7; // Full speed
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		goto err;
+
+	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
+	clkcfg.field.divider = 0; // Stop clock
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Clearing RESET\n"); }
+	resetcfg = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
+	clkcfg.field.divider = 7; // Full speed
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
+	txcfg.field.clkmode = 0; // Full speed
+	txcfg.field.enable  = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		goto err;
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
+	rxcfg.field.enable = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+		goto err;
+
+
+	if (e_platform.type == E_ZEDBOARD1601 || e_platform.type == E_PARALLELLA1601) {
+		rc = E_ERR;
+
 		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
-		if ( E_OK != e_open(&dev, 2, 3, 1, 1) )
-		{
+
+		if ( E_OK != e_open(&dev, 2, 3, 1, 1) ) {
 			warnx("e_reset_system(): e_open() failure.");
-			return E_ERR;
+			goto err;
 		}
 
-		ee_write_esys(E_SYS_CONFIG, 0x50000000);
-		data = 1;
-		e_write(&dev, 0, 0, E_REG_LINKCFG, &data, sizeof(int));
-		ee_write_esys(E_SYS_CONFIG, 0x00000000);
+		txcfg.field.ctrlmode = 0x5; /* Force east */
+		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+			goto cleanup_platform;
+
+		divider = 1; /* Divide by 4, see data sheet */
+		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
+			goto cleanup_platform;
+
+		txcfg.field.ctrlmode = 0x0;
+		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+			goto cleanup_platform;
+
+		rc = E_OK;
+
+cleanup_platform:
 		e_close(&dev);
+		if (rc != E_OK)
+			goto err;
 	}
+
+
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
+	if (E_OK != enable_clock_gating())
+		goto err;
+
+
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
+
+err:
+	warnx("e_reset_system(): Failed\n");
+	usleep(100);
+	return E_ERR;
+}
+
+// Disable the Epiphany platform (by stopping c-clk)
+int ee_disable_system(void)
+{
+	e_syscfg_clk_t clkcfg = { .field = { .divider = 0 } };
+
+	if (0 < ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		return E_OK;
+	else
+		return E_ERR;
 }
 
 

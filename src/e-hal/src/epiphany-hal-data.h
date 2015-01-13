@@ -198,14 +198,79 @@ typedef enum {
 
 // Epiphany system registers
 typedef enum {
-	E_SYS_REG_BASE	= 0x00000000,
-	E_SYS_CONFIG	= E_SYS_REG_BASE + 0x0000,
-	E_SYS_RESET		= E_SYS_REG_BASE + 0x0004,
-	E_SYS_VERSION	= E_SYS_REG_BASE + 0x0008,
-	E_SYS_FILTERL	= E_SYS_REG_BASE + 0x000c,
-	E_SYS_FILTERH	= E_SYS_REG_BASE + 0x0010,
-	E_SYS_FILTERC	= E_SYS_REG_BASE + 0x0014,
+	E_SYS_REG_BASE  = 0,
+	E_SYS_RESET     = E_SYS_REG_BASE + 0x0040,
+	E_SYS_CFGTX     = E_SYS_REG_BASE + 0x0044,
+	E_SYS_CFGRX     = E_SYS_REG_BASE + 0x0048,
+	E_SYS_CFGCLK    = E_SYS_REG_BASE + 0x004C,
+	E_SYS_COREID    = E_SYS_REG_BASE + 0x0050,
+	E_SYS_VERSION   = E_SYS_REG_BASE + 0x0054,
+	E_SYS_GPIOIN    = E_SYS_REG_BASE + 0x0058,
+	E_SYS_GPIOOUT   = E_SYS_REG_BASE + 0x005C,
 } e_sys_reg_id_t;
+
+typedef union {
+	unsigned int reg;
+	struct e_syscfg_tx_st {
+		unsigned int enable:1;
+		unsigned int mmu:1;
+		unsigned int mode:2;      // 0=Normal, 1=GPIO
+		unsigned int ctrlmode:4;
+		unsigned int clkmode:4;   // 0=Full speed, 1=1/2 speed
+		unsigned int resvd:20;
+	} field;
+} e_syscfg_tx_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int enable:1;
+		unsigned int mmu:1;
+		unsigned int path:2;    // 0=Normal, 1=GPIO, 2=Loopback
+		unsigned int monitor:1;
+		unsigned int resvd:27;
+	} field;
+} e_syscfg_rx_u;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int divider:4;  // 0=off, 1=F/64 ... 7=F/1
+		unsigned int pll:4;      // TBD
+		unsigned int resvd:24;
+	} field;
+} e_syscfg_clk_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int col:6;
+		unsigned int row:6;
+		unsigned int resvd:20;
+	} field;
+} e_syscfg_coreid_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned char revision;
+		unsigned char type;
+		unsigned char platform;
+		unsigned char generation;
+	} field;
+} e_syscfg_version_t;
+
+// The following is for E_CFG_SYSDATA_IN or E_CFG_SYSDATA_OUT
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int data:8;
+		unsigned int frame:1;
+		unsigned int wait_rd:1;
+		unsigned int wait_wr:1;
+		unsigned int resvd:21;
+	} field;
+} e_syscfg_gpio_t;
 
 
 // Core group data structures

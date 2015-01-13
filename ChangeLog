@@ -1,8 +1,59 @@
+2015-01-13  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Set e-link TX
+	clock divider back to 4 for select platforms.
+
+2015-01-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (static int enable_clock_gating):
+	Created.
+	(int e_reset_system): Enable clock gating.
+
+2015-01-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int ee_disable_system): Created.
+	This function disables the Epiphany chip by stopping the c-clock.
+	(int e_finalize): Call ee_disable_system().
+	* src/e-hal/src/epiphany-hal-api-local.h: Add prototype for
+	ee_disable_system().
+
+2015-01-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Remove
+	dead code. Programming the link clock divider is not needed with
+	the new bitstream.
+
+2014-12-23  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (static inline void *aligned_memcpy):
+	Implemented wrapper that only calls memcpy when src dst and size
+	are 32 bit WORD aligned.
+	(ssize_t ee_write_buf): Use aligned_memcpy() instead of memcpy().
+
 2014-12-12  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-lib/src/e_trace.c: Remove signum argument from interrupt
 	handlers. There is no signum argument for interrupt handlers.
 	* src/e-lib/src/e_trace_dma.c: Likewise.
+
+2014-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/platform.hdf: Adjust ESYS register base to
+	match new eLink PL.
+	* bsps/parallella_E16G3_1GB/parallella_E16G3_1GB.hdf: Likewise.
+
+2014-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (ssize_t ee_write_buf): Temporarily
+	limit writes to 4 byte chunks to work around temporary limitations
+	new eLink programmable logic.
+
+2014-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal-data.h: Update to match new PL eLink
+	interface.
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system):
+	Likewise.
 
 2014-10-31  Ola Jeppsson  <ola@adapteva.com>
 
@@ -187,4 +238,3 @@
 	(function build-utils): Implement make-based build.
 	(function build-lib): Implement make-based build.
 	(function usage): Added a clean build (-c) option.
-
