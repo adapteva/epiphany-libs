@@ -1001,12 +1001,12 @@ int e_reset_system(void)
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
-	clkcfg.field.divider = 7; // Full speed
+	clkcfg.fields.divider = 7; // Full speed
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		goto err;
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
-	clkcfg.field.divider = 0; // Stop clock
+	clkcfg.fields.divider = 0; // Stop clock
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		goto err;
 
@@ -1016,18 +1016,18 @@ int e_reset_system(void)
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
-	clkcfg.field.divider = 7; // Full speed
+	clkcfg.fields.divider = 7; // Full speed
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
-	txcfg.field.clkmode = 0; // Full speed
-	txcfg.field.enable  = 1;
+	txcfg.fields.clkmode = 0; // Full speed
+	txcfg.fields.enable  = 1;
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
-	rxcfg.field.enable = 1;
+	rxcfg.fields.enable = 1;
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
 		goto err;
 
@@ -1042,7 +1042,7 @@ int e_reset_system(void)
 			goto err;
 		}
 
-		txcfg.field.ctrlmode = 0x5; /* Force east */
+		txcfg.fields.ctrlmode = 0x5; /* Force east */
 		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 			goto cleanup_platform;
 
@@ -1050,7 +1050,7 @@ int e_reset_system(void)
 		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
 			goto cleanup_platform;
 
-		txcfg.field.ctrlmode = 0x0;
+		txcfg.fields.ctrlmode = 0x0;
 		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 			goto cleanup_platform;
 
@@ -1082,7 +1082,7 @@ err:
 // Disable the Epiphany platform (by stopping c-clk)
 int ee_disable_system(void)
 {
-	e_syscfg_clk_t clkcfg = { .field = { .divider = 0 } };
+	e_syscfg_clk_t clkcfg = { .fields = { .divider = 0 } };
 
 	if (0 < ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		return E_OK;

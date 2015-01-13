@@ -218,7 +218,7 @@ typedef union {
 		unsigned int ctrlmode:4;
 		unsigned int clkmode:4;   // 0=Full speed, 1=1/2 speed
 		unsigned int resvd:20;
-	} field;
+	} fields;
 } e_syscfg_tx_t;
 
 typedef union {
@@ -229,7 +229,7 @@ typedef union {
 		unsigned int path:2;    // 0=Normal, 1=GPIO, 2=Loopback
 		unsigned int monitor:1;
 		unsigned int resvd:27;
-	} field;
+	} fields;
 } e_syscfg_rx_u;
 
 typedef union {
@@ -238,7 +238,7 @@ typedef union {
 		unsigned int divider:4;  // 0=off, 1=F/64 ... 7=F/1
 		unsigned int pll:4;      // TBD
 		unsigned int resvd:24;
-	} field;
+	} fields;
 } e_syscfg_clk_t;
 
 typedef union {
@@ -247,7 +247,7 @@ typedef union {
 		unsigned int col:6;
 		unsigned int row:6;
 		unsigned int resvd:20;
-	} field;
+	} fields;
 } e_syscfg_coreid_t;
 
 typedef union {
@@ -257,7 +257,7 @@ typedef union {
 		unsigned char type;
 		unsigned char platform;
 		unsigned char generation;
-	} field;
+	} fields;
 } e_syscfg_version_t;
 
 // The following is for E_CFG_SYSDATA_IN or E_CFG_SYSDATA_OUT
@@ -269,7 +269,7 @@ typedef union {
 		unsigned int wait_rd:1;
 		unsigned int wait_wr:1;
 		unsigned int resvd:21;
-	} field;
+	} fields;
 } e_syscfg_gpio_t;
 
 
