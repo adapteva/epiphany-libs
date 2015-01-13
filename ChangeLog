@@ -1,3 +1,8 @@
+2015-01-13  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int e_reset_system): Set e-link TX
+	clock divider back to 4 for select platforms.
+
 2015-01-07  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-hal.c (static int enable_clock_gating):

@@ -979,9 +979,11 @@ err_close:
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	unsigned int   resetcfg;
+	int rc;
+	unsigned int   resetcfg, divider;
 	e_syscfg_tx_t  txcfg, rxcfg;
 	e_syscfg_clk_t clkcfg;
+	e_epiphany_t dev;
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
 
@@ -1029,9 +1031,43 @@ int e_reset_system(void)
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
 		goto err;
 
+
+	if (e_platform.type == E_ZEDBOARD1601 || e_platform.type == E_PARALLELLA1601) {
+		rc = E_ERR;
+
+		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
+
+		if ( E_OK != e_open(&dev, 2, 3, 1, 1) ) {
+			warnx("e_reset_system(): e_open() failure.");
+			goto err;
+		}
+
+		txcfg.field.ctrlmode = 0x5; /* Force east */
+		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+			goto cleanup_platform;
+
+		divider = 1; /* Divide by 4, see data sheet */
+		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
+			goto cleanup_platform;
+
+		txcfg.field.ctrlmode = 0x0;
+		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+			goto cleanup_platform;
+
+		rc = E_OK;
+
+cleanup_platform:
+		e_close(&dev);
+		if (rc != E_OK)
+			goto err;
+	}
+
+
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
 	if (E_OK != enable_clock_gating())
 		goto err;
+
+
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
