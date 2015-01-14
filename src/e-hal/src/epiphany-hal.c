@@ -621,8 +621,8 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	ssize_t		  size;
 
 	addr = from_addr;
-	if (addr >= E_CORE_GP_REG_BASE)
-		addr = addr - E_CORE_GP_REG_BASE;
+	if (addr >= E_REG_R0)
+		addr = addr - E_REG_R0;
 
 	size = sizeof(int);
 	if (((addr + size) > dev->core[row][col].regs.map_size) || (addr < 0))
@@ -646,8 +646,8 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	int		*pto;
 	ssize_t	 size;
 
-	if (to_addr >= E_CORE_GP_REG_BASE)
-		to_addr = to_addr - E_CORE_GP_REG_BASE;
+	if (to_addr >= E_REG_R0)
+		to_addr = to_addr - E_REG_R0;
 
 	size = sizeof(int);
 	if (((to_addr + size) > dev->core[row][col].regs.map_size) || (to_addr < 0))
@@ -959,7 +959,7 @@ static int enable_clock_gating(void)
 
 			/* eMesh clock gating */
 			data = 0x00000002;
-			rc = e_write(&dev, i, j, E_REG_MESHCFG, &data,
+			rc = e_write(&dev, i, j, E_REG_MESHCONFIG, &data,
 					sizeof(data));
 			if (rc <= 0)
 				goto err_close;

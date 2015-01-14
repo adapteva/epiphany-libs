@@ -1,3 +1,15 @@
+2015-01-14  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal-data.h: Removing base addresses for
+	clarity, most of these addresses will never change.
+	Added missing registers in chip.
+	Fixed names to correspond to architecture manual and datasheet for
+	chip.
+	* src/e-hal/src/epiphany-hal.c (int ee_read_reg): Adjust for
+	above.
+	(ssize_t ee_write_reg): Likewise.
+	(static int enable_clock_gating): Likewise.
+
 2015-01-13  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-hal-data.h: Fix inconsistencies with
