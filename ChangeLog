@@ -1,3 +1,13 @@
+2015-01-15  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-utils/e-hw-rev/Makefile: Add e-hal to include search path.
+	Link with e-hal.
+	* src/e-utils/e-hw-rev/e-hw-rev.c (void print_platform_info):
+	Created.
+	(int main): Use e-hal API.
+	(int e_open): Removed
+	(int e_read_esys): Removed
+
 2015-01-14  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-hal-data.h: Removing base addresses for

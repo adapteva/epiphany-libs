@@ -24,139 +24,119 @@
   THE SOFTWARE.
 */
 
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-#include <err.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include "e-hal.h"
+#include "e-hal.h"
+#include "epiphany-hal-api-local.h"
 
-//bool e_is_on_chip(unsigned coreid);
-
-#define diag(vN)   if (e_host_verbose >= vN)
-
-typedef struct {
-    off_t           phy_base;    // physical global base address of memory region
-    size_t          map_size;    // size of mapped region
-    off_t           map_mask;    // for mmap
-    void           *mapped_base; // for mmap
-    void           *base;        // application space base address of memory region
-} Epiphany_mmap_t;
-
-
-typedef struct {
-    int             memfd;       // for mmap
-    Epiphany_mmap_t esys;        // e-system registers data structure
-} Epiphany_t;
-
-
-
-#ifndef EPI_OK
-#   define EPI_OK     0
-#   define EPI_ERR    1
-#   define EPI_WARN   2
+#ifndef countof
+  #define countof(x)  (sizeof(x)/sizeof(x[0]))
 #endif
 
-#define EPIPHANY_DEVICE         "/dev/epiphany"
-#define ESYS_BASE               0x80800000
-#define ESYS_REGS_BASE          (ESYS_BASE+0xf0000)
+static char *gen_strings[] = {
+	"INVALID!",
+	"Parallella-I",
+	"UNKNOWN"
+};
 
-// Epiphany System Registers
-#define ESYS_CONFIG    0x0f00
-#define ESYS_RESET     0x0f04
-#define ESYS_VERSION   0x0f08
-#define ESYS_FILTERL   0x0f0c
-#define ESYS_FILTERH   0x0f10
-#define ESYS_FILTERC   0x0f14
-#define ESYS_TIMEOUT   0x0f18
+#define GEN_MAX (countof(gen_strings)-1)
 
+static char *plat_strings_P1[] = {
+	"INVALID!",
+	"E16, 7Z020, GPIO connectors",
+	"E16, 7Z020, no GPIO",
+	"E16, 7Z010, GPIO",
+	"E16, 7Z010, no GPIO",
+	"E64, 7Z020, GPIO",
+	"UNKNOWN"
+};
 
-int e_open(Epiphany_t *);
-int e_close(Epiphany_t *);
-int e_read_esys(Epiphany_t *, const off_t);
+#define PLAT_MAX_P1 (countof(plat_strings_P1)-1)
 
-int main(int argc, char **argv)
+// Type 'A' applies to the first 5 platforms (update as needed)
+#define PLAT_GROUP_P1A  5
+// Next types should increment from group A, e.g.
+#define PLAT_GROUP_P1B  (PLAT_GROUP_P1A + 4)
+
+static char *type_strings_P1A[] = {
+	"INVALID!",
+	"HDMI enabled, GPIO unused",
+	"Headless, GPIO unused",
+	"Headless, 24/48 singled-ended GPIOs from EMIO",
+	"HDMI enabled, 24/48 singled-ended GPIOs from EMIO",
+	"UNKNOWN"
+};
+
+#define TYPE_MAX_P1A (countof(type_strings_P1A)-1)
+
+void print_platform_info(e_syscfg_version_t *version)
 {
-    Epiphany_t *dev, Epiphany;
-    unsigned int hw_rev;
+	unsigned int revision = version->fields.revision;
+	unsigned int type = version->fields.type;
+	unsigned int platform = version->fields.platform;
+	unsigned int generation = version->fields.generation;
+	char *gen_str, *plat_str, *type_str;
 
-    /* Silence unused variable warnings */
-    (void)argc;
-    (void)argv;
+	printf("Epiphany Hardware Version: %02x.%02x.%02x.%02x\n\n",
+			generation,
+			platform,
+			type,
+			revision);
 
-    dev = &Epiphany;
+	if ((generation & 0x80) != 0 && generation != 0xff) {
+		printf("DEBUG/EXPERIMENTAL Version Detected\n");
+		generation &= 0x7f;
+	}
 
-    if ( EPI_OK != e_open(dev) ) {
-        warnx("main(): failed to open the epiphany device.");   
-        return EPI_ERR;
-    }
+	if (16 < generation && generation < 21) {
+		/* Old-style datecode */
+		printf("Old-style datecode\n");
+		return;
+	}
 
-    hw_rev = e_read_esys(dev, ESYS_VERSION);
-    printf("Epiphany Hardware Revision: %02x.%02x.%02x.%02x\n", (hw_rev>>24)&0xff,
-           (hw_rev>>16)&0xff, (hw_rev>>8)&0xff, (hw_rev>>0)&0xff);
+	if (generation != 1) {
+		/* Currently we only know of Parallella-I */
+		printf("Unknown generation\n");
+		return;
+	}
 
-    e_close(dev);
+	if (platform > PLAT_GROUP_P1A) {
+		printf("Unknown platform\n");
+		return;
+	}
 
-    return 0;
+	gen_str = gen_strings[(generation < GEN_MAX) ?  generation : GEN_MAX];
+
+	plat_str = plat_strings_P1[(platform < PLAT_MAX_P1) ?
+		platform : PLAT_MAX_P1];
+
+	type_str = type_strings_P1A[(type < TYPE_MAX_P1A) ?
+		type : TYPE_MAX_P1A];
+
+	printf("Generation %d: %s\n", generation, gen_str);
+	printf("Platform   %d: %s\n", platform, plat_str);
+	printf("Type       %d: %s\n", type, type_str);
+	printf("Revision   %d\n", revision);
+
+	printf("\n");
 }
 
-
-/////////////////////////////////
-// Device communication functions
-//
-// Epiphany access
-int e_open(Epiphany_t *dev)
+int main()
 {
-    // Open memory device
-    dev->memfd = open(EPIPHANY_DEVICE, O_RDWR | O_SYNC);
-    if (dev->memfd == -1)
-    {
-        warnx("e_open(): /dev/epiphany file open failure. errno is %s", strerror(errno));
-        return EPI_ERR;
-    }
+	e_syscfg_version_t version;
 
-    // e-sys regs
-    dev->esys.phy_base = ESYS_REGS_BASE;
-    dev->esys.map_size = 0x1000;
-    dev->esys.map_mask = (dev->esys.map_size - 1);
+	if (E_OK != e_init(NULL)) {
+		fprintf(stderr, "Epiphany HAL initialization failed\n");
+		exit(EXIT_FAILURE);
+	}
 
-    dev->esys.mapped_base = mmap(0, dev->esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED,
-                                 dev->memfd, ESYS_REGS_BASE);
-    dev->esys.base = dev->esys.mapped_base;
+	version.reg = ee_read_esys(E_SYS_VERSION);
 
-    if ((dev->esys.mapped_base == MAP_FAILED))
-    {
-        warnx("e_open(): mmap failure.");
-        return EPI_ERR;
-    }
+	print_platform_info(&version);
 
-    return EPI_OK;
-}
+	e_finalize();
 
-
-int e_close(Epiphany_t *dev)
-{
-    munmap(dev->esys.mapped_base, dev->esys.map_size);
-
-    close(dev->memfd);
-
-    return EPI_OK;
-}
-
-
-int e_read_esys(Epiphany_t *dev, const off_t offset)
-{
-    volatile int *pfrom;
-    int           data = 0;
-
-    pfrom = (int *) (dev->esys.base + (offset & dev->esys.map_mask));
-    data  = *pfrom;
-
-    return data;
+	exit(EXIT_SUCCESS);
 }
 
