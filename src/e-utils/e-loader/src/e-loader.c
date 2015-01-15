@@ -36,7 +36,7 @@ void usage();
 int main(int argc, char *argv[])
 {
 	char eprog[255];
-	e_bool_t ireset, istart;
+	e_bool_t istart;
 	e_epiphany_t dev;
 	e_platform_t plat;
 	unsigned row, col, rows, cols;
@@ -54,7 +54,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	ireset = E_FALSE;
 	istart = E_FALSE;
 	row  = 0;
 	col  = 0;
@@ -69,7 +68,7 @@ int main(int argc, char *argv[])
 			return 0;
 		} else if (!strcmp(argv[iiarg], "-r") || !strcmp(argv[iiarg], "--reset"))
 		{
-			ireset = E_TRUE;
+			/* Deprecated: no-op */
 			iarg++;
 		} else if (!strcmp(argv[iiarg], "-s") || !strcmp(argv[iiarg], "--start"))
 		{
@@ -96,13 +95,9 @@ int main(int argc, char *argv[])
 	}
 
 
-	if (ireset)
-	{
-		if (E_OK != e_reset_system())
-		{
-			fprintf(stderr, "Failed to reset Epiphany system\n");
-			exit(EXIT_FAILURE);
-		}
+	if (E_OK != e_reset_system()) {
+		fprintf(stderr, "Failed to reset Epiphany system\n");
+		exit(EXIT_FAILURE);
 	}
 
 	if (E_OK != e_open(&dev, row, col, rows, cols))
@@ -122,7 +117,6 @@ int main(int argc, char *argv[])
 	}
 
 	e_close(&dev);
-	e_finalize();
 
 	return 0;
 }
@@ -130,8 +124,7 @@ int main(int argc, char *argv[])
 
 void usage()
 {
-	printf("Usage: e-loader [-r|--reset] [-s|--start] [-h|--help] <e-program> [<row> <col> [<rows> <cols>]]\n");
-	printf("   -r,--reset  - perform a full hardware reset of the Epiphany platform.\n");
+	printf("Usage: e-loader [-s|--start] [-h|--help] <e-program> [<row> <col> [<rows> <cols>]]\n");
 	printf("   -s,--start  - run the programs after loading on the cores.\n");
 	printf("   row,col     - (absolute) core coordinates to load program (default is 0,0).\n");
 	printf("   rows,cols   - size of core workgroup to load program (default is 1,1).\n");

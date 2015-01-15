@@ -1,5 +1,12 @@
 2015-01-15  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-utils/e-loader/src/e-loader.c (int main): Always call
+	'e_reset_system()'. Make reset flags no-ops. Do not call
+	'e_finalize()'.
+	(void usage): Remove reset flags.
+
+2015-01-15  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-utils/e-hw-rev/Makefile: Add e-hal to include search path.
 	Link with e-hal.
 	* src/e-utils/e-hw-rev/e-hw-rev.c (void print_platform_info):
