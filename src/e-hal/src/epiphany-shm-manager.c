@@ -112,7 +112,7 @@ int e_shm_init()
 		if (shm_table->initialized) {
 			diag(H_D1) {
 				fprintf(stderr, "e_shm_init(): SHM table was "
-						"corrupted. Will reset it.");
+						"corrupted. Will reset it.\n");
 			}
 		}
 
@@ -395,7 +395,7 @@ static int shm_table_sanity_check(e_shmtable_t *tbl)
 	if ( !tbl->initialized ) {
 		diag(H_D1) {
 			fprintf(stderr, "shm_table_sanity_check(): shm table "
-					"is not initialized.");
+					"is not initialized.\n");
 		}
 		return E_ERR;
 	}
@@ -403,7 +403,7 @@ static int shm_table_sanity_check(e_shmtable_t *tbl)
 	if ( tbl->magic != SHM_MAGIC ) {
 		diag(H_D1) {
 			fprintf(stderr, "shm_table_sanity_check(): Bad shm "
-					"magic. Expected 0x%08x found 0x%08x",
+					"magic. Expected 0x%08x found 0x%08x\n",
 					SHM_MAGIC, tbl->magic);
 		}
 		return E_ERR;

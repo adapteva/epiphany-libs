@@ -1,5 +1,11 @@
 2015-01-15  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init): Add
+	missing newlines.
+	(static int shm_table_sanity_check): Likewise.
+
+2015-01-15  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init): Lower
 	the severity for select SHM error reports.
 	(static int shm_table_sanity_check): Likewise.
