@@ -1,5 +1,10 @@
 2015-01-15  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-hal/src/epiphany-hal-data.h: Be more explicit about
+	bitfield members' width.
+
+2015-01-15  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-utils/e-read/src/e-read.c (int main): Call
 	e_reset_system() before accessing Epiphany chip.
 

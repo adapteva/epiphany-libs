@@ -253,10 +253,10 @@ typedef union {
 typedef union {
 	unsigned int reg;
 	struct {
-		unsigned char revision;
-		unsigned char type;
-		unsigned char platform;
-		unsigned char generation;
+		unsigned int revision:8;
+		unsigned int type:8;
+		unsigned int platform:8;
+		unsigned int generation:8;
 	} fields;
 } e_syscfg_version_t;
 
