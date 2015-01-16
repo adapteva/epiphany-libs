@@ -52,7 +52,7 @@ extern int e_load_verbose;
 extern FILE *diag_fd;
 
 
-e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
+e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
 {
 	FILE       *elfStream;
 	Elf32_Ehdr hdr;
@@ -130,7 +130,7 @@ e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
+e_return_stat_t ee_process_SREC(const char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
 {
 	typedef enum {S0, S3, S7} SrecSel;
 	FILE      *srecStream;

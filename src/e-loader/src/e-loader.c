@@ -35,8 +35,8 @@
 
 #define diag(vN)   if (e_load_verbose >= vN)
 
-e_return_stat_t ee_process_ELF(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
-e_return_stat_t ee_process_SREC(char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
+e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
+e_return_stat_t ee_process_SREC(const char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
 
 e_loader_diag_t e_load_verbose = 0;
@@ -47,7 +47,7 @@ FILE *diag_fd = NULL;
 // TODO: replace with platform data
 #define EMEM_SIZE (0x02000000)
 
-int e_load(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bool_t start)
+int e_load(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bool_t start)
 {
 	int status;
 
@@ -57,7 +57,7 @@ int e_load(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bo
 }
 
 
-int e_load_group(char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start)
+int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start)
 {
 	e_mem_t      emem, *pemem;
 	unsigned int irow, icol;
