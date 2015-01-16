@@ -1,3 +1,10 @@
+2015-01-16  Yoshifuji Naoki <lwisteria.ao@gmail.com>
+
+	* src/e-loader/src/e-loader.c: Make 'executable' argument const
+	to suppress warnings.
+	* src/e-loader/src/e-loader.h: Likewise.
+	* src/e-loader/src/e-process-SREC.c: Likewise.
+
 2015-01-15  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-shm-manager.c (int e_shm_init): Add
