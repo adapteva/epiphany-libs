@@ -935,6 +935,96 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 /////////////////////////
 // Core control functions
 
+
+
+// Helper function that disable the north, south, and west eLinks
+static int disable_nsw_elinks()
+{
+	e_syscfg_tx_t txcfg;
+	e_epiphany_t dev;
+	unsigned row, col;
+	const unsigned data = 0xfff;
+	int rc;
+
+	rc = e_open(&dev, 0, 0, e_platform.rows, e_platform.cols);
+	if (rc != E_OK)
+		return rc;
+
+	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
+
+
+	/* Shut down north eLink */
+	row = 0;
+	col = 2;
+	txcfg.fields.ctrlmode = 0x1;
+
+	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	if (rc < 0)
+		goto err_close;
+
+	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
+	if (rc < 0)
+		goto err_close;
+
+	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
+	if (rc < 0)
+		goto err_close;
+
+
+	/* Shut down south eLink */
+	row = dev.type == E_E64G401 ? 7 : 3;
+	col = 2;
+	txcfg.fields.ctrlmode = 0x9;
+
+	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	if (rc < 0)
+		goto err_close;
+
+	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
+	if (rc < 0)
+		goto err_close;
+
+	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
+	if (rc < 0)
+		goto err_close;
+
+
+	/* Shut down west eLink */
+	row = 2;
+	col = 0;
+	txcfg.fields.ctrlmode = 0xd;
+
+	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	if (rc < 0) {
+		rc = E_ERR;
+		goto err_close;
+	}
+
+	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
+	if (rc < 0)
+		goto err_close;
+
+	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
+	if (rc < 0)
+		goto err_close;
+
+
+	/* Reset TX ctrlmode */
+	txcfg.fields.ctrlmode = 0;
+	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	if (rc < 0)
+		goto err_close;
+
+	/* Close the workgroup */
+	return e_close(&dev);
+
+err_close:
+	/* Something went wrong, but we still need to close the workgroup */
+	e_close(&dev);
+
+	return rc;
+}
+
 static int enable_clock_gating(void)
 {
 	int i, j;
@@ -1063,6 +1153,9 @@ cleanup_platform:
 			goto err;
 	}
 
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling north, south, and west eLinks\n"); }
+	if (E_OK != disable_nsw_elinks())
+		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
 	if (E_OK != enable_clock_gating())

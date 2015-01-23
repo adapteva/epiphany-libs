@@ -1,5 +1,13 @@
 2015-01-23  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/e-hal/src/epiphany-hal.c (static int
+	disable_nsw_elinks): Created. This function disables the
+	north, south, and west eLinks.
+	(int e_reset_system): Call disable_nsw_elinks().
+
+
+2015-01-23  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/e-hal/src/epiphany-hal.c (int ee_disable_system): Also
 	disable TX and RX.
 
