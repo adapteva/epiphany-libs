@@ -1,3 +1,8 @@
+2015-01-23  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int ee_disable_system): Also
+	disable TX and RX.
+
 2015-01-16  Yoshifuji Naoki <lwisteria.ao@gmail.com>
 
 	* src/e-loader/src/e-loader.c: Make 'executable' argument const

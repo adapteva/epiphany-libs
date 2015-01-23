@@ -1083,12 +1083,29 @@ err:
 // Disable the Epiphany platform (by stopping c-clk)
 int ee_disable_system(void)
 {
-	e_syscfg_clk_t clkcfg = { .fields = { .divider = 0 } };
+	e_syscfg_clk_t clkcfg;
+	e_syscfg_tx_t txcfg;
+	e_syscfg_rx_t rxcfg;
+	int rc = E_OK;
 
-	if (0 < ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
-		return E_OK;
-	else
-		return E_ERR;
+	clkcfg.reg = ee_read_esys(E_SYS_CFGCLK);
+	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
+	rxcfg.reg = ee_read_esys(E_SYS_CFGRX);
+
+	clkcfg.fields.divider = 0;
+	txcfg.fields.enable = 0;
+	rxcfg.fields.enable = 0;
+
+	if (0 > ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+		rc = E_ERR;
+
+	if (0 > ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		rc = E_ERR;
+
+	if (0 > ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+		rc = E_ERR;
+
+	return rc;
 }
 
 
