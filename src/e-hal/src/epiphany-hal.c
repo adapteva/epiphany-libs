@@ -950,6 +950,7 @@ static int disable_nsw_elinks()
 	if (rc != E_OK)
 		return rc;
 
+	usleep(1000);
 	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
 
 
@@ -958,14 +959,17 @@ static int disable_nsw_elinks()
 	col = 2;
 	txcfg.fields.ctrlmode = 0x1;
 
+	usleep(1000);
 	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
 	if (rc < 0)
 		goto err_close;
 
+	usleep(1000);
 	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
 	if (rc < 0)
 		goto err_close;
 
+	usleep(1000);
 	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
 	if (rc < 0)
 		goto err_close;
@@ -976,14 +980,17 @@ static int disable_nsw_elinks()
 	col = 2;
 	txcfg.fields.ctrlmode = 0x9;
 
+	usleep(1000);
 	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
 	if (rc < 0)
 		goto err_close;
 
+	usleep(1000);
 	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
 	if (rc < 0)
 		goto err_close;
 
+	usleep(1000);
 	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
 	if (rc < 0)
 		goto err_close;
@@ -994,16 +1001,19 @@ static int disable_nsw_elinks()
 	col = 0;
 	txcfg.fields.ctrlmode = 0xd;
 
+	usleep(1000);
 	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
 	if (rc < 0) {
 		rc = E_ERR;
 		goto err_close;
 	}
 
+	usleep(1000);
 	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
 	if (rc < 0)
 		goto err_close;
 
+	usleep(1000);
 	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
 	if (rc < 0)
 		goto err_close;
@@ -1011,9 +1021,12 @@ static int disable_nsw_elinks()
 
 	/* Reset TX ctrlmode */
 	txcfg.fields.ctrlmode = 0;
+	usleep(1000);
 	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
 	if (rc < 0)
 		goto err_close;
+
+	usleep(1000);
 
 	/* Close the workgroup */
 	return e_close(&dev);
@@ -1042,6 +1055,7 @@ static int enable_clock_gating(void)
 		for (j = 0; j < e_platform.cols; j++) {
 			/* eCore clock gating */
 			data = 0x00400000;
+			usleep(1000);
 			rc = e_write(&dev, i, j, E_REG_CONFIG, &data,
 					sizeof(data));
 			if (rc <= 0)
@@ -1049,6 +1063,7 @@ static int enable_clock_gating(void)
 
 			/* eMesh clock gating */
 			data = 0x00000002;
+			usleep(1000);
 			rc = e_write(&dev, i, j, E_REG_MESHCONFIG, &data,
 					sizeof(data));
 			if (rc <= 0)
@@ -1056,6 +1071,7 @@ static int enable_clock_gating(void)
 		}
 	}
 
+	usleep(1000);
 	/* Close the workgroup */
 	return e_close(&dev);
 
@@ -1080,45 +1096,55 @@ int e_reset_system(void)
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Asserting RESET\n"); }
 	resetcfg = 1;
+
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
 	txcfg.reg = 0;
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 		goto err;
 	rxcfg.reg = 0;
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
 	clkcfg.fields.divider = 7; // Full speed
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		goto err;
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
 	clkcfg.fields.divider = 0; // Stop clock
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Clearing RESET\n"); }
 	resetcfg = 0;
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
 	clkcfg.fields.divider = 7; // Full speed
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
 	txcfg.fields.clkmode = 0; // Full speed
 	txcfg.fields.enable  = 1;
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
 	rxcfg.fields.enable = 1;
+	usleep(1000);
 	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
 		goto err;
 
@@ -1134,14 +1160,17 @@ int e_reset_system(void)
 		}
 
 		txcfg.fields.ctrlmode = 0x5; /* Force east */
+		usleep(1000);
 		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 			goto cleanup_platform;
 
 		divider = 1; /* Divide by 4, see data sheet */
+		usleep(1000);
 		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
 			goto cleanup_platform;
 
 		txcfg.fields.ctrlmode = 0x0;
+		usleep(1000);
 		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
 			goto cleanup_platform;
 
@@ -1153,23 +1182,26 @@ cleanup_platform:
 			goto err;
 	}
 
+	usleep(1000);
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling north, south, and west eLinks\n"); }
 	if (E_OK != disable_nsw_elinks())
 		goto err;
 
+	usleep(1000);
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
 	if (E_OK != enable_clock_gating())
 		goto err;
 
 
 
+	usleep(1000);
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
 	return E_OK;
 
 err:
 	warnx("e_reset_system(): Failed\n");
-	usleep(100);
+	usleep(1000);
 	return E_ERR;
 }
 
