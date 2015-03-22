@@ -36,7 +36,7 @@ void *e_write(const void *remote, const void *src, unsigned row, unsigned col, v
 	} else if (*((e_objtype_t *) remote) == E_SHARED_MEM) {
 		// dst is ignored for shared memory writes
 		e_memseg_t *pmem = (e_memseg_t *)remote;
-		gdst = (void*)pmem->ephy_base;
+		gdst = (void*) (pmem->ephy_base + (unsigned) dst);
 	} else {
 		gdst = (void *) (e_emem_config.base + (unsigned) dst);
 	}
