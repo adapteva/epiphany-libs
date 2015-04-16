@@ -29,8 +29,12 @@
 #define MAX_SHM_REGIONS				   64
 
 #include <sys/types.h>
-#include "e_common.h"
-#include "e_mem.h"
+#include <e_common.h>
+#include <e_mem.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MAX_SHM_REGIONS				   64
 
@@ -81,5 +85,9 @@ int e_shm_attach(e_memseg_t *mem, const char* name);
 
 /** Release a shared region allocated with e_shm_attach() */
 int e_shm_release(const char* name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	  /* _E_SHM_H_ */

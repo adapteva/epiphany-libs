@@ -26,6 +26,9 @@
 #ifndef CTIMER_H_
 #define CTIMER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @file e_ctimers.h
@@ -73,5 +76,9 @@ unsigned e_ctimer_set(e_ctimer_id_t timer, unsigned int val);
 unsigned e_ctimer_start(e_ctimer_id_t timer, e_ctimer_config_t config);
 unsigned e_ctimer_stop(e_ctimer_id_t timer);
 void e_wait(e_ctimer_id_t timer, unsigned int clicks);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CTIMER_H_ */

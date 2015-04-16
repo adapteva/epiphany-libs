@@ -26,8 +26,11 @@
 #ifndef _E_COREID_H_
 #define _E_COREID_H_
 
-#include "e_types.h"
+#include <e_types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef unsigned int e_coreid_t;
 
@@ -94,6 +97,9 @@ e_bool_t e_is_on_core(const void *ptr);
 
 void e_neighbor_id(e_coreid_wrap_t dir, e_coreid_wrap_t wrap, unsigned *row, unsigned *col);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _E_COREID_H_ */
 
