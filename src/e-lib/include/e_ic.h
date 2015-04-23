@@ -26,7 +26,7 @@
 #ifndef E_IC_H_
 #define E_IC_H_
 
-#include <e_types.h>
+#include "e_types.h"
 
 #ifdef __cplusplus
 extern "C" {

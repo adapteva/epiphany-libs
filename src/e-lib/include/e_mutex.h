@@ -26,7 +26,7 @@
 #ifndef MUTEX_H_
 #define MUTEX_H_
 
-#include <e_types.h>
+#include "e_types.h"
 
 #ifdef __cplusplus
 extern "C" {

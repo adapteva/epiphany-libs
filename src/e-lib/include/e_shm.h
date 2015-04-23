@@ -29,8 +29,8 @@
 #define MAX_SHM_REGIONS				   64
 
 #include <sys/types.h>
-#include <e_common.h>
-#include <e_mem.h>
+#include "e_common.h"
+#include "e_mem.h"
 
 #ifdef __cplusplus
 extern "C" {

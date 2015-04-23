@@ -27,7 +27,7 @@
 #define _EPIPHANY_DMA_H_
 
 #include <stddef.h>
-#include <e_common.h>
+#include "e_common.h"
 
 #ifdef __cplusplus
 extern "C" {

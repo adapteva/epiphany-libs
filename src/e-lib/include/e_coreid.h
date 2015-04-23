@@ -26,7 +26,7 @@
 #ifndef _E_COREID_H_
 #define _E_COREID_H_
 
-#include <e_types.h>
+#include "e_types.h"
 
 #ifdef __cplusplus
 extern "C" {

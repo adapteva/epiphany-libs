@@ -27,8 +27,8 @@
 #define E_MEM_H_
 
 #include <sys/types.h>
-#include <e_common.h>
-#include <e_coreid.h>
+#include "e_common.h"
+#include "e_coreid.h"
 
 #ifdef __cplusplus
 extern "C" {
