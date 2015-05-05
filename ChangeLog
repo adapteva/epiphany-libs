@@ -1,3 +1,9 @@
+2015-03-20  Mateusz Kaczanowski  <kaczanowski.mateusz@gmail.com>
+
+	* src/e-lib/src/e_mem_read.c (void *e_read): Add src to base.
+	* src/e-lib/src/e_mem_write.c (void *e_write): Add dst to
+	base.
+
 2015-01-29  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-hal.c (static int
