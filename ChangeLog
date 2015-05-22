@@ -1,3 +1,8 @@
+2015-05-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-hal/src/epiphany-hal.c (int e_free): Fix thinko that
+	caused resource leak.
+
 2015-03-20  Mateusz Kaczanowski  <kaczanowski.mateusz@gmail.com>
 
 	* src/e-lib/src/e_mem_read.c (void *e_read): Add src to base.

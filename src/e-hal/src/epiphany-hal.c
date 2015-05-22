@@ -715,7 +715,7 @@ int e_free(e_mem_t *mbuf)
 		return E_ERR;
 	}
 
-	if ( E_SHARED_MEM == mbuf->objtype ) {
+	if (E_SHARED_MEM != mbuf->objtype) {
 		// The shared memory mapping is persistent - don't unmap
 		munmap(mbuf->mapped_base, mbuf->map_size);
 		close(mbuf->memfd);
