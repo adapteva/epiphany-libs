@@ -1086,41 +1086,54 @@ err_close:
 int e_reset_system(void)
 {
 	int rc;
-	unsigned int resetcfg, divider;
-	e_syscfg_tx_t txcfg;
-	e_syscfg_rx_t rxcfg;
-	e_syscfg_clk_t clkcfg;
+	unsigned int divider;
+	e_sys_txcfg_t txcfg    = { .reg = 0 };
+	e_sys_rxcfg_t rxcfg    = { .reg = 0 };
+	e_sys_clkcfg_t clkcfg  = { .reg = 0 };
+	e_sys_reset_t resetcfg = { .reg = 0 };
 	e_epiphany_t dev;
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
-
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Asserting RESET\n"); }
-	resetcfg = 1;
 
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
+	resetcfg.reset = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
 		goto err;
 
+	/* Do we need this ? */
+	usleep(1000);
+	resetcfg.reset = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
+		goto err;
+
+	return E_OK;
+
+err:
+	return E_ERR;
+
+#if 0
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
 	txcfg.reg = 0;
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 		goto err;
 	rxcfg.reg = 0;
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
-	clkcfg.fields.divider = 7; // Full speed
+	clkcfg.cclk_divider = 0; // Full speed
+	clkcfg.lclk_divider = 0; // Full speed
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
 		goto err;
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
-	clkcfg.fields.divider = 0; // Stop clock
+	clkcfg.divider = 0; // Stop clock
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Clearing RESET\n"); }
@@ -1130,22 +1143,22 @@ int e_reset_system(void)
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
-	clkcfg.fields.divider = 7; // Full speed
+	clkcfg.divider = 7; // Full speed
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
-	txcfg.fields.clkmode = 0; // Full speed
-	txcfg.fields.enable  = 1;
+	txcfg.clkmode = 0; // Full speed
+	txcfg.enable  = 1;
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 		goto err;
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
-	rxcfg.fields.enable = 1;
+	rxcfg.enable = 1;
 	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+	if (sizeof(int) != ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
 		goto err;
 
 
@@ -1159,9 +1172,9 @@ int e_reset_system(void)
 			goto err;
 		}
 
-		txcfg.fields.ctrlmode = 0x5; /* Force east */
+		txcfg.ctrlmode = 0x5; /* Force east */
 		usleep(1000);
-		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 			goto cleanup_platform;
 
 		divider = 1; /* Divide by 4, see data sheet */
@@ -1169,9 +1182,9 @@ int e_reset_system(void)
 		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
 			goto cleanup_platform;
 
-		txcfg.fields.ctrlmode = 0x0;
+		txcfg.ctrlmode = 0x0;
 		usleep(1000);
-		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+		if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 			goto cleanup_platform;
 
 		rc = E_OK;
@@ -1203,6 +1216,7 @@ err:
 	warnx("e_reset_system(): Failed\n");
 	usleep(1000);
 	return E_ERR;
+#endif
 }
 
 // Disable the Epiphany platform (by stopping c-clk)
