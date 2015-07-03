@@ -1222,29 +1222,33 @@ err:
 // Disable the Epiphany platform (by stopping c-clk)
 int ee_disable_system(void)
 {
+	return E_OK;
+	/* TODO: Enable */
+#if 0
 	e_syscfg_clk_t clkcfg;
 	e_syscfg_tx_t txcfg;
 	e_syscfg_rx_t rxcfg;
 	int rc = E_OK;
 
-	clkcfg.reg = ee_read_esys(E_SYS_CFGCLK);
-	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
-	rxcfg.reg = ee_read_esys(E_SYS_CFGRX);
+	clkcfg.reg = ee_read_esys(E_SYS_CLKCFG);
+	txcfg.reg = ee_read_esys(E_SYS_TXCFG);
+	rxcfg.reg = ee_read_esys(E_SYS_RXCFG);
 
-	clkcfg.fields.divider = 0;
-	txcfg.fields.enable = 0;
-	rxcfg.fields.enable = 0;
+	clkcfg.divider = 0;
+	txcfg.enable = 0;
+	rxcfg.enable = 0;
 
-	if (0 > ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
+	if (0 > ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
 		rc = E_ERR;
 
-	if (0 > ee_write_esys(E_SYS_CFGTX, txcfg.reg))
+	if (0 > ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 		rc = E_ERR;
 
-	if (0 > ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
+	if (0 > ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
 		rc = E_ERR;
 
 	return rc;
+#endif
 }
 
 
