@@ -199,79 +199,74 @@ typedef enum {
 
 // Epiphany system registers
 typedef enum {
-	E_SYS_RESET		= 0x0040,
-	E_SYS_CFGTX		= 0x0044,
-	E_SYS_CFGRX		= 0x0048,
-	E_SYS_CFGCLK		= 0x004c,
-	E_SYS_COREID		= 0x0050,
-	E_SYS_VERSION		= 0x0054,
-	E_SYS_GPIOIN		= 0x0058,
-	E_SYS_GPIOOUT		= 0x005c
+	E_SYS_RESET		= 0xF0200,
+	E_SYS_CLKCFG	= 0xF0204,
+	E_SYS_CHIPID	= 0xF0208,
+	E_SYS_VERSION	= 0xF020c,
+	E_SYS_TXCFG		= 0xF0210,
+	E_SYS_RXCFG		= 0xF0300,
 } e_sys_reg_id_t;
 
 typedef union {
 	unsigned int reg;
 	struct {
-		unsigned int enable:1;
-		unsigned int mmu:1;
-		unsigned int mode:2;      // 0=Normal, 1=GPIO
-		unsigned int ctrlmode:4;
-		unsigned int clkmode:4;   // 0=Full speed, 1=1/2 speed
-		unsigned int resvd:20;
-	} fields;
-} e_syscfg_tx_t;
+		unsigned int reset:1;
+//		unsigned int chip_reset:1;
+//		unsigned int reset:1;
+	};
+} e_sys_reset_t;
 
 typedef union {
 	unsigned int reg;
 	struct {
-		unsigned int enable:1;
-		unsigned int mmu:1;
-		unsigned int path:2;    // 0=Normal, 1=GPIO, 2=Loopback
-		unsigned int monitor:1;
-		unsigned int resvd:27;
-	} fields;
-} e_syscfg_rx_t;
-
-typedef union {
-	unsigned int reg;
-	struct {
-		unsigned int divider:4;  // 0=off, 1=F/64 ... 7=F/1
-		unsigned int pll:4;      // TBD
-		unsigned int resvd:24;
-	} fields;
-} e_syscfg_clk_t;
+		unsigned int cclk_enable:1;
+		unsigned int lclk_enable:1;
+		unsigned int cclk_bypass:1;
+		unsigned int lclk_bypass:1;
+		unsigned int cclk_divider:4;
+		unsigned int lclk_divider:4;
+	};
+} e_sys_clkcfg_t;
 
 typedef union {
 	unsigned int reg;
 	struct {
 		unsigned int col:6;
 		unsigned int row:6;
-		unsigned int resvd:20;
-	} fields;
-} e_syscfg_coreid_t;
+	};
+} e_sys_chipid_t;
 
 typedef union {
 	unsigned int reg;
 	struct {
-		unsigned int revision:8;
-		unsigned int type:8;
 		unsigned int platform:8;
-		unsigned int generation:8;
-	} fields;
-} e_syscfg_version_t;
+		unsigned int revision:8;
+	};
+} e_sys_version_t;
 
-// The following is for E_SYS_GPIOIN and E_SYS_GPIOOUT
 typedef union {
 	unsigned int reg;
 	struct {
-		unsigned int data:8;
-		unsigned int frame:1;
-		unsigned int wait_rd:1;
-		unsigned int wait_wr:1;
-		unsigned int resvd:21;
-	} fields;
-} e_syscfg_gpio_t;
+		unsigned int enable:1;
+		unsigned int mmu_enable:1;
+		unsigned int mmu_cfg:2;
+		unsigned int ctrlmode:4;
+		unsigned int ctrlmode_select:1;
+		unsigned int transmit_mode:3;
+	};
+} e_sys_txcfg_t;
 
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int enable:1;
+		unsigned int mmu_enable:1;
+		unsigned int mmu_cfg:2;
+		unsigned int remap_mask:12;
+		unsigned int remap_frame:12;
+		unsigned int timeout:2;
+	};
+} e_sys_rxcfg_t;
 
 // Core group data structures
 typedef struct {
