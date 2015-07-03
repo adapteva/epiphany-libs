@@ -1,7 +1,7 @@
 // Platform description for the
 // Parallella/1GB/E16G3
 PLATFORM_VERSION   PARALLELLA1601
-ESYS_REGS_BASE         0x70000000
+ESYS_REGS_BASE         0x81000000
 
 NUM_CHIPS                       1
 CHIP                      E16G301
