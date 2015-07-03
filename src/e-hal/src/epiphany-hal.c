@@ -940,6 +940,9 @@ ssize_t ee_write_esys(off_t to_addr, int data)
 // Helper function that disable the north, south, and west eLinks
 static int disable_nsw_elinks()
 {
+	/* TODO: Enable */
+	return E_OK;
+#if 0
 	e_syscfg_tx_t txcfg;
 	e_epiphany_t dev;
 	unsigned row, col;
@@ -951,16 +954,16 @@ static int disable_nsw_elinks()
 		return rc;
 
 	usleep(1000);
-	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
+	txcfg.reg = ee_read_esys(E_SYS_TXCFG);
 
 
 	/* Shut down north eLink */
 	row = 0;
 	col = 2;
-	txcfg.fields.ctrlmode = 0x1;
+	txcfg.ctrlmode = 0x1;
 
 	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	rc = ee_write_esys(E_SYS_TXCFG, txcfg.reg);
 	if (rc < 0)
 		goto err_close;
 
@@ -978,10 +981,10 @@ static int disable_nsw_elinks()
 	/* Shut down south eLink */
 	row = dev.type == E_E64G401 ? 7 : 3;
 	col = 2;
-	txcfg.fields.ctrlmode = 0x9;
+	txcfg.ctrlmode = 0x9;
 
 	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	rc = ee_write_esys(E_SYS_TXCFG, txcfg.reg);
 	if (rc < 0)
 		goto err_close;
 
@@ -999,10 +1002,10 @@ static int disable_nsw_elinks()
 	/* Shut down west eLink */
 	row = 2;
 	col = 0;
-	txcfg.fields.ctrlmode = 0xd;
+	txcfg.ctrlmode = 0xd;
 
 	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	rc = ee_write_esys(E_SYS_TXCFG, txcfg.reg);
 	if (rc < 0) {
 		rc = E_ERR;
 		goto err_close;
@@ -1020,9 +1023,9 @@ static int disable_nsw_elinks()
 
 
 	/* Reset TX ctrlmode */
-	txcfg.fields.ctrlmode = 0;
+	txcfg.ctrlmode = 0;
 	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
+	rc = ee_write_esys(E_SYS_TXCFG, txcfg.reg);
 	if (rc < 0)
 		goto err_close;
 
@@ -1036,6 +1039,7 @@ err_close:
 	e_close(&dev);
 
 	return rc;
+#endif
 }
 
 static int enable_clock_gating(void)
