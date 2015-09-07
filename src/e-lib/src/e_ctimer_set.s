@@ -30,11 +30,11 @@
 
 // ------------------------------------------------------------------------
 .section .text;
-.type    _e_ctimer_set, %function;
-.global  _e_ctimer_set;
+.type    e_ctimer_set, %function;
+.global  e_ctimer_set;
 
 .balign 4;
-_e_ctimer_set:
+e_ctimer_set:
 
         and   r0, r0, r0;                    // set the status to check which timer register
     //----
@@ -61,7 +61,7 @@ _ctimer1_set:
         rts;                                 // return with the current value of the ctimer
 
 
-.size    _e_ctimer_set, .-_e_ctimer_set;
+.size    e_ctimer_set, .-e_ctimer_set;
 
 
 /* ------------------------------------------------------------------------

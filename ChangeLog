@@ -1,3 +1,15 @@
+2015-09-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf: Adjust for Epiphany GCC
+	__USER_LABEL_PREFIX__ change from "_" to "".
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella64/legacy.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+	* src/e-lib/src/e_ctimer_get.s: Likewise.
+	* src/e-lib/src/e_ctimer_set.s: Likewise.
+	* src/e-lib/src/e_ctimer_start.s: Likewise.
+
 2015-05-22  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-hal/src/epiphany-hal.c (int e_free): Fix thinko that

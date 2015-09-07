@@ -28,11 +28,11 @@
 
 // ------------------------------------------------------------------------
 .section .text;
-.type    _e_ctimer_get, %function;
-.global  _e_ctimer_get;
+.type    e_ctimer_get, %function;
+.global  e_ctimer_get;
 
 .balign 4;
-_e_ctimer_get:
+e_ctimer_get:
 
         and   r0, r0, r0;                    // set the status to check which timer register
     //----
@@ -54,7 +54,7 @@ _ctimer1_get:
     //----
         rts;                                 // return with the current value of the ctimer
 
-.size    _e_ctimer_get, .-_e_ctimer_get;
+.size    e_ctimer_get, .-e_ctimer_get;
 
 
 /* ------------------------------------------------------------------------
