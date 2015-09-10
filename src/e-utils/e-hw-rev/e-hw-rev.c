@@ -30,6 +30,7 @@
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
 
+#if 0
 #ifndef countof
   #define countof(x)  (sizeof(x)/sizeof(x[0]))
 #endif
@@ -69,21 +70,25 @@ static char *type_strings_P1A[] = {
 };
 
 #define TYPE_MAX_P1A (countof(type_strings_P1A)-1)
+#endif
 
-void print_platform_info(e_syscfg_version_t *version)
+void print_platform_info(e_sys_version_t v)
 {
+#if 0
 	unsigned int revision = version->fields.revision;
 	unsigned int type = version->fields.type;
 	unsigned int platform = version->fields.platform;
 	unsigned int generation = version->fields.generation;
 	char *gen_str, *plat_str, *type_str;
+#endif
 
-	printf("Epiphany Hardware Version: %02x.%02x.%02x.%02x\n\n",
-			generation,
-			platform,
-			type,
-			revision);
+	printf("Epiphany Hardware:\n\tPlatform version: %02x revision: %02x\n\n",
+		v.platform,
+		v.revision);
 
+	/* TODO: Print meaningful strings instead of just numbers */
+
+#if 0
 	if ((generation & 0x80) != 0 && generation != 0xff) {
 		printf("DEBUG/EXPERIMENTAL Version Detected\n");
 		generation &= 0x7f;
@@ -120,11 +125,12 @@ void print_platform_info(e_syscfg_version_t *version)
 	printf("Revision   %d\n", revision);
 
 	printf("\n");
+#endif
 }
 
 int main()
 {
-	e_syscfg_version_t version;
+	e_sys_version_t version;
 
 	if (E_OK != e_init(NULL)) {
 		fprintf(stderr, "Epiphany HAL initialization failed\n");
@@ -133,7 +139,7 @@ int main()
 
 	version.reg = ee_read_esys(E_SYS_VERSION);
 
-	print_platform_info(&version);
+	print_platform_info(version);
 
 	e_finalize();
 
