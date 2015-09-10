@@ -1089,32 +1089,65 @@ err_close:
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	int rc;
-	unsigned int divider;
-	e_sys_txcfg_t txcfg    = { .reg = 0 };
-	e_sys_rxcfg_t rxcfg    = { .reg = 0 };
-	e_sys_clkcfg_t clkcfg  = { .reg = 0 };
-	e_sys_reset_t resetcfg = { .reg = 0 };
+	int rc = 0;
+	uint32_t divider;
+	uint32_t chipid;
+	e_sys_txcfg_t txcfg         = { .reg = 0 };
+	e_sys_rxcfg_t rxcfg         = { .reg = 0 };
+	e_sys_rx_dmacfg_t rx_dmacfg = { .reg = 0 };
+	e_sys_clkcfg_t clkcfg       = { .reg = 0 };
+	e_sys_reset_t resetcfg      = { .reg = 0 };
 	e_epiphany_t dev;
+
+#if 0
+	resetcfg.reset = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
+		goto err;
+	usleep(1000);
+
+	/* Do we need this ? */
+	resetcfg.reset = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
+		goto err;
+	usleep(1000);
+#endif
+
+#if 0 // ???
+	chipid = 0x808 /* >> 2 */;
+	if (sizeof(int) != ee_write_esys(E_SYS_CHIPID, chipid /* << 2 */))
+		goto err;
+	usleep(1000);
+#endif
+
+#if 1
+	txcfg.enable = 1;
+	txcfg.mmu_enable = 0;
+	if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
+		goto err;
+	usleep(1000);
+#endif
+
+	rxcfg.enable = 1;
+	rxcfg.mmu_enable = 0;
+	rxcfg.remap_cfg = 1; // "static" remap_addr
+	rxcfg.remap_mask = 0xfe0; // should be 0xfe0 ???
+	rxcfg.remap_base = 0x3e0;
+	if (sizeof(int) != ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
+		goto err;
+	usleep(1000);
+
+#if 0 // ?
+	rx_dmacfg.enable = 1;
+	if (sizeof(int) != ee_write_esys(E_SYS_RXDMACFG, rx_dmacfg.reg))
+		goto err;
+	usleep(1000);
+#endif
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Asserting RESET\n"); }
 
-	usleep(1000);
-	resetcfg.reset = 1;
-	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
-		goto err;
 
-	/* Do we need this ? */
-	usleep(1000);
-	resetcfg.reset = 0;
-	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
-		goto err;
-
-	return E_OK;
-
-err:
-	return E_ERR;
+	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): De-asserted RESET\n"); }
 
 #if 0
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
@@ -1165,7 +1198,7 @@ err:
 	if (sizeof(int) != ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
 		goto err;
 
-
+#endif
 	if (e_platform.type == E_ZEDBOARD1601 || e_platform.type == E_PARALLELLA1601) {
 		rc = E_ERR;
 
@@ -1209,8 +1242,6 @@ cleanup_platform:
 	if (E_OK != enable_clock_gating())
 		goto err;
 
-
-
 	usleep(1000);
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
 
@@ -1220,7 +1251,6 @@ err:
 	warnx("e_reset_system(): Failed\n");
 	usleep(1000);
 	return E_ERR;
-#endif
 }
 
 // Disable the Epiphany platform (by stopping c-clk)

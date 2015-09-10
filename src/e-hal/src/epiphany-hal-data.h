@@ -205,6 +205,7 @@ typedef enum {
 	E_SYS_VERSION	= 0xF020c,
 	E_SYS_TXCFG		= 0xF0210,
 	E_SYS_RXCFG		= 0xF0300,
+	E_SYS_RXDMACFG	= 0xF0500,
 } e_sys_reg_id_t;
 
 typedef union {
@@ -249,7 +250,7 @@ typedef union {
 	struct {
 		unsigned int enable:1;
 		unsigned int mmu_enable:1;
-		unsigned int mmu_cfg:2;
+		unsigned int remap_cfg:2;
 		unsigned int ctrlmode:4;
 		unsigned int ctrlmode_select:1;
 		unsigned int transmit_mode:3;
@@ -261,12 +262,27 @@ typedef union {
 	struct {
 		unsigned int enable:1;
 		unsigned int mmu_enable:1;
-		unsigned int mmu_cfg:2;
+		unsigned int remap_cfg:2;
 		unsigned int remap_mask:12;
-		unsigned int remap_frame:12;
+		unsigned int remap_base:12;
 		unsigned int timeout:2;
 	};
 } e_sys_rxcfg_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int enable:1;
+		unsigned int master_mode:1;
+		unsigned int __reserved1:3;
+		unsigned int width:2;
+		unsigned int __reserved2:3;
+		unsigned int message_mode:1;
+		unsigned int src_shift:1;
+		unsigned int dst_shift:1;
+	};
+} e_sys_rx_dmacfg_t;
+
 
 // Core group data structures
 typedef struct {
