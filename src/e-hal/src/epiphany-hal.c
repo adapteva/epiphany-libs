@@ -460,6 +460,21 @@ ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_ad
 	return sizeof(int);
 }
 
+static inline void *aligned_word_memcpy(uint32_t *__restrict__ dst,
+		const uint32_t *__restrict__ src, size_t size)
+{
+	void *ret = dst;
+
+	assert ((size % 4) == 0);
+	assert (((uintptr_t) src) % 4 == 0);
+	assert (((uintptr_t) dst) % 4 == 0);
+
+	size >>= 2;
+	while (size--)
+		*(dst++) = *(src++);
+
+	return ret;
+}
 
 static inline void *aligned_memcpy(void *__restrict__ dst,
 		const void *__restrict__ src, size_t size)
@@ -489,7 +504,7 @@ static inline void *aligned_memcpy(void *__restrict__ dst,
 		}
 
 		aligned_n = n & (~3);
-		memcpy((void *) d, (void *) s, aligned_n);
+		aligned_word_memcpy((uint32_t *) d, (uint32_t *) s, aligned_n);
 		d += aligned_n; s += aligned_n; n -= aligned_n;
 
 		/* Copy remainder in largest possible chunks */
@@ -585,7 +600,7 @@ ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t f
 		}
 	}
 	else
-		memcpy(buf, pfrom, size);
+		aligned_memcpy(buf, pfrom, size);
 
 	return size;
 }
