@@ -103,12 +103,6 @@ int main(int argc, char *argv[])
 			e_finalize();
 			exit(1);
 		}
-
-		/* Temporary hack until we have ref counting / freq control in
-		 * driver.
-		 */
-		e_reset_system();
-
 		sscanf(argv[iarg++], "%x", &addr);
 		addr = (addr >> 2) << 2;
 		e_open(&edev, row, col, 1, 1);
