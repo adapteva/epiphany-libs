@@ -466,8 +466,8 @@ static inline void *aligned_word_memcpy(uint32_t *__restrict__ dst,
 	void *ret = dst;
 
 	assert ((size % 4) == 0);
-	assert (((uintptr_t) src) % 4 == 0);
-	assert (((uintptr_t) dst) % 4 == 0);
+	assert ((size == 0) || ((uintptr_t) src) % 4 == 0);
+	assert ((size == 0) || ((uintptr_t) dst) % 4 == 0);
 
 	size >>= 2;
 	while (size--)
