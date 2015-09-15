@@ -1225,6 +1225,7 @@ int e_reset_system(void)
 		}
 
 		txcfg.ctrlmode = 0x5; /* Force east */
+		txcfg.ctrlmode_select = 0x1; /* */
 		usleep(1000);
 		if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 			goto cleanup_platform;
@@ -1235,6 +1236,7 @@ int e_reset_system(void)
 			goto cleanup_platform;
 
 		txcfg.ctrlmode = 0x0;
+		txcfg.ctrlmode_select = 0x0; /* */
 		usleep(1000);
 		if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 			goto cleanup_platform;
