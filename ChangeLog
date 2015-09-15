@@ -56,11 +56,6 @@
 
 2015-01-15  Ola Jeppsson  <ola@adapteva.com>
 
-	* src/e-utils/e-read/src/e-read.c (int main): Call
-	e_reset_system() before accessing Epiphany chip.
-
-2015-01-15  Ola Jeppsson  <ola@adapteva.com>
-
 	* src/e-utils/e-write/src/e-write.c (int main): Call
 	e_reset_system() before writing to Epiphany chip.
 
