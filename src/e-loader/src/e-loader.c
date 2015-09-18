@@ -76,13 +76,13 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 
 	if (dev && pemem)
 	{
-        // Allocate External DRAM for the epiphany executable code
-        // TODO: this is barely scalable. Really need to test ext. mem size to load
+		// Allocate External DRAM for the epiphany executable code
+		// TODO: this is barely scalable. Really need to test ext. mem size to load
 		// and possibly split the ext. mem accesses into 1MB chunks.
 		if (e_alloc(pemem, 0, EMEM_SIZE))
 		{
 			warnx("\nERROR: Can't allocate external memory buffer!\n\n");
-            return E_ERR;
+			return E_ERR;
 		}
 
 		if (executable[0] != '\0')
@@ -110,7 +110,7 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 			else
 			{
 				diag(L_D1) { fprintf(diag_fd, "e_load_group(): Executable header %02x %02x %02x %02x\n",
-                                     hdr[0], hdr[1], hdr[2], hdr[3]); }
+									 hdr[0], hdr[1], hdr[2], hdr[3]); }
 				warnx("ERROR: Can't load executable file: unidentified format.\n");
 				e_free(pemem);
 				return E_ERR;

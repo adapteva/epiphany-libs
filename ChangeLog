@@ -1,3 +1,8 @@
+2015-09-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/e-loader/src/e-loader.c: Convert line endings from DOS
+	to UNIX.
+
 2015-09-07  Ola Jeppsson  <ola@adapteva.com>
 
 	* bsps/parallella64/fast.ldf: Adjust for Epiphany GCC
