@@ -1180,8 +1180,8 @@ int e_reset_system(void)
 		if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 			goto cleanup_platform;
 
-		//divider = 1; /* Divide by 4, see data sheet */
-		divider = 0; /* Divide by 2, see data sheet */
+		divider = 1; /* Divide by 4, see data sheet */
+		//divider = 0; /* Divide by 2, see data sheet */
 		usleep(1000);
 		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
 			goto cleanup_platform;
