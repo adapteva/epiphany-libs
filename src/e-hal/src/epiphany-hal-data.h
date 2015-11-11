@@ -260,7 +260,7 @@ typedef union {
 typedef union {
 	unsigned int reg;
 	struct {
-		unsigned int enable:1;
+		unsigned int testmode:1;
 		unsigned int mmu_enable:1;
 		unsigned int remap_cfg:2;
 		unsigned int remap_mask:12;

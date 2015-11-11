@@ -1114,7 +1114,7 @@ int e_reset_system(void)
 	e_sys_reset_t resetcfg      = { .reg = 0 };
 	e_epiphany_t dev;
 
-#if 0
+#if 1
 	resetcfg.reset = 1;
 	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg.reg))
 		goto err;
@@ -1127,7 +1127,7 @@ int e_reset_system(void)
 	usleep(1000);
 #endif
 
-#if 0 // ???
+#if 1 // ???
 	chipid = 0x808 /* >> 2 */;
 	if (sizeof(int) != ee_write_esys(E_SYS_CHIPID, chipid /* << 2 */))
 		goto err;
@@ -1142,7 +1142,7 @@ int e_reset_system(void)
 	usleep(1000);
 #endif
 
-	rxcfg.enable = 1;
+	rxcfg.testmode = 0; /* bug/(feature?) workaround */
 	rxcfg.mmu_enable = 0;
 	rxcfg.remap_cfg = 1; // "static" remap_addr
 	rxcfg.remap_mask = 0xfe0; // should be 0xfe0 ???
@@ -1164,56 +1164,6 @@ int e_reset_system(void)
 
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): De-asserted RESET\n"); }
 
-#if 0
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
-	txcfg.reg = 0;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
-		goto err;
-	rxcfg.reg = 0;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
-	clkcfg.cclk_divider = 0; // Full speed
-	clkcfg.lclk_divider = 0; // Full speed
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
-		goto err;
-
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
-	clkcfg.divider = 0; // Stop clock
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Clearing RESET\n"); }
-	resetcfg = 0;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
-	clkcfg.divider = 7; // Full speed
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CLKCFG, clkcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
-	txcfg.clkmode = 0; // Full speed
-	txcfg.enable  = 1;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
-	rxcfg.enable = 1;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_RXCFG, rxcfg.reg))
-		goto err;
-
-#endif
 	if (e_platform.type == E_ZEDBOARD1601 || e_platform.type == E_PARALLELLA1601) {
 		rc = E_ERR;
 
@@ -1230,7 +1180,8 @@ int e_reset_system(void)
 		if (sizeof(int) != ee_write_esys(E_SYS_TXCFG, txcfg.reg))
 			goto cleanup_platform;
 
-		divider = 1; /* Divide by 4, see data sheet */
+		//divider = 1; /* Divide by 4, see data sheet */
+		divider = 0; /* Divide by 2, see data sheet */
 		usleep(1000);
 		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
 			goto cleanup_platform;
@@ -1248,7 +1199,7 @@ cleanup_platform:
 		if (rc != E_OK)
 			goto err;
 	}
-
+#if 1
 	usleep(1000);
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling north, south, and west eLinks\n"); }
 	if (E_OK != disable_nsw_elinks())
@@ -1258,6 +1209,7 @@ cleanup_platform:
 	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
 	if (E_OK != enable_clock_gating())
 		goto err;
+#endif
 
 	usleep(1000);
 	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
