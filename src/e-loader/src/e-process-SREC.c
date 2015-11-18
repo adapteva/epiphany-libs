@@ -29,7 +29,6 @@
 #include <assert.h>
 #include <elf.h>
 #include <err.h>
-#include <stdint.h>
 
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
@@ -52,22 +51,6 @@ typedef unsigned int uint;
 extern int e_load_verbose;
 extern FILE *diag_fd;
 
-/* WARNING: No error checking */
-void aligned_word_fread(void *ptr, size_t esize, size_t nmemb, FILE *stream)
-{
-	uint8_t *u8_ptr = (uint8_t *) ptr;
-	size_t need_align = ((uintptr_t) ptr & 3);
-	size_t size = esize * nmemb;
-
-	for (; need_align && size; need_align--, u8_ptr++)
-		size -= fread(u8_ptr, 1, 1, stream);
-
-	for (; size >= 4; u8_ptr += 4)
-		size -= fread(u8_ptr, 4, 1, stream);
-
-	for (; size; u8_ptr++)
-		size -= fread(u8_ptr, 1, 1, stream);
-}
 
 e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
 {
@@ -137,7 +120,7 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 			diag(L_D3) { fprintf(diag_fd, "to offset (0x%08x)...\n", (uint) pto); }
 		}
 		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
-		aligned_word_fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
+		fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
 	}
 
 	fclose(elfStream);
