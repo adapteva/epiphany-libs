@@ -1,5 +1,5 @@
 /*
- * a_trace.h
+ * e_trace.h
  *
  *  Created on: Feb 6, 2014
  *      Author: M Taveniku

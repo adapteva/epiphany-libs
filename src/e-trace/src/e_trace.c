@@ -1,5 +1,5 @@
 /*
- * a_trace.c
+ * e_trace.c
  *
  *  Created on: Feb 3, 2014
  *      Author: M Taveniku
@@ -16,8 +16,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <e-hal.h>
-#include "a_trace_shared.h"
-#include "a_trace.h"
+#include "e_trace_shared.h"
+#include "e_trace.h"
 
 /**
  *   Internal helper function definitions

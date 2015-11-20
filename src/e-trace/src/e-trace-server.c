@@ -1,5 +1,5 @@
 /*
- * a_trace_server.c
+ * e_trace_server.c
  *
  *  Created on: Feb 13, 2014
  *      Author: adadmin
@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <a_trace.h>
+#include <e_trace.h>
 
 char *traceVersion = "0.90";
 

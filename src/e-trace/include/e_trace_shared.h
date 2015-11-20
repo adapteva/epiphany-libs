@@ -1,5 +1,5 @@
 /*
- * a_trace_shared.h
+ * e_trace_shared.h
  *
  *  Created on: Apr 27, 2013
  *      Author: adadmin
