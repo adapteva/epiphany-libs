@@ -35,7 +35,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <linux/epiphany.h>
+#include "epiphany.h"
 #include <memman.h>
 
 #include "epiphany-hal.h"
