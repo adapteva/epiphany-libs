@@ -36,7 +36,6 @@ AM_SILENT_RULES([yes])
 AC_PROG_CXX
 AC_PROG_AWK
 AC_PROG_CC_C99
-AX_PROG_CC_FOR_BUILD # Check for native compiler (cross-compilation)
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
