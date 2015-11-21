@@ -55,7 +55,7 @@ LT_INIT
 
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h inttypes.h stddef.h stdint.h stdlib.h string.h sys/ioctl.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
 
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -79,7 +79,7 @@ AC_TYPE_SSIZE_T
 AC_FUNC_ALLOCA
 #AC_FUNC_MALLOC # Don't do it. Assume GNU libc compatible malloc.
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([gettimeofday memset munmap pow strerror strtol])
+AC_CHECK_FUNCS([gettimeofday inet_ntoa memchr memmove memset munmap pow realpath socket strcasecmp strchr strerror strstr strtol strtoul])
 
 
 AC_CONFIG_FILES([Makefile])
