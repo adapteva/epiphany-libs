@@ -1,19 +1,27 @@
+# TODO: Some of these are private and should not be installed.
+include_HEADERS +=                  \
+e-hal/src/e-loader.h                \
+e-hal/src/e-hal.h                   \
+e-hal/src/epiphany-hal-api.h        \
+e-hal/src/epiphany-hal-api-local.h  \
+e-hal/src/epiphany-hal-data.h       \
+e-hal/src/epiphany-hal-data-local.h \
+e-hal/src/epiphany-hal.h
+
+# TODO: Deprecate (remove) in next release.
+include_HEADERS +=                  \
+e-hal/src/e_loader.h
+
+
 lib_LTLIBRARIES += libe-loader.la libe-hal.la
 
 libe_loader_la_SOURCES =            \
 e-hal/src/e-loader.c                \
-e-hal/src/e-loader.h                \
 e-hal/src/e-process-SREC.c
 
 libe_hal_la_SOURCES =               \
-e-hal/src/e-hal.h                   \
 e-hal/src/epiphany.h                \
-e-hal/src/epiphany-hal-api.h        \
-e-hal/src/epiphany-hal-api-local.h  \
 e-hal/src/epiphany-hal.c            \
-e-hal/src/epiphany-hal-data.h       \
-e-hal/src/epiphany-hal-data-local.h \
-e-hal/src/epiphany-hal.h            \
 e-hal/src/epiphany-hal-legacy.c     \
 e-hal/src/epiphany-memman.c         \
 e-hal/src/epiphany-shm-manager.c    \
