@@ -24,7 +24,7 @@ AC_CANONICAL_HOST
 
 
 # Initialize automake
-AM_INIT_AUTOMAKE([-Wall -Werror])
+AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror])
 
 
 # Support silent build rules. Disable by either passing --disable-silent-rules
