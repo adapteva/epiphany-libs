@@ -1,6 +1,8 @@
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS  = -I m4
 
+SUBDIRS = e-lib
+
 EXTRA_DIST       =
 lib_LTLIBRARIES  =
 bin_PROGRAMS     =

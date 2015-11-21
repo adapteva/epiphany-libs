@@ -21,6 +21,7 @@ AC_CONFIG_MACRO_DIR([m4])
 # Support cross compilation
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
 
 
 # Initialize automake
@@ -84,7 +85,6 @@ AC_CHECK_FUNCS([gettimeofday inet_ntoa memchr memmove memset munmap pow realpath
 
 AC_CONFIG_FILES([Makefile])
 
-
 # Define the --enable-assert command-line option
 AC_ARG_ENABLE(assert,
   [AS_HELP_STRING([--enable-assert], [Build with assertions enabled])],
@@ -94,10 +94,82 @@ AS_IF([test "x$enable_assert" = "xyes"],
   [AC_SUBST(assert_CPPFLAGS, [''])],
   [AC_SUBST(assert_CPPFLAGS, ['-DNDEBUG'])])
 
+
+AC_ARG_WITH(target-prefix,
+  [AS_HELP_STRING([--with-target-prefix=PREFIX],
+                  [install target files in PREFIX (e-lib)])],
+  [target_prefix="$withval"])
+
+
+AC_ARG_WITH(bsps-dir,
+  [AS_HELP_STRING([--with-bsps-dir=DIR],
+                  [install BSPs in DIR])],
+  [bspsdir="$withval"], [bspsdir='${datadir}/epiphany/bsps'])
+AC_SUBST(BSPSDIR, [$bspsdir])
+AC_SUBST(bspsdir, [$bspsdir])
+
+
 # Easiest way to include header files globally
 AC_SUBST([AM_CPPFLAGS],
   ['-I$(top_srcdir) -I$(top_srcdir)/e-hal/src -I$(top_srcdir)/e-xml/src -I$(top_srcdir)/e-trace/include -I$(top_builddir) $(assert_CPPFLAGS)'])
 
 AC_SUBST([AM_LDFLAGS])
+
+
+
+# This is the messy part. We need to set the host to epiphany-elf and adjust
+# the prefix for e-lib.
+
+save_prefix=$prefix
+save_exec_prefix=$exec_prefix
+save_target=$target
+save_ac_configure_args=$ac_configure_args
+
+host_ac_configure_args=$ac_configure_args
+ac_configure_args=
+have_target_arg=
+
+# Whitelist arguments
+for host_arg in $host_ac_configure_args
+do
+AS_CASE([$host_arg],
+        [*--target=*],       [have_target_arg=true],
+        [*--enable-assert*], [ac_configure_args="$ac_configure_args $host_arg"],
+        [*--disable-assert*],[ac_configure_args="$ac_configure_args $host_arg"],
+        [])
+done
+
+# Set default target if none provided
+test "x$have_target_arg" = x && target="epiphany-elf"
+
+# Verify target
+AS_CASE([$target],
+        [epiphany-elf], [],
+        [AC_MSG_ERROR(["Invalid target, must be epiphany-elf."])])
+
+# Insert target as host
+ac_configure_args="--host=$target $ac_configure_args"
+
+# Expand default prefix NOW.
+test "x$prefix" = xNONE && host_prefix=$ac_default_prefix || host_prefix=$prefix
+test "x$target_prefix" = x && target_prefix="${host_prefix}/${target}"
+prefix=$target_prefix
+exec_prefix=$prefix
+
+# Insert target prefix
+ac_configure_args="$ac_configure_args --prefix=${target_prefix}"
+
+# Custom command that configures subdir NOW, so we can restore variables after.
+AX_CONFIG_DIR([e-lib])
+
+# Restore variables
+prefix=$save_prefix
+exec_prefix=$save_exec_prefix
+target=$save_target
+ac_configure_args=$save_ac_configure_args
+
+
+AC_SUBST(TARGET_PREFIX, [$target_prefix])
+AC_SUBST(target_prefix, [$target_prefix])
 
 AC_OUTPUT
