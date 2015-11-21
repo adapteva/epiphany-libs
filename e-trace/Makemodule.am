@@ -14,11 +14,11 @@ libe_trace_la_SOURCES = e-trace/src/e_trace.c
 libe_trace_la_LIBADD  = $(ETRACE_LIBS)
 
 bin_PROGRAMS +=                         \
-e-trace-server                          \
-e-trace-dump
+e-trace/e-trace-server                  \
+e-trace/e-trace-dump
 
-e_trace_server_SOURCES = e-trace/src/e-trace-server.c
-e_trace_dump_SOURCES   = e-trace/src/e-trace-dump.c
+e_trace_e_trace_server_SOURCES = e-trace/src/e-trace-server.c
+e_trace_e_trace_dump_SOURCES   = e-trace/src/e-trace-dump.c
 
-e_trace_server_LDADD   = libe-trace.la
-e_trace_dump_LDADD     = libe-trace.la
+e_trace_e_trace_server_LDADD   = libe-trace.la
+e_trace_e_trace_dump_LDADD     = libe-trace.la
