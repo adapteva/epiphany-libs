@@ -6,11 +6,11 @@
 #m4_pattern_allow([AC_CHECK_HEADER_STDBOOL])
 
 AC_PREREQ([2.64])
-AC_INIT([e-utils: Epiphany Utils], [0.1],
-        [https://github.com/adapteva/epiphany-sdk/issues], [e-utils],
+AC_INIT([epiphany-libs: Epiphany Libraries], [0.1],
+        [https://github.com/adapteva/epiphany-sdk/issues], [epiphany-libs],
         [https://github.com/adapteva/epiphany-libs])
 
-AC_CONFIG_SRCDIR([src/e-reset.c])
+AC_CONFIG_SRCDIR([README])
 AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_AUX_DIR([build-aux])
@@ -55,15 +55,31 @@ LT_INIT
 
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdlib.h string.h])
+AC_CHECK_HEADERS([fcntl.h inttypes.h stddef.h stdint.h stdlib.h string.h sys/ioctl.h sys/time.h unistd.h])
 
 
 # Checks for typedefs, structures, and compiler characteristics.
+AC_CHECK_HEADER_STDBOOL
+AC_C_INLINE
+AC_TYPE_INT8_T
+AC_TYPE_INT16_T
+AC_TYPE_INT32_T
+AC_TYPE_INT64_T
+AC_TYPE_UINT8_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
 AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
 
 
 # Checks for library functions.
+AC_FUNC_ALLOCA
 #AC_FUNC_MALLOC # Don't do it. Assume GNU libc compatible malloc.
+AC_FUNC_MMAP
+AC_CHECK_FUNCS([gettimeofday memset munmap pow strerror strtol])
 
 
 AC_CONFIG_FILES([Makefile])
@@ -80,7 +96,7 @@ AS_IF([test "x$enable_assert" = "xyes"],
 
 # Easiest way to include header files globally
 AC_SUBST([AM_CPPFLAGS],
-  ['-I$(top_srcdir)/src -I$(top_srcdir)/../e-hal/src -I$(top_srcdir)/include -I$(top_builddir) -I$(top_srcdir)/.. $(assert_CPPFLAGS)'])
+  ['-I$(top_srcdir) -I$(top_srcdir)/e-hal/src -I$(top_srcdir)/e-xml/src -I$(top_srcdir)/e-trace/include -I$(top_builddir) $(assert_CPPFLAGS)'])
 
 AC_SUBST([AM_LDFLAGS])
 

@@ -1,0 +1,39 @@
+ESERVER_LIBS =                                   \
+$(top_builddir)/libe-hal.la                      \
+$(top_builddir)/libe-loader.la                   \
+$(top_builddir)/libe-xml.la
+
+# The e-server binary has the same name as its parent directory. Therefore we
+# need to output it in a directory to avoid name conflict.
+bin_PROGRAMS += e-server/e-server
+
+e_server_e_server_SOURCES =                      \
+e-server/src/CoreId.cpp                          \
+e-server/src/CoreId.h                            \
+e-server/src/GdbServer.cpp                       \
+e-server/src/GdbServer.h                         \
+e-server/src/libgloss_syscall.h                  \
+e-server/src/maddr_defs.h                        \
+e-server/src/main.cpp                            \
+e-server/src/MemRange.cpp                        \
+e-server/src/MemRange.h                          \
+e-server/src/MpHash.cpp                          \
+e-server/src/MpHash.h                            \
+e-server/src/ProcessInfo.cpp                     \
+e-server/src/ProcessInfo.h                       \
+e-server/src/RspConnection.cpp                   \
+e-server/src/RspConnection.h                     \
+e-server/src/RspPacket.cpp                       \
+e-server/src/RspPacket.h                         \
+e-server/src/ServerInfo.cpp                      \
+e-server/src/ServerInfo.h                        \
+e-server/src/TargetControl.cpp                   \
+e-server/src/TargetControl.h                     \
+e-server/src/TargetControlHardware.cpp           \
+e-server/src/TargetControlHardware.h             \
+e-server/src/Thread.cpp                          \
+e-server/src/Thread.h                            \
+e-server/src/Utils.cpp                           \
+e-server/src/Utils.h
+
+e_server_e_server_LDADD = -ldl $(ESERVER_LIBS)

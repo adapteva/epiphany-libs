@@ -1,0 +1,29 @@
+EXTRA_DIST +=                           \
+e-utils/archive/e-eclipse               \
+e-utils/archive/e-objcopy
+
+EUTILS_LIBS =                           \
+$(top_builddir)/libe-hal.la             \
+$(top_builddir)/libe-loader.la
+
+bin_PROGRAMS +=                         \
+e-clear-shmtable                        \
+e-hw-rev                                \
+e-loader                                \
+e-read                                  \
+e-reset                                 \
+e-write
+
+e_clear_shmtable_SOURCES = e-utils/src/e-clear-shmtable.c
+e_hw_rev_SOURCES         = e-utils/src/e-hw-rev.c
+e_loader_SOURCES         = e-utils/src/e-loader.c
+e_read_SOURCES           = e-utils/src/e-read.c
+e_reset_SOURCES          = e-utils/src/e-reset.c
+e_write_SOURCES          = e-utils/src/e-write.c
+
+e_clear_shmtable_LDADD   = $(EUTILS_LIBS)
+e_hw_rev_LDADD           = $(EUTILS_LIBS)
+e_loader_LDADD           = $(EUTILS_LIBS)
+e_read_LDADD             = $(EUTILS_LIBS)
+e_reset_LDADD            = $(EUTILS_LIBS)
+e_write_LDADD            = $(EUTILS_LIBS)
