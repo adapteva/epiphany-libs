@@ -6,7 +6,7 @@
  */
 
 
-#include "e_trace.h"
+#include "e-trace.h"
 #include <stdio.h>
 
 int main(int argc, char** argv)

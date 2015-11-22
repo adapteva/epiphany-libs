@@ -5,7 +5,10 @@ ETRACE_LIBS =                           \
 $(top_builddir)/libe-hal.la             \
 $(top_builddir)/libe-loader.la
 
-include_HEADERS += e-trace/include/e_trace.h
+include_HEADERS +=                      \
+e-trace/include/e-trace.h               \
+e-trace/include/a_trace.h
+
 noinst_HEADERS  += e-trace/include/e_trace_shared.h
 
 lib_LTLIBRARIES += libe-trace.la

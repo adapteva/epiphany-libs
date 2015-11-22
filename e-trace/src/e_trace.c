@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <e-hal.h>
 #include "e_trace_shared.h"
-#include "e_trace.h"
+#include <e-trace.h>
 
 /**
  *   Internal helper function definitions

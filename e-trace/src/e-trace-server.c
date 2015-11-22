@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <e_trace.h>
+#include <e-trace.h>
 
 char *traceVersion = "0.90";
 
