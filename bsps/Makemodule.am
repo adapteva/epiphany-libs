@@ -29,10 +29,10 @@ bsps/parallella_E16G3_1GB/parallella_E16G3_1GB.hdf
 # Add symlinks
 install-data-hook:
 	cd $(DESTDIR)$(bspsdir) && \
-	    $(LN_S) parallella_E16G3_1GB current
+	    $(LN_S) -f parallella_E16G3_1GB current
 	cd $(DESTDIR)$(bsps_parallella16dir) && \
-	    $(LN_S) parallella_E16G3_1GB.hdf platform.hdf && \
-	    $(LN_S) parallella_E16G3_1GB.xml platform.xml
+	    $(LN_S) -f parallella_E16G3_1GB.hdf platform.hdf && \
+	    $(LN_S) -f parallella_E16G3_1GB.xml platform.xml
 
 
 uninstall-local:
