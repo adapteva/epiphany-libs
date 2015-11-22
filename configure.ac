@@ -21,7 +21,9 @@ AC_CONFIG_MACRO_DIR([m4])
 # Support cross compilation
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
-AC_CANONICAL_TARGET
+# Don't use autoconf machinery for configuring e-lib target.
+# See --with-target
+# AC_CANONICAL_TARGET
 
 
 # Initialize automake
@@ -95,6 +97,17 @@ AS_IF([test "x$enable_assert" = "xyes"],
   [AC_SUBST(assert_CPPFLAGS, ['-DNDEBUG'])])
 
 
+AC_ARG_WITH(target,
+  [AS_HELP_STRING([--with-target=ARCH],
+                  [target architecture (used for e-lib)])],
+  [], [with_target="epiphany-elf"])
+
+# Verify target
+AS_CASE([$with_target],
+        [epiphany-elf], [],
+        [AC_MSG_ERROR(["Invalid target ${with_target}, must be epiphany-elf."])])
+
+
 AC_ARG_WITH(target-prefix,
   [AS_HELP_STRING([--with-target-prefix=PREFIX],
                   [install target files in PREFIX (e-lib)])],
@@ -122,37 +135,27 @@ AC_SUBST([AM_LDFLAGS])
 
 save_prefix=$prefix
 save_exec_prefix=$exec_prefix
-save_target=$target
 save_ac_configure_args=$ac_configure_args
 
 host_ac_configure_args=$ac_configure_args
 ac_configure_args=
-have_target_arg=
 
 # Whitelist arguments
 for host_arg in $host_ac_configure_args
 do
 AS_CASE([$host_arg],
-        [*--target=*],       [have_target_arg=true],
         [*--enable-assert*], [ac_configure_args="$ac_configure_args $host_arg"],
         [*--disable-assert*],[ac_configure_args="$ac_configure_args $host_arg"],
         [])
 done
 
-# Set default target if none provided
-test "x$have_target_arg" = x && target="epiphany-elf"
-
-# Verify target
-AS_CASE([$target],
-        [epiphany-elf], [],
-        [AC_MSG_ERROR(["Invalid target, must be epiphany-elf."])])
 
 # Insert target as host
-ac_configure_args="--host=$target $ac_configure_args"
+ac_configure_args="--host=$with_target $ac_configure_args"
 
 # Expand default prefix NOW.
 test "x$prefix" = xNONE && host_prefix=$ac_default_prefix || host_prefix=$prefix
-test "x$target_prefix" = x && target_prefix="${host_prefix}/${target}"
+test "x$target_prefix" = x && target_prefix="${host_prefix}/${with_target}"
 prefix=$target_prefix
 exec_prefix=$prefix
 
@@ -165,7 +168,6 @@ AX_CONFIG_DIR([e-lib])
 # Restore variables
 prefix=$save_prefix
 exec_prefix=$save_exec_prefix
-target=$save_target
 ac_configure_args=$save_ac_configure_args
 
 
