@@ -6,7 +6,8 @@ e-hal/src/epiphany-hal-api.h        \
 e-hal/src/epiphany-hal-api-local.h  \
 e-hal/src/epiphany-hal-data.h       \
 e-hal/src/epiphany-hal-data-local.h \
-e-hal/src/epiphany-hal.h
+e-hal/src/epiphany-hal.h            \
+e-hal/src/epiphany-shm-manager.h
 
 # TODO: Deprecate (remove) in next release.
 include_HEADERS +=                  \
@@ -25,7 +26,6 @@ e-hal/src/epiphany-hal.c            \
 e-hal/src/epiphany-hal-legacy.c     \
 e-hal/src/epiphany-memman.c         \
 e-hal/src/epiphany-shm-manager.c    \
-e-hal/src/epiphany-shm-manager.h    \
 e-hal/src/memman.h
 libe_hal_la_LIBADD = libe-loader.la
 
