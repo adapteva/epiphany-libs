@@ -1,0 +1,27 @@
+EXTRA_DIST +=                           \
+e-trace/src/e-trace-dma.c
+
+ETRACE_LIBS =                           \
+$(top_builddir)/libe-hal.la             \
+$(top_builddir)/libe-loader.la
+
+include_HEADERS +=                      \
+e-trace/include/e-trace.h               \
+e-trace/include/a_trace.h
+
+noinst_HEADERS  += e-trace/include/e_trace_shared.h
+
+lib_LTLIBRARIES += libe-trace.la
+
+libe_trace_la_SOURCES = e-trace/src/e_trace.c
+libe_trace_la_LIBADD  = $(ETRACE_LIBS)
+
+bin_PROGRAMS +=                         \
+e-trace/e-trace-server                  \
+e-trace/e-trace-dump
+
+e_trace_e_trace_server_SOURCES = e-trace/src/e-trace-server.c
+e_trace_e_trace_dump_SOURCES   = e-trace/src/e-trace-dump.c
+
+e_trace_e_trace_server_LDADD   = libe-trace.la
+e_trace_e_trace_dump_LDADD     = libe-trace.la

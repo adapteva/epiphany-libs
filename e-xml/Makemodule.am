@@ -1,0 +1,15 @@
+EXTRA_DIST +=                   \
+e-xml/src/parse_c.c             \
+e-xml/src/parse.cpp
+
+lib_LTLIBRARIES += libe-xml.la
+
+libe_xml_la_SOURCES =           \
+e-xml/src/epiphany_platform.h   \
+e-xml/src/epiphany_xml_c.h      \
+e-xml/src/epiphany_xml.cpp      \
+e-xml/src/epiphany_xml.h        \
+e-xml/src/xml.cpp               \
+e-xml/src/xml.h
+
+#lib_e_xml_la_LDFLAGS = -export-symbols-regex '^e_|^e_xml'

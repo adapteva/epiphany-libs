@@ -1,0 +1,3 @@
+#!/bin/sh
+(echo bootstrapping e-lib/ && cd e-lib && ./bootstrap) &&
+echo bootstrapping / && autoreconf -i --force

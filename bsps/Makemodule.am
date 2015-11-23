@@ -1,0 +1,41 @@
+EXTRA_DIST +=                                                           \
+$(bsps_symlinks)                                                        \
+$(bsps_parallella64_DATA)                                               \
+$(bsps_parallella16_DATA)
+
+bsps_symlinks =                                                         \
+bsps/parallella_E16G3_1GB/platform.xml                                  \
+bsps/parallella_E16G3_1GB/platform.hdf
+
+bsps_parallella64dir = $(bspsdir)/parallella64
+bsps_parallella64_DATA =                                                \
+bsps/parallella64/internal.ldf                                          \
+bsps/parallella64/legacy.ldf                                            \
+bsps/parallella64/fast.ldf                                              \
+bsps/parallella64/platform.xml                                          \
+bsps/parallella64/platform.hdf
+
+bsps_parallella16dir = $(bspsdir)/parallella_E16G3_1GB
+bsps_parallella16_DATA =                                                \
+bsps/parallella_E16G3_1GB/parallella_prototype_quick_start_guide.pdf    \
+bsps/parallella_E16G3_1GB/internal.ldf                                  \
+bsps/parallella_E16G3_1GB/parallella_E16G3_1GB.xml                      \
+bsps/parallella_E16G3_1GB/parallella_16_memory_map.pdf                  \
+bsps/parallella_E16G3_1GB/legacy.ldf                                    \
+bsps/parallella_E16G3_1GB/parallella_16_sdk_memory_map.pdf              \
+bsps/parallella_E16G3_1GB/fast.ldf                                      \
+bsps/parallella_E16G3_1GB/parallella_E16G3_1GB.hdf
+
+# Add symlinks
+install-data-hook:
+	cd $(DESTDIR)$(bspsdir) && \
+	    $(LN_S) -f parallella_E16G3_1GB current
+	cd $(DESTDIR)$(bsps_parallella16dir) && \
+	    $(LN_S) -f parallella_E16G3_1GB.hdf platform.hdf && \
+	    $(LN_S) -f parallella_E16G3_1GB.xml platform.xml
+
+
+uninstall-local:
+	rm $(DESTDIR)$(bspsdir)/current
+	rm $(DESTDIR)$(bsps_parallella16dir)/platform.hdf
+	rm $(DESTDIR)$(bsps_parallella16dir)/platform.xml

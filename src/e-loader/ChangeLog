@@ -1,9 +1,0 @@
-2014-05-14  Ben Chaco  <bchaco@x3-c.com>
-
-	* src/e-loader/Debug/makefile: Removed file.
-	* src/e-loader/Debug/objects.mk: Removed file.
-	* src/e-loader/Debug/sources.mk: Removed file.
-	* src/e-loader/Release/makefile: Removed file.
-	* src/e-loader/Release/objects.mk: Removed file.
-	* src/e-loader/Release/sources.mk: Removed file.
-	
