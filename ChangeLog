@@ -1,3 +1,16 @@
+2015-11-20-2015-11-23  Ola Jeppsson  <ola@adapteva.com>
+
+	Major refactoring.
+	Switch to Autotools based build system.
+	* e-utils: Moved from src/e-utils. Split trace stuff into...
+	* e-trace: ...added.
+	* e-hal: Moved from src/e-hal.
+	* src/e-loader: Code moved into e-hal.
+	* src/e-memman: Code moved into e-hal.
+	* e-server: Moved from src/e-server.
+	* e-xml: Moved from src/e-xml.
+	* e-lib: Moved from src/e-lib.
+
 2015-09-18  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/e-loader/src/e-loader.c: Convert line endings from DOS
