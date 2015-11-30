@@ -23,12 +23,17 @@
   <http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <elf.h>
 #include <err.h>
+
+#ifdef ESIM_BACKEND
+#include "esim.h"
+#endif
 
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
@@ -63,6 +68,10 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 	unsigned   globrow, globcol;
 	unsigned   CoreID;
 	int        status = E_OK;
+#ifdef ESIM_BACKEND
+	void      *buf = NULL;
+	uint32_t   addr;
+#endif
 
 
 	islocal   = E_FALSE;
@@ -90,6 +99,20 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 
 		diag(L_D3) { fprintf(diag_fd, "ee_process_ELF(): copying the data (%d bytes)", phdr[ihdr].p_filesz); }
 
+#ifdef ESIM_BACKEND
+		addr = phdr[ihdr].p_vaddr;
+		if (islocal)
+		{
+			addr |= (pEpiphany->core[row][col].id << 20);
+		}
+		buf = realloc(buf, phdr[ihdr].p_filesz);
+		fread(buf, phdr[ihdr].p_filesz, sizeof(char), elfStream);
+		if (ES_OK != es_mem_store(pEMEM->esim, addr, phdr[ihdr].p_filesz, buf))
+		{
+			fprintf(diag_fd, "ee_process_ELF(): Error: ESIM error writing to 0x%x", addr);
+			return E_ERR;
+		}
+#else
 		if (islocal)
 		{
 			// If this is a local address
@@ -121,7 +144,12 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 		}
 		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
 		fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
+#endif
 	}
+
+#ifdef ESIM_BACKEND
+	free(buf);
+#endif
 
 	fclose(elfStream);
 

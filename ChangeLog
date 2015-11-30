@@ -1,5 +1,10 @@
 2015-11-30  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/e-process-SREC.c [ESIM_BACKEND]: Include esim.h.
+	(ee_process_elf) [ESIM_BACKEND]: Add ESIM implementation.
+
+2015-11-30  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Add esim handle.
 	* e-hal/src/epiphany-hal-data.h (e_epiphany_t): Likewise.
 	(e_mem_t): Likewise.
