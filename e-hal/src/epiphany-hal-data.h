@@ -272,6 +272,7 @@ typedef union {
 	} fields;
 } e_syscfg_gpio_t;
 
+typedef struct es_state_ es_state;
 
 // Core group data structures
 typedef struct {
@@ -285,6 +286,8 @@ typedef struct {
 	unsigned int	 cols;		  // number of cols group
 	e_core_t	   **core;		  // e-cores data structures array
 	int				 memfd;		  // for mmap
+
+	es_state		*esim;        // ESIM handle
 } e_epiphany_t;
 
 
@@ -299,6 +302,8 @@ typedef struct {
 	void			*mapped_base; // for mmap
 	void			*base;		  // application (virtual) space base address of external memory buffer
 	int				 memfd;		  // for mmap
+
+	es_state		*esim;        // ESIM handle
 } e_mem_t;
 
 #define ALIGN(x)	__attribute__ ((aligned (x)))

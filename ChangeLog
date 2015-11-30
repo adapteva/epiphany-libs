@@ -1,3 +1,27 @@
+2015-11-30  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Add esim handle.
+	* e-hal/src/epiphany-hal-data.h (e_epiphany_t): Likewise.
+	(e_mem_t): Likewise.
+	* e-hal/src/epiphany-hal.c [ESIM_BACKEND]: Include esim.h
+	(e_open) [ESIM_BACKEND]: Call es_slave_connect().
+	[!ESIM_BACKEND]: Make calls to mmap() / open() conditional.
+	(e_close) [!ESIM_BACKEND]: Make calls to munmap() / close()
+	conditional.
+	(ee_read_word) [ESIM_BACKEND]: Add esim implementation.
+	(ee_write_word) [ESIM_BACKEND]: Likewise.
+	(ee_read_buf) [ESIM_BACKEND]: Likewise.
+	(ee_write_buf) [ESIM_BACKEND]: Likewise.
+	(ee_read_reg) [ESIM_BACKEND]: Likewise.
+	(ee_write_reg) [ESIM_BACKEND]: Likewise.
+	(ee_mread_word) [ESIM_BACKEND]: Likewise.
+	(ee_mwrite_word) [ESIM_BACKEND]: Likewise.
+	(ee_mread_buf) [ESIM_BACKEND]: Likewise.
+	(ee_mwrite_buf) [ESIM_BACKEND]: Likewise.
+	(ee_read_esys) [ESIM_BACKEND]: Add ESIM placeholder. Return error.
+	(ee_write_esys) [ESIM_BACKEND]: Likewise.
+	(e_reset_system) [ESIM_BACKEND]: Add esim implementation.
+
 2015-11-20-2015-11-23  Ola Jeppsson  <ola@adapteva.com>
 
 	Major refactoring.
