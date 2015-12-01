@@ -1536,7 +1536,9 @@ int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): pausing DMAs.\n"); }
 	e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
 
+#ifndef ESIM_BACKEND
 	usleep(100000);
+#endif
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
 	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
@@ -1565,7 +1567,9 @@ int e_reset_group(e_epiphany_t *dev)
 		for (col=0; col<dev->cols; col++)
 			e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
 
+#ifndef ESIM_BACKEND
 	usleep(100000);
+#endif
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): resetting cores...\n"); }
 	for (row=0; row<dev->rows; row++)
