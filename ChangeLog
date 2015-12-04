@@ -1,5 +1,13 @@
 2015-12-04  Ola Jeppsson  <ola@adapteva.com>
 
+	* configure.ac (CFLAGS): Set to CFLAGS_FOR_TARGET when configuring
+	e-lib.
+	(CXXFLAGS): Likewise, but CXXFLAGS_FOR_TARGET.
+	(CPPFLAGS): Likewise, but CPPFLAGS_FOR_TARGET.
+	(LDFLAGS): Likewise, but LDFLAGS_FOR_TARGET.
+
+2015-12-04  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-lib/src/e_mutex_barrier.c (e_barrier): tgt_bar_array should be an
 	array of pointers to volatile e_barrier_t.
 	* e-lib/src/e_mutex_barrier_init.c (e_barrier_init): Likewise.
