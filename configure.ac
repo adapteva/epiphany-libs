@@ -136,9 +136,17 @@ AC_SUBST([AM_LDFLAGS])
 save_prefix=$prefix
 save_exec_prefix=$exec_prefix
 save_ac_configure_args=$ac_configure_args
+save_CFLAGS=$CFLAGS
+save_CPPFLAGS=$CPPFLAGS
+save_CXXFLAGS=$CXXFLAGS
+save_LDFLAGS=$LDFLAGS
 
 host_ac_configure_args=$ac_configure_args
 ac_configure_args=
+CFLAGS=${CFLAGS_FOR_TARGET:-"-g -O2"}
+CXXFLAGS=${CXXFLAGS_FOR_TARGET:-"-g -O2"}
+CPPFLAGS=$CPPFLAGS_FOR_TARGET
+LDFLAGS=$LDFLAGS_FOR_TARGET
 
 # Whitelist arguments
 for host_arg in $host_ac_configure_args
@@ -169,6 +177,10 @@ AX_CONFIG_DIR([e-lib])
 prefix=$save_prefix
 exec_prefix=$save_exec_prefix
 ac_configure_args=$save_ac_configure_args
+CFLAGS=$save_CFLAGS
+CPPFLAGS=$save_CPPFLAGS
+CXXFLAGS=$save_CXXFLAGS
+LDFLAGS=$save_LDFLAGS
 
 
 AC_SUBST(TARGET_PREFIX, [$target_prefix])

@@ -1,3 +1,11 @@
+2015-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* configure.ac (CFLAGS): Set to CFLAGS_FOR_TARGET when configuring
+	e-lib.
+	(CXXFLAGS): Likewise, but CXXFLAGS_FOR_TARGET.
+	(CPPFLAGS): Likewise, but CPPFLAGS_FOR_TARGET.
+	(LDFLAGS): Likewise, but LDFLAGS_FOR_TARGET.
+
 2015-11-20-2015-11-23  Ola Jeppsson  <ola@adapteva.com>
 
 	Major refactoring.
