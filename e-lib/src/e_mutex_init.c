@@ -29,14 +29,19 @@
 
 void e_mutex_init(unsigned row, unsigned col, e_mutex_t *mutex, e_mutexattr_t *attr)
 {
-	e_mutex_t *gmutex;
+	/* Unused */
+	(void) row;
+	(void) col;
+	(void) mutex;
+	(void) attr;
 
-    /* Unused */
-    (void)attr;
+	/* This function is on probation and is currently a no-op.
+	 * For correctness, ensure that mutex is statically zero-initialized. */
 
-	gmutex = (e_mutex_t *) e_get_global_address(row, col, mutex);
-
-	*gmutex = 0x0;
+	/* Previously, mutex was cleared here. That's incorrect behavior as it
+	 * imposes a race condition between any core's completion of e_mutex_init()
+	 * and any other cores' call to e_mutex_lock(). To avoid that, it is now a
+	 * requirement that mutex is statically initialized to 0. */
 
 	return;
 }

@@ -23,17 +23,24 @@
   <http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
+
 #include "e_coreid.h"
 #include "e_mutex.h"
 
 
 void e_mutex_unlock(unsigned row, unsigned col, e_mutex_t *mutex)
 {
+    const register uint32_t zero = 0;
 	e_mutex_t *gmutex;
 
 	gmutex = (e_mutex_t *) e_get_global_address(row, col, mutex);
 
-	*gmutex = 0x0;
+    __asm__ __volatile__(
+		"str	%[zero], [%[gmutex]]"
+		: /* no outputs */
+		: [zero] "r" (zero), [gmutex] "r" (gmutex)
+		: "memory");
 
 	return;
 }

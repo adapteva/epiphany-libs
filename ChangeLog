@@ -1,5 +1,19 @@
 2015-12-04  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-lib/src/e_mutex_barrier.c (e_barrier): tgt_bar_array should be an
+	array of pointers to volatile e_barrier_t.
+	* e-lib/src/e_mutex_barrier_init.c (e_barrier_init): Likewise.
+	* e-lib/include/e_mutex.h (e_mutex_init): Add warning attribute.
+	(e_barrier_init): Update function prototype.
+	(e_barrier): Update function prototype.
+	* e-lib/src/e_mutex_init.c (e_mutex_init): Make no-op.
+	* e-lib/src/e_mutex_lock.c (e_mutex_lock): Inline assembly should
+	clobber memory.
+	* e-lib/src/e_mutex_unlock.c (e_mutex_unlock): Use inline
+	assembly to clear mutex.
+
+2015-12-04  Ola Jeppsson  <ola@adapteva.com>
+
 	* configure.ac (AC_ARG_ENABLE(esim)): Added.
 	* e-hal/Makemodule.am [enable_esim]: Build libe-loader-esim.la and
 	libe-hal-esim.la.

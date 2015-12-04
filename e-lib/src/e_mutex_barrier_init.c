@@ -27,15 +27,19 @@
 #include <e_mutex.h>
 
 // TODO: use asingle pointer to store barrier addresses
-void e_barrier_init(volatile e_barrier_t bar_array[], e_barrier_t *tgt_bar_array[])
+void e_barrier_init(volatile e_barrier_t bar_array[],
+					volatile e_barrier_t *tgt_bar_array[])
 {
 	unsigned int corenum, numcores, i, j;
 
 	numcores = e_group_config.group_rows * e_group_config.group_cols;
 	corenum  = e_group_config.core_row * e_group_config.group_cols + e_group_config.core_col;
 
-	for (i=0; i<numcores; i++)
-		bar_array[i] = 0;
+	/* Previously, bar_array was cleared here. That's incorrect
+	 * behavior as it imposes a dead-lock race condition between core0's
+	 * completion of e_barrier_init() and any of the other cores' first call to
+	 * e_barrier(). To avoid that, it is now a requirement that bar_array is
+	 * statically initialized. */
 
 	if (corenum == 0)
 	{
