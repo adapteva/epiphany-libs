@@ -151,18 +151,20 @@ int e_init(char *hdf)
 	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
 
 #ifdef ESIM_BACKEND
-	if (ES_OK != es_slave_connect(&e_platform.esim))
+	if (ES_OK != es_client_connect(&e_platform.esim, NULL))
 	{
 		warnx("e_init(): Cannot connect to ESIM");
 		return E_ERR;
 	}
 #endif
 
-    /* TODO: Will this work w/ esim??? */
+#ifndef ESIM_BACKEND
+    /* TODO: Make this work with esim */
 	if ( E_OK != e_shm_init() ) {
 		warnx("e_init(): Failed to initialize the Epiphany Shared Memory Manager.");
 		return E_ERR;
 	}
+#endif
 
 	e_platform.initialized = E_TRUE;
 
@@ -179,10 +181,13 @@ int e_finalize(void)
 		return E_ERR;
 	}
 
+#ifndef ESIM_BACKEND
+    /* TODO: Make this work with esim */
 	e_shm_finalize();
+#endif
 
 #ifdef ESIM_BACKEND
-	es_slave_disconnect(e_platform.esim);
+	es_client_disconnect(e_platform.esim);
 #endif
 
 	ee_disable_system();
@@ -729,8 +734,8 @@ int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_
 	ssize_t size;
 
 	from_addr_adjusted = from_addr;
-	if (from_addr_adjusted < E_CORE_GP_REG_BASE)
-		from_addr_adjusted = from_addr_adjusted + E_CORE_GP_REG_BASE;
+	if (from_addr_adjusted < E_REG_R0)
+		from_addr_adjusted = from_addr_adjusted + E_REG_R0;
 
 	addr = (dev->core[row][col].id << 20) + from_addr_adjusted;
 
@@ -779,8 +784,8 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 	uint32_t addr;
 	ssize_t size;
 
-	if (to_addr < E_CORE_GP_REG_BASE)
-		to_addr = to_addr + E_CORE_GP_REG_BASE;
+	if (to_addr < E_REG_R0)
+		to_addr = to_addr + E_REG_R0;
 
 	addr = (dev->core[row][col].id << 20) + to_addr;
 

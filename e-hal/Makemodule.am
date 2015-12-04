@@ -13,7 +13,6 @@ e-hal/src/epiphany-shm-manager.h
 include_HEADERS +=                  \
 e-hal/src/e_loader.h
 
-
 lib_LTLIBRARIES += libe-loader.la libe-hal.la
 
 libe_loader_la_SOURCES =            \
@@ -28,6 +27,21 @@ e-hal/src/epiphany-memman.c         \
 e-hal/src/epiphany-shm-manager.c    \
 e-hal/src/memman.h
 libe_hal_la_LIBADD = libe-loader.la
+
+
+if enable_esim
+lib_LTLIBRARIES += libe-loader-esim.la libe-hal-esim.la
+endif
+
+libe_loader_esim_la_SOURCES = $(libe_loader_la_SOURCES)
+libe_loader_esim_la_CFLAGS  = -DESIM_BACKEND
+libe_loader_esim_la_LDFLAGS = -lepiphany-elf-sim
+
+libe_hal_esim_la_SOURCES    = $(libe_hal_la_SOURCES)
+libe_hal_esim_la_CFLAGS     = -DESIM_BACKEND
+libe_hal_esim_la_LIBADD     = libe-loader-esim.la
+libe_hal_esim_la_LDFLAGS    = -lepiphany-elf-sim
+
 
 #libe_hal_la_LIBADD = -lm
 

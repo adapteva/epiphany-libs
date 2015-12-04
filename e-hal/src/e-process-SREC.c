@@ -106,6 +106,7 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 			addr |= (pEpiphany->core[row][col].id << 20);
 		}
 		buf = realloc(buf, phdr[ihdr].p_filesz);
+		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
 		fread(buf, phdr[ihdr].p_filesz, sizeof(char), elfStream);
 		if (ES_OK != es_mem_store(pEMEM->esim, addr, phdr[ihdr].p_filesz, buf))
 		{
