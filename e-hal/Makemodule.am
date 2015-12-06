@@ -20,7 +20,6 @@ lib_LTLIBRARIES += libe-loader.la libe-hal.la
 
 libe_loader_la_SOURCES =            \
 e-hal/src/e-loader.c                \
-e-hal/src/e-process-SREC.c          \
 e-hal/src/esim-target.c
 
 libe_hal_la_SOURCES =               \
