@@ -123,7 +123,7 @@ AC_SUBST(bspsdir, [$bspsdir])
 
 
 AC_ARG_ENABLE(esim,
-  [AS_HELP_STRING([--enable-esim], [Enable building e-hal with ESIM backend.])])
+  [AS_HELP_STRING([--enable-esim], [Enable building e-hal with ESIM target.])])
 AM_CONDITIONAL(enable_esim, [test "x$enable_esim" = xyes])
 AS_IF([test "x$enable_esim" = xyes], [AC_CHECK_HEADERS([esim.h])])
 

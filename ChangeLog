@@ -1,3 +1,44 @@
+2015-12-06  Ola Jeppsson  <ola@adapteva.com>
+
+	* configure.ac (AC_ARG_ENABLE(esim)): Adjust help text.
+	* e-hal/Makemodule.am (noinst_HEADERS): Add esim-target.h.
+	(libe_loader_la_SOURCES): Add esim-target.c
+	(libe_hal_la_SOURCES): Likewise.
+	(libe_loader_la_CFLAGS) [enable_esim]: Add needed flags.
+	(libe_hal_la_CFLAGS) [enable_esim]: Likewise.
+	(libe_loader_la_LDFLAGS) [enable_esim]: Add needed libs.
+	(libe_hal_la_LDFLAGS) [enable_esim]: Likewise.
+	(libe-loader-esim.la): Removed target.
+	(libe-hal-esim.la): Likewise.
+	* e-hal/src/e-loader.c: Rewrite to detect target at runtime.
+	* e-hal/src/e-process-SREC.c: Likewise.
+	* e-hal/src/epiphany-hal-data.h: Add EHAL_TARGET_ENV define.
+	* e-hal/src/epiphany-hal.c (target_ops): Added struct.
+	(use_esim_target_ops): Implemented.
+	(e_init): Rewrite to select target at runtime.
+	(e_finalize): Likewise.
+	(e_open): Likewise.
+	(e_close): Likewise.
+	(e_alloc): Likewise.
+	(e_free): Likewise.
+	(ee_reset_core): Likewise.
+	(e_reset_group): Likewise.
+	(ee_read_word): Likewise.
+	(ee_write_word): Likewise.
+	(ee_read_buf): Likewise.
+	(ee_write_buf): Likewise.
+	(ee_read_reg): Likewise.
+	(ee_write_reg): Likewise.
+	(ee_mread_word): Likewise.
+	(ee_mwrite_word): Likewise.
+	(ee_mread_buf): Likewise.
+	(ee_mwrite_buf): Likewise.
+	(ee_read_esys): Likewise.
+	(ee_write_esys): Likewise.
+	(e_reset_system): Likewise.
+	* e-hal/src/esim-target.c: New file.
+	* e-hal/src/esim-target.h: New file.
+
 2015-12-04  Ola Jeppsson  <ola@adapteva.com>
 
 	* configure.ac (CFLAGS): Set to CFLAGS_FOR_TARGET when configuring

@@ -30,6 +30,8 @@
 
 #include "epiphany-hal-data-local.h"
 
+#define EHAL_TARGET_ENV "EHAL_TARGET"
+
 #ifdef __cplusplus
 extern "C"
 {

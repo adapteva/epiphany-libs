@@ -32,6 +32,7 @@
 #include <elf.h>
 
 #include "e-loader.h"
+#include "esim-target.h"
 
 #define diag(vN)   if (e_load_verbose >= vN)
 
@@ -68,6 +69,13 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 	char         srecHdr[2] = {'S', '0'};
 	e_bool_t     iself;
 	e_return_stat_t retval;
+
+#ifndef ESIM_TARGET
+	if (esim_target_p()) {
+		warnx("e_load_group(): " EHAL_TARGET_ENV " environment variable set to esim but target not compiled in.");
+		return E_ERR;
+	}
+#endif
 
 	status = E_OK;
 	iself  = E_FALSE;

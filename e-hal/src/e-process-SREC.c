@@ -31,13 +31,10 @@
 #include <elf.h>
 #include <err.h>
 
-#ifdef ESIM_BACKEND
-#include "esim.h"
-#endif
-
 #include "e-hal.h"
 #include "epiphany-hal-api-local.h"
 #include "e-loader.h"
+#include "esim-target.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -68,10 +65,8 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 	unsigned   globrow, globcol;
 	unsigned   CoreID;
 	int        status = E_OK;
-#ifdef ESIM_BACKEND
 	void      *buf = NULL;
 	uint32_t   addr;
-#endif
 
 
 	islocal   = E_FALSE;
@@ -99,58 +94,55 @@ e_return_stat_t ee_process_ELF(const char *executable, e_epiphany_t *pEpiphany, 
 
 		diag(L_D3) { fprintf(diag_fd, "ee_process_ELF(): copying the data (%d bytes)", phdr[ihdr].p_filesz); }
 
-#ifdef ESIM_BACKEND
-		addr = phdr[ihdr].p_vaddr;
-		if (islocal)
-		{
-			addr |= (pEpiphany->core[row][col].id << 20);
-		}
-		buf = realloc(buf, phdr[ihdr].p_filesz);
-		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
-		fread(buf, phdr[ihdr].p_filesz, sizeof(char), elfStream);
-		if (ES_OK != es_mem_store(pEMEM->esim, addr, phdr[ihdr].p_filesz, buf))
-		{
-			fprintf(diag_fd, "ee_process_ELF(): Error: ESIM error writing to 0x%x", addr);
-			return E_ERR;
-		}
-#else
-		if (islocal)
-		{
-			// If this is a local address
-			diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", row, col); }
-			pto = pEpiphany->core[row][col].mems.base + phdr[ihdr].p_vaddr; // TODO: should this be p_paddr instead of p_vaddr?
-		}
-		else if (isonchip)
-		{
-			// If global address, check if address is of an eCore.
-			CoreID = phdr[ihdr].p_vaddr >> 20;
-			ee_get_coords_from_id(pEpiphany, CoreID, &globrow, &globcol);
-			diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", globrow, globcol); }
-			pto = pEpiphany->core[globrow][globcol].mems.base + (phdr[ihdr].p_vaddr & ~(0xfff00000)); // TODO: should this be p_paddr instead of p_vaddr?
-		}
-		else
-		{
-			// If it is not on an eCore, it is on external memory.
-			diag(L_D3) { fprintf(diag_fd, " to external memory.\n"); }
-			pto = (void *) phdr[ihdr].p_vaddr;
-			if ((phdr[ihdr].p_vaddr >= pEMEM->ephy_base) && (phdr[ihdr].p_vaddr < (pEMEM->ephy_base + pEMEM->emap_size)))
-			{
-				diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
-				pto = pto - (pEMEM->ephy_base - pEMEM->phy_base);
-				diag(L_D3) { fprintf(diag_fd, "to physical (0x%08x)...\n", (uint) phdr[ihdr].p_vaddr); }
+		if (esim_target_p()) {
+			addr = phdr[ihdr].p_vaddr;
+			if (islocal) {
+				addr |= (pEpiphany->core[row][col].id << 20);
 			}
-			diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
-			pto = pto - (uint) pEMEM->phy_base + (uint) pEMEM->base;
-			diag(L_D3) { fprintf(diag_fd, "to offset (0x%08x)...\n", (uint) pto); }
+			buf = realloc(buf, phdr[ihdr].p_filesz);
+			fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
+			fread(buf, phdr[ihdr].p_filesz, sizeof(char), elfStream);
+			if (ES_OK != es_ops.mem_store(pEMEM->esim, addr, phdr[ihdr].p_filesz, (uint8_t *) buf)) {
+				fprintf(diag_fd, "ee_process_ELF(): Error: ESIM error writing to 0x%x", addr);
+				return E_ERR;
+			}
+		} else {
+			if (islocal)
+			{
+				// If this is a local address
+				diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", row, col); }
+				pto = pEpiphany->core[row][col].mems.base + phdr[ihdr].p_vaddr; // TODO: should this be p_paddr instead of p_vaddr?
+			}
+			else if (isonchip)
+			{
+				// If global address, check if address is of an eCore.
+				CoreID = phdr[ihdr].p_vaddr >> 20;
+				ee_get_coords_from_id(pEpiphany, CoreID, &globrow, &globcol);
+				diag(L_D3) { fprintf(diag_fd, " to core (%d,%d)\n", globrow, globcol); }
+				pto = pEpiphany->core[globrow][globcol].mems.base + (phdr[ihdr].p_vaddr & ~(0xfff00000)); // TODO: should this be p_paddr instead of p_vaddr?
+			}
+			else
+			{
+				// If it is not on an eCore, it is on external memory.
+				diag(L_D3) { fprintf(diag_fd, " to external memory.\n"); }
+				pto = (void *) phdr[ihdr].p_vaddr;
+				if ((phdr[ihdr].p_vaddr >= pEMEM->ephy_base) && (phdr[ihdr].p_vaddr < (pEMEM->ephy_base + pEMEM->emap_size)))
+				{
+					diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting virtual (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
+					pto = pto - (pEMEM->ephy_base - pEMEM->phy_base);
+					diag(L_D3) { fprintf(diag_fd, "to physical (0x%08x)...\n", (uint) phdr[ihdr].p_vaddr); }
+				}
+				diag(L_D3) { fprintf(diag_fd, "ee_process_SREC(): converting physical (0x%08x) ", (uint) phdr[ihdr].p_vaddr); }
+				pto = pto - (uint) pEMEM->phy_base + (uint) pEMEM->base;
+				diag(L_D3) { fprintf(diag_fd, "to offset (0x%08x)...\n", (uint) pto); }
+			}
+			fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
+			fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
 		}
-		fseek(elfStream, phdr[ihdr].p_offset, SEEK_SET);
-		fread(pto, phdr[ihdr].p_filesz, sizeof(char), elfStream);
-#endif
 	}
 
-#ifdef ESIM_BACKEND
-	free(buf);
-#endif
+	if (esim_target_p())
+		free(buf);
 
 	fclose(elfStream);
 
