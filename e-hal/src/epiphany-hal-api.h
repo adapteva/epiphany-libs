@@ -27,6 +27,7 @@
 #define __E_HAL_API_H__
 
 #include <sys/types.h>
+#include <stdint.h>
 #include "epiphany-shm-manager.h"
 
 #ifdef __cplusplus
@@ -123,6 +124,7 @@ void	 e_get_coords_from_num(e_epiphany_t *dev, unsigned corenum, unsigned *row, 
 //
 e_bool_t e_is_addr_on_chip(void *addr);
 e_bool_t e_is_addr_on_group(e_epiphany_t *dev, void *addr);
+e_bool_t e_is_addr_in_emem(uintptr_t addr);
 //
 e_hal_diag_t e_set_host_verbosity(e_hal_diag_t verbose);
 

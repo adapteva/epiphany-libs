@@ -1,3 +1,16 @@
+2015-12-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (is_epiphany_exec_elf): New function.
+	(is_srec_file): New function.
+	(e_load_group): Rewrite to use mmaped file.
+	(ee_process_elf): Likewise.
+	(is_local): New function.
+	(is_valid_addr): New function.
+	(is_valid_range): New function.
+	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): New function.
+	* e-hal/src/epiphany-hal-api.h (e_is_addr_in_emem): Add function
+	prototype.
+
 2015-12-06  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/Makemodule.am (libe_loader_la_SOURCES): Remove
