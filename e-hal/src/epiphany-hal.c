@@ -280,7 +280,7 @@ int e_finalize(void)
 	ee_disable_system();
 
 	if (esim_target_p())
-		es_ops.client_disconnect(e_platform.esim);
+		es_ops.client_disconnect(e_platform.esim, true);
 
 	e_platform.initialized = E_FALSE;
 
