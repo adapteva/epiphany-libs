@@ -1,3 +1,13 @@
+2015-12-10  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf (workgroup_cfg): Rename section from
+	workgroup_config. Force allocation even if empty.
+	(ext_mem_cfg): Rename from external_mem_config. Force allocation even
+	if empty.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+
 2015-12-08  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal.c (e_finalize): If target is esim, disconnect
