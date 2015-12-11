@@ -1,5 +1,10 @@
 2015-12-11  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-utils/Makemodule.am: Add e-meshdump target.
+	* e-utils/src/e-meshdump.c: New file.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/e-loader.c (clear_sram): Implemented.
 	(e_load_group): Call clear_sram().
 	(ee_set_core_config): Always set LOADER_BSS_CLEARED_FLAG.
