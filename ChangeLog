@@ -1,3 +1,10 @@
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf (loader_cfg): Add output section.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+
 2015-12-10  Ola Jeppsson  <ola@adapteva.com>
 
 	* bsps/parallella64/fast.ldf (workgroup_cfg): Rename section from

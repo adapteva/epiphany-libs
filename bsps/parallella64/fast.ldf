@@ -52,7 +52,7 @@ MEMORY
 	IVT_RAM (WXAI) : ORIGIN = 0, LENGTH = 0x28
 
 	/* user program, continuous placement */
-	WORKGROUP_RAM (WXAI)     : ORIGIN = LENGTH(IVT_RAM), LENGTH = 0x30
+	WORKGROUP_RAM (WXAI)     : ORIGIN = LENGTH(IVT_RAM), LENGTH = 0x40
 
 	/* user program, continuous placement */
 	INTERNAL_RAM (WXAI)      : ORIGIN = LENGTH(IVT_RAM) + LENGTH(WORKGROUP_RAM), LENGTH = 32K - LENGTH(IVT_RAM) - LENGTH(WORKGROUP_RAM)
@@ -164,6 +164,15 @@ SECTIONS
 	    ASSERT(. <= 0x8, "ext_mem_cfg section overflow");
 	    . = 0x8; /* force allocation */
 	  } > WORKGROUP_RAM /* 50 54 */
+
+	/* section filled in by loader */
+	loader_cfg             0x58 :
+	  {
+	    *(loader_cfg);
+	    ASSERT(. <= 0x10, "loader_cfg section overflow");
+	    . = 0x10; /* force allocation */
+	  } > WORKGROUP_RAM /* 58 5C 60 64 */
+
 
 	/* place the ISR handlers after workgroup-configuration */
 	.reserved_crt0  ORIGIN(IVT_RAM) + LENGTH(IVT_RAM) + LENGTH(WORKGROUP_RAM) : {*.o(RESERVED_CRT0) *.o(reserved_crt0)} > INTERNAL_RAM
