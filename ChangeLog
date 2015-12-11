@@ -1,5 +1,13 @@
 2015-12-11  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-lib/src/e_coreid_get_coreid.c (e_get_coreid): Let compiler decide
+	register for coreid_in_reg variable. Fix error in inline assembly,
+	coreid_in_reg is an output, not input.
+	* e-lib/src/e_mutex_lock.c (e_mutex_lock): Make lock variable hold
+	THIS coreid when THIS core takes the lock.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/e-loader.c (loader_sections): Add struct.
 	(section_info): Add struct.
 	(loader_cfg): Add struct.

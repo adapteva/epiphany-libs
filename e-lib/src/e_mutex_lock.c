@@ -32,19 +32,20 @@
 void e_mutex_lock(unsigned row, unsigned col, e_mutex_t *mutex)
 {
 	e_mutex_t *gmutex;
-	register uint32_t coreid, offset;
+	uint32_t coreid, offset, val;
 
 	coreid = e_get_coreid();
 	gmutex = (e_mutex_t *) e_get_global_address(row, col, mutex);
 	offset = 0x0;
 
 	do {
+		val = coreid;
 		__asm__ __volatile__(
-			"testset	%[coreid], [%[gmutex], %[offset]]"
-			: [coreid] "+r" (coreid)
+			"testset	%[val], [%[gmutex], %[offset]]"
+			: [val] "+r" (val)
 			: [gmutex] "r" (gmutex), [offset] "r" (offset)
 			: "memory");
-	} while (coreid != 0);
+	} while (val != 0);
 
 	return;
 }
