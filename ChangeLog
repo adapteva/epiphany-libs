@@ -1,5 +1,11 @@
 2015-12-11  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/e-loader.c (clear_sram): Implemented.
+	(e_load_group): Call clear_sram().
+	(ee_set_core_config): Always set LOADER_BSS_CLEARED_FLAG.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-lib/src/e_coreid_get_coreid.c (e_get_coreid): Let compiler decide
 	register for coreid_in_reg variable. Fix error in inline assembly,
 	coreid_in_reg is an output, not input.
