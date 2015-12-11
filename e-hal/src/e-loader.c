@@ -39,17 +39,44 @@
 #include "e-loader.h"
 #include "esim-target.h"
 
+#define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
 
 typedef unsigned long long ulong64;
 #define diag(vN)   if (e_load_verbose >= vN)
+
+enum loader_sections {
+	SEC_WORKGROUP_CFG,
+	SEC_EXT_MEM_CFG,
+	SEC_LOADER_CFG,
+	SEC_NUM,
+};
+
+struct section_info {
+	const char *name;
+	bool present;
+	Elf32_Addr	sh_addr;		/* Section virtual addr at execution */
+};
+// TODO: These should be defined in common header file
+#define LOADER_BSS_CLEARED_FLAG 1
+#define LOADER_CUSTOM_ARGS_FLAG 2
+struct loader_cfg {
+	uint32_t flags;
+	uint32_t __pad1;
+	uint32_t args_ptr;
+	uint32_t __pad2;
+} __attribute__((packed));
+
+static void lookup_sections(const void *file, struct section_info *tbl,
+							size_t tbl_size);
 
 extern void ee_get_coords_from_id(e_epiphany_t *dev, unsigned coreid,
 								  unsigned *row, unsigned *col);
 
 static e_return_stat_t ee_process_elf(const void *file, e_epiphany_t *dev,
 									  e_mem_t *emem, int row, int col);
-static int ee_set_core_config(e_epiphany_t *dev, e_mem_t *emem,
-							  int row, int col);
+
+static int ee_set_core_config(struct section_info *tbl, e_epiphany_t *dev,
+							  e_mem_t *emem, int row, int col);
 
 e_loader_diag_t e_load_verbose = L_D0;
 
@@ -85,15 +112,23 @@ int e_load(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 	return status;
 }
 
+
 int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start)
 {
 	e_mem_t      emem;
-	unsigned int irow, icol;
+	unsigned int irow, icol, i;
 	int          status;
 	int          fd;
 	struct stat  st;
 	void        *file;
 	e_return_stat_t retval;
+
+	struct section_info tbl[] = {
+		{ .name = "workgroup_cfg" },
+		{ .name = "ext_mem_cfg" },
+		{ .name = "loader_cfg" },
+	};
+
 
 #ifndef ESIM_TARGET
 	if (esim_target_p()) {
@@ -153,6 +188,14 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 		goto out;
 	}
 
+	lookup_sections(file, tbl, ARRAY_SIZE(tbl));
+	for (i = 0; i < SEC_NUM; i++) {
+		if (!tbl[i].present) {
+			warnx("e_load_group(): WARNING: %s section not in binary.",
+				  tbl[i].name);
+		}
+	}
+
 	for (irow=row; irow<(row+rows); irow++) {
 		for (icol=col; icol<(col+cols); icol++) {
 			retval = ee_process_elf(file, dev, &emem, irow, icol);
@@ -162,7 +205,7 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 				goto out;
 			}
 
-			ee_set_core_config(dev, &emem, irow, icol);
+			ee_set_core_config(tbl, dev, &emem, irow, icol);
 		}
 	}
 
@@ -189,14 +232,49 @@ out:
 	return status;
 }
 
-
-int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col)
+static void lookup_sections(const void *file, struct section_info *tbl,
+							size_t tbl_size)
 {
-	e_group_config_t *pgrpcfg  = (void *) SIZEOF_IVT;
-	e_emem_config_t  *pememcfg = (void *) SIZEOF_IVT + sizeof(e_group_config_t);
+	int i;
+	size_t j;
+	Elf32_Ehdr *ehdr;
+	Elf32_Phdr *phdr;
+	Elf32_Shdr *shdr, *sh_strtab;
+	const char *strtab;
+	uint8_t *src = (uint8_t *) file;
 
+	ehdr = (Elf32_Ehdr *) &src[0];
+	phdr = (Elf32_Phdr *) &src[ehdr->e_phoff];
+	shdr = (Elf32_Shdr *) &src[ehdr->e_shoff];
+	int shnum = ehdr->e_shnum;
+
+	sh_strtab = &shdr[ehdr->e_shstrndx];
+	strtab = (char *) &src[sh_strtab->sh_offset];
+
+	for (i = 0; i < shnum; i++) {
+		for (j = 0; j < tbl_size; j++) {
+			if (tbl[j].present)
+				continue;
+
+			if (strcmp(&strtab[shdr[i].sh_name], tbl[j].name) != 0)
+				continue;
+
+			tbl[j].present = true;
+			tbl[j].sh_addr = shdr[i].sh_addr;
+		}
+	}
+}
+
+static int ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany,
+							  e_mem_t *pEMEM, int row, int col)
+{
 	e_group_config_t e_group_config;
 	e_emem_config_t  e_emem_config;
+	struct loader_cfg loader_cfg = { 0 };
+
+	/* TODO: Always set this flag when memory is cleared with native target. */
+	if (esim_target_p())
+		loader_cfg.flags = LOADER_BSS_CLEARED_FLAG;
 
 	e_group_config.objtype     = E_EPI_GROUP;
 	e_group_config.chiptype    = pEpiphany->type;
@@ -213,8 +291,17 @@ int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col
 	e_emem_config.objtype   = E_EXT_MEM;
 	e_emem_config.base      = pEMEM->ephy_base;
 
-	e_write(pEpiphany, row, col, (off_t) pgrpcfg,  &e_group_config, sizeof(e_group_config_t));
-	e_write(pEpiphany, row, col, (off_t) pememcfg, &e_emem_config,  sizeof(e_emem_config_t));
+	if (tbl[SEC_WORKGROUP_CFG].present)
+		e_write(pEpiphany, row, col, tbl[SEC_WORKGROUP_CFG].sh_addr,
+				&e_group_config, sizeof(e_group_config_t));
+
+	if (tbl[SEC_EXT_MEM_CFG].present)
+		e_write(pEpiphany, row, col, tbl[SEC_EXT_MEM_CFG].sh_addr,
+				&e_emem_config, sizeof(e_emem_config_t));
+
+	if (tbl[SEC_LOADER_CFG].present)
+		e_write(pEpiphany, row, col, tbl[SEC_LOADER_CFG].sh_addr,
+				&loader_cfg, sizeof(loader_cfg));
 
 	return 0;
 }
