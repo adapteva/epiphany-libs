@@ -112,6 +112,27 @@ int e_load(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col
 	return status;
 }
 
+static void clear_sram(e_epiphany_t *dev,
+					   unsigned row, unsigned col,unsigned rows, unsigned cols)
+{
+	unsigned i, j;
+	size_t sram_size;
+	void *empty;
+
+	switch (dev->type) {
+	case E_E16G301:
+	case E_E64G401:
+	default:
+		sram_size = 32768;
+	}
+
+	empty = alloca(sram_size);
+	memset(empty, 0, sram_size);
+
+	for (i = row; i < row + rows; i++)
+		for (j = col; j < col + cols; j++)
+			e_write(dev, i, j, 0, empty, sram_size);
+}
 
 int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start)
 {
@@ -196,6 +217,8 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 		}
 	}
 
+	clear_sram(dev, row, col, rows, cols);
+
 	for (irow=row; irow<(row+rows); irow++) {
 		for (icol=col; icol<(col+cols); icol++) {
 			retval = ee_process_elf(file, dev, &emem, irow, icol);
@@ -272,9 +295,7 @@ static int ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany,
 	e_emem_config_t  e_emem_config;
 	struct loader_cfg loader_cfg = { 0 };
 
-	/* TODO: Always set this flag when memory is cleared with native target. */
-	if (esim_target_p())
-		loader_cfg.flags = LOADER_BSS_CLEARED_FLAG;
+	loader_cfg.flags = LOADER_BSS_CLEARED_FLAG;
 
 	e_group_config.objtype     = E_EPI_GROUP;
 	e_group_config.chiptype    = pEpiphany->type;
