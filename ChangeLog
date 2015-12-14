@@ -1,5 +1,27 @@
 2015-12-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal.c (e_init): Remove conditional check for
+	esim target before calling e_shm_init().
+	(e_finalize): Likewise but for e_shm_finalize().
+	(ee_mread_word_esim): Fix incorrect address calculation for shared
+	memory objects.
+	(ee_mwrite_word_esim): Likewise.
+	(ee_mread_buf_esim): Likewise.
+	(ee_mwrite_buf_esim): Likewise.
+	* e-hal/src/epiphany-shm-manager.c (LOCK_SHM_TABLE)
+	(UNLOCK_SHM_TABLE): Make no-op when target is esim. Fix later.
+	(e_shm_init_esim): Implemented.
+	(e_shm_init_native): Move native initialization code here ...
+	(e_shm_init): ...from here. Call
+	(e_shm_finalize): Add support for esim target.
+	(e_shm_alloc): Likewise.
+	(e_shm_attach): Likewise.
+	* e-hal/src/epiphany.h (GLOBAL_SHM_SIZE): Use ULL postfixes in macro.
+	* e-hal/src/esim-target.c (es_ops): Initialize client_get_raw_pointer.
+	* e-hal/src/esim-target.h (es_ops): Add client_get_raw_pointer.
+
+2015-12-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal-data.h (e_shmseg_t) (e_shmseg_pvt_t)
 	(e_shmtable_t): Use explicit memory layout in structures to stay clear
 	of architectural differences.

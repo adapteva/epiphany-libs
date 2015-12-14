@@ -23,6 +23,7 @@
   <http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -42,9 +43,13 @@
 #include "epiphany-hal-api-local.h"
 #include "epiphany-shm-manager.h"
 
+#include "esim-target.h"
+
+typedef unsigned long long ulong64;
+
 static e_shmtable_t    *shm_table        = 0;
 static size_t           shm_table_length = 0;
-static int              epiphany_devfd   = 0;
+static int              epiphany_devfd   = -1;
 static epiphany_alloc_t shm_alloc        = { 0 };
 
 static e_shmseg_pvt_t* shm_lookup_region(const char *name);
@@ -54,22 +59,39 @@ static int shm_table_sanity_check(e_shmtable_t *tbl);
 static int shm_lock_file(const int fd, const char* fn);
 static int shm_unlock_file(const int fd, const char* fn);
 
+/* TODO: Add locking support for ESIM target */
 /* Convenience macros */
-#define LOCK_SHM_TABLE() shm_lock_file(epiphany_devfd, __func__)
-#define UNLOCK_SHM_TABLE() shm_unlock_file(epiphany_devfd, __func__)
+#define LOCK_SHM_TABLE() \
+	({esim_target_p() ? E_OK : shm_lock_file(epiphany_devfd, __func__);})
+#define UNLOCK_SHM_TABLE() \
+	({esim_target_p() ? E_OK : shm_unlock_file(epiphany_devfd, __func__);})
 
+extern e_platform_t e_platform;
 extern int	 e_host_verbose;
 #define diag(vN) if (e_host_verbose >= vN)
 
+static int e_shm_init_esim()
+{
+	memset(&shm_alloc, 0, sizeof(shm_alloc));
 
-/**
- * Initialize the shared memory manager.
- */
-int e_shm_init()
+	shm_alloc.size = GLOBAL_SHM_SIZE;
+	shm_alloc.flags = 0;
+	shm_alloc.bus_addr = 0x8e000000ULL + 0x01000000ULL;	/* From platform.hdf + shared_dram offset */
+	shm_alloc.phy_addr = 0x3e000000ULL + 0x01000000ULL;	/* From platform.hdf + shared_dram offset */
+	shm_alloc.kvirt_addr = 0;
+	shm_alloc.mmap_handle = shm_alloc.bus_addr;
+	shm_alloc.uvirt_addr = (unsigned long)
+		es_ops.client_get_raw_pointer(e_platform.esim, shm_alloc.mmap_handle,
+									  shm_alloc.size);
+
+	shm_table_length = shm_alloc.size;
+
+	return shm_alloc.uvirt_addr != 0 ? E_OK : E_ERR;
+}
+
+int e_shm_init_native()
 {
 	int              devfd       = 0;
-	unsigned int     heap        = 0;
-	unsigned int     heap_length = 0;
 
 	/* Map the epiphany global shared memory into process address space */
 	devfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
@@ -77,7 +99,6 @@ int e_shm_init()
 		warnx("e_init(): EPIPHANY_DEV file open failure.");
 		return E_ERR;
 	}
-	epiphany_devfd = devfd;
 
 	memset(&shm_alloc, 0, sizeof(shm_alloc));
 	if ( -1 == ioctl(devfd, EPIPHANY_IOC_GETSHM, &shm_alloc) ) {
@@ -92,6 +113,32 @@ int e_shm_init()
 	if ( MAP_FAILED == (void*)shm_alloc.uvirt_addr ) {
 		warnx("e_shm_init(): Failed to map global shared memory. Error is %s",
 			  strerror(errno));
+
+		close(devfd);
+		return E_ERR;
+	}
+
+	epiphany_devfd = devfd;
+
+	return E_OK;
+}
+
+/**
+ * Initialize the shared memory manager.
+ */
+int e_shm_init()
+{
+	uintptr_t heap = 0;
+	size_t heap_length = 0;
+	int rc;
+
+	if (esim_target_p())
+		rc = e_shm_init_esim();
+	else
+		rc = e_shm_init_native();
+
+	if (rc != E_OK) {
+		warnx("e_shm_init(): Failed");
 		return E_ERR;
 	}
 
@@ -131,8 +178,8 @@ int e_shm_init()
 	heap_length = GLOBAL_SHM_SIZE - (heap - shm_alloc.uvirt_addr);
 
 	diag(H_D1) { fprintf(stderr, "e_shm_init(): initializing memory manager."
-						 " Heap addr is 0x%08x, length is 0x%08x\n",
-						 heap, heap_length); }
+						 " Heap addr is 0x%08llx, length is 0x%08llx\n",
+						 (ulong64) heap, (ulong64) heap_length); }
 
 	memman_init((void*)heap, heap_length);
 
@@ -143,16 +190,18 @@ int e_shm_init()
 	return E_OK;
 }
 
+
 void e_shm_finalize(void)
 {
-	munmap((void*)shm_table, shm_table_length);
+	if (!esim_target_p())
+		munmap((void*)shm_table, shm_table_length);
 	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }
 
 int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 {
 	e_shmtable_t   *tbl	   = NULL;
-	e_shmseg_pvt_t *region = NULL; 
+	e_shmseg_pvt_t *region = NULL;
 	int				retval = E_ERR;
 
 	if ( !mbuf || !name || !size ) {
@@ -194,6 +243,7 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 		mbuf->mapped_base = ((char*)(tbl));
 		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 		mbuf->emap_size = region->shm_seg.size;
+		mbuf->esim = e_platform.esim;
 
 		retval = E_OK;
 	} else {
@@ -247,6 +297,7 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 		mbuf->mapped_base = ((char*)(tbl));
 		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 		mbuf->emap_size = region->shm_seg.size;
+		mbuf->esim = e_platform.esim;
 
 		retval = E_OK;
 	}

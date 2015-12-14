@@ -3,7 +3,7 @@
 #include <linux/ioctl.h>
 
 /** Length of the Global shared memory region */
-#define GLOBAL_SHM_SIZE               (4<<20)
+#define GLOBAL_SHM_SIZE               (4ULL<<20ULL)
 #define SHM_LOCK_NAME                  "/eshmlock" 
 
 #define SHM_MAGIC                     0xabcdef00

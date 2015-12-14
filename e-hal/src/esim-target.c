@@ -7,6 +7,7 @@ const struct esim_ops es_ops = {
 #ifdef ESIM_TARGET
 	.client_connect = es_client_connect,
 	.client_disconnect = es_client_disconnect,
+	.client_get_raw_pointer = es_client_get_raw_pointer,
 	.mem_store = es_mem_store,
 	.mem_load = es_mem_load,
 	.initialized = es_initialized,
@@ -14,6 +15,7 @@ const struct esim_ops es_ops = {
 #else
 	.client_connect = NULL,
 	.client_disconnect = NULL,
+	.client_get_raw_pointer = NULL,
 	.mem_store = NULL,
 	.mem_load = NULL,
 	.initialized = NULL,

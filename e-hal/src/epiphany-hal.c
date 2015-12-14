@@ -248,14 +248,9 @@ int e_init(char *hdf)
 	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(row,col)	  = (%d,%d)\n", e_platform.row, e_platform.col); }
 	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
 
-	if (esim_target_p()) {
-		warnx("e_init(): WARNING: Shared Memory API not supported in esim target yet.");
-	} else {
-		/* TODO: Make this work with esim */
-		if ( E_OK != e_shm_init() ) {
-			warnx("e_init(): Failed to initialize the Epiphany Shared Memory Manager.");
-			return E_ERR;
-		}
+	if ( E_OK != e_shm_init() ) {
+		warnx("e_init(): Failed to initialize the Epiphany Shared Memory Manager.");
+		return E_ERR;
 	}
 
 	e_platform.initialized = E_TRUE;
@@ -273,9 +268,7 @@ int e_finalize(void)
 		return E_ERR;
 	}
 
-    /* TODO: Make this work with esim */
-	if (!esim_target_p())
-		e_shm_finalize();
+	e_shm_finalize();
 
 	ee_disable_system();
 
@@ -1027,7 +1020,8 @@ static int ee_mread_word_esim(e_mem_t *mbuf, const off_t from_addr)
 	uint32_t addr;
 	ssize_t size;
 
-	addr = mbuf->ephy_base + from_addr;
+	/* ???: Not sure whether this is always the right address */
+	addr = mbuf->ephy_base + from_addr + mbuf->page_offset;
 
 	size = sizeof(int);
 	if (ES_OK != es_ops.mem_load(mbuf->esim, addr, size, (uint8_t *) &data))
@@ -1072,6 +1066,7 @@ static ssize_t ee_mwrite_word_esim(e_mem_t *mbuf, off_t to_addr, int data)
 	uint32_t addr;
 	ssize_t size;
 
+	/* ???: Not sure whether this is always the right address */
 	addr = mbuf->ephy_base + to_addr;
 
 	size = sizeof(int);
@@ -1115,7 +1110,8 @@ static ssize_t ee_mread_buf_esim(e_mem_t *mbuf, const off_t from_addr, void *buf
 {
 	uint32_t addr;
 
-	addr = mbuf->ephy_base + from_addr;
+	/* ???: Not sure whether this is always the right address */
+	addr = mbuf->ephy_base + mbuf->page_offset + from_addr;
 
 	if (ES_OK != es_ops.mem_load(mbuf->esim, addr, size, (uint8_t *) buf))
 	{
@@ -1160,7 +1156,8 @@ static ssize_t ee_mwrite_buf_esim(e_mem_t *mbuf, off_t to_addr, const void *buf,
 {
 	uint32_t addr;
 
-	addr = mbuf->ephy_base + to_addr;
+	/* ???: Not sure whether this is always the right address */
+	addr = mbuf->ephy_base + mbuf->page_offset + to_addr;
 
 	if (ES_OK != es_ops.mem_store(mbuf->esim, addr, size, (uint8_t *) buf))
 	{
