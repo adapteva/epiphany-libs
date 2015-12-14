@@ -1,3 +1,11 @@
+2015-12-14  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data.h (e_shmseg_t) (e_shmseg_pvt_t)
+	(e_shmtable_t): Use explicit memory layout in structures to stay clear
+	of architectural differences.
+	* e-lib/include/e_shm.h (e_shmseg_t) (e_shmseg_pvt_t) (e_shmtable_t):
+	Likewise. (Identical with above, should be moved to common file)
+
 2015-12-11  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-utils/Makemodule.am: Add e-meshdump target.
