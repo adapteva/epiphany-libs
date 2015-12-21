@@ -90,6 +90,7 @@ static ssize_t ee_mwrite_buf_esim (e_mem_t *, off_t, const void *, size_t);
 static int ee_read_esys_esim (off_t);
 static ssize_t ee_write_esys_esim (off_t, int);
 static int e_reset_system_esim (void);
+static int ee_hdf_from_sim_cfg(e_platform_t *dev);
 
 struct target_ops {
 	int (*ee_read_word) (e_epiphany_t *, unsigned, unsigned, const off_t);
@@ -183,32 +184,39 @@ int e_init(char *hdf)
 		}
 	}
 
-	/* TODO: ESIM: Don't get config from HDF but from es_get_cluster_cfg() */
-
-	// Parse HDF, get platform configuration
-	if (hdf == NULL)
-	{
-		// Try getting HDF from EPIPHANY_HDF environment variable
-		hdf_env = getenv(hdf_env_var_name);
-		diag(H_D2) { fprintf(diag_fd, "e_init(): HDF ENV = %s\n", hdf_env); }
-		if (hdf_env != NULL)
-			hdf = hdf_env;
-		else
+	if (esim_target_p()) {
+#ifdef ESIM_TARGET
+		ee_hdf_from_sim_cfg(&e_platform);
+#else
+		/* unreachable, checked above */
+		abort();
+#endif
+	} else {
+		// Parse HDF, get platform configuration
+		if (hdf == NULL)
 		{
-			// Try opening .../bsps/current/platform.hdf
-			warnx("e_init(): No Hardware Definition File (HDF) is specified. Trying \"platform.hdf\".");
-			esdk_env = getenv(esdk_path);
-			strncpy(hdf_dfl, esdk_env, sizeof(hdf_dfl));
-			strncat(hdf_dfl, "/bsps/current/platform.hdf", sizeof(hdf_dfl));
-			hdf = hdf_dfl;
+			// Try getting HDF from EPIPHANY_HDF environment variable
+			hdf_env = getenv(hdf_env_var_name);
+			diag(H_D2) { fprintf(diag_fd, "e_init(): HDF ENV = %s\n", hdf_env); }
+			if (hdf_env != NULL)
+				hdf = hdf_env;
+			else
+			{
+				// Try opening .../bsps/current/platform.hdf
+				warnx("e_init(): No Hardware Definition File (HDF) is specified. Trying \"platform.hdf\".");
+				esdk_env = getenv(esdk_path);
+				strncpy(hdf_dfl, esdk_env, sizeof(hdf_dfl));
+				strncat(hdf_dfl, "/bsps/current/platform.hdf", sizeof(hdf_dfl));
+				hdf = hdf_dfl;
+			}
 		}
-	}
 
-	diag(H_D2) { fprintf(diag_fd, "e_init(): opening HDF %s\n", hdf); }
-	if (ee_parse_hdf(&e_platform, hdf))
-	{
-		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
-		return E_ERR;
+		diag(H_D2) { fprintf(diag_fd, "e_init(): opening HDF %s\n", hdf); }
+		if (ee_parse_hdf(&e_platform, hdf))
+		{
+			warnx("e_init(): Error parsing Hardware Definition File (HDF).");
+			return E_ERR;
+		}
 	}
 
 	// Populate the missing platform parameters according to platform version.
@@ -2113,7 +2121,7 @@ typedef struct {
 	char			 version[32]; // version name of Epiphany chip
 } e_platform_db_t;
 
-#define NUM_PLATFORM_VERSIONS 7
+#define NUM_PLATFORM_VERSIONS 8
 e_platform_db_t platform_params_table[NUM_PLATFORM_VERSIONS] = {
 //		 objtype		 type			   version
 		{E_EPI_PLATFORM, E_GENERIC,		   "GENERIC"},
@@ -2123,6 +2131,7 @@ e_platform_db_t platform_params_table[NUM_PLATFORM_VERSIONS] = {
 		{E_EPI_PLATFORM, E_ZEDBOARD6401,   "ZEDBOARD6401"},
 		{E_EPI_PLATFORM, E_PARALLELLA1601, "PARALLELLA1601"},
 		{E_EPI_PLATFORM, E_PARALLELLA6401, "PARALLELLA6401"},
+		{E_EPI_PLATFORM, E_PARALLELLASIM,  "PARALLELLASIM"},
 };
 
 
@@ -2166,11 +2175,12 @@ typedef struct {
 	off_t			 ioregs_w;	  // base address of west IO register
 } e_chip_db_t;
 
-#define NUM_CHIP_VERSIONS 2
+#define NUM_CHIP_VERSIONS 3
 e_chip_db_t chip_params_table[NUM_CHIP_VERSIONS] = {
 //		 objtype	 type		version	 arch r	 c sram_base sram_size regs_base regs_size io_n		io_e		io_s		io_w
 		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x083f0000, 0x0c2f0000, 0x080f0000},
 		{E_EPI_CHIP, E_E64G401, "E64G401", 4, 8, 8, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
+		{E_EPI_CHIP, E_ESIM,    "ESIM",    0, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
 };
 
 
@@ -2207,6 +2217,38 @@ int ee_set_chip_params(e_chip_t *chip)
 
 	return E_OK;
 }
+
+#if ESIM_TARGET
+static int ee_hdf_from_sim_cfg(e_platform_t *dev)
+{
+	es_cluster_cfg cfg;
+
+	es_get_cluster_cfg(dev->esim, &cfg);
+
+	memcpy(&dev->version, "PARALLELLASIM", sizeof("PARALLELLASIM"));
+
+	dev->num_chips = 1;
+	dev->chip = (e_chip_t *) calloc(1, sizeof(e_chip_t));
+
+	/* Only one mem region supported in simulator */
+	dev->num_emems = 1;
+	dev->emem = (e_memseg_t *) calloc(1, sizeof(e_memseg_t));
+
+	memcpy(dev->chip[0].version, "ESIM", sizeof("ESIM"));
+
+	dev->chip[0].row = cfg.row_base;
+	dev->chip[0].col = cfg.col_base;
+	dev->emem[0].phy_base = cfg.ext_ram_base;
+	dev->emem[0].ephy_base = cfg.ext_ram_base;
+	dev->emem[0].size = cfg.ext_ram_size;
+	dev->emem[0].type = E_RDWR;
+
+	/* Fill in chip param table */
+	chip_params_table[E_ESIM].sram_size = cfg.core_phys_mem;
+	chip_params_table[E_ESIM].rows = cfg.rows;
+	chip_params_table[E_ESIM].cols = cfg.cols;
+}
+#endif
 
 
 void ee_trim_str(char *a)

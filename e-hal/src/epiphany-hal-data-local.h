@@ -62,6 +62,7 @@ typedef enum {
 typedef enum {
 	E_E16G301 = 0,
 	E_E64G401 = 1,
+	E_ESIM    = 2,
 } e_chiptype_t;
 
 
@@ -73,6 +74,7 @@ typedef enum {
 	E_ZEDBOARD6401	 = 4,
 	E_PARALLELLA1601 = 5,
 	E_PARALLELLA6401 = 6,
+	E_PARALLELLASIM  = 7,
 } e_platformtype_t;
 
 

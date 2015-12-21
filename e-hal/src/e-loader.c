@@ -44,6 +44,8 @@
 typedef unsigned long long ulong64;
 #define diag(vN)   if (e_load_verbose >= vN)
 
+extern e_platform_t e_platform;
+
 enum loader_sections {
 	SEC_WORKGROUP_CFG,
 	SEC_EXT_MEM_CFG,
@@ -119,12 +121,8 @@ static void clear_sram(e_epiphany_t *dev,
 	size_t sram_size;
 	void *empty;
 
-	switch (dev->type) {
-	case E_E16G301:
-	case E_E64G401:
-	default:
-		sram_size = 32768;
-	}
+	/* Assume one chip type */
+	sram_size = e_platform.chip[0].sram_size;
 
 	empty = alloca(sram_size);
 	memset(empty, 0, sram_size);
