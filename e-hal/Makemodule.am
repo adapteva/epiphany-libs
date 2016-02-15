@@ -13,12 +13,14 @@ e-hal/src/epiphany-shm-manager.h
 include_HEADERS +=                  \
 e-hal/src/e_loader.h
 
+noinst_HEADERS +=                   \
+e-hal/src/esim-target.h
 
 lib_LTLIBRARIES += libe-loader.la libe-hal.la
 
 libe_loader_la_SOURCES =            \
 e-hal/src/e-loader.c                \
-e-hal/src/e-process-SREC.c
+e-hal/src/esim-target.c
 
 libe_hal_la_SOURCES =               \
 e-hal/src/epiphany.h                \
@@ -26,8 +28,21 @@ e-hal/src/epiphany-hal.c            \
 e-hal/src/epiphany-hal-legacy.c     \
 e-hal/src/epiphany-memman.c         \
 e-hal/src/epiphany-shm-manager.c    \
-e-hal/src/memman.h
+e-hal/src/memman.h                  \
+e-hal/src/esim-target.c
 libe_hal_la_LIBADD = libe-loader.la
+
+libe_loader_la_CFLAGS  =
+libe_hal_la_CFLAGS     =
+libe_loader_la_LDFLAGS =
+libe_hal_la_LDFLAGS    =
+
+if enable_esim
+libe_loader_la_CFLAGS  += -DESIM_TARGET -pthread
+libe_hal_la_CFLAGS     += -DESIM_TARGET -pthread
+libe_loader_la_LDFLAGS += -lesim -lpthread
+libe_hal_la_LDFLAGS    += -lesim -lpthread
+endif
 
 #libe_hal_la_LIBADD = -lm
 

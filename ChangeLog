@@ -1,3 +1,158 @@
+2015-12-21  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (clear_sram): Take sram size from first chip in
+	e_platform structure.
+	* e-hal/src/epiphany-hal-data-local.h: Add E_ESIM chip, and
+	E_PARALLELLASIM platform.
+	* e-hal/src/epiphany-hal.c (e_init): Use chip configuration from
+	simulator configuration when target is esim.
+	(ee_hdf_from_sim_cfg): Implemented.
+
+2015-12-14  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_init): Remove conditional check for
+	esim target before calling e_shm_init().
+	(e_finalize): Likewise but for e_shm_finalize().
+	(ee_mread_word_esim): Fix incorrect address calculation for shared
+	memory objects.
+	(ee_mwrite_word_esim): Likewise.
+	(ee_mread_buf_esim): Likewise.
+	(ee_mwrite_buf_esim): Likewise.
+	* e-hal/src/epiphany-shm-manager.c (LOCK_SHM_TABLE)
+	(UNLOCK_SHM_TABLE): Make no-op when target is esim. Fix later.
+	(e_shm_init_esim): Implemented.
+	(e_shm_init_native): Move native initialization code here ...
+	(e_shm_init): ...from here. Call
+	(e_shm_finalize): Add support for esim target.
+	(e_shm_alloc): Likewise.
+	(e_shm_attach): Likewise.
+	* e-hal/src/epiphany.h (GLOBAL_SHM_SIZE): Use ULL postfixes in macro.
+	* e-hal/src/esim-target.c (es_ops): Initialize client_get_raw_pointer.
+	* e-hal/src/esim-target.h (es_ops): Add client_get_raw_pointer.
+
+2015-12-14  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data.h (e_shmseg_t) (e_shmseg_pvt_t)
+	(e_shmtable_t): Use explicit memory layout in structures to stay clear
+	of architectural differences.
+	* e-lib/include/e_shm.h (e_shmseg_t) (e_shmseg_pvt_t) (e_shmtable_t):
+	Likewise. (Identical with above, should be moved to common file)
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-utils/Makemodule.am: Add e-meshdump target.
+	* e-utils/src/e-meshdump.c: New file.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (clear_sram): Implemented.
+	(e_load_group): Call clear_sram().
+	(ee_set_core_config): Always set LOADER_BSS_CLEARED_FLAG.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/src/e_coreid_get_coreid.c (e_get_coreid): Let compiler decide
+	register for coreid_in_reg variable. Fix error in inline assembly,
+	coreid_in_reg is an output, not input.
+	* e-lib/src/e_mutex_lock.c (e_mutex_lock): Make lock variable hold
+	THIS coreid when THIS core takes the lock.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (loader_sections): Add struct.
+	(section_info): Add struct.
+	(loader_cfg): Add struct.
+	(e_load_group): Call lookup_section().
+	(lookup_sections): Implemented.
+	(ee_set_core_config): Add table parameter. Take section offset from
+	table instead of using hard coded values.
+
+2015-12-11  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf (loader_cfg): Add output section.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+
+2015-12-10  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf (workgroup_cfg): Rename section from
+	workgroup_config. Force allocation even if empty.
+	(ext_mem_cfg): Rename from external_mem_config. Force allocation even
+	if empty.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+
+2015-12-08  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_finalize): If target is esim, disconnect
+	with stop parameter set to true.
+	* e-hal/src/esim-target.h (esim_ops): Add stop parameter to
+	client_disconnect to match esim.h
+
+2015-12-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (is_epiphany_exec_elf): New function.
+	(is_srec_file): New function.
+	(e_load_group): Rewrite to use mmaped file.
+	(ee_process_elf): Likewise.
+	(is_local): New function.
+	(is_valid_addr): New function.
+	(is_valid_range): New function.
+	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): New function.
+	* e-hal/src/epiphany-hal-api.h (e_is_addr_in_emem): Add function
+	prototype.
+
+2015-12-06  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/Makemodule.am (libe_loader_la_SOURCES): Remove
+	e-process-SREC.c
+	* e-hal/src/e-loader.c (int e_load_group): Deprecate SREC support.
+	(ee_process_ELF): Move function here from e-process-SREC.c
+	* e-hal/src/e-process-SREC.c: Remove.
+
+2015-12-06  Ola Jeppsson  <ola@adapteva.com>
+
+	* configure.ac (AC_ARG_ENABLE(esim)): Adjust help text.
+	* e-hal/Makemodule.am (noinst_HEADERS): Add esim-target.h.
+	(libe_loader_la_SOURCES): Add esim-target.c
+	(libe_hal_la_SOURCES): Likewise.
+	(libe_loader_la_CFLAGS) [enable_esim]: Add needed flags.
+	(libe_hal_la_CFLAGS) [enable_esim]: Likewise.
+	(libe_loader_la_LDFLAGS) [enable_esim]: Add needed libs.
+	(libe_hal_la_LDFLAGS) [enable_esim]: Likewise.
+	(libe-loader-esim.la): Removed target.
+	(libe-hal-esim.la): Likewise.
+	* e-hal/src/e-loader.c: Rewrite to detect target at runtime.
+	* e-hal/src/e-process-SREC.c: Likewise.
+	* e-hal/src/epiphany-hal-data.h: Add EHAL_TARGET_ENV define.
+	* e-hal/src/epiphany-hal.c (target_ops): Added struct.
+	(use_esim_target_ops): Implemented.
+	(e_init): Rewrite to select target at runtime.
+	(e_finalize): Likewise.
+	(e_open): Likewise.
+	(e_close): Likewise.
+	(e_alloc): Likewise.
+	(e_free): Likewise.
+	(ee_reset_core): Likewise.
+	(e_reset_group): Likewise.
+	(ee_read_word): Likewise.
+	(ee_write_word): Likewise.
+	(ee_read_buf): Likewise.
+	(ee_write_buf): Likewise.
+	(ee_read_reg): Likewise.
+	(ee_write_reg): Likewise.
+	(ee_mread_word): Likewise.
+	(ee_mwrite_word): Likewise.
+	(ee_mread_buf): Likewise.
+	(ee_mwrite_buf): Likewise.
+	(ee_read_esys): Likewise.
+	(ee_write_esys): Likewise.
+	(e_reset_system): Likewise.
+	* e-hal/src/esim-target.c: New file.
+	* e-hal/src/esim-target.h: New file.
+
 2015-12-04  Ola Jeppsson  <ola@adapteva.com>
 
 	* configure.ac (CFLAGS): Set to CFLAGS_FOR_TARGET when configuring
@@ -5,6 +160,72 @@
 	(CXXFLAGS): Likewise, but CXXFLAGS_FOR_TARGET.
 	(CPPFLAGS): Likewise, but CPPFLAGS_FOR_TARGET.
 	(LDFLAGS): Likewise, but LDFLAGS_FOR_TARGET.
+
+2015-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/src/e_mutex_barrier.c (e_barrier): tgt_bar_array should be an
+	array of pointers to volatile e_barrier_t.
+	* e-lib/src/e_mutex_barrier_init.c (e_barrier_init): Likewise.
+	* e-lib/include/e_mutex.h (e_mutex_init): Add warning attribute.
+	(e_barrier_init): Update function prototype.
+	(e_barrier): Update function prototype.
+	* e-lib/src/e_mutex_init.c (e_mutex_init): Make no-op.
+	* e-lib/src/e_mutex_lock.c (e_mutex_lock): Inline assembly should
+	clobber memory.
+	* e-lib/src/e_mutex_unlock.c (e_mutex_unlock): Use inline
+	assembly to clear mutex.
+
+2015-12-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* configure.ac (AC_ARG_ENABLE(esim)): Added.
+	* e-hal/Makemodule.am [enable_esim]: Build libe-loader-esim.la and
+	libe-hal-esim.la.
+	(libe_loader_esim_la): Added target.
+	(libe_hal_esim_la): Added target.
+	* e-hal/src/e-process-SREC.c (ee_process_ELF) [ESIM_BACKEND]: Add
+	missing call to fseek().
+	* e-hal/src/epiphany-hal.c (e_init) [ESIM_BACKEND]:
+	es_client_connect() changed name from es_slave_connect(). Don't call
+	e_shm_init() for now.
+	(e_finalize) [ESIM_BACKEND]: es_client_disconnect() changed name from
+	es_slave_disconnect(). Don't call e_shm_finalize() for now.
+	(ee_read_reg) [ESIM_BACKEND]: E_CORE_GP_REG_BASE was removed. Replace
+	with E_REG_R0 instead.
+	(ee_write_reg) [ESIM_BACKEND]: Likewise.
+
+2015-12-01  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (ee_reset_core) [ESIM_BACKEND]: Make calls
+	to usleep conditional.
+
+2015-11-30  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-process-SREC.c [ESIM_BACKEND]: Include esim.h.
+	(ee_process_elf) [ESIM_BACKEND]: Add ESIM implementation.
+
+2015-11-30  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Add esim handle.
+	* e-hal/src/epiphany-hal-data.h (e_epiphany_t): Likewise.
+	(e_mem_t): Likewise.
+	* e-hal/src/epiphany-hal.c [ESIM_BACKEND]: Include esim.h
+	(e_open) [ESIM_BACKEND]: Call es_slave_connect().
+	[!ESIM_BACKEND]: Make calls to mmap() / open() conditional.
+	(e_close) [!ESIM_BACKEND]: Make calls to munmap() / close()
+	conditional.
+	(ee_read_word) [ESIM_BACKEND]: Add esim implementation.
+	(ee_write_word) [ESIM_BACKEND]: Likewise.
+	(ee_read_buf) [ESIM_BACKEND]: Likewise.
+	(ee_write_buf) [ESIM_BACKEND]: Likewise.
+	(ee_read_reg) [ESIM_BACKEND]: Likewise.
+	(ee_write_reg) [ESIM_BACKEND]: Likewise.
+	(ee_mread_word) [ESIM_BACKEND]: Likewise.
+	(ee_mwrite_word) [ESIM_BACKEND]: Likewise.
+	(ee_mread_buf) [ESIM_BACKEND]: Likewise.
+	(ee_mwrite_buf) [ESIM_BACKEND]: Likewise.
+	(ee_read_esys) [ESIM_BACKEND]: Add ESIM placeholder. Return error.
+	(ee_write_esys) [ESIM_BACKEND]: Likewise.
+	(e_reset_system) [ESIM_BACKEND]: Add esim implementation.
 
 2015-11-20-2015-11-23  Ola Jeppsson  <ola@adapteva.com>
 

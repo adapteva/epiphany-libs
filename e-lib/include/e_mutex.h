@@ -38,12 +38,13 @@ typedef int  e_mutexattr_t;
 #define MUTEXATTR_DEFAULT MUTEXATTR_NULL
 
 
-void e_mutex_init(unsigned row, unsigned col, e_mutex_t *mutex, e_mutexattr_t *attr);
+void e_mutex_init (unsigned row, unsigned col, e_mutex_t *mutex, e_mutexattr_t *attr)
+	__attribute__((warning("e_mutex_init() is on probation and is currently a no-op. For correctness, ensure that mutex is statically zero-initialized.")));
 void e_mutex_lock(unsigned row, unsigned col, e_mutex_t *mutex);
 unsigned e_mutex_trylock(unsigned row, unsigned col, e_mutex_t *mutex);
 void e_mutex_unlock(unsigned row, unsigned col, e_mutex_t *mutex);
-void e_barrier_init(volatile e_barrier_t bar_array[], e_barrier_t *tgt_bar_array[]);
-void e_barrier(volatile e_barrier_t *bar_array, e_barrier_t *tgt_bar_array[]);
+void e_barrier_init(volatile e_barrier_t bar_array[], volatile e_barrier_t *tgt_bar_array[]);
+void e_barrier(volatile e_barrier_t *bar_array, volatile e_barrier_t *tgt_bar_array[]);
 
 
 #endif /* MUTEX_H_ */

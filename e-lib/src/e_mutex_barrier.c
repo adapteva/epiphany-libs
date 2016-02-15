@@ -68,7 +68,8 @@ void e_barrier(e_barrier_t bar_array[], e_barrier_t *tgt_bar_array[])
 	return;
 }
 #else
-void e_barrier(volatile e_barrier_t bar_array[], e_barrier_t *tgt_bar_array[])
+void e_barrier(volatile e_barrier_t bar_array[],
+			   volatile e_barrier_t *tgt_bar_array[])
 {
 	int corenum, numcores, i;
 
