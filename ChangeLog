@@ -1,3 +1,29 @@
+2016-02-15  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/platform.hdf (ESYS_REGS_BASE): Remove.
+	(EMEM_BASE_ADDRESS): Use mesh address.
+	* bsps/parallella_E16G3_1GB/parallella_E16G3_1GB.hdf: Likewise.
+	* e-hal/src/epiphany-hal-api-local.h: Update EPIPHANY_DEV.
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Remove
+	regs_base member.
+	* e-hal/src/epiphany-hal.c (struct target_ops): Remove
+	ee_read_esys and ee_write_esys members.
+	(e_init): Comment out call to e_shm_init().
+	(e_finalize): Remove call ee_disable system().
+	(ee_read_esys_esim): Remove.
+	(ee_read_esys_native): Remove.
+	(ee_read_esys): Remove.
+	(ee_write_esys_esim): Remove.
+	(ee_write_esys_native): Remove.
+	(ee_write_esys): Remove.
+	(disable_nsw_elinks): Remove.
+	(enable_clock_gating): Remove.
+	(e_reset_system_native): Use new kernel ABI.
+	(ee_disable_system): Remove.
+	(ee_parse_simple_hdf): Make ESYS_REGS_BASE entries no-ops.
+	* e-utils/src/e-hw-rev.c (main): Use dummy value for version
+	reg
+
 2015-12-21  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/e-loader.c (clear_sram): Take sram size from first chip in
