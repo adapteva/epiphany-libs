@@ -1,5 +1,10 @@
 2016-02-16  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-utils/Makemodule.am: Add e-dump-regs target.
+	* e-utils/src/e-dump-regs.c: New file.
+
+2016-02-16  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-shm-manager.c (e_shm_init_native): Fill in
 	shm_alloc struct.
 	* e-hal/src/epiphany-hal.c (e_init): Call e_shm_init() again.
