@@ -60,6 +60,8 @@ ssize_t  ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t siz
 /////////////////////////
 // Core control functions
 int      ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col);
+int      ee_reset_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
+int      ee_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
 
 
 ////////////////////

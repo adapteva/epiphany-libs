@@ -1,3 +1,15 @@
+2016-02-17  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (e_load_group): Call ee_reset_group.
+	* e-hal/src/epiphany-hal-api-local.h: Add function prototypes
+	for ee_reset_group and ee_start_group.
+	* e-hal/src/epiphany-hal.c (ee_reset_group): Implemented.
+	(ee_reset_core): Use ee_reset_group.
+	(e_reset_group): Use ee_reset_group.
+	(ee_start_group): Implemented.
+	(e_start): Use ee_start_group.
+	(e_start_group): Use ee_start_group.
+
 2016-02-16  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-utils/Makemodule.am: Add e-dump-regs target.

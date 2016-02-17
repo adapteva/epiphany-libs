@@ -1263,105 +1263,105 @@ int e_reset_chip(void)
 }
 
 
-// Reset an e-core
-int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+// Reset a group
+int ee_reset_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
+		unsigned cols)
 {
 	int RESET0 = 0x0;
 	int RESET1 = 0x1;
 	int CONFIG = 0x01000000;
+	int i, j;
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): halting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	e_halt(dev, row, col);
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): halting cores...\n"); }
+	for (i = row; i < row + rows; i++)
+		for (j = col; j < col + cols; j++)
+			e_halt(dev, i, j);
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): pausing DMAs.\n"); }
-	e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): halting cores...\n"); }
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			/* Refuse to reset if core is in the middle of an external read */
+			if (ee_read_reg(dev, i, j, E_REG_DEBUGSTATUS) & 2) {
+				usleep(100000);
+				if (ee_read_reg(dev, i, j, E_REG_DEBUGSTATUS) & 2) {
+					warnx("ee_reset_group(): (%d, %d) stuck. Full system reset needed", i, j);
+					return E_ERR;
+				}
+			}
+		}
+	}
 
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): pausing DMAs.\n"); }
+
+	for (i = row; i < row + rows; i++)
+		for (j = col; j < col + cols; j++)
+			e_write(dev, i, j, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+
+#if 0
 	if (!esim_target_p())
 		usleep(100000);
+#endif
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
-	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): resetting cores...\n"); }
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			ee_write_reg(dev, i, j, E_REG_RESETCORE, RESET1);
+			ee_write_reg(dev, i, j, E_REG_RESETCORE, RESET0);
+		}
+	}
+
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): done.\n"); }
 
 	return E_OK;
+}
+
+// Reset an e-core
+int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	return ee_reset_group(dev, row, col, 1, 1);
 }
 
 
 // Reset a workgroup
 int e_reset_group(e_epiphany_t *dev)
 {
-	int RESET0 = 0x0;
-	int RESET1 = 0x1;
-	int CONFIG = 0x01000000;
-	int row, col;
+	return ee_reset_group(dev, 0, 0, dev->rows, dev->cols);
+}
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): halting core...\n"); }
-	for (row=0; row<dev->rows; row++)
-		for (col=0; col<dev->cols; col++)
-			e_halt(dev, row, col);
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): pausing DMAs.\n"); }
 
-	for (row=0; row<dev->rows; row++)
-		for (col=0; col<dev->cols; col++)
-			e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+int ee_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
+		unsigned cols)
+{
+	int				i, j;
+	e_return_stat_t retval;
+	int SYNC = (1 << E_SYNC);
 
-	if (!esim_target_p())
-		usleep(100000);
+	retval = E_OK;
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): resetting cores...\n"); }
-	for (row=0; row<dev->rows; row++)
-		for (col=0; col<dev->cols; col++)
-		{
-			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
-			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
+	diag(H_D1) { fprintf(diag_fd, "ee_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			if (ee_write_reg(dev, i, j, E_REG_ILATST, SYNC) == E_ERR)
+				retval = E_ERR;
 		}
+	}
+	diag(H_D1) { fprintf(diag_fd, "ee_start_group(): done.\n"); }
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): done.\n"); }
-
-	return E_OK;
+	return retval;
 }
 
 
 // Start a program loaded on an e-core in a group
 int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	e_return_stat_t retval;
-
-	retval = E_OK;
-
-	int SYNC = (1 << E_SYNC);
-
-	diag(H_D1) { fprintf(diag_fd, "e_start(): SYNC (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
-	if (ee_write_reg(dev, row, col, E_REG_ILATST, SYNC) == E_ERR)
-		retval = E_ERR;
-	diag(H_D1) { fprintf(diag_fd, "e_start(): done.\n"); }
-
-	return retval;
+	return ee_start_group(dev, row, col, 1, 1);
 }
 
 
 // Start all programs loaded on a workgroup
 int e_start_group(e_epiphany_t *dev)
 {
-	int				irow, icol;
-	e_return_stat_t retval;
-
-	retval = E_OK;
-
-	int SYNC = (1 << E_SYNC);
-
-	diag(H_D1) { fprintf(diag_fd, "e_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
-	for (irow=0; irow<dev->rows; irow++)
-		for (icol=0; icol<dev->cols; icol++)
-			{
-				diag(H_D1) { fprintf(diag_fd, "e_start_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
-				if (ee_write_reg(dev, irow, icol, E_REG_ILATST, SYNC) == E_ERR)
-					retval = E_ERR;
-			}
-	diag(H_D1) { fprintf(diag_fd, "e_start_group(): done.\n"); }
-
-	return retval;
+	return ee_start_group(dev, 0, 0, dev->rows, dev->cols);
 }
 
 
