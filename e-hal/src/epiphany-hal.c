@@ -1405,16 +1405,15 @@ int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 		return E_ERR;
 	}
 
-	/* Should be unnecessary */
-	ee_reset_regs(dev, row, col);
-
-	ee_write_buf(dev, row, col, 0, soft_reset_payload, sizeof(soft_reset_payload));
+	ee_write_reg(dev, row, col, E_REG_ILATCL, ~0);
 
 	ee_write_reg(dev, row, col, E_REG_IMASK, 0);
 
 	ee_write_reg(dev, row, col, E_REG_IRET, 0x2c); /* clear_ipend */
 
 	ee_write_reg(dev, row, col, E_REG_PC, 0x2c); /* clear_ipend */
+
+	ee_write_buf(dev, row, col, 0, soft_reset_payload, sizeof(soft_reset_payload));
 
 	/* Set active bit */
 	ee_write_reg(dev, row, col, E_REG_FSTATUS, 1);
