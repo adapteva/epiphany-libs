@@ -1,5 +1,11 @@
 2016-02-18  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-utils/src/e-read.c (main): Remove call to
+	e_reset_system().
+	* e-utils/src/e-write.c (main): Likewise.
+
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (ee_soft_reset_core): Replace
 	unnecessary call to ee_reset_regs() with one write to ILATCL.
 
