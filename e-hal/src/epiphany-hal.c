@@ -1347,80 +1347,93 @@ int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col)
 
 
 uint8_t soft_reset_payload[] = {
-  0xe8, 0x16, 0x00, 0x00, 0xe8, 0x14, 0x00, 0x00, 0xe8, 0x12, 0x00, 0x00,
-  0xe8, 0x10, 0x00, 0x00, 0xe8, 0x0e, 0x00, 0x00, 0xe8, 0x0c, 0x00, 0x00,
-  0xe8, 0x0a, 0x00, 0x00, 0xe8, 0x08, 0x00, 0x00, 0xe8, 0x06, 0x00, 0x00,
-  0xe8, 0x04, 0x00, 0x00, 0xe8, 0x02, 0x00, 0x00, 0x1f, 0x15, 0x02, 0x04,
-  0x7a, 0x00, 0x00, 0x02, 0xd2, 0x01, 0x92, 0x01, 0xb2, 0x01, 0xe0, 0xfe
+	0xe8, 0x16, 0x00, 0x00, 0xe8, 0x14, 0x00, 0x00, 0xe8, 0x12, 0x00, 0x00,
+	0xe8, 0x10, 0x00, 0x00, 0xe8, 0x0e, 0x00, 0x00, 0xe8, 0x0c, 0x00, 0x00,
+	0xe8, 0x0a, 0x00, 0x00, 0xe8, 0x08, 0x00, 0x00, 0xe8, 0x06, 0x00, 0x00,
+	0xe8, 0x04, 0x00, 0x00, 0xe8, 0x02, 0x00, 0x00, 0x1f, 0x15, 0x02, 0x04,
+	0x7a, 0x00, 0x00, 0x03, 0xd2, 0x01, 0xe0, 0xfb, 0x92, 0x01, 0xb2, 0x01,
+	0xe0, 0xfe
 };
+
 /*
- *   ivt:
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *           b.l     reset
- *   reset:
- *           movfs   r0, ipend
- *           orr     r0, r0, r0
- *           beq     1f
- *           rti
- *   1:
- *           gie
- *           idle
- *           b       1b
+ *        ivt:
+ *   0:              b.l     clear_ipend
+ *   4:              b.l     clear_ipend
+ *   8:              b.l     clear_ipend
+ *   c:              b.l     clear_ipend
+ *  10:              b.l     clear_ipend
+ *  14:              b.l     clear_ipend
+ *  18:              b.l     clear_ipend
+ *  1c:              b.l     clear_ipend
+ *  20:              b.l     clear_ipend
+ *  24:              b.l     clear_ipend
+ *  28:              b.l     clear_ipend
+ *        clear_ipend:
+ *  2c:              movfs   r0, ipend
+ *  30:              orr     r0, r0, r0
+ *  32:              beq     1f
+ *  34:              rti
+ *  36:              b       clear_ipend
+ *        1:
+ *  38:              gie
+ *  3a:              idle
+ *  3c:              b       1b
  */
 
 int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	int old_pc, i;
+	int i;
 	uint32_t status;
+	bool fail;
 
 	if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 1)) {
-		diag(H_D1) { fprintf(diag_fd, "%s(): No clean previous exit\n" , __func__); }
+		diag(H_D1) { fprintf(diag_fd, "%s(): No clean previous exit\n", __func__); }
 		e_halt(dev, row, col);
 	}
 
-	if (ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 2) {
+	/* Wait for external fetch */
+	fail = true;
+	for (i = 0; i < 1000; i++) {
+		if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 2)) {
+			fail = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail) {
 		warnx("%s(): (%d, %d) stuck. Full system reset needed", __func__, row, col);
-		/* Should we return? */
-		// return E_ERR;
+		return E_ERR;
 	}
 
-	/* Write protect (from local access) first bank */
-	ee_write_reg(dev, row, col, E_REG_MEMPROTECT, 1);
+	/* Should be unnecessary */
+	ee_reset_regs(dev, row, col);
 
 	ee_write_buf(dev, row, col, 0, soft_reset_payload, sizeof(soft_reset_payload));
 
-	ee_write_reg(dev, row, col, E_REG_IMASK, ~(1 << E_SYNC));
+	ee_write_reg(dev, row, col, E_REG_IMASK, 0);
 
-	ee_write_reg(dev, row, col, E_REG_IRET, 0x2c); /* reset */
+	ee_write_reg(dev, row, col, E_REG_IRET, 0x2c); /* clear_ipend */
 
-	/* unsafe? */
-	ee_write_reg(dev, row, col, E_REG_PC, 0x2c); /* reset */
+	ee_write_reg(dev, row, col, E_REG_PC, 0x2c); /* clear_ipend */
 
-	status = ee_read_reg(dev, row, col, E_REG_STATUS);
-	status &= ~2;
-	ee_write_reg(dev, row, col, E_REG_FSTATUS, status);
+	/* Set active bit */
+	ee_write_reg(dev, row, col, E_REG_FSTATUS, 1);
 
 	e_resume(dev, row, col);
 
-	ee_write_reg(dev, row, col, E_REG_ILATST, 1 << E_SYNC);
-
-	for (i = 0; i < 1000; i++) {
+	fail = true;
+	for (i = 0; i < 10000; i++) {
 		if (!ee_read_reg(dev, row, col, E_REG_IPEND) &&
-			!(ee_read_reg(dev, row, col, E_REG_STATUS) & 1))
+			!(ee_read_reg(dev, row, col, E_REG_STATUS) & 1)) {
+			fail = false;
 			break;
-		usleep(100);
+		}
+		usleep(10);
 	}
-	if (i == 1000)
-		warnx("%s: Not idle", __func__);
+	if (fail) {
+		warnx("%s: (%d, %d) Not idle", __func__, row, col);
+		return E_ERR;
+	}
 
 	ee_reset_regs(dev, row, col);
 
