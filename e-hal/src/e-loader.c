@@ -215,7 +215,10 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 		}
 	}
 
-	ee_reset_group(dev, row, col, rows, cols);
+	for (irow=row; irow<(row+rows); irow++)
+		for (icol=col; icol<(col+cols); icol++)
+			ee_soft_reset_core(dev, irow, icol);
+
 
 	clear_sram(dev, row, col, rows, cols);
 

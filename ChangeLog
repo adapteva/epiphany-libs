@@ -1,3 +1,12 @@
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (e_load_group): Replace call to
+	ee_reset_group() with call to ee_soft_reset_core().
+	* e-hal/src/epiphany-hal-api-local.h: Add ee_soft_reset_core
+	function prototype.
+	* e-hal/src/epiphany-hal.c (ee_reset_regs): Implemented.
+	(ee_soft_reset_core): Implemented.
+
 2016-02-17  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/e-loader.c (e_load_group): Call ee_reset_group.

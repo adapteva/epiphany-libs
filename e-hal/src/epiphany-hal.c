@@ -1262,6 +1262,171 @@ int e_reset_chip(void)
 	return E_OK;
 }
 
+int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	unsigned i;
+
+	for (i = E_REG_R0; i <= E_REG_R63; i += 4)
+		ee_write_reg(dev, row, col, i, 0);
+
+	for (i = E_REG_CONFIG; i <= E_REG_RMESHROUTE; i++) {
+		switch (i) {
+		// Control registers
+		case E_REG_CONFIG:
+		case E_REG_STATUS:
+			ee_write_reg(dev, row, col, i, 0);
+			continue;
+		case E_REG_PC:
+			/* ee_write_reg(dev, row, col, i, 0); */
+		case E_REG_DEBUGSTATUS:
+			continue;
+		case E_REG_LC:
+		case E_REG_LS:
+		case E_REG_LE:
+		case E_REG_IRET:
+		case E_REG_IMASK:
+			ee_write_reg(dev, row, col, i, 0);
+			continue;
+		case E_REG_ILAT:
+		case E_REG_ILATST:
+			continue;
+		case E_REG_ILATCL:
+			ee_write_reg(dev, row, col, i, ~0);
+		case E_REG_IPEND:
+			continue;
+		case E_REG_CTIMER0:
+		case E_REG_CTIMER1:
+			ee_write_reg(dev, row, col, i, 0);
+			continue;
+		case E_REG_FSTATUS:
+		case E_REG_DEBUGCMD:
+			continue;
+
+		// DMA Registers
+		case E_REG_DMA0CONFIG:
+		case E_REG_DMA0STRIDE:
+		case E_REG_DMA0COUNT:
+		case E_REG_DMA0SRCADDR:
+		case E_REG_DMA0DSTADDR:
+		case E_REG_DMA0AUTODMA0:
+		case E_REG_DMA0AUTODMA1:
+		case E_REG_DMA0STATUS:
+		case E_REG_DMA1CONFIG:
+		case E_REG_DMA1STRIDE:
+		case E_REG_DMA1COUNT:
+		case E_REG_DMA1SRCADDR:
+		case E_REG_DMA1DSTADDR:
+		case E_REG_DMA1AUTODMA0:
+		case E_REG_DMA1AUTODMA1:
+		case E_REG_DMA1STATUS:
+			/* ???: Not sure we should clear DMA regs ... */
+			ee_write_reg(dev, row, col, i, 0);
+			continue;
+
+		// Memory Protection Registers
+		case E_REG_MEMSTATUS:
+		case E_REG_MEMPROTECT:
+			ee_write_reg(dev, row, col, i, 0);
+			continue;
+
+		// Node Registers
+		case E_REG_MESHCONFIG:
+		case E_REG_COREID:
+		case E_REG_MULTICAST:
+		case E_REG_RESETCORE:
+		case E_REG_CMESHROUTE:
+		case E_REG_XMESHROUTE:
+		case E_REG_RMESHROUTE:
+			continue;
+
+		default:
+			continue;
+		}
+	}
+}
+
+
+uint8_t soft_reset_payload[] = {
+  0xe8, 0x16, 0x00, 0x00, 0xe8, 0x14, 0x00, 0x00, 0xe8, 0x12, 0x00, 0x00,
+  0xe8, 0x10, 0x00, 0x00, 0xe8, 0x0e, 0x00, 0x00, 0xe8, 0x0c, 0x00, 0x00,
+  0xe8, 0x0a, 0x00, 0x00, 0xe8, 0x08, 0x00, 0x00, 0xe8, 0x06, 0x00, 0x00,
+  0xe8, 0x04, 0x00, 0x00, 0xe8, 0x02, 0x00, 0x00, 0x1f, 0x15, 0x02, 0x04,
+  0x7a, 0x00, 0x00, 0x02, 0xd2, 0x01, 0x92, 0x01, 0xb2, 0x01, 0xe0, 0xfe
+};
+/*
+ *   ivt:
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *           b.l     reset
+ *   reset:
+ *           movfs   r0, ipend
+ *           orr     r0, r0, r0
+ *           beq     1f
+ *           rti
+ *   1:
+ *           gie
+ *           idle
+ *           b       1b
+ */
+
+int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	int old_pc, i;
+	uint32_t status;
+
+	if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 1)) {
+		diag(H_D1) { fprintf(diag_fd, "%s(): No clean previous exit\n" , __func__); }
+		e_halt(dev, row, col);
+	}
+
+	if (ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 2) {
+		warnx("%s(): (%d, %d) stuck. Full system reset needed", __func__, row, col);
+		/* Should we return? */
+		// return E_ERR;
+	}
+
+	/* Write protect (from local access) first bank */
+	ee_write_reg(dev, row, col, E_REG_MEMPROTECT, 1);
+
+	ee_write_buf(dev, row, col, 0, soft_reset_payload, sizeof(soft_reset_payload));
+
+	ee_write_reg(dev, row, col, E_REG_IMASK, ~(1 << E_SYNC));
+
+	ee_write_reg(dev, row, col, E_REG_IRET, 0x2c); /* reset */
+
+	/* unsafe? */
+	ee_write_reg(dev, row, col, E_REG_PC, 0x2c); /* reset */
+
+	status = ee_read_reg(dev, row, col, E_REG_STATUS);
+	status &= ~2;
+	ee_write_reg(dev, row, col, E_REG_FSTATUS, status);
+
+	e_resume(dev, row, col);
+
+	ee_write_reg(dev, row, col, E_REG_ILATST, 1 << E_SYNC);
+
+	for (i = 0; i < 1000; i++) {
+		if (!ee_read_reg(dev, row, col, E_REG_IPEND) &&
+			!(ee_read_reg(dev, row, col, E_REG_STATUS) & 1))
+			break;
+		usleep(100);
+	}
+	if (i == 1000)
+		warnx("%s: Not idle", __func__);
+
+	ee_reset_regs(dev, row, col);
+
+	return E_OK;
+}
+
 
 // Reset a group
 int ee_reset_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
