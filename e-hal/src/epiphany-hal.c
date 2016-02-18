@@ -1262,87 +1262,87 @@ int e_reset_chip(void)
 	return E_OK;
 }
 
-int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col)
+int ee_soft_reset_dma(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	uint32_t config;
+	bool fail0, fail1;
+	int i;
+
+	/* pause DMA */
+	config = ee_read_reg(dev, row, col, E_REG_CONFIG) | 0x01000000;
+	ee_write_reg(dev, row, col, E_REG_CONFIG, config);
+
+	ee_write_reg(dev, row, col, E_REG_DMA0CONFIG, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0STRIDE, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0COUNT, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0SRCADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0DSTADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0STATUS, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1CONFIG, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1STRIDE, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1COUNT, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1SRCADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1DSTADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1STATUS, 0);
+
+	/* unpause DMA */
+	config &= ~0x01000000;
+	ee_write_reg(dev, row, col, E_REG_CONFIG, config);
+
+	fail0 = true;
+	for (i = 0; i < 1000; i++) {
+		if (!(ee_read_reg(dev, row, col, E_REG_DMA0STATUS) & 7)) {
+			fail0 = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail0)
+		warnx("%s(): (%d, %d) DMA0 NOT IDLE after dma reset", __func__, row, col);
+
+	fail1 = true;
+	for (i = 0; i < 1000; i++) {
+		if (!(ee_read_reg(dev, row, col, E_REG_DMA1STATUS) & 7)) {
+			fail1 = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail1)
+		warnx("%s(): (%d, %d) DMA1 NOT IDLE after dma reset", __func__, row, col);
+
+	return (fail0 || fail1) ? E_ERR : E_OK;
+}
+
+int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col, bool reset_dma)
 {
 	unsigned i;
 
 	for (i = E_REG_R0; i <= E_REG_R63; i += 4)
 		ee_write_reg(dev, row, col, i, 0);
 
-	for (i = E_REG_CONFIG; i <= E_REG_RMESHROUTE; i++) {
-		switch (i) {
-		// Control registers
-		case E_REG_CONFIG:
-		case E_REG_STATUS:
-			ee_write_reg(dev, row, col, i, 0);
-			continue;
-		case E_REG_PC:
-			/* ee_write_reg(dev, row, col, i, 0); */
-		case E_REG_DEBUGSTATUS:
-			continue;
-		case E_REG_LC:
-		case E_REG_LS:
-		case E_REG_LE:
-		case E_REG_IRET:
-		case E_REG_IMASK:
-			ee_write_reg(dev, row, col, i, 0);
-			continue;
-		case E_REG_ILAT:
-		case E_REG_ILATST:
-			continue;
-		case E_REG_ILATCL:
-			ee_write_reg(dev, row, col, i, ~0);
-		case E_REG_IPEND:
-			continue;
-		case E_REG_CTIMER0:
-		case E_REG_CTIMER1:
-			ee_write_reg(dev, row, col, i, 0);
-			continue;
-		case E_REG_FSTATUS:
-		case E_REG_DEBUGCMD:
-			continue;
+	if (reset_dma)
+		if (ee_soft_reset_dma(dev, row, col) != E_OK)
+			return E_ERR;
 
-		// DMA Registers
-		case E_REG_DMA0CONFIG:
-		case E_REG_DMA0STRIDE:
-		case E_REG_DMA0COUNT:
-		case E_REG_DMA0SRCADDR:
-		case E_REG_DMA0DSTADDR:
-		case E_REG_DMA0AUTODMA0:
-		case E_REG_DMA0AUTODMA1:
-		case E_REG_DMA0STATUS:
-		case E_REG_DMA1CONFIG:
-		case E_REG_DMA1STRIDE:
-		case E_REG_DMA1COUNT:
-		case E_REG_DMA1SRCADDR:
-		case E_REG_DMA1DSTADDR:
-		case E_REG_DMA1AUTODMA0:
-		case E_REG_DMA1AUTODMA1:
-		case E_REG_DMA1STATUS:
-			/* ???: Not sure we should clear DMA regs ... */
-			ee_write_reg(dev, row, col, i, 0);
-			continue;
+	/* Enable clock gating */
+	ee_write_reg(dev, row, col, E_REG_CONFIG, 0x00400000);
+	ee_write_reg(dev, row, col, E_REG_FSTATUS, 0);
+	/* ee_write_reg(dev, row, col, E_REG_PC, 0); */
+	ee_write_reg(dev, row, col, E_REG_LC, 0);
+	ee_write_reg(dev, row, col, E_REG_LS, 0);
+	ee_write_reg(dev, row, col, E_REG_LE, 0);
+	ee_write_reg(dev, row, col, E_REG_IRET, 0);
+	ee_write_reg(dev, row, col, E_REG_IMASK, 0);
+	ee_write_reg(dev, row, col, E_REG_ILATCL, ~0);
+	ee_write_reg(dev, row, col, E_REG_CTIMER0, 0);
+	ee_write_reg(dev, row, col, E_REG_CTIMER1, 0);
+	ee_write_reg(dev, row, col, E_REG_MEMSTATUS, 0);
+	ee_write_reg(dev, row, col, E_REG_MEMPROTECT, 0);
+	/* Enable clock gating */
+	ee_write_reg(dev, row, col, E_REG_MESHCONFIG, 2);
 
-		// Memory Protection Registers
-		case E_REG_MEMSTATUS:
-		case E_REG_MEMPROTECT:
-			ee_write_reg(dev, row, col, i, 0);
-			continue;
-
-		// Node Registers
-		case E_REG_MESHCONFIG:
-		case E_REG_COREID:
-		case E_REG_MULTICAST:
-		case E_REG_RESETCORE:
-		case E_REG_CMESHROUTE:
-		case E_REG_XMESHROUTE:
-		case E_REG_RMESHROUTE:
-			continue;
-
-		default:
-			continue;
-		}
-	}
+	return E_OK;
 }
 
 
@@ -1405,6 +1405,19 @@ int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 		return E_ERR;
 	}
 
+	if (ee_read_reg(dev, row, col, E_REG_DMA0STATUS) & 7)
+		warnx("%s(): (%d, %d) DMA0 NOT IDLE", __func__, row, col);
+
+	if (ee_read_reg(dev, row, col, E_REG_DMA1STATUS) & 7)
+		warnx("%s(): (%d, %d) DMA1 NOT IDLE", __func__, row, col);
+
+	/* Abort DMA transfers */
+	if (ee_soft_reset_dma(dev, row, col) != E_OK)
+		return E_ERR;
+
+	/* Disable timers */
+	ee_write_reg(dev, row, col, E_REG_CONFIG, 0);
+
 	ee_write_reg(dev, row, col, E_REG_ILATCL, ~0);
 
 	ee_write_reg(dev, row, col, E_REG_IMASK, 0);
@@ -1423,6 +1436,7 @@ int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	fail = true;
 	for (i = 0; i < 10000; i++) {
 		if (!ee_read_reg(dev, row, col, E_REG_IPEND) &&
+			!ee_read_reg(dev, row, col, E_REG_ILAT) &&
 			!(ee_read_reg(dev, row, col, E_REG_STATUS) & 1)) {
 			fail = false;
 			break;
@@ -1434,7 +1448,8 @@ int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 		return E_ERR;
 	}
 
-	ee_reset_regs(dev, row, col);
+	/* Reset regs, excluding DMA (already done above) */
+	ee_reset_regs(dev, row, col, false);
 
 	return E_OK;
 }

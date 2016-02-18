@@ -1,5 +1,13 @@
 2016-02-18  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal.c (ee_soft_reset_dma): Implement.
+	(ee_reset_regs): Clean up. Add reset_dma parameter. Enable
+	clock gating. Write FSTATUS instead of STATUS.
+	(ee_soft_reset_core): Use ee_soft_reset_dma. Disable timers
+	early. Also check ILAT to determine that core is idle.
+
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-utils/src/e-read.c (main): Remove call to
 	e_reset_system().
 	* e-utils/src/e-write.c (main): Likewise.
