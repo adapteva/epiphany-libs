@@ -1,5 +1,10 @@
 2016-02-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal.c (e_open): Call ee_soft_reset_core()
+	(e_close): Likewise.
+
+2016-02-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (ee_reset_regs): Mask all but SYNC
 	irq in IMASK.
 

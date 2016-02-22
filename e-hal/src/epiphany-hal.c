@@ -411,6 +411,8 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 					return E_ERR;
 				}
 			}
+			if (ee_soft_reset_core(dev, irow, icol) != E_OK)
+				warnx("%s: ee_soft_reset_core failed", __func__);
 		}
 	}
 
@@ -436,6 +438,9 @@ int e_close(e_epiphany_t *dev)
 		if (!esim_target_p()) {
 			for (icol=0; icol<dev->cols; icol++)
 			{
+				if (ee_soft_reset_core(dev, irow, icol) != E_OK)
+					warnx("%s: ee_soft_reset_core failed", __func__);
+
 				curr_core = &(dev->core[irow][icol]);
 
 				munmap(curr_core->mems.mapped_base, curr_core->mems.map_size);
