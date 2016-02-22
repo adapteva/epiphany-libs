@@ -1,3 +1,8 @@
+2016-02-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (ee_reset_regs): Mask all but SYNC
+	irq in IMASK.
+
 2016-02-18  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal.c (ee_soft_reset_dma): Implement.

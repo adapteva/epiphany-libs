@@ -1333,7 +1333,8 @@ int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col, bool reset_dma)
 	ee_write_reg(dev, row, col, E_REG_LS, 0);
 	ee_write_reg(dev, row, col, E_REG_LE, 0);
 	ee_write_reg(dev, row, col, E_REG_IRET, 0);
-	ee_write_reg(dev, row, col, E_REG_IMASK, 0);
+	/* Mask all but SYNC irq */
+	ee_write_reg(dev, row, col, E_REG_IMASK, ~(1 << E_SYNC));
 	ee_write_reg(dev, row, col, E_REG_ILATCL, ~0);
 	ee_write_reg(dev, row, col, E_REG_CTIMER0, 0);
 	ee_write_reg(dev, row, col, E_REG_CTIMER1, 0);
