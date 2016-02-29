@@ -411,8 +411,11 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 					return E_ERR;
 				}
 			}
+#if 0
+			/* Nope, breaks e_read and e_write */
 			if (ee_soft_reset_core(dev, irow, icol) != E_OK)
 				warnx("%s: ee_soft_reset_core failed", __func__);
+#endif
 		}
 	}
 
@@ -438,8 +441,11 @@ int e_close(e_epiphany_t *dev)
 		if (!esim_target_p()) {
 			for (icol=0; icol<dev->cols; icol++)
 			{
+#if 0
+				/* Nope, breaks e-read / e-write */
 				if (ee_soft_reset_core(dev, irow, icol) != E_OK)
 					warnx("%s: ee_soft_reset_core failed", __func__);
+#endif
 
 				curr_core = &(dev->core[irow][icol]);
 
