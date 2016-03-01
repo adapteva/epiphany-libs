@@ -1,3 +1,11 @@
+2016-03-01  Ola Jeppsson  <ola@adapteva.com>
+
+	* configure.ac: Add --disable-ehal and --disable-elib
+	arguments.
+	* Makefile.am: Conditional build of e-lib based on flags given
+	to configure. Conditional build of e-hal (and libraries that
+	depend on e-hal).
+
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): Use right type
