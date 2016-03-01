@@ -87,6 +87,22 @@ AC_CHECK_FUNCS([gettimeofday inet_ntoa memchr memmove memset munmap pow realpath
 
 AC_CONFIG_FILES([Makefile])
 
+# Make it possible to disable components
+# N.B: If e-hal is disabled, components that require it will also be disabled
+# in Automake files.
+AC_ARG_ENABLE([ehal],
+              AS_HELP_STRING([--disable-ehal],
+                             [Disable building e-hal]))
+AM_CONDITIONAL([ENABLE_EHAL],
+               [test "x$enable_ehal" != "xno"])
+
+AC_ARG_ENABLE([elib],
+              AS_HELP_STRING([--disable-elib],
+                             [Disable building e-lib]))
+AM_CONDITIONAL([ENABLE_ELIB],
+               [test "x$enable_elib" != "xno"])
+
+
 # Define the --enable-assert command-line option
 AC_ARG_ENABLE(assert,
   [AS_HELP_STRING([--enable-assert], [Build with assertions enabled])],
