@@ -1,5 +1,12 @@
 2016-03-01  Ola Jeppsson  <ola@adapteva.com>
 
+	* configure.ac: Add --enable-pal-target argument. Add
+	ENABLE_PAL_TARGET Automake conditional
+	* e-hal/Makemodule.am [ENABLE_PAL_TARGET]: Set PAL CFLAGS and
+	LDFLAGS.
+
+2016-03-01  Ola Jeppsson  <ola@adapteva.com>
+
 	* configure.ac: Add --disable-ehal and --disable-elib
 	arguments.
 	* Makefile.am: Conditional build of e-lib based on flags given

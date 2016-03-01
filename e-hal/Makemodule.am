@@ -44,6 +44,13 @@ libe_loader_la_LDFLAGS += -lesim -lpthread
 libe_hal_la_LDFLAGS    += -lesim -lpthread
 endif
 
+if ENABLE_PAL_TARGET
+libe_loader_la_CFLAGS  += -DPAL_TARGET
+libe_hal_la_CFLAGS     += -DPAL_TARGET
+libe_loader_la_LDFLAGS += -lpal
+libe_hal_la_LDFLAGS    += -lpal
+endif
+
 #libe_hal_la_LIBADD = -lm
 
 #lib_e_hal_la_LDFLAGS = -export-symbols-regex '^p_|^__pal_'
