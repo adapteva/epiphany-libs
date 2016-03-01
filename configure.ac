@@ -143,6 +143,13 @@ AC_ARG_ENABLE(esim,
 AM_CONDITIONAL(enable_esim, [test "x$enable_esim" = xyes])
 AS_IF([test "x$enable_esim" = xyes], [AC_CHECK_HEADERS([esim.h])])
 
+AC_ARG_ENABLE(pal-target,
+  [AS_HELP_STRING([--enable-pal-target],
+  [Enable building e-hal with PAL target.])])
+AM_CONDITIONAL(ENABLE_PAL_TARGET, [test "x$enable_pal_target" = xyes])
+AS_IF([test "x$enable_pal_target" = xyes], [AC_CHECK_HEADERS([pal/pal.h])])
+
+
 # Easiest way to include header files globally
 AC_SUBST([AM_CPPFLAGS],
   ['-I$(top_srcdir) -I$(top_srcdir)/e-hal/src -I$(top_srcdir)/e-xml/src -I$(top_srcdir)/e-trace/include -I$(top_builddir) $(assert_CPPFLAGS)'])
