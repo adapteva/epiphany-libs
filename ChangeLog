@@ -1,3 +1,7 @@
+2016-03-02  Ola Jeppsson  <ola@adapteva.com>
+
+	* Makefile.am: Always include bsps build rules.
+
 2016-03-01  Ola Jeppsson  <ola@adapteva.com>
 
 	* configure.ac: Add --enable-pal-target argument. Add

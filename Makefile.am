@@ -20,8 +20,9 @@ include e-server/Makemodule.am
 include e-trace/Makemodule.am
 include e-utils/Makemodule.am
 include e-xml/Makemodule.am
-include bsps/Makemodule.am
 endif
+
+include bsps/Makemodule.am
 
 #libe_hal_la_LIBADD = -lm
 
