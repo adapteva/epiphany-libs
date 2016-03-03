@@ -1,3 +1,8 @@
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): Use right type
+	for memory segment.
+
 2015-12-21  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/e-loader.c (clear_sram): Take sram size from first chip in

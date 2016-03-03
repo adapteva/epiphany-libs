@@ -1896,13 +1896,11 @@ e_bool_t e_is_addr_on_chip(void *addr)
 e_bool_t e_is_addr_in_emem(uintptr_t addr)
 {
 	unsigned  i;
-	e_mem_t  *mem;
+	e_memseg_t  *mem;
 
 	for (i = 0; i < e_platform.num_emems; i++) {
 		mem = &e_platform.emem[i];
-		/* ???: Why are the correct values in page_base/page_offset instead
-		 * of ephy_base/emap_size */
-		if (mem->page_base <= addr && addr - mem->page_base <= mem->page_offset)
+		if (mem->ephy_base <= addr && addr - mem->ephy_base <= mem->size)
 			return E_TRUE;
 	}
 	return E_FALSE;
