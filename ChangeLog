@@ -1,5 +1,10 @@
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/Makemodule.am: Capitalize ENABLE_ESIM.
+	* configure.ac: Likewise.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal-api-local.h: Add prototype for
 	ee_esim_target_p.
 	* e-hal/src/e-loader.c: Include epiphany-hal-api-local.h.
