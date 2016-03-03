@@ -26,7 +26,6 @@ struct esim_ops {
 	void (*get_cluster_cfg)(const es_state *, es_cluster_cfg *);
 };
 
-extern bool ee_esim_target_p();
 extern const struct esim_ops es_ops;
-extern const struct e_target_ops esim_target_ops;
+
 #endif

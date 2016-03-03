@@ -27,6 +27,7 @@
 #define __E_HAL_API_LOC_H__
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -79,6 +80,9 @@ int      ee_parse_xml_hdf(e_platform_t *dev, char *hdf);
 void     ee_trim_str(char *a);
 unsigned long ee_rndu_page(unsigned long size);
 unsigned long ee_rndl_page(unsigned long size);
+
+// Target detect functions
+extern bool ee_esim_target_p();
 
 #ifdef __cplusplus
 }

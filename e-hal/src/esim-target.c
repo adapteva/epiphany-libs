@@ -27,21 +27,6 @@ const struct esim_ops es_ops = {
 #endif
 };
 
-bool ee_esim_target_p()
-{
-	static bool initialized = false;
-	static bool esim = false;
-	const char *p;
-
-	if (!initialized) {
-		p = getenv(EHAL_TARGET_ENV);
-		esim = (p && strncmp(p, "esim", sizeof("esim")) == 0);
-        initialized = true;
-	}
-
-	return esim;
-}
-
 // Read a word from SRAM of a core in a group
 static int ee_read_word_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {

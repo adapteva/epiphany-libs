@@ -36,6 +36,8 @@
 #include <err.h>
 #include <elf.h>
 
+#include "e-hal.h"
+#include "epiphany-hal-api-local.h"
 #include "e-loader.h"
 #include "esim-target.h"
 
