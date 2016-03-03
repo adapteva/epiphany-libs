@@ -92,6 +92,7 @@ static int e_shm_init_esim()
 int e_shm_init_native()
 {
 	int              devfd       = 0;
+	e_memseg_t       *emem;
 
 	/* Map the epiphany global shared memory into process address space */
 	devfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
@@ -100,12 +101,17 @@ int e_shm_init_native()
 		return E_ERR;
 	}
 
-	memset(&shm_alloc, 0, sizeof(shm_alloc));
-	if ( -1 == ioctl(devfd, EPIPHANY_IOC_GETSHM, &shm_alloc) ) {
-		warnx("e_shm_init(): Failed to obtain the global "
-			  "shared memory. Error is %s", strerror(errno));
+	if (!e_platform.num_emems) {
+		warnx("e_shm_init(): No memory regions.");
 		return E_ERR;
 	}
+	emem = &e_platform.emem[0];
+	shm_alloc.size        = GLOBAL_SHM_SIZE;
+	shm_alloc.bus_addr    = emem->ephy_base + 0x01000000; /* + shared_dram offset */
+	shm_alloc.phy_addr    = emem->phy_base  + 0x01000000; /* + shared_dram offset */
+	shm_alloc.kvirt_addr  = 0;
+	shm_alloc.mmap_handle = shm_alloc.bus_addr;
+
 	shm_table_length = shm_alloc.size;
 
 	shm_alloc.uvirt_addr = (unsigned long)mmap(0, shm_alloc.size,

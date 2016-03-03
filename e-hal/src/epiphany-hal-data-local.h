@@ -138,8 +138,6 @@ typedef struct {
 	unsigned int	 hal_ver;	  // version number of the E-HAL
 	int				 initialized; // platform initialized?
 
-	unsigned int	 regs_base;	  // base address of platform registers
-
 	int				 num_chips;	  // number of Epiphany chips in platform
 	e_chip_t		*chip;		  // array of Epiphany chip objects
 	unsigned int	 row;		  // platform absolute minimum row number

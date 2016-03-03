@@ -33,7 +33,7 @@ extern "C"
 {
 #endif
 
-#define EPIPHANY_DEV "/dev/epiphany"
+#define EPIPHANY_DEV "/dev/epiphany/mesh0"
 
 /////////////////////////////////
 // Device communication functions
@@ -44,9 +44,6 @@ ssize_t  ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t 
 ssize_t  ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size);
 int      ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr);
 ssize_t  ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data);
-int      ee_read_esys(off_t from_addr);
-ssize_t  ee_write_esys(off_t to_addr, int data);
-int      ee_disable_system(void);
 //
 // For legacy code support
 ssize_t  ee_read_abs(unsigned address, void *buf, size_t size);

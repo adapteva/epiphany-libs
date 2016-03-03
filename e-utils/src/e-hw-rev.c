@@ -24,6 +24,8 @@
   THE SOFTWARE.
 */
 
+/* TODO: Does not work with devel driver */
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -131,7 +133,12 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 
+	/* TODO: Fix */
+#if 0
 	version.reg = ee_read_esys(E_SYS_VERSION);
+#else
+	version.reg = 0;
+#endif
 
 	print_platform_info(&version);
 

@@ -35,6 +35,8 @@
 #include <stdint.h>
 #include <assert.h>
 
+/* Redesigned driver API */
+#include "epiphany2.h"
 
 #include "e-hal.h"
 #include "epiphany-shm-manager.h"	/* For private APIs */
@@ -73,8 +75,6 @@ static int ee_mread_word_native (e_mem_t *, const off_t);
 static ssize_t ee_mwrite_word_native (e_mem_t *, off_t, int);
 static ssize_t ee_mread_buf_native (e_mem_t *, const off_t, void *, size_t);
 static ssize_t ee_mwrite_buf_native (e_mem_t *, off_t, const void *, size_t);
-static int ee_read_esys_native (off_t);
-static ssize_t ee_write_esys_native (off_t, int);
 static int e_reset_system_native (void);
 
 static int ee_read_word_esim (e_epiphany_t *, unsigned, unsigned, const off_t);
@@ -87,8 +87,6 @@ static int ee_mread_word_esim (e_mem_t *, const off_t);
 static ssize_t ee_mwrite_word_esim (e_mem_t *, off_t, int);
 static ssize_t ee_mread_buf_esim (e_mem_t *, const off_t, void *, size_t);
 static ssize_t ee_mwrite_buf_esim (e_mem_t *, off_t, const void *, size_t);
-static int ee_read_esys_esim (off_t);
-static ssize_t ee_write_esys_esim (off_t, int);
 static int e_reset_system_esim (void);
 static int ee_hdf_from_sim_cfg(e_platform_t *dev);
 
@@ -103,8 +101,6 @@ struct target_ops {
 	ssize_t (*ee_mwrite_word) (e_mem_t *, off_t, int);
 	ssize_t (*ee_mread_buf) (e_mem_t *, const off_t, void *, size_t);
 	ssize_t (*ee_mwrite_buf) (e_mem_t *, off_t, const void *, size_t);
-	int (*ee_read_esys) (off_t);
-	ssize_t (*ee_write_esys) (off_t, int);
 	int (*e_reset_system) (void);
 };
 
@@ -125,8 +121,6 @@ static const struct target_ops target = {
 	.ee_mwrite_word = ee_mwrite_word_native,
 	.ee_mread_buf = ee_mread_buf_native,
 	.ee_mwrite_buf = ee_mwrite_buf_native,
-	.ee_read_esys = ee_read_esys_native,
-	.ee_write_esys = ee_write_esys_native,
 	.e_reset_system = e_reset_system_native,
 };
 
@@ -143,8 +137,6 @@ static void use_esim_target_ops()
 	target.ee_mwrite_word = ee_mwrite_word_esim;
 	target.ee_mread_buf = ee_mread_buf_esim;
 	target.ee_mwrite_buf = ee_mwrite_buf_esim;
-	target.ee_read_esys = ee_read_esys_esim;
-	target.ee_write_esys = ee_write_esys_esim;
 	target.e_reset_system = e_reset_system_esim;
 #endif
 }
@@ -277,8 +269,6 @@ int e_finalize(void)
 	}
 
 	e_shm_finalize();
-
-	ee_disable_system();
 
 	if (esim_target_p())
 		es_ops.client_disconnect(e_platform.esim, true);
@@ -1205,265 +1195,11 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 	return target.ee_mwrite_buf(mbuf, to_addr, buf, size);
 }
 
-//////////////////
-// Platform access
-//
-// Read a word from an address in the platform space
-static int ee_read_esys_esim(off_t from_addr)
-{
-	warnx("ee_read_esys(): Not implemented for ESIM.");
-	return E_ERR;
-}
-
-static int ee_read_esys_native(off_t from_addr)
-{
-	e_mmap_t	  esys;
-	int			  memfd;
-	volatile int *pfrom;
-	int			  data;
-
-	// Open memory device
-	memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
-	if (memfd == -1)
-	{
-		warnx("ee_read_esys(): EPIPHANY_DEV file open failure.");
-		return E_ERR;
-	}
-
-	esys.phy_base = (e_platform.regs_base + from_addr);
-	esys.page_base = ee_rndl_page(esys.phy_base);
-	esys.page_offset = esys.phy_base - esys.page_base;
-	esys.map_size = sizeof(int) + esys.page_offset;
-
-	esys.mapped_base = mmap(NULL, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.page_base);
-	esys.base = esys.mapped_base + esys.page_offset;
-
-	diag(H_D2) { fprintf(diag_fd, "ee_read_esys(): esys.phy_base = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.base, (uint) esys.map_size); }
-
-	if (esys.mapped_base == MAP_FAILED)
-	{
-		warnx("ee_read_esys(): ESYS mmap failure.");
-		return E_ERR;
-	}
-
-	pfrom = (int *) (esys.base);
-	diag(H_D2) { fprintf(diag_fd, "ee_read_esys(): reading from from_addr=0x%08x, pto=0x%08x\n", (uint) from_addr, (uint) pfrom); }
-	data  = *pfrom;
-
-	munmap(esys.mapped_base, esys.map_size);
-	close(memfd);
-
-	return data;
-}
-
-int ee_read_esys(off_t from_addr)
-{
-	return target.ee_read_esys(from_addr);
-}
-
-
-// Write a word to an address in the platform space
-static ssize_t ee_write_esys_esim(off_t to_addr, int data)
-{
-	warnx("ee_write_esys(): Not implemented for ESIM.");
-	return E_ERR;
-}
-
-static ssize_t ee_write_esys_native(off_t to_addr, int data)
-{
-	e_mmap_t  esys;
-	int		  memfd;
-	int		 *pto;
-
-	// Open memory device
-	memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
-	if (memfd == -1)
-	{
-		warnx("ee_write_esys(): EPIPHANY_DEV file open failure.");
-		return E_ERR;
-	}
-
-	esys.phy_base = (e_platform.regs_base + to_addr);
-	esys.page_base = ee_rndl_page(esys.phy_base);
-	esys.page_offset = esys.phy_base - esys.page_base;
-	esys.map_size = sizeof(int) + esys.page_offset;
-
-	esys.mapped_base = mmap(NULL, esys.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, memfd, esys.page_base);
-	esys.base = esys.mapped_base + esys.page_offset;
-
-	diag(H_D2) { fprintf(diag_fd, "ee_write_esys(): esys.phy_base = 0x%08x, esys.page_base = 0x%08x, esys.page_offset = 0x%08x, esys.base = 0x%08x, esys.size = 0x%08x\n", (uint) esys.phy_base, (uint) esys.page_base, (uint) esys.page_offset, (uint) esys.base, (uint) esys.map_size); }
-
-	if (esys.mapped_base == MAP_FAILED)
-	{
-		warnx("ee_write_esys(): ESYS mmap failure.");
-		return E_ERR;
-	}
-
-	pto = (int *) (esys.base);
-	diag(H_D2) { fprintf(diag_fd, "ee_write_esys(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) (e_platform.regs_base + to_addr), (uint) pto); }
-	*pto = data;
-
-	munmap(esys.mapped_base, esys.map_size);
-	close(memfd);
-
-	return sizeof(int);
-}
-
-ssize_t ee_write_esys(off_t to_addr, int data)
-{
-	return target.ee_write_esys(to_addr, data);
-}
 
 
 /////////////////////////
 // Core control functions
 
-
-
-// Helper function that disable the north, south, and west eLinks
-static int disable_nsw_elinks()
-{
-	e_syscfg_tx_t txcfg;
-	e_epiphany_t dev;
-	unsigned row, col;
-	const unsigned data = 0xfff;
-	int rc;
-
-	rc = e_open(&dev, 0, 0, e_platform.rows, e_platform.cols);
-	if (rc != E_OK)
-		return rc;
-
-	usleep(1000);
-	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
-
-
-	/* Shut down north eLink */
-	row = 0;
-	col = 2;
-	txcfg.fields.ctrlmode = 0x1;
-
-	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
-	if (rc < 0)
-		goto err_close;
-
-	usleep(1000);
-	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
-	if (rc < 0)
-		goto err_close;
-
-	usleep(1000);
-	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
-	if (rc < 0)
-		goto err_close;
-
-
-	/* Shut down south eLink */
-	row = dev.type == E_E64G401 ? 7 : 3;
-	col = 2;
-	txcfg.fields.ctrlmode = 0x9;
-
-	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
-	if (rc < 0)
-		goto err_close;
-
-	usleep(1000);
-	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
-	if (rc < 0)
-		goto err_close;
-
-	usleep(1000);
-	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
-	if (rc < 0)
-		goto err_close;
-
-
-	/* Shut down west eLink */
-	row = 2;
-	col = 0;
-	txcfg.fields.ctrlmode = 0xd;
-
-	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
-	if (rc < 0) {
-		rc = E_ERR;
-		goto err_close;
-	}
-
-	usleep(1000);
-	rc = e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
-	if (rc < 0)
-		goto err_close;
-
-	usleep(1000);
-	rc = e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
-	if (rc < 0)
-		goto err_close;
-
-
-	/* Reset TX ctrlmode */
-	txcfg.fields.ctrlmode = 0;
-	usleep(1000);
-	rc = ee_write_esys(E_SYS_CFGTX, txcfg.reg);
-	if (rc < 0)
-		goto err_close;
-
-	usleep(1000);
-
-	/* Close the workgroup */
-	return e_close(&dev);
-
-err_close:
-	/* Something went wrong, but we still need to close the workgroup */
-	e_close(&dev);
-
-	return rc;
-}
-
-static int enable_clock_gating(void)
-{
-	int i, j;
-	int rc = E_OK;
-	uint32_t data;
-	e_epiphany_t dev;
-
-	/* Turn on clock gating mode in Epiphany */
-
-	rc = e_open(&dev, 0, 0, e_platform.rows, e_platform.cols);
-	if (rc != E_OK)
-		return rc;
-
-	for (i = 0; i < e_platform.rows; i++) {
-		for (j = 0; j < e_platform.cols; j++) {
-			/* eCore clock gating */
-			data = 0x00400000;
-			usleep(1000);
-			rc = e_write(&dev, i, j, E_REG_CONFIG, &data,
-					sizeof(data));
-			if (rc <= 0)
-				goto err_close;
-
-			/* eMesh clock gating */
-			data = 0x00000002;
-			usleep(1000);
-			rc = e_write(&dev, i, j, E_REG_MESHCONFIG, &data,
-					sizeof(data));
-			if (rc <= 0)
-				goto err_close;
-		}
-	}
-
-	usleep(1000);
-	/* Close the workgroup */
-	return e_close(&dev);
-
-err_close:
-	/* Something went wrong, but we still need to close the workgroup */
-	e_close(&dev);
-
-	return rc;
-}
 
 // Reset the Epiphany platform
 static int e_reset_system_esim(void)
@@ -1489,159 +1225,32 @@ static int e_reset_system_esim(void)
 	return E_OK;
 }
 
-static int e_reset_system_native(void)
+int e_reset_system_native(void)
 {
-	int rc;
-	unsigned int resetcfg, divider;
-	e_syscfg_tx_t txcfg;
-	e_syscfg_rx_t rxcfg;
-	e_syscfg_clk_t clkcfg;
-	e_epiphany_t dev;
+	int ret = E_OK;
+	int memfd;
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Asserting RESET\n"); }
-	resetcfg = 1;
-
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling TX & RX\n"); }
-	txcfg.reg = 0;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-		goto err;
-	rxcfg.reg = 0;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting C-clock\n"); }
-	clkcfg.fields.divider = 7; // Full speed
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
-		goto err;
-
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): Stopping C-clock for setup/hold time on reset\n"); }
-	clkcfg.fields.divider = 0; // Stop clock
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Clearing RESET\n"); }
-	resetcfg = 0;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_RESET, resetcfg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Re-starting C-clock\n"); }
-	clkcfg.fields.divider = 7; // Full speed
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Starting TX L-clock, enabling eLink TX\n"); }
-	txcfg.fields.clkmode = 0; // Full speed
-	txcfg.fields.enable  = 1;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-		goto err;
-
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling eLink RX\n"); }
-	rxcfg.fields.enable = 1;
-	usleep(1000);
-	if (sizeof(int) != ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
-		goto err;
-
-
-	if (e_platform.type == E_ZEDBOARD1601 || e_platform.type == E_PARALLELLA1601) {
-		rc = E_ERR;
-
-		diag(H_D2) { fprintf(diag_fd, "e_reset_system(): found platform type that requires programming the link clock divider.\n"); }
-
-		if ( E_OK != e_open(&dev, 2, 3, 1, 1) ) {
-			warnx("e_reset_system(): e_open() failure.");
-			goto err;
-		}
-
-		txcfg.fields.ctrlmode = 0x5; /* Force east */
-		usleep(1000);
-		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-			goto cleanup_platform;
-
-		divider = 1; /* Divide by 4, see data sheet */
-		usleep(1000);
-		if (sizeof(int) != e_write(&dev, 0, 0, E_REG_LINKCFG, &divider, sizeof(int)))
-			goto cleanup_platform;
-
-		txcfg.fields.ctrlmode = 0x0;
-		usleep(1000);
-		if (sizeof(int) != ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-			goto cleanup_platform;
-
-		rc = E_OK;
-
-cleanup_platform:
-		e_close(&dev);
-		if (rc != E_OK)
-			goto err;
+	// Open memory device
+	memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
+	if (memfd == -1)
+	{
+		warnx("e_reset_system(): EPIPHANY_DEV file open failure.");
+		return E_ERR;
 	}
 
-	usleep(1000);
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Disabling north, south, and west eLinks\n"); }
-	if (E_OK != disable_nsw_elinks())
-		goto err;
+	if (ioctl(memfd, E_IOCTL_RESET)) {
+		warnx("e_reset_system(): EPIPHANY_DEV reset ioctl failure.");
+		ret = E_ERR;
+	}
 
-	usleep(1000);
-	diag(H_D2) { fprintf(diag_fd, "e_reset_system(): Enabling clock gating\n"); }
-	if (E_OK != enable_clock_gating())
-		goto err;
-
-
-
-	usleep(1000);
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): done.\n"); }
-
-	return E_OK;
-
-err:
-	warnx("e_reset_system(): Failed\n");
-	usleep(1000);
-	return E_ERR;
+	close(memfd);
+	return ret;
 }
+
 
 int e_reset_system(void)
 {
 	return target.e_reset_system();
-}
-
-// Disable the Epiphany platform (by stopping c-clk)
-int ee_disable_system(void)
-{
-	e_syscfg_clk_t clkcfg;
-	e_syscfg_tx_t txcfg;
-	e_syscfg_rx_t rxcfg;
-	int rc = E_OK;
-
-	clkcfg.reg = ee_read_esys(E_SYS_CFGCLK);
-	txcfg.reg = ee_read_esys(E_SYS_CFGTX);
-	rxcfg.reg = ee_read_esys(E_SYS_CFGRX);
-
-	clkcfg.fields.divider = 0;
-	txcfg.fields.enable = 0;
-	rxcfg.fields.enable = 0;
-
-	if (0 > ee_write_esys(E_SYS_CFGCLK, clkcfg.reg))
-		rc = E_ERR;
-
-	if (0 > ee_write_esys(E_SYS_CFGTX, txcfg.reg))
-		rc = E_ERR;
-
-	if (0 > ee_write_esys(E_SYS_CFGRX, rxcfg.reg))
-		rc = E_ERR;
-
-	return rc;
 }
 
 
@@ -2016,10 +1625,8 @@ int ee_parse_simple_hdf(e_platform_t *dev, char *hdf)
 			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): number of ext. memory segments = %d\n", dev->num_emems); }
 		}
 
-		else if (!strcmp("ESYS_REGS_BASE", etag))
-		{
-			sscanf(eval, "%x", &(dev->regs_base));
-			diag(H_D3) { fprintf(diag_fd, "ee_parse_simple_hdf(): base address of platform registers = 0x%08x\n", dev->regs_base); }
+		else if (!strcmp("ESYS_REGS_BASE", etag)) {
+			diag(H_D3) { fprintf(diag_fd, "Ignoring deprecated ESYS_REGS_BASE\n"); }
 		}
 
 
