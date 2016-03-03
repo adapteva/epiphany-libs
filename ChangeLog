@@ -1,3 +1,8 @@
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): Use right type
+	for memory segment.
+
 2016-03-02  Ola Jeppsson  <ola@adapteva.com>
 
 	* Makefile.am: Always include bsps build rules.
