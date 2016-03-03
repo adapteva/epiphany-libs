@@ -1,3 +1,8 @@
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/Makemodule.am: Capitalize ENABLE_ESIM.
+	* configure.ac: Likewise.
+
 2016-03-02  Ola Jeppsson  <ola@adapteva.com>
 
 	* Makefile.am: Always include bsps build rules.

@@ -37,7 +37,7 @@ libe_hal_la_CFLAGS     =
 libe_loader_la_LDFLAGS =
 libe_hal_la_LDFLAGS    =
 
-if enable_esim
+if ENABLE_ESIM
 libe_loader_la_CFLAGS  += -DESIM_TARGET -pthread
 libe_hal_la_CFLAGS     += -DESIM_TARGET -pthread
 libe_loader_la_LDFLAGS += -lesim -lpthread
