@@ -150,7 +150,7 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 
 
 #ifndef ESIM_TARGET
-	if (esim_target_p()) {
+	if (ee_esim_target_p()) {
 		warnx("e_load_group(): " EHAL_TARGET_ENV " environment variable set to esim but target not compiled in.");
 		return E_ERR;
 	}
@@ -404,7 +404,7 @@ ee_process_elf(const void *file, e_epiphany_t *dev, e_mem_t *emem,
 					phdr[ihdr].p_filesz); }
 
 		/* Address calculation */
-		if (esim_target_p()) {
+		if (ee_esim_target_p()) {
 			dst = phdr[ihdr].p_vaddr;
 			dst = islocal ? dst | dev->core[row][col].id << 20 : dst;
 		} else {
@@ -436,7 +436,7 @@ ee_process_elf(const void *file, e_epiphany_t *dev, e_mem_t *emem,
 		}
 
 		/* Write */
-		if (esim_target_p()) {
+		if (ee_esim_target_p()) {
 			if (ES_OK != es_ops.mem_store(dev->esim, dst,
 										  phdr[ihdr].p_filesz,
 										  &src[phdr[ihdr].p_offset])) {

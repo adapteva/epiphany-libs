@@ -26,7 +26,6 @@
 #ifndef __E_HAL_DATA_LOC_H__
 #define __E_HAL_DATA_LOC_H__
 
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -175,6 +174,25 @@ typedef struct {
 	unsigned	base;				// 0x54
 } e_emem_config_t;
 
+typedef struct e_epiphany_t e_epiphany_t;
+typedef struct e_mem_t e_mem_t;
+
+struct e_target_ops {
+	int (*ee_read_word) (e_epiphany_t *, unsigned, unsigned, const off_t);
+	ssize_t (*ee_write_word) (e_epiphany_t *, unsigned, unsigned, off_t, int);
+	ssize_t (*ee_read_buf) (e_epiphany_t *, unsigned, unsigned, const off_t, void *, size_t);
+	ssize_t (*ee_write_buf) (e_epiphany_t *, unsigned, unsigned, off_t, const void *, size_t);
+	int (*ee_read_reg) (e_epiphany_t *, unsigned, unsigned, const off_t);
+	ssize_t (*ee_write_reg) (e_epiphany_t *, unsigned, unsigned, off_t, int);
+	int (*ee_mread_word) (e_mem_t *, const off_t);
+	ssize_t (*ee_mwrite_word) (e_mem_t *, off_t, int);
+	ssize_t (*ee_mread_buf) (e_mem_t *, const off_t, void *, size_t);
+	ssize_t (*ee_mwrite_buf) (e_mem_t *, off_t, const void *, size_t);
+	int (*e_reset_system) (void);
+	int (*populate_platform) (e_platform_t *, char *);
+	int (*init) (void);
+	void (*finalize) (void);
+};
 
 #ifdef __cplusplus
 }

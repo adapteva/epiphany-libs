@@ -1,5 +1,39 @@
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal-data-local.h (e_target_ops): Move
+	struct here from epiphany-hal.c. Add init, finalize, and
+	populate_platform members.
+	* e-hal/src/epiphany-hal.c (e_init): Platform initialization
+	factored out to target ops. Call target init.
+	(e_finalize): Call target finalize.
+	(populate_platform_native): New function.
+	(init_native): New function.
+	(finalize_native): New function.
+	(native_target_ops): Added.
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init):
+	ee_esim_target_p was renamed from esim_target_p.
+	(e_shm_finalize): Likewise.
+	* e-hal/src/e-loader.c (ee_process_elf): Likewise.
+	* e-hal/src/esim-target.c (ee_init_esim): New function.
+	(ee_finalize_esim): New function.
+	(ee_populate_platform_esim): Moved from
+	epiphany-hal.c:ee_hdf_from_sim_cfg().
+	(ee_read_word_esim): Moved from epiphany-hal.c.
+	(ee_write_word_esim): Likewise.
+	(ee_read_buf_esim): Likewise.
+	(ee_write_buf_esim): Likewise.
+	(ee_read_reg_esim): Likewise.
+	(ee_write_reg_esim): Likewise.
+	(ee_mread_word_esim): Likewise.
+	(ee_mwrite_word_esim): Likewise.
+	(ee_mread_buf_esim): Likewise.
+	(ee_mwrite_buf_esim): Likewise.
+	(e_reset_system_esim): Likewise.
+	(esim_target_ops): Added.
+	* e-hal/src/esim-target.h: Declare esim_target_ops.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): Use right type
 	for memory segment.
 

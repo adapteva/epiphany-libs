@@ -278,7 +278,7 @@ typedef union {
 typedef struct es_state_ es_state;
 
 // Core group data structures
-typedef struct {
+typedef struct e_epiphany_t {
 	e_objtype_t		 objtype;	  // object type identifier
 	e_chiptype_t	 type;		  // Epiphany chip part number
 	unsigned int	 num_cores;	  // number of cores group
@@ -294,7 +294,7 @@ typedef struct {
 } e_epiphany_t;
 
 
-typedef struct {
+typedef struct e_mem_t {
 	e_objtype_t		 objtype;	  // object type identifier
 	off_t			 phy_base;	  // physical global base address of external memory buffer as seen by host side
 	off_t			 page_base;	  // physical base address of memory page

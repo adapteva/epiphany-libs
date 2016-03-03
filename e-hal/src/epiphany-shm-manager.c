@@ -62,9 +62,9 @@ static int shm_unlock_file(const int fd, const char* fn);
 /* TODO: Add locking support for ESIM target */
 /* Convenience macros */
 #define LOCK_SHM_TABLE() \
-	({esim_target_p() ? E_OK : shm_lock_file(epiphany_devfd, __func__);})
+	({ee_esim_target_p() ? E_OK : shm_lock_file(epiphany_devfd, __func__);})
 #define UNLOCK_SHM_TABLE() \
-	({esim_target_p() ? E_OK : shm_unlock_file(epiphany_devfd, __func__);})
+	({ee_esim_target_p() ? E_OK : shm_unlock_file(epiphany_devfd, __func__);})
 
 extern e_platform_t e_platform;
 extern int	 e_host_verbose;
@@ -138,7 +138,7 @@ int e_shm_init()
 	size_t heap_length = 0;
 	int rc;
 
-	if (esim_target_p())
+	if (ee_esim_target_p())
 		rc = e_shm_init_esim();
 	else
 		rc = e_shm_init_native();
@@ -199,7 +199,7 @@ int e_shm_init()
 
 void e_shm_finalize(void)
 {
-	if (!esim_target_p())
+	if (!ee_esim_target_p())
 		munmap((void*)shm_table, shm_table_length);
 	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }
