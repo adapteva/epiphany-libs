@@ -82,7 +82,9 @@ unsigned long ee_rndu_page(unsigned long size);
 unsigned long ee_rndl_page(unsigned long size);
 
 // Target detect functions
-extern bool ee_esim_target_p();
+bool     ee_native_target_p();
+bool     ee_esim_target_p();
+bool     ee_pal_target_p();
 
 #ifdef __cplusplus
 }

@@ -65,7 +65,12 @@ char const hdf_env_var_name[] = "EPIPHANY_HDF";
 e_platform_t e_platform = { E_EPI_PLATFORM };
 #pragma GCC diagnostic pop
 
+#ifdef ESIM_TARGET
 extern const struct e_target_ops esim_target_ops;
+#endif
+#ifdef PAL_TARGET
+extern const struct e_target_ops pal_target_ops;
+#endif
 const struct e_target_ops native_taget_ops;
 static const struct e_target_ops *target_ops = &native_taget_ops;
 
@@ -95,10 +100,21 @@ int e_init(char *hdf)
 		return E_ERR;
 	}
 #endif
+#ifndef PAL_TARGET
+	if (ee_pal_target_p()) {
+		warnx("e_init(): " EHAL_TARGET_ENV " environment variable set to pal but target not compiled in.");
+		return E_ERR;
+	}
+#endif
 
 #ifdef ESIM_TARGET
 	if (ee_esim_target_p())
-		target_ops = esim_target_ops;
+		target_ops = &esim_target_ops;
+#endif
+
+#ifdef PAL_TARGET
+	if (ee_pal_target_p())
+		target_ops = &pal_target_ops;
 #endif
 
 	if (E_OK != target_ops->init())
@@ -1766,6 +1782,17 @@ unsigned long ee_rndl_page(unsigned long size)
 
 
 // Target code
+bool ee_native_target_p()
+{
+	static bool initialized = false;
+	static bool native = false;
+
+	if (!initialized)
+		native = (!ee_esim_target_p() && !ee_pal_target_p());
+
+	return native;
+}
+
 bool ee_esim_target_p()
 {
 	static bool initialized = false;
@@ -1779,6 +1806,21 @@ bool ee_esim_target_p()
 	}
 
 	return esim;
+}
+
+bool ee_pal_target_p()
+{
+	static bool initialized = false;
+	static bool pal = false;
+	const char *p;
+
+	if (!initialized) {
+		p = getenv(EHAL_TARGET_ENV);
+		pal = (p && strncmp(p, "pal", sizeof("pal")) == 0);
+        initialized = true;
+	}
+
+	return pal;
 }
 
 

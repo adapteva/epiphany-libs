@@ -1,5 +1,16 @@
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/Makemodule.am (libe-hal.la) [ENABLE_PAL_TARGET]: Add
+	pal-target.c to build.
+	* e-hal/src/epiphany-hal-api-local.h: Add prototype for
+	ee_native_target_p and ee_pal_target_p.
+	* e-hal/src/epiphany-hal.c (ee_native_target_p): New function.
+	(bool ee_pal_target_p): New function.
+	(e_init): Add support for PAL target.
+	* e-hal/src/pal-target.c: New file.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/Makemodule.am: Capitalize ENABLE_ESIM.
 	* configure.ac: Likewise.
 
