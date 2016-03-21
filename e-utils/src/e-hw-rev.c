@@ -72,12 +72,23 @@ static char *type_strings_P1A[] = {
 
 #define TYPE_MAX_P1A (countof(type_strings_P1A)-1)
 
+/* Deprecated */
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int revision:8;
+		unsigned int type:8;
+		unsigned int platform:8;
+		unsigned int generation:8;
+	};
+} e_syscfg_version_t;
+
 void print_platform_info(e_syscfg_version_t *version)
 {
-	unsigned int revision = version->fields.revision;
-	unsigned int type = version->fields.type;
-	unsigned int platform = version->fields.platform;
-	unsigned int generation = version->fields.generation;
+	unsigned int revision = version->revision;
+	unsigned int type = version->type;
+	unsigned int platform = version->platform;
+	unsigned int generation = version->generation;
 	char *gen_str, *plat_str, *type_str;
 
 	printf("Epiphany Hardware Version: %02x.%02x.%02x.%02x\n\n",

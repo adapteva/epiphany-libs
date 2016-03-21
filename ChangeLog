@@ -1,3 +1,15 @@
+2016-03-21  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data.h (e_sys_reg_id_t): Remove enum.
+	(e_syscfg_tx_t): Remove struct.
+	(e_syscfg_rx_t): Remove struct.
+	(e_syscfg_clk_t) Remove struct.
+	(e_syscfg_coreid_t): Remove struct.
+	(e_syscfg_version_t): Remove struct.
+	(e_syscfg_gpio_t): Remove struct.
+	* e-utils/src/e-hw-rev.c (e_syscfg_version_t): Add struct
+	(HACK).
+
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/Makemodule.am: Capitalize ENABLE_ESIM.
