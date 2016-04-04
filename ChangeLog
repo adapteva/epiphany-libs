@@ -1,3 +1,11 @@
+2016-04-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf: Reserve addresses below 0x100
+	for internal use.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+
 2016-03-21  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal-data.h (e_sys_reg_id_t): Remove enum.
