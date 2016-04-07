@@ -23,5 +23,5 @@ e-trace/e-trace-dump
 e_trace_e_trace_server_SOURCES = e-trace/src/e-trace-server.c
 e_trace_e_trace_dump_SOURCES   = e-trace/src/e-trace-dump.c
 
-e_trace_e_trace_server_LDADD   = libe-trace.la
-e_trace_e_trace_dump_LDADD     = libe-trace.la
+e_trace_e_trace_server_LDADD   = libe-trace.la $(ETRACE_LIBS)
+e_trace_e_trace_dump_LDADD     = libe-trace.la $(ETRACE_LIBS)

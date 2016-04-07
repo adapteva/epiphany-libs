@@ -1,3 +1,9 @@
+2016-04-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-trace/Makemodule.am (e-trace-server): Add ETRACE_LIBS to
+	link.
+	(e-trace-dump): Likewise.
+
 2016-04-04  Ola Jeppsson  <ola@adapteva.com>
 
 	* bsps/parallella64/fast.ldf: Reserve addresses below 0x100
