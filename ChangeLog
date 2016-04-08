@@ -1,5 +1,11 @@
 2016-04-08  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-lib/src/e_reg_read.c (e_reg_read): Drop volatile qualifier
+	for reg_val. Don't call e_global_address().
+	* e-lib/src/e_reg_write.c (e_reg_write): Likewise.
+
+2016-04-08  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany2.h: New file.
 
 2016-04-07  Ola Jeppsson  <ola@adapteva.com>
