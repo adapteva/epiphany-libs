@@ -1,3 +1,7 @@
+2016-04-08  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany2.h: New file.
+
 2016-04-07  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-trace/Makemodule.am (e-trace-server): Add ETRACE_LIBS to
