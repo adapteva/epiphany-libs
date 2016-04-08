@@ -1,3 +1,39 @@
+2016-04-08  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/src/e_reg_read.c (e_reg_read): Drop volatile qualifier
+	for reg_val. Don't call e_global_address().
+	* e-lib/src/e_reg_write.c (e_reg_write): Likewise.
+
+2016-04-08  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany2.h: New file.
+
+2016-04-07  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-trace/Makemodule.am (e-trace-server): Add ETRACE_LIBS to
+	link.
+	(e-trace-dump): Likewise.
+
+2016-04-04  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf: Reserve addresses below 0x100
+	for internal use.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+
+2016-03-21  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data.h (e_sys_reg_id_t): Remove enum.
+	(e_syscfg_tx_t): Remove struct.
+	(e_syscfg_rx_t): Remove struct.
+	(e_syscfg_clk_t) Remove struct.
+	(e_syscfg_coreid_t): Remove struct.
+	(e_syscfg_version_t): Remove struct.
+	(e_syscfg_gpio_t): Remove struct.
+	* e-utils/src/e-hw-rev.c (e_syscfg_version_t): Add struct
+	(HACK).
+
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/Makemodule.am (libe-hal.la) [ENABLE_PAL_TARGET]: Add
