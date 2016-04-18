@@ -240,6 +240,9 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
+	if (ee_pal_target_p())
+		return target_ops->open(dev, row, col, rows, cols);
+
 	if (ee_esim_target_p()) {
 		// Connect to ESIM shm file
 		dev->priv = (void *) e_platform.priv;
@@ -345,6 +348,9 @@ int e_close(e_epiphany_t *dev)
 		warnx("e_close(): Core group was not opened.");
 		return E_ERR;
 	}
+
+	if (ee_pal_target_p())
+		return target_ops->close(dev);
 
 	for (irow=0; irow<dev->rows; irow++)
 	{

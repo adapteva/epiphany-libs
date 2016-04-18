@@ -192,6 +192,8 @@ struct e_target_ops {
 	int (*populate_platform) (e_platform_t *, char *);
 	int (*init) (void);
 	void (*finalize) (void);
+	int (*open) (e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
+	int (*close) (e_epiphany_t *);
 };
 
 #ifdef __cplusplus

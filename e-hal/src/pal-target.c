@@ -8,6 +8,17 @@
 
 extern e_platform_t e_platform;
 
+
+static int pal_to_rank(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	if (row > dev->rows || col > dev->cols)
+		return -E_ERR;
+
+	return row * dev->rows + col;
+}
+
+/* Callback functions */
+
 // Read a word from SRAM of a core in a group
 static int pal_read_word(e_epiphany_t *dev, unsigned row, unsigned col,
 						 const off_t from_addr)
@@ -96,6 +107,17 @@ static void pal_finalize()
 {
 }
 
+static int pal_open(e_epiphany_t *dev, unsigned row, unsigned col,
+		unsigned rows, unsigned cols)
+{
+	return E_ERR;
+}
+
+static int pal_close(e_epiphany_t *dev)
+{
+	return E_ERR;
+}
+
 /* PAL target ops */
 const struct e_target_ops pal_target_ops = {
 	.ee_read_word      = pal_read_word,
@@ -112,4 +134,6 @@ const struct e_target_ops pal_target_ops = {
 	.populate_platform = pal_populate_platform,
 	.init              = pal_init,
 	.finalize          = pal_finalize,
+	.open              = pal_open,
+	.close             = pal_close,
 };
