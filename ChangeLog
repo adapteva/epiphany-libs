@@ -1,3 +1,30 @@
+2016-04-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Rename
+	esim member to priv and make it void.
+	* e-hal/src/epiphany-hal-data.h (e_epiphany_t): Likewise.
+	(e_mem_t): Likewise.
+	* e-hal/src/e-loader.c (ee_process_elf): Adjust for above name
+	change.
+	* e-hal/src/epiphany-hal.c (e_open): Likewise.
+	(e_alloc): Likewise.
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init_esim):
+	Likewise.
+	(e_shm_alloc): Likewise.
+	(e_shm_attach): Likewise.
+	* e-hal/src/esim-target.c (ee_read_word_esim): Likewise.
+	(ee_write_word_esim): Likewise.
+	(ee_read_buf_esim): Likewise.
+	(ee_write_buf_esim): Likewise.
+	(ee_read_reg_esim): Likewise.
+	(ee_write_reg_esim): Likewise.
+	(ee_mread_word_esim): Likewise.
+	(ee_mwrite_word_esim): Likewise.
+	(ee_mread_buf_esim): Likewise.
+	(ee_mwrite_buf_esim): Likewise.
+	(ee_init_esim): Likewise.
+	(ee_finalize_esim): Likewise.
+
 2016-04-08  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-lib/src/e_reg_read.c (e_reg_read): Drop volatile qualifier

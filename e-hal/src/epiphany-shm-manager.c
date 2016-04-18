@@ -81,7 +81,7 @@ static int e_shm_init_esim()
 	shm_alloc.kvirt_addr = 0;
 	shm_alloc.mmap_handle = shm_alloc.bus_addr;
 	shm_alloc.uvirt_addr = (unsigned long)
-		es_ops.client_get_raw_pointer(e_platform.esim, shm_alloc.mmap_handle,
+		es_ops.client_get_raw_pointer(e_platform.priv, shm_alloc.mmap_handle,
 									  shm_alloc.size);
 
 	shm_table_length = shm_alloc.size;
@@ -249,7 +249,7 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 		mbuf->mapped_base = ((char*)(tbl));
 		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 		mbuf->emap_size = region->shm_seg.size;
-		mbuf->esim = e_platform.esim;
+		mbuf->priv = e_platform.priv;
 
 		retval = E_OK;
 	} else {
@@ -303,7 +303,7 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 		mbuf->mapped_base = ((char*)(tbl));
 		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 		mbuf->emap_size = region->shm_seg.size;
-		mbuf->esim = e_platform.esim;
+		mbuf->priv = e_platform.priv;
 
 		retval = E_OK;
 	}

@@ -439,7 +439,7 @@ ee_process_elf(const void *file, e_epiphany_t *dev, e_mem_t *emem,
 
 		/* Write */
 		if (ee_esim_target_p()) {
-			if (ES_OK != es_ops.mem_store(dev->esim, dst,
+			if (ES_OK != es_ops.mem_store((es_state *) dev->priv, dst,
 										  phdr[ihdr].p_filesz,
 										  &src[phdr[ihdr].p_offset])) {
 				fprintf(diag_fd,

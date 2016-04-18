@@ -242,7 +242,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 
 	if (ee_esim_target_p()) {
 		// Connect to ESIM shm file
-		dev->esim = e_platform.esim;
+		dev->priv = (void *) e_platform.priv;
 	} else {
 		// Open memory device
 		dev->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
@@ -744,7 +744,7 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 
 	if (ee_esim_target_p()) {
 		// Connect to ESIM shm file
-		mbuf->esim = e_platform.esim;
+		mbuf->priv = e_platform.priv;
 	} else {
 		mbuf->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
 		if (mbuf->memfd == -1)

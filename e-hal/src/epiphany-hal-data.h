@@ -200,8 +200,6 @@ typedef enum {
 } e_chip_regs_t;
 
 
-typedef struct es_state_ es_state;
-
 // Core group data structures
 typedef struct e_epiphany_t {
 	e_objtype_t		 objtype;	  // object type identifier
@@ -215,7 +213,7 @@ typedef struct e_epiphany_t {
 	e_core_t	   **core;		  // e-cores data structures array
 	int				 memfd;		  // for mmap
 
-	es_state		*esim;        // ESIM handle
+	void			*priv;		  // Target private
 } e_epiphany_t;
 
 
@@ -231,7 +229,7 @@ typedef struct e_mem_t {
 	void			*base;		  // application (virtual) space base address of external memory buffer
 	int				 memfd;		  // for mmap
 
-	es_state		*esim;        // ESIM handle
+	void			*priv;		  // Target private
 } e_mem_t;
 
 #define ALIGN(x)	__attribute__ ((aligned (x)))

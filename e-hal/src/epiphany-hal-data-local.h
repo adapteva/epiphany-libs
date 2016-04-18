@@ -147,7 +147,7 @@ typedef struct {
 	int				 num_emems;	  // number of external memory segments in platform
 	e_memseg_t		*emem;		  // array of external memory segments
 
-	es_state        *esim;        // ESIM handle
+	void			*priv;        // Target handle
 
 } e_platform_t;
 

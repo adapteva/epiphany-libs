@@ -33,11 +33,12 @@ static int ee_read_word_esim(e_epiphany_t *dev, unsigned row, unsigned col, cons
 	int data;
 	ssize_t size;
 	uint32_t addr;
+	es_state *esim = (es_state *) dev->priv;
 
 	size = sizeof(int);
 	addr = (dev->core[row][col].id << 20) + from_addr;
 
-	if (ES_OK != es_ops.mem_load(dev->esim, addr, size, (uint8_t *) &data))
+	if (ES_OK != es_ops.mem_load(esim, addr, size, (uint8_t *) &data))
 	{
 		warnx("ee_read_word(): Failed.");
 		return E_ERR;
@@ -51,11 +52,12 @@ static ssize_t ee_write_word_esim(e_epiphany_t *dev, unsigned row, unsigned col,
 {
 	ssize_t  size;
 	uint32_t addr;
+	es_state *esim = (es_state *) dev->priv;
 
 	size = sizeof(int);
 	addr = (dev->core[row][col].id << 20) + to_addr;
 
-	if (ES_OK != es_ops.mem_store(dev->esim, addr, size, (uint8_t *) &data))
+	if (ES_OK != es_ops.mem_store(esim, addr, size, (uint8_t *) &data))
 	{
 		warnx("ee_write_word(): Failed.");
 		return E_ERR;
@@ -68,10 +70,11 @@ static ssize_t ee_write_word_esim(e_epiphany_t *dev, unsigned row, unsigned col,
 static ssize_t ee_read_buf_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
 	uint32_t addr;
+	es_state *esim = (es_state *) dev->priv;
 
 	addr = (dev->core[row][col].id << 20) + from_addr;
 
-	if (ES_OK != es_ops.mem_load(dev->esim, addr, size, (uint8_t *) buf))
+	if (ES_OK != es_ops.mem_load(esim, addr, size, (uint8_t *) buf))
 	{
 		warnx("ee_read_buf(): Failed.");
 		return E_ERR;
@@ -84,10 +87,11 @@ static ssize_t ee_read_buf_esim(e_epiphany_t *dev, unsigned row, unsigned col, c
 static ssize_t ee_write_buf_esim(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
 	uint32_t addr;
+	es_state *esim = (es_state *) dev->priv;
 
 	addr = (dev->core[row][col].id << 20) + to_addr;
 
-	if (ES_OK != es_ops.mem_store(dev->esim, addr, size, (uint8_t *) buf))
+	if (ES_OK != es_ops.mem_store(esim, addr, size, (uint8_t *) buf))
 	{
 		warnx("ee_write_buf(): Failed.");
 		return E_ERR;
@@ -103,6 +107,7 @@ static int ee_read_reg_esim(e_epiphany_t *dev, unsigned row, unsigned col, const
 	int data;
 	off_t   from_addr_adjusted;
 	ssize_t size;
+	es_state *esim = (es_state *) dev->priv;
 
 	from_addr_adjusted = from_addr;
 	if (from_addr_adjusted < E_REG_R0)
@@ -111,7 +116,7 @@ static int ee_read_reg_esim(e_epiphany_t *dev, unsigned row, unsigned col, const
 	addr = (dev->core[row][col].id << 20) + from_addr_adjusted;
 
 	size = sizeof(int);
-	if (ES_OK != es_ops.mem_load(dev->esim, addr, size, (uint8_t *) &data))
+	if (ES_OK != es_ops.mem_load(esim, addr, size, (uint8_t *) &data))
 	{
 		warnx("ee_read_reg(): Failed.");
 		return E_ERR;
@@ -125,6 +130,7 @@ static ssize_t ee_write_reg_esim(e_epiphany_t *dev, unsigned row, unsigned col, 
 {
 	uint32_t addr;
 	ssize_t size;
+	es_state *esim = (es_state *) dev->priv;
 
 	if (to_addr < E_REG_R0)
 		to_addr = to_addr + E_REG_R0;
@@ -132,7 +138,7 @@ static ssize_t ee_write_reg_esim(e_epiphany_t *dev, unsigned row, unsigned col, 
 	addr = (dev->core[row][col].id << 20) + to_addr;
 
 	size = sizeof(int);
-	if (ES_OK != es_ops.mem_store(dev->esim, addr, size, (uint8_t *) &data))
+	if (ES_OK != es_ops.mem_store(esim, addr, size, (uint8_t *) &data))
 	{
 		warnx("ee_write_reg(): Failed.");
 		return E_ERR;
@@ -147,12 +153,13 @@ static int ee_mread_word_esim(e_mem_t *mbuf, const off_t from_addr)
 	int data;
 	uint32_t addr;
 	ssize_t size;
+	es_state *esim = (es_state *) mbuf->priv;
 
 	/* ???: Not sure whether this is always the right address */
 	addr = mbuf->ephy_base + from_addr + mbuf->page_offset;
 
 	size = sizeof(int);
-	if (ES_OK != es_ops.mem_load(mbuf->esim, addr, size, (uint8_t *) &data))
+	if (ES_OK != es_ops.mem_load(esim, addr, size, (uint8_t *) &data))
 	{
 		warnx("ee_mread_word(): Failed.");
 		return E_ERR;
@@ -167,12 +174,13 @@ static ssize_t ee_mwrite_word_esim(e_mem_t *mbuf, off_t to_addr, int data)
 {
 	uint32_t addr;
 	ssize_t size;
+	es_state *esim = (es_state *) mbuf->priv;
 
 	/* ???: Not sure whether this is always the right address */
 	addr = mbuf->ephy_base + to_addr;
 
 	size = sizeof(int);
-	if (ES_OK != es_ops.mem_store(mbuf->esim, addr, size, (uint8_t *) &data))
+	if (ES_OK != es_ops.mem_store(esim, addr, size, (uint8_t *) &data))
 	{
 		warnx("ee_mwrite_word(): Failed.");
 		return E_ERR;
@@ -185,11 +193,12 @@ static ssize_t ee_mwrite_word_esim(e_mem_t *mbuf, off_t to_addr, int data)
 static ssize_t ee_mread_buf_esim(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size)
 {
 	uint32_t addr;
+	es_state *esim = (es_state *) mbuf->priv;
 
 	/* ???: Not sure whether this is always the right address */
 	addr = mbuf->ephy_base + mbuf->page_offset + from_addr;
 
-	if (ES_OK != es_ops.mem_load(mbuf->esim, addr, size, (uint8_t *) buf))
+	if (ES_OK != es_ops.mem_load(esim, addr, size, (uint8_t *) buf))
 	{
 		warnx("ee_mread_buf(): Failed.");
 		return E_ERR;
@@ -202,11 +211,12 @@ static ssize_t ee_mread_buf_esim(e_mem_t *mbuf, const off_t from_addr, void *buf
 static ssize_t ee_mwrite_buf_esim(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
 {
 	uint32_t addr;
+	es_state *esim = (es_state *) mbuf->priv;
 
 	/* ???: Not sure whether this is always the right address */
 	addr = mbuf->ephy_base + mbuf->page_offset + to_addr;
 
-	if (ES_OK != es_ops.mem_store(mbuf->esim, addr, size, (uint8_t *) buf))
+	if (ES_OK != es_ops.mem_store(esim, addr, size, (uint8_t *) buf))
 	{
 		warnx("ee_mwrite_buf(): Failed.");
 		return E_ERR;
@@ -243,8 +253,9 @@ static int ee_populate_platform_esim(e_platform_t *dev, char *hdf)
 {
 #ifdef ESIM_TARGET
 	es_cluster_cfg cfg;
+	es_state *esim = (es_state *) dev->priv;
 
-	es_get_cluster_cfg(dev->esim, &cfg);
+	es_get_cluster_cfg(esim, &cfg);
 
 	memcpy(&dev->version, "PARALLELLASIM", sizeof("PARALLELLASIM"));
 
@@ -277,7 +288,9 @@ static int ee_populate_platform_esim(e_platform_t *dev, char *hdf)
 
 static int ee_init_esim()
 {
-	if (ES_OK != es_ops.client_connect(&e_platform.esim, NULL)) {
+	es_state **esimp = (es_state **) &e_platform.priv;
+
+	if (ES_OK != es_ops.client_connect(esimp, NULL)) {
 		warnx("e_init(): Cannot connect to ESIM");
 		return E_ERR;
 	}
@@ -286,7 +299,7 @@ static int ee_init_esim()
 
 static void ee_finalize_esim()
 {
-	es_ops.client_disconnect(e_platform.esim, true);
+	es_ops.client_disconnect(e_platform.priv, true);
 }
 
 /* ESIM target ops */
