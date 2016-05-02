@@ -1,3 +1,14 @@
+
+2016-05-02  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf: Adjust linker script exported
+	symbol names for __USER_LABEL_PREFIX__ change.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella64/legacy.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/legacy.ldf: Likewise.
+
 2016-05-02  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/e-loader.c (is_valid_range): Always allow empty
