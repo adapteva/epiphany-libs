@@ -1,5 +1,11 @@
 2016-05-02  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/e-loader.c (is_valid_range): Always allow empty
+	range.
+	(ee_process_elf): Skip empty segments.
+
+2016-05-02  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-lib/src/e_reg_read.c (e_reg_read): Use global address for
 	accessing register through MMR.
 	* e-lib/src/e_reg_write.c (e_reg_write): Likewise.
