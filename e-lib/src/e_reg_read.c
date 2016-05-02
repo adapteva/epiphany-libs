@@ -28,20 +28,21 @@
 
 unsigned e_reg_read(e_core_reg_id_t reg_id)
 {
-	unsigned reg_val;
-	unsigned *addr;
+	unsigned reg_val, coreid;
+	volatile unsigned *addr;
 
 	// TODO: function affects integer flags. Add special API for STATUS
 	switch (reg_id)
 	{
 	case E_REG_CONFIG:
-		__asm__ ("MOVFS %0, CONFIG" : "=r" (reg_val) : );
+		__asm__ ("MOVFS %0, CONFIG" : "=r" (reg_val));
 		return reg_val;
 	case E_REG_STATUS:
-		__asm__ ("MOVFS %0, STATUS" : "=r" (reg_val) : );
+		__asm__ ("MOVFS %0, STATUS" : "=r" (reg_val));
 		return reg_val;
 	default:
-		addr = (unsigned *) reg_id;
+		__asm__ ("movfs %0, coreid" : "=r" (coreid));
+		addr = (unsigned *) (coreid << 20 | reg_id);
 		return *addr;
 	}
 }

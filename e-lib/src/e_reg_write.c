@@ -28,7 +28,8 @@
 
 void e_reg_write(e_core_reg_id_t reg_id, unsigned val)
 {
-	unsigned *addr;
+	unsigned coreid;
+	volatile unsigned *addr;
 
 	// TODO: function affects integer flags. Add special API for STATUS
 	switch (reg_id)
@@ -40,7 +41,8 @@ void e_reg_write(e_core_reg_id_t reg_id, unsigned val)
 		__asm__ ("MOVTS STATUS, %0" : : "r" (val));
 		break;
 	default:
-		addr = (unsigned *) reg_id;
+		__asm__ ("movfs %0, coreid" : "=r" (coreid));
+		addr = (unsigned *) (coreid << 20 | reg_id);
 		*addr = val;
 		break;
 	}

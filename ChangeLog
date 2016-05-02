@@ -1,3 +1,9 @@
+2016-05-02  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/src/e_reg_read.c (e_reg_read): Use global address for
+	accessing register through MMR.
+	* e-lib/src/e_reg_write.c (e_reg_write): Likewise.
+
 2016-04-08  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-lib/src/e_reg_read.c (e_reg_read): Drop volatile qualifier
