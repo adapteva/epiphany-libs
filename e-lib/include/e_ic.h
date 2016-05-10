@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#include <e_types.h>
+#include "e_types.h"
 
 typedef void (*sighandler_t)(int);
 

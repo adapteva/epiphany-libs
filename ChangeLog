@@ -1,5 +1,13 @@
 2016-05-10  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-lib/include/e_lib.h: Change search order for e-lib header
+	files to first look in same directory as the header file with
+	the include directive (use quotes instead of brackets).
+	* e-lib/include/e_dma.h: Likewise.
+	* e-lib/include/e_ic.h: Likewise.
+
+2016-05-10  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-lib/include/e_coreid.h: Add extern "C" for C++.
 	* e-lib/include/e_ctimers.h: Likewise.
 	* e-lib/include/e_dma.h: Likewise.

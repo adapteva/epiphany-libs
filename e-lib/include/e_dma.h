@@ -31,7 +31,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
-#include <e_common.h>
+#include "e_common.h"
 
 /*
   These defs can be or'd together to form a value suitable for
