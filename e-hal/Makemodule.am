@@ -20,7 +20,8 @@ lib_LTLIBRARIES += libe-loader.la libe-hal.la
 
 libe_loader_la_SOURCES =            \
 e-hal/src/e-loader.c                \
-e-hal/src/esim-target.c
+e-hal/src/esim-target.c             \
+e-hal/src/e-process-SREC.c
 
 libe_hal_la_SOURCES =               \
 e-hal/src/epiphany.h                \
