@@ -26,6 +26,10 @@
 #ifndef E_MEM_H_
 #define E_MEM_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <sys/types.h>
 #include "e_common.h"
 #include "e_coreid.h"
@@ -46,5 +50,9 @@ typedef struct {
 
 void *e_read(const void *remote, void *dst, unsigned row, unsigned col, const void *src, size_t n);
 void *e_write(const void *remote, const void *src, unsigned row, unsigned col, void *dst, size_t n);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* E_MEM_H_ */

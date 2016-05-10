@@ -8,6 +8,10 @@
 #ifndef E_TRACE_H_
 #define E_TRACE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Define constants to be used in trace buffer from Epiphany
  */
@@ -84,5 +88,8 @@ int trace_write(unsigned severity, unsigned event, unsigned breakpoint, unsigned
  */
 int trace_stop();
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* E_TRACE_H_ */

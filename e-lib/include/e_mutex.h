@@ -26,6 +26,10 @@
 #ifndef MUTEX_H_
 #define MUTEX_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "e_types.h"
 
 typedef char e_barrier_t;
@@ -46,5 +50,8 @@ void e_mutex_unlock(unsigned row, unsigned col, e_mutex_t *mutex);
 void e_barrier_init(volatile e_barrier_t bar_array[], volatile e_barrier_t *tgt_bar_array[]);
 void e_barrier(volatile e_barrier_t *bar_array, volatile e_barrier_t *tgt_bar_array[]);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MUTEX_H_ */

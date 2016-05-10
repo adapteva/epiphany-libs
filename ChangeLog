@@ -1,3 +1,15 @@
+2016-05-10  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/include/e_coreid.h: Add extern "C" for C++.
+	* e-lib/include/e_ctimers.h: Likewise.
+	* e-lib/include/e_dma.h: Likewise.
+	* e-lib/include/e_ic.h: Likewise.
+	* e-lib/include/e_mem.h: Likewise.
+	* e-lib/include/e_mutex.h: Likewise.
+	* e-lib/include/e_regs.h: Likewise.
+	* e-lib/include/e_shm.h: Likewise.
+	* e-lib/include/e_trace.h: Likewise.
+	* e-lib/include/e_types.h: Likewise.
 
 2016-05-02  Ola Jeppsson  <ola@adapteva.com>
 

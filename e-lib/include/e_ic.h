@@ -26,6 +26,10 @@
 #ifndef E_IC_H_
 #define E_IC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <e_types.h>
 
 typedef void (*sighandler_t)(int);
@@ -49,5 +53,8 @@ void e_irq_clear(unsigned row, unsigned col, e_irq_type_t irq);
 void e_irq_global_mask(e_bool_t state);
 void e_irq_mask(e_irq_type_t irq, e_bool_t state);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* E_IC_H_ */

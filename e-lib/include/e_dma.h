@@ -26,6 +26,10 @@
 #ifndef _EPIPHANY_DMA_H_
 #define _EPIPHANY_DMA_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <e_common.h>
 
@@ -79,5 +83,9 @@ void e_dma_set_desc(e_dma_id_t chan,
 		unsigned strd_o_src, unsigned strd_o_dst,
 		void     *addr_src,  void *addr_dst,
 		e_dma_desc_t *desc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _EPIPHANY_DMA_H_ */
