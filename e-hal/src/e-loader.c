@@ -48,6 +48,8 @@ typedef unsigned long long ulong64;
 
 extern e_platform_t e_platform;
 
+extern e_return_stat_t ee_process_SREC(const char *executable, e_epiphany_t *pEpiphany, e_mem_t *pEMEM, int row, int col);
+
 enum loader_sections {
 	SEC_WORKGROUP_CFG,
 	SEC_EXT_MEM_CFG,
@@ -156,6 +158,7 @@ int _e_default_load_group(const char *executable, e_epiphany_t *dev,
 	int          fd;
 	struct stat  st;
 	void        *file;
+	bool         is_srec = false;
 	e_return_stat_t retval;
 
 	struct section_info tbl[] = {
@@ -212,10 +215,8 @@ int _e_default_load_group(const char *executable, e_epiphany_t *dev,
 	if (is_epiphany_exec_elf((Elf32_Ehdr *) file)) {
 		diag(L_D1) { fprintf(diag_fd, "e_load_group(): loading ELF file %s ...\n", executable); }
 	} else if (is_srec_file((char *) file)) {
-		diag(L_D1) { fprintf(diag_fd, "e_load_group(): ERROR: SREC support removed\n"); }
-		warnx("ERROR: SREC file support is deprecated. Use elf format.\n");
-		status = E_ERR;
-		goto out;
+		is_srec = true;
+		warnx("e_load_group(): WARNING: SREC file support is deprecated and will be removed in the next ESDK release. Use ELF format instead.\n");
 	} else {
 		diag(L_D1) { fprintf(diag_fd, "e_load_group(): ERROR: unidentified file format\n"); }
 		warnx("ERROR: Can't load executable file: unidentified format.\n");
@@ -223,7 +224,18 @@ int _e_default_load_group(const char *executable, e_epiphany_t *dev,
 		goto out;
 	}
 
-	lookup_sections(file, tbl, ARRAY_SIZE(tbl));
+	if (is_srec) {
+		/* No symbol info in SREC files, use hard coded values */
+		tbl[SEC_WORKGROUP_CFG].present = true;
+		tbl[SEC_WORKGROUP_CFG].sh_addr = 0x28;
+		tbl[SEC_EXT_MEM_CFG].present   = true;
+		tbl[SEC_EXT_MEM_CFG].sh_addr   = 0x50;
+		tbl[SEC_LOADER_CFG].present    = true;
+		tbl[SEC_LOADER_CFG].sh_addr    = 0x58;
+	} else {
+		lookup_sections(file, tbl, ARRAY_SIZE(tbl));
+	}
+
 	for (i = 0; i < SEC_NUM; i++) {
 		if (!tbl[i].present) {
 			warnx("e_load_group(): WARNING: %s section not in binary.",
@@ -244,7 +256,11 @@ int _e_default_load_group(const char *executable, e_epiphany_t *dev,
 
 	for (irow=row; irow<(row+rows); irow++) {
 		for (icol=col; icol<(col+cols); icol++) {
-			retval = ee_process_elf(file, dev, &emem, irow, icol);
+			if (is_srec)
+				retval = ee_process_SREC(executable, dev, &emem, irow, icol);
+			else
+				retval = ee_process_elf(file, dev, &emem, irow, icol);
+
 			if (retval == E_ERR) {
 				warnx("ERROR: Can't load executable file \"%s\".\n", executable);
 				status = E_ERR;

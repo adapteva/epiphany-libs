@@ -277,6 +277,14 @@
 
 2016-05-10  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/Makemodule.am (libe_loader_la_SOURCES): Add
+	e-process-SREC.c
+	* e-hal/src/e-loader.c (e_load_group): Add back support for
+	SREC.
+	* e-hal/src/e-process-SREC.c: New file.
+
+2016-05-10  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-lib/include/e_lib.h: Change search order for e-lib header
 	files to first look in same directory as the header file with
 	the include directive (use quotes instead of brackets).
