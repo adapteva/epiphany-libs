@@ -1,3 +1,13 @@
+2016-06-06  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_init): Don't call e_shm_init().
+	* e-hal/src/epiphany-shm-manager.c (e_shm_get_shmtable): Merge
+	shm_lock_file() and e_shm_get_shmtable() into one function.
+	Call e_shm_init() if needed.
+	(e_shm_put_shmtable): Rename from shm_unlock_file().
+	* e-utils/src/e-clear-shmtable.c (main): Call
+	e_shm_put_shmtable() to release table.
+
 2016-05-10  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-lib/include/e_lib.h: Change search order for e-lib header
