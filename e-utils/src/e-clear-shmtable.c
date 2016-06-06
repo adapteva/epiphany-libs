@@ -29,6 +29,9 @@
 
 #include <e-hal.h>
 
+e_shmtable_t *e_shm_get_shmtable();
+int e_shm_put_shmtable();
+
 typedef struct region
 {
     e_shmseg_t *segment;
@@ -77,9 +80,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Epiphany system reset failed\n");
         return EXIT_FAILURE;
     }
-    
-    tbl = e_shm_get_shmtable();
 
+	tbl = e_shm_get_shmtable();
     if ( tbl ) {
         for ( i = 0; i < MAX_SHM_REGIONS; ++i ) {
             if ( tbl->regions[i].valid ) {
@@ -92,6 +94,7 @@ int main(int argc, char *argv[])
             }
         }
     }
+	e_shm_put_shmtable();
 
     printf("Found %d allocated regions\n", rgncnt);
 

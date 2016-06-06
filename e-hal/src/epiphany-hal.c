@@ -160,11 +160,6 @@ int e_init(char *hdf)
 	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(row,col)	  = (%d,%d)\n", e_platform.row, e_platform.col); }
 	diag(H_D2) { fprintf(diag_fd, "e_init(): platform.(rows,cols) = (%d,%d)\n", e_platform.rows, e_platform.cols); }
 
-	if ( E_OK != e_shm_init() ) {
-		warnx("e_init(): Failed to initialize the Epiphany Shared Memory Manager.");
-		return E_ERR;
-	}
-
 	e_platform.initialized = E_TRUE;
 
 	return E_OK;

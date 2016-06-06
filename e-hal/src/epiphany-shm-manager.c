@@ -52,19 +52,12 @@ static size_t           shm_table_length = 0;
 static int              epiphany_devfd   = -1;
 static epiphany_alloc_t shm_alloc        = { 0 };
 
-static e_shmseg_pvt_t* shm_lookup_region(const char *name);
-static e_shmseg_pvt_t* shm_alloc_region(const char *name, size_t size);
+static e_shmseg_pvt_t* shm_lookup_region(e_shmtable_t *tbl, const char *name);
+static e_shmseg_pvt_t* shm_alloc_region(e_shmtable_t *tbl, const char *name, size_t size);
 static int shm_table_sanity_check(e_shmtable_t *tbl);
 
-static int shm_lock_file(const int fd, const char* fn);
-static int shm_unlock_file(const int fd, const char* fn);
-
-/* TODO: Add locking support for ESIM target */
-/* Convenience macros */
-#define LOCK_SHM_TABLE() \
-	({ee_esim_target_p() ? E_OK : shm_lock_file(epiphany_devfd, __func__);})
-#define UNLOCK_SHM_TABLE() \
-	({ee_esim_target_p() ? E_OK : shm_unlock_file(epiphany_devfd, __func__);})
+e_shmtable_t *e_shm_get_shmtable();
+int e_shm_put_shmtable();
 
 extern e_platform_t e_platform;
 extern int	 e_host_verbose;
@@ -137,6 +130,7 @@ int e_shm_init()
 	uintptr_t heap = 0;
 	size_t heap_length = 0;
 	int rc;
+	e_shmtable_t *tbl;
 
 	if (ee_esim_target_p())
 		rc = e_shm_init_esim();
@@ -157,7 +151,8 @@ int e_shm_init()
 
 
 	// Enter critical section
-	if ( E_OK != LOCK_SHM_TABLE() )
+	tbl = e_shm_get_shmtable();
+	if ( !tbl )
 		return E_ERR;
 
 	/* Check whether we have a working SHM table and if not reset it */
@@ -190,7 +185,7 @@ int e_shm_init()
 	memman_init((void*)heap, heap_length);
 
 
-	if ( E_OK != UNLOCK_SHM_TABLE() )
+	if ( E_OK != e_shm_put_shmtable() )
 		return E_ERR;
 
 	return E_OK;
@@ -216,17 +211,16 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 	}
 
 	// Enter critical section
-	if ( E_OK != LOCK_SHM_TABLE() )
-		goto err2;
-
 	tbl = e_shm_get_shmtable();
+	if ( !tbl )
+		goto err2;
 
 	if ( E_OK != shm_table_sanity_check(tbl) ) {
 		errno = EINVAL;
 		goto err1;
 	}
 
-	if ( shm_lookup_region(name) ) {
+	if ( shm_lookup_region(tbl, name) ) {
 		errno = EEXIST;
 		goto err1;
 	}
@@ -234,7 +228,7 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 	diag(H_D1) { fprintf(stderr, "e_shm_alloc(): alloc request for 0x%08x "
 						 "bytes named %s\n", size, name); }
 
-	region = shm_alloc_region(name, size);
+	region = shm_alloc_region(tbl, name, size);
 	if ( region ) {
 		region->valid = 1;
 		region->refcnt = 1;
@@ -261,7 +255,7 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 
  err1:
 	// Exit critical section
-	if ( E_OK != UNLOCK_SHM_TABLE() )
+	if ( E_OK != e_shm_put_shmtable() )
 		retval = E_ERR;
 
  err2:
@@ -279,17 +273,16 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 	}
 
 	// Enter critical section
-	if ( E_OK != LOCK_SHM_TABLE() )
-		return E_ERR;
-
 	tbl = e_shm_get_shmtable();
+	if ( !tbl )
+		return E_ERR;
 
 	if ( E_OK != shm_table_sanity_check(tbl) ) {
 		retval = E_ERR;
 		goto err;
 	}
 
-	region = shm_lookup_region(name);
+	region = shm_lookup_region(tbl, name);
 	if ( region ) {
 		++region->refcnt;
 
@@ -310,7 +303,7 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 
  err:
 	// Exit critical section
-	if ( E_OK != UNLOCK_SHM_TABLE() )
+	if ( E_OK != e_shm_put_shmtable() )
 		return E_ERR;
 
 	return retval;
@@ -320,12 +313,14 @@ int e_shm_release(const char *name)
 {
 	e_shmseg_pvt_t   *region = NULL;
 	int               retval = E_ERR;
+	e_shmtable_t *tbl;
 
 	// Enter critical section
-	if ( E_OK != LOCK_SHM_TABLE() )
+	tbl = e_shm_get_shmtable();
+	if ( !tbl )
 		return E_ERR;
 
-	region = shm_lookup_region(name);
+	region = shm_lookup_region(tbl, name);
 
 	if ( region ) {
 		if ( 0 == --region->refcnt ) {
@@ -336,17 +331,11 @@ int e_shm_release(const char *name)
 	}
 
 	// Exit critical section
-	if ( E_OK != UNLOCK_SHM_TABLE() )
+	if ( E_OK != e_shm_put_shmtable() )
 		return E_ERR;
 
 	return retval;
 }
-
-e_shmtable_t* e_shm_get_shmtable(void)
-{
-	return shm_table;
-}
-
 
 /**
  * Search the shm table for a region named by name.
@@ -355,14 +344,11 @@ e_shmtable_t* e_shm_get_shmtable(void)
  * calling this function.
  */
 static e_shmseg_pvt_t*
-shm_lookup_region(const char *name)
+shm_lookup_region(e_shmtable_t *tbl, const char *name)
 {
 	e_shmseg_pvt_t   *retval = NULL;
-	e_shmtable_t     *tbl    = NULL;
 	int               i      = 0;
 
-	tbl = e_shm_get_shmtable();
-	
 	for ( i = 0; i < MAX_SHM_REGIONS; ++i ) {
 		if ( tbl->regions[i].valid && 
 			 !strcmp(name, tbl->regions[i].shm_seg.name) ) {
@@ -381,13 +367,10 @@ shm_lookup_region(const char *name)
  * calling this function.
  */
 static e_shmseg_pvt_t*
-shm_alloc_region(const char *name, size_t size)
+shm_alloc_region(e_shmtable_t *tbl, const char *name, size_t size)
 {
 	e_shmseg_pvt_t   *region = NULL;
-	e_shmtable_t     *tbl    = NULL;
 	int               i      = 0;
-
-	tbl = e_shm_get_shmtable();
 
 	for ( i = 0; i < MAX_SHM_REGIONS; ++i ) {
 		if ( !tbl->regions[i].valid ) {
@@ -479,23 +462,38 @@ static int shm_table_sanity_check(e_shmtable_t *tbl)
  * advanced locking features we might have to resort to fcntl().
  */
 
-static int shm_lock_file(const int fd, const char* fn)
+e_shmtable_t *e_shm_get_shmtable()
 {
-	diag(H_D3) { fprintf(stderr, "shm_lock_file(): Taking lock...\n"); }
-	if ( lockf(fd, F_LOCK, 0) ) {
-		warnx("%s(): Failed to lock shared memory. Error is %s",
-				fn, strerror(errno));
-		return E_ERR;
+	if (!shm_table) {
+		if ( E_OK != e_shm_init() ) {
+			warnx("e_init(): Failed to initialize the Epiphany Shared Memory Manager.");
+			return NULL;
+		}
 	}
-	diag(H_D3) { fprintf(stderr, "shm_lock_file(): Lock acquired.\n"); }
-	return E_OK;
+
+	/* TODO: Add locking support for ESIM target */
+	if (ee_esim_target_p())
+		return shm_table;
+
+	diag(H_D3) { fprintf(stderr, "e_shm_get_shmtable(): Taking lock...\n"); }
+	if ( lockf(epiphany_devfd, F_LOCK, 0) ) {
+		warnx("%s(): Failed to lock shared memory. Error is %s",
+				__func__, strerror(errno));
+		return NULL;
+	}
+	diag(H_D3) { fprintf(stderr, "e_shm_get_shmtable(): Lock acquired.\n"); }
+
+	return shm_table;
 }
 
-static int shm_unlock_file(const int fd, const char* fn)
+int e_shm_put_shmtable()
 {
-	if ( lockf(fd, F_ULOCK, 0) ) {
+	if (ee_esim_target_p())
+		return E_OK;
+
+	if ( lockf(epiphany_devfd, F_ULOCK, 0) ) {
 		warnx("%s(): Failed to unlock shared memory. Error is %s",
-				fn, strerror(errno));
+				__func__, strerror(errno));
 		return E_ERR;
 	}
 	return E_OK;
