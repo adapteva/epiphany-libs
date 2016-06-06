@@ -365,6 +365,10 @@ static bool is_valid_addr(uint32_t addr)
 
 static bool is_valid_range(uint32_t from, uint32_t size)
 {
+	/* Always allow empty range */
+	if (!size)
+		return true;
+
 	return is_valid_addr(from) && is_valid_addr(from + size - 1);
 }
 
@@ -396,6 +400,10 @@ ee_process_elf(const void *file, e_epiphany_t *dev, e_mem_t *emem,
 	}
 
 	for (ihdr = 0; ihdr < ehdr->e_phnum; ihdr++) {
+		/* Nothing to do if section is empty */
+		if (!phdr[ihdr].p_memsz)
+			continue;
+
 		islocal = is_local(phdr[ihdr].p_vaddr);
 		isonchip = islocal ? true
 						   /* TODO: Don't cast to void */

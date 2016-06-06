@@ -28,20 +28,33 @@ ENTRY(_start)
 PROVIDE (___bss_start = __bss_start);
 
 /* BSP specific */
-__PROG_SIZE_FOR_CORE_ = 256K;
-__HEAP_SIZE_FOR_CORE_ = 128K;
-__HALF_BANK_SIZE_     = 4K;
-__NUM_ROWS_IN_CHIP_   = 8;
-__NUM_COLS_IN_CHIP_   = 8;
-__FIRST_CORE_ROW_     = 32;
-__FIRST_CORE_COL_     = 8;
-__CORE_ROW_ = DEFINED(__CORE_ROW_) ? __CORE_ROW_ : __FIRST_CORE_ROW_;
-__CORE_COL_ = DEFINED(__CORE_COL_) ? __CORE_COL_ : __FIRST_CORE_COL_;
+_PROG_SIZE_FOR_CORE_ = 256K;
+_HEAP_SIZE_FOR_CORE_ = 128K;
+_HALF_BANK_SIZE_     = 4K;
+_NUM_ROWS_IN_CHIP_   = 8;
+_NUM_COLS_IN_CHIP_   = 8;
+_FIRST_CORE_ROW_     = 32;
+_FIRST_CORE_COL_     = 8;
+_CORE_ROW_ = DEFINED(_CORE_ROW_) ? _CORE_ROW_ : _FIRST_CORE_ROW_;
+_CORE_COL_ = DEFINED(_CORE_COL_) ? _CORE_COL_ : _FIRST_CORE_COL_;
 /* generic don't touch */
 /* used to calculate the slice address in the external memory */
-__CORE_NUM_ = (__CORE_ROW_ - __FIRST_CORE_ROW_) * __NUM_COLS_IN_CHIP_ + (__CORE_COL_ - __FIRST_CORE_COL_);
+_CORE_NUM_ = (_CORE_ROW_ - _FIRST_CORE_ROW_) * _NUM_COLS_IN_CHIP_ + (_CORE_COL_ - _FIRST_CORE_COL_);
 
-__SHARED_DRAM_ = 0x8e000000;
+_SHARED_DRAM_ = 0x8e000000;
+
+/* Forwards compatibility for USER_LABEL_PREFIX change in ESDK 2016.3 */
+PROVIDE(__PROG_SIZE_FOR_CORE_ = _PROG_SIZE_FOR_CORE_);
+PROVIDE(__HEAP_SIZE_FOR_CORE_ = _HEAP_SIZE_FOR_CORE_);
+PROVIDE(__HALF_BANK_SIZE_ = _HALF_BANK_SIZE_);
+PROVIDE(__NUM_ROWS_IN_CHIP_ = _NUM_ROWS_IN_CHIP_);
+PROVIDE(__NUM_COLS_IN_CHIP_ = _NUM_COLS_IN_CHIP_);
+PROVIDE(__FIRST_CORE_ROW_ = _FIRST_CORE_ROW_);
+PROVIDE(__FIRST_CORE_COL_ = _FIRST_CORE_COL_);
+PROVIDE(__CORE_ROW_ = _CORE_ROW_);
+PROVIDE(__CORE_COL_ = _CORE_COL_);
+PROVIDE(__CORE_NUM_ = _CORE_NUM_);
+PROVIDE(__SHARED_DRAM_ = _SHARED_DRAM_);
 
 MEMORY
 {
@@ -193,11 +206,11 @@ SECTIONS
 
 	.code_dram    : {*.o(code_dram)   *.o(.code_dram)  } > EXTERNAL_DRAM_0
 	.shared_dram  : {*.o(shared_dram) *.o(.shared_dram)} > EXTERNAL_DRAM_1
-	.heap_dram   ORIGIN(EXTERNAL_DRAM_1) + LENGTH(EXTERNAL_DRAM_1) - __HEAP_SIZE_FOR_CORE_ * __NUM_ROWS_IN_CHIP_ * __NUM_COLS_IN_CHIP_ : {*.o(heap_dram) *.o(.heap_dram)} > EXTERNAL_DRAM_1
+	.heap_dram   ORIGIN(EXTERNAL_DRAM_1) + LENGTH(EXTERNAL_DRAM_1) - _HEAP_SIZE_FOR_CORE_ * _NUM_ROWS_IN_CHIP_ * _NUM_COLS_IN_CHIP_ : {*.o(heap_dram) *.o(.heap_dram)} > EXTERNAL_DRAM_1
 
 	/* the newlib  (libc and libm) library is mapped to the dedicated section */
 	/* create offset with location counter                                    */
-	. = (ORIGIN(EXTERNAL_DRAM_0) + __PROG_SIZE_FOR_CORE_ * __CORE_NUM_);
+	. = (ORIGIN(EXTERNAL_DRAM_0) + _PROG_SIZE_FOR_CORE_ * _CORE_NUM_);
 
 	NEW_LIB_RO           . : {lib_a-*.o(.text  .rodata)  *.o(libgloss_epiphany) } > EXTERNAL_DRAM_0
 	NEW_LIB_WR           . : {lib_a-*.o(.data)                                  } > EXTERNAL_DRAM_0
@@ -426,10 +439,10 @@ SECTIONS
   PROVIDE (__stack_start_ = ORIGIN(INTERNAL_RAM) + LENGTH(INTERNAL_RAM) - 0x10);
   .stack __stack_start_ : { __stack = .; *(.stack) }
   PROVIDE (___stack = __stack);
-  PROVIDE (__heap_start = ORIGIN(EXTERNAL_DRAM_1) + __HEAP_SIZE_FOR_CORE_ * __CORE_NUM_);
-  PROVIDE (__heap_start = __heap_start);
+  PROVIDE (__heap_start = ORIGIN(EXTERNAL_DRAM_1) + _HEAP_SIZE_FOR_CORE_ * _CORE_NUM_);
+  PROVIDE (___heap_start = __heap_start);
   /*.heap_start __heap_start_ :  { _heap_start_ = .; *(.heap_start) } */
-  PROVIDE (__heap_end   = ORIGIN(EXTERNAL_DRAM_1) + __HEAP_SIZE_FOR_CORE_ * __CORE_NUM_ + __HEAP_SIZE_FOR_CORE_ - 4);
+  PROVIDE (__heap_end   = ORIGIN(EXTERNAL_DRAM_1) + _HEAP_SIZE_FOR_CORE_ * _CORE_NUM_ + _HEAP_SIZE_FOR_CORE_ - 4);
   PROVIDE (___heap_end = __heap_end);
   /* .heap_end __heap_end_ : { _heap_end_ = .; *(.heap_end) } */
 

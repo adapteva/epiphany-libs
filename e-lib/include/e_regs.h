@@ -26,6 +26,10 @@
 #ifndef E_REGS_H_
 #define E_REGS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "e_types.h"
 
 
@@ -165,5 +169,9 @@ typedef enum {
 
 unsigned e_reg_read(e_core_reg_id_t reg_id);
 void e_reg_write(e_core_reg_id_t reg_id, unsigned val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* E_REGS_H_ */

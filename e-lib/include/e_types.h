@@ -26,19 +26,18 @@
 #ifndef _E_TYPES_H_
 #define _E_TYPES_H_
 
-
 #ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
+
 typedef enum {
 	E_FALSE = false,
 	E_TRUE  = true,
 } e_bool_t;
-#else
-typedef enum {
-	E_FALSE = 0,
-	E_TRUE  = 1,
-} e_bool_t;
-#endif
-
 
 typedef enum {
 	E_OK   =  0,
@@ -46,5 +45,8 @@ typedef enum {
 	E_WARN = -2,
 } e_return_stat_t;
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _E_TYPES_H_ */

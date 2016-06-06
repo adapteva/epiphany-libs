@@ -26,16 +26,16 @@
 #ifndef __ELIB_H__
 #define __ELIB_H__
 
-#include <e_common.h>
-#include <e_types.h>
-#include <e_regs.h>
-#include <e_dma.h>
-#include <e_ctimers.h>
-#include <e_ic.h>
-#include <e_mem.h>
-#include <e_mutex.h>
-#include <e_coreid.h>
-#include <e_shm.h>
+#include "e_common.h"
+#include "e_types.h"
+#include "e_regs.h"
+#include "e_dma.h"
+#include "e_ctimers.h"
+#include "e_ic.h"
+#include "e_mem.h"
+#include "e_mutex.h"
+#include "e_coreid.h"
+#include "e_shm.h"
 
 #endif /* __ELIB_H__ */
 

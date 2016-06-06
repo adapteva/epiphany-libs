@@ -1,3 +1,46 @@
+2016-05-10  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/include/e_lib.h: Change search order for e-lib header
+	files to first look in same directory as the header file with
+	the include directive (use quotes instead of brackets).
+	* e-lib/include/e_dma.h: Likewise.
+	* e-lib/include/e_ic.h: Likewise.
+
+2016-05-10  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/include/e_coreid.h: Add extern "C" for C++.
+	* e-lib/include/e_ctimers.h: Likewise.
+	* e-lib/include/e_dma.h: Likewise.
+	* e-lib/include/e_ic.h: Likewise.
+	* e-lib/include/e_mem.h: Likewise.
+	* e-lib/include/e_mutex.h: Likewise.
+	* e-lib/include/e_regs.h: Likewise.
+	* e-lib/include/e_shm.h: Likewise.
+	* e-lib/include/e_trace.h: Likewise.
+	* e-lib/include/e_types.h: Likewise.
+
+2016-05-02  Ola Jeppsson  <ola@adapteva.com>
+
+	* bsps/parallella64/fast.ldf: Adjust linker script exported
+	symbol names for __USER_LABEL_PREFIX__ change.
+	* bsps/parallella64/internal.ldf: Likewise.
+	* bsps/parallella64/legacy.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/fast.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/internal.ldf: Likewise.
+	* bsps/parallella_E16G3_1GB/legacy.ldf: Likewise.
+
+2016-05-02  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (is_valid_range): Always allow empty
+	range.
+	(ee_process_elf): Skip empty segments.
+
+2016-05-02  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/src/e_reg_read.c (e_reg_read): Use global address for
+	accessing register through MMR.
+	* e-lib/src/e_reg_write.c (e_reg_write): Likewise.
+
 2016-04-18  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal-data-local.h (e_target_ops): Add
