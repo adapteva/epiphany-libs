@@ -1,3 +1,23 @@
+2016-06-13  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/esim-target.c (ee_esim_target_p): Rename from
+	esim_target_p.
+	* e-hal/src/esim-target.h: Adjust function prototype for
+	ee_esim_target_p
+	* e-hal/src/e-loader.c (ee_process_elf): Adjust for name
+	change to ee_esim_target_p.
+	* e-hal/src/epiphany-hal.c (e_init): Ditto.
+	(e_finalize): Ditto.
+	(e_open): Ditto.
+	(e_close): Ditto.
+	(ee_read_reg): Ditto.
+	(e_alloc): Ditto.
+	(e_free): Ditto.
+	(ee_reset_core): Ditto.
+	(e_reset_group): Ditto.
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init): Ditto.
+	(e_shm_finalize): Ditto.
+
 2016-06-06  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal.c (e_init): Don't call e_shm_init().

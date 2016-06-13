@@ -23,7 +23,7 @@ const struct esim_ops es_ops = {
 #endif
 };
 
-bool esim_target_p()
+bool ee_esim_target_p()
 {
 	static bool initialized = false;
 	static bool esim = false;

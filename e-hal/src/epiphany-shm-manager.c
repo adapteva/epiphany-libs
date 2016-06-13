@@ -132,7 +132,7 @@ int e_shm_init()
 	int rc;
 	e_shmtable_t *tbl;
 
-	if (esim_target_p())
+	if (ee_esim_target_p())
 		rc = e_shm_init_esim();
 	else
 		rc = e_shm_init_native();
@@ -194,7 +194,7 @@ int e_shm_init()
 
 void e_shm_finalize(void)
 {
-	if (!esim_target_p())
+	if (!ee_esim_target_p())
 		munmap((void*)shm_table, shm_table_length);
 	diag(H_D2) { fprintf(stderr, "e_shm_finalize(): teardown complete\n"); }
 }

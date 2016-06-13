@@ -162,13 +162,13 @@ int e_init(char *hdf)
 	e_platform.num_emems   = 0;
 
 #ifndef ESIM_TARGET
-	if (esim_target_p()) {
+	if (ee_esim_target_p()) {
 		warnx("e_init(): " EHAL_TARGET_ENV " environment variable set to esim but target not compiled in.");
 		return E_ERR;
 	}
 #endif
 
-	if (esim_target_p()) {
+	if (ee_esim_target_p()) {
 		use_esim_target_ops();
 		if (ES_OK != es_ops.client_connect(&e_platform.esim, NULL)) {
 			warnx("e_init(): Cannot connect to ESIM");
@@ -176,7 +176,7 @@ int e_init(char *hdf)
 		}
 	}
 
-	if (esim_target_p()) {
+	if (ee_esim_target_p()) {
 #ifdef ESIM_TARGET
 		ee_hdf_from_sim_cfg(&e_platform);
 #else
@@ -265,7 +265,7 @@ int e_finalize(void)
 
 	e_shm_finalize();
 
-	if (esim_target_p())
+	if (ee_esim_target_p())
 		es_ops.client_disconnect(e_platform.esim, true);
 
 	e_platform.initialized = E_FALSE;
@@ -324,7 +324,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
-	if (esim_target_p()) {
+	if (ee_esim_target_p()) {
 		// Connect to ESIM shm file
 		dev->esim = e_platform.esim;
 	} else {
@@ -375,7 +375,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->mems.page_offset = curr_core->mems.phy_base - curr_core->mems.page_base;
 			curr_core->mems.map_size = e_platform.chip[0].sram_size + curr_core->mems.page_offset;
 
-			if (!esim_target_p()) {
+			if (!ee_esim_target_p()) {
 				curr_core->mems.mapped_base = mmap(NULL, curr_core->mems.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->mems.page_base);
 				curr_core->mems.base = curr_core->mems.mapped_base + curr_core->mems.page_offset;
 
@@ -388,7 +388,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->regs.page_offset = curr_core->regs.phy_base - curr_core->regs.page_base;
 			curr_core->regs.map_size = e_platform.chip[0].regs_size + curr_core->regs.page_offset;
 
-			if (!esim_target_p()) {
+			if (!ee_esim_target_p()) {
 				curr_core->regs.mapped_base = mmap(NULL, curr_core->regs.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->regs.page_base);
 				curr_core->regs.base = curr_core->regs.mapped_base + curr_core->regs.page_offset;
 
@@ -419,8 +419,8 @@ int e_close(e_epiphany_t *dev)
 	int irow, icol;
 	e_core_t *curr_core;
 
-	if ((esim_target_p() && es_ops.initialized(dev->esim) != ES_OK) ||
-		(!esim_target_p() && !dev))
+	if ((ee_esim_target_p() && es_ops.initialized(dev->esim) != ES_OK) ||
+		(!ee_esim_target_p() && !dev))
 	{
 		warnx("e_close(): Core group was not opened.");
 		return E_ERR;
@@ -428,7 +428,7 @@ int e_close(e_epiphany_t *dev)
 
 	for (irow=0; irow<dev->rows; irow++)
 	{
-		if (!esim_target_p()) {
+		if (!ee_esim_target_p()) {
 			for (icol=0; icol<dev->cols; icol++)
 			{
 				curr_core = &(dev->core[irow][icol]);
@@ -443,7 +443,7 @@ int e_close(e_epiphany_t *dev)
 
 	free(dev->core);
 
-	if (!esim_target_p())
+	if (!ee_esim_target_p())
 		close(dev->memfd);
 
 	return E_OK;
@@ -857,7 +857,7 @@ static int ee_read_reg_native(e_epiphany_t *dev, unsigned row, unsigned col, con
 
 int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
-	return esim_target_p() ? ee_read_reg_esim(dev, row, col, from_addr)
+	return ee_esim_target_p() ? ee_read_reg_esim(dev, row, col, from_addr)
 							: ee_read_reg_native(dev, row, col, from_addr);
 }
 
@@ -924,7 +924,7 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 
 	mbuf->objtype = E_EXT_MEM;
 
-	if (esim_target_p()) {
+	if (ee_esim_target_p()) {
 		// Connect to ESIM shm file
 		mbuf->esim = e_platform.esim;
 	} else {
@@ -943,7 +943,7 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	mbuf->page_offset = mbuf->phy_base - mbuf->page_base;
 	mbuf->map_size = size + mbuf->page_offset;
 
-	if (!esim_target_p()) {
+	if (!ee_esim_target_p()) {
 		mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
 		mbuf->base = (void*)(((char*)mbuf->mapped_base) + mbuf->page_offset);
 	}
@@ -951,7 +951,7 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	mbuf->ephy_base = (e_platform.emem[0].ephy_base + offset); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
-	if (!esim_target_p()) {
+	if (!ee_esim_target_p()) {
 		diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
 
 		if (mbuf->mapped_base == MAP_FAILED)
@@ -974,7 +974,7 @@ int e_free(e_mem_t *mbuf)
 	if (E_SHARED_MEM != mbuf->objtype) {
 		// The shared memory mapping is persistent - don't unmap
 
-		if (!esim_target_p()) {
+		if (!ee_esim_target_p()) {
 			munmap(mbuf->mapped_base, mbuf->map_size);
 			close(mbuf->memfd);
 		}
@@ -1271,7 +1271,7 @@ int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): pausing DMAs.\n"); }
 	e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
 
-	if (!esim_target_p())
+	if (!ee_esim_target_p())
 		usleep(100000);
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
@@ -1301,7 +1301,7 @@ int e_reset_group(e_epiphany_t *dev)
 		for (col=0; col<dev->cols; col++)
 			e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
 
-	if (!esim_target_p())
+	if (!ee_esim_target_p())
 		usleep(100000);
 
 	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): resetting cores...\n"); }

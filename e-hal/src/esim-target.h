@@ -26,6 +26,6 @@ struct esim_ops {
 };
 
 extern const struct esim_ops es_ops;
-extern bool esim_target_p();
+extern bool ee_esim_target_p();
 
 #endif
