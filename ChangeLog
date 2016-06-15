@@ -1,3 +1,8 @@
+2016-06-15  Ola Jeppsson  <ola@adapteva.com>
+
+	* configure.ac: Check for ESIM and PAL headers and libraries
+	before enabling the targets in the e-hal build.
+
 2016-06-13  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/esim-target.c (ee_esim_target_p): Rename from
