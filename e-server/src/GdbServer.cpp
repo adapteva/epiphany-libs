@@ -1702,10 +1702,6 @@ GdbServer::rspCommand ()
     {
       rspCmdWorkgroup (cmd);
     }
-  else if (strncmp ("process", cmd, strlen ("process")) == 0)
-    {
-      rspCmdProcess (cmd);
-    }
   else if (strcmp ("help", cmd) == 0)
     {
       pkt->packHexstr ("monitor commands: hwreset, coreid, swreset, halt, "
@@ -1856,77 +1852,6 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 
 }	// rspCmdWorkgroup ()
 
-
-//-----------------------------------------------------------------------------
-//! Handle the "monitor process" command.
-
-//! Format is: "monitor process <pid>"
-
-//! Where <pid> is a process ID shown by "info os processes".
-
-//! @param[in] cmd  The command string for parsing.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspCmdProcess (char* cmd)
-{
-  stringstream    ss (cmd);
-  vector <string> tokens;
-  string          item;
-
-  // Break out the command line args
-  while (getline (ss, item, ' '))
-    tokens.push_back (item);
-
-  if ((2 != tokens.size ()) || (0 != tokens[0].compare ("process")))
-    {
-      cerr << "Warning: Defective monitor process command: " << cmd
-	   << ": ignored." << endl;
-      pkt->packHexstr ("monitor process command not recognized\n");
-      rsp->putPkt (pkt);
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-
-  // Check the PID exists
-  unsigned long int pid  = strtoul (tokens[1].c_str (), NULL, 0);
-
-  if (mProcesses.find (pid) == mProcesses.end ())
-    {
-      cerr << "Warning: Non existent PID " << pid << ": ignored." << endl;
-      pkt->packHexstr ("Process ID does not exist.\n");
-      rsp->putPkt (pkt);
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-  else
-    {
-      mCurrentProcess = mProcesses[pid];
-
-      ostringstream oss;
-      oss << "Process ID now " << pid << "." << endl;
-
-      // This may have invalidated the current thread. If so correct
-      // it.  This is really a big dodgy - ultimately this needs
-      // proper process handling.
-
-      if ((NULL != mCurrentThread)
-	  && (! mCurrentProcess->hasThread (mCurrentThread)))
-	{
-	  mCurrentThread = *(mCurrentProcess->threadBegin ());
-	  oss << "- switching general thread to " << mCurrentThread << "."
-	      << endl;
-	  pkt->packHexstr (oss.str ().c_str ());
-	  rsp->putPkt (pkt);
-	}
-
-      pkt->packHexstr (oss.str ().c_str ());
-      rsp->putPkt (pkt);
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-    }
-}	// rspCmdProcess ()
 
 //-----------------------------------------------------------------------------
 //! Build the whole qXfer:threads:read reply string.

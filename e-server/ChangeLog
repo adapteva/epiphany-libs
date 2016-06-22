@@ -1,5 +1,13 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspCommand): Remove "monitor
+	process" handling.
+	(GdbServer::rspCmdProcess): Delete.
+	* src/GdbServer.h (GdbServer) <mCurrentProcess>: Delete field.
+	<rspCmdProcess>: Delete method.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::GdbServer): Initialize
 	mExtendedMode.
 	(GdbServer::initProcesses): If --multiprocess, then don't attach
