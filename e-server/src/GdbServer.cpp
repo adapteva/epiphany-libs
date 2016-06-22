@@ -400,11 +400,6 @@ GdbServer::rspClientRequest ()
       rspReadMem ();
       break;
 
-    case 'M':
-      // Write memory (symbolic)
-      rspWriteMem ();
-      break;
-
     case 'p':
       // Read a register
       rspReadReg ();
@@ -1118,68 +1113,6 @@ GdbServer::rspReadMem ()
   rsp->putPkt (pkt);
 
 }				// rsp_read_mem()
-
-
-//-----------------------------------------------------------------------------
-//! Handle a RSP write memory (symbolic) request
-
-//! Syntax is:
-
-//!   m<addr>,<length>:<data>
-
-//! The data is the bytes, lowest address first, encoded as pairs of hex
-//! digits.
-
-//! The length given is the number of bytes to be written.
-
-//! @note Not believed to be used by the GDB client at present.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspWriteMem ()
-{
-  uint32_t addr;		// Where to write the memory
-  int len;			// Number of bytes to write
-
-  assert (NULL != mCurrentThread);
-
-  if (2 != sscanf (pkt->data, "M%x,%x:", &addr, &len))
-    {
-      cerr << "Warning: Failed to recognize RSP write memory "
-	<< pkt->data << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-
-  // Find the start of the data and check there is the amount we expect.
-  char *symDat = (char *) (memchr (pkt->data, ':', pkt->getBufSize ())) + 1;
-  int datLen = pkt->getLen () - (symDat - pkt->data);
-
-  // Sanity check
-  if (len * 2 != datLen)
-    {
-      cerr << "Warning: Write of " << len * 2 << "digits requested, but "
-	<< datLen << " digits supplied: packet ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-
-  // Write the bytes to memory
-  {
-    //cerr << "rspWriteMem" << hex << addr << dec << " (" << len << ")" << endl;
-    if (!mCurrentThread->writeMemBlock (addr, (unsigned char *) symDat, len))
-      {
-	pkt->packStr ("E01");
-	rsp->putPkt (pkt);
-	return;
-      }
-  }
-
-  pkt->packStr ("OK");
-  rsp->putPkt (pkt);
-
-}				// rspWriteMem()
 
 
 //-----------------------------------------------------------------------------
