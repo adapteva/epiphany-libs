@@ -1,5 +1,11 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint)
+	(GdbServer::rspInsertMatchpoint): Return unknown packet for any
+	matchpoint other than z0/Z0.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspUnknownPacket): New method.
 	(GdbServer::rspClientRequest): Use rspUnknownPacket.  Remove
 	handling of 'A', 'b', 'B', 'd', 'i', 'I', 'r', 'qCRC',

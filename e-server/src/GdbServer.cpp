@@ -3781,10 +3781,16 @@ GdbServer::rspRemoveMatchpoint ()
   unsigned int len;		// Matchpoint length
 
   // Break out the instruction
-  if (3 != sscanf (pkt->data, "z%1d,%x,%1ud", (int *) &type, &addr, &len))
+  type = (MpType) (pkt->data[1] - '0');
+  if (type != BP_MEMORY)
     {
-      cerr << "Warning: RSP matchpoint deletion request not "
-	<< "recognized: ignored" << endl;
+      rspUnknownPacket ();
+      return;
+    }
+  if (2 != sscanf (pkt->data + 2, ",%x,%1ud", &addr, &len))
+    {
+      cerr << "Warning: RSP matchpoint insertion request not "
+	   << "recognized: ignored" << endl;
       pkt->packStr ("E01");
       rsp->putPkt (pkt);
       return;
@@ -3832,31 +3838,8 @@ GdbServer::rspRemoveMatchpoint ()
       rsp->putPkt (pkt);
       return;
 
-    case BP_HARDWARE:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
-    case WP_WRITE:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
-    case WP_READ:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
-    case WP_ACCESS:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
     default:
-      cerr << "Warning: RSP matchpoint type " << type
-	<< " not recognized: ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
+      assert ("unhandled matchpoint type" && 0);
       return;
     }
 }	// rspRemoveMatchpoint()
@@ -3883,7 +3866,13 @@ GdbServer::rspInsertMatchpoint ()
   unsigned int len;		// Matchpoint length (not used)
 
   // Break out the instruction
-  if (3 != sscanf (pkt->data, "Z%1d,%x,%1ud", (int *) &type, &addr, &len))
+  type = (MpType) (pkt->data[1] - '0');
+  if (type != BP_MEMORY)
+    {
+      rspUnknownPacket ();
+      return;
+    }
+  if (2 != sscanf (pkt->data + 2, ",%x,%1ud", &addr, &len))
     {
       cerr << "Warning: RSP matchpoint insertion request not "
 	<< "recognized: ignored" << endl;
@@ -3941,31 +3930,8 @@ GdbServer::rspInsertMatchpoint ()
       rsp->putPkt (pkt);
       return;
 
-    case BP_HARDWARE:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
-    case WP_WRITE:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
-    case WP_READ:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
-    case WP_ACCESS:
-      pkt->packStr ("");	// Not supported
-      rsp->putPkt (pkt);
-      return;
-
     default:
-      cerr << "Warning: RSP matchpoint type " << type
-	<< "not recognized: ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
+      assert ("unhandled matchpoint type" && 0);
       return;
     }
 }	// rspInsertMatchpoint()
