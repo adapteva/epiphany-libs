@@ -1,4 +1,39 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
+	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Initialize
+	mNotifyingP.
+	(GdbServer::rspServer): Alway start out as all-stop mode.  Don't
+	attach here.  If non-stop mode, process thread stops and send as
+	notifications.
+	(GdbServer::haltAndActivateProcess): New method, factored out
+	from ...
+	(GdbServer::rspAttach): ... this.
+	(GdbServer::rspStatus): New method.
+	(GdbServer::rspClientRequest): Bail out if in non-stop mode, and
+	no input is available.  Defer '?' handling to rspStatus.
+	(GdbServer::rspPrepareStopReply): New method, factored out from
+	GdbServer::rspReportException.
+	(GdbServer::rspClientNotifications): New method.
+	(GdbServer::rspReportException): Don't stop all threads in
+	non-stop mode, nor change the current thread.
+	(GdbServer::findStoppedThread): New method.
+	(GdbServer::rspVStopped): New method.
+	(GdbServer::rspQuery): Report support for non-stop mode.
+	(GdbServer::rspSet): Handle 'QNonStop'.
+	(GdbServer::rspVpkt): Report support for vCont t actions, along
+	with c, C, s, and S.  Handle vStopped.
+	(GdbServer::rspVCont): Handle ACTION_STOP actions.  In non-stop
+	mode, return OK without waiting.
+	(GdbServer::extractVContAction): Handle vCont;t actions.
+	* src/GdbServer.h (GdbServer) <mNotifyingP>: New field.
+	<haltAndActivateProcess, rspStatus, rspPrepareStopReply,
+	findStoppedThread, rspClientNotifications, rspVStopped): New
+	methods.
+	* src/RspConnection.cpp (RspConnection::putNotification): New
+	method.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (GdbServer::rspReadMem): Use hideBreakpoints.
 	(GdbServer::rspWriteMemBin): Use unhideBreakpoints.

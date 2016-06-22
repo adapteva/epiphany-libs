@@ -519,6 +519,57 @@ bool RspConnection::putPkt (RspPacket * pkt)
 
 
 //-----------------------------------------------------------------------------
+//! Put the packet out as a notification on the RSP connection
+
+//! Put out the data preceded by a '%', followed by a '#' and a one byte
+//! checksum.  There are never any characters that need escaping.
+
+//! Unlike ordinary packets, notifications are not acknowledged by the GDB
+//! client with '+'.
+
+//! @param[in] pkt  The Packet to transmit as a notification.
+
+//! @return  TRUE to indicate success, FALSE otherwise (means a communications
+//!          failure).
+//-----------------------------------------------------------------------------
+bool
+RspConnection::putNotification (RspPacket* pkt)
+{
+  unsigned char  checksum = 0;		// Computed checksum
+  int            count = 0;		// Index into the buffer
+
+  if (!putRspChar ('%'))	// Start char
+    return false;		// Comms failure
+
+  int len = pkt->getLen ();
+
+  // Body of the packet
+  for (count = 0; count < len; count++)
+    {
+      unsigned char uch = pkt->data[count];
+
+      checksum += uch;
+      if (!putRspChar (uch))
+	return false;	// Comms failure
+    }
+
+  if (!putRspChar ('#'))	// End char
+    return false;		// Comms failure
+
+  // Computed checksum
+  if (!putRspChar (Utils::hex2Char (checksum >> 4)))
+    return false;		// Comms failure
+  if (!putRspChar (Utils::hex2Char (checksum % 16)))
+    return false;		// Comms failure
+
+  if (si->debugTrapAndRspCon ())
+    cerr << "[" << portNum << "]:" << " putNotification: " << *pkt << endl;
+
+  return true;
+
+}	// putNotification ()
+
+//-----------------------------------------------------------------------------
 //! Put a single character out on the RSP connection
 
 //! Utility routine. This should only be called if the client is open, but we

@@ -91,6 +91,7 @@ using std::vector;
 GdbServer::GdbServer (ServerInfo* _si) :
   mDebugMode (ALL_STOP),
   mCurrentThread (NULL),
+  mNotifyingP (false),
   si (_si),
   fTargetControl (NULL)
 {
@@ -130,6 +131,12 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
       // Make sure we are still connected.
       while (!rsp->isConnected ())
 	{
+	  mDebugMode = ALL_STOP;
+	  // Say we're in a notification sequence until '?' is fully
+	  // processed.  This has the effect of inhibiting
+	  // rspClientNotifications.
+	  mNotifyingP = true;
+
 	  // Reconnect and stall the processor on a new connection
 	  if (!rsp->rspConnect ())
 	    {
@@ -137,27 +144,34 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	      cerr << "ERROR: Failed to reconnect to client. Exiting.";
 	      exit (EXIT_FAILURE);
 	    }
-	  else
-	    {
-	      cout << "INFO: connected to port " << si->port () << endl;
 
-	      // All-stop mode requires we halt on attaching. This will return
-	      // the appropriate stop packet.
-	      rspAttach (mCurrentProcess->pid ());
-	    }
+	  cout << "INFO: connected to port " << si->port () << endl;
 	}
-
 
       // Get a RSP client request
       if (si->debugTranDetail ())
 	cerr << "DebugTranDetail: Getting RSP client request." << endl;
 
+      // Deal with any RSP client request.  May return immediately in
+      // non-stop mode.
       rspClientRequest ();
 
-      // At this point we should have responded to the client, and so, in
-      // all-stop mode, all threads should be halted.
+      // We will have dealt with most requests.  In non-stop mode the
+      // target will be running, but we have not yet responded.  In
+      // all-stop mode we have stopped all threads and responded.
       if (si->debugTranDetail ())
 	cerr << "DebugTranDetail: RSP client request complete" << endl;
+
+      if (mDebugMode == NON_STOP)
+	{
+	  // Check if any thread stopped and if we thus need to send
+	  // any notifications.
+	  if (si->debugTranDetail ())
+	    cerr << "DebugTranDetail: Sending RSP client notifications."
+		 << endl;
+
+	  rspClientNotifications ();
+	}
     }
 }	// rspServer()
 
@@ -220,23 +234,11 @@ GdbServer::initProcesses ()
 
 
 //-----------------------------------------------------------------------------
-//! Attach to the target
-
-//! If not already halted, the target will be halted. We send an appropriate
-//! stop packet back to the client.
-
-//! @todo What should we really do if the target fails to halt?
-
-//! @note  The target should *not* be reset when attaching.
-
-//! @param[in] pid  The ID of the process to which we attach
+//! Halt and activate all threads of a process.
 //-----------------------------------------------------------------------------
-void
-GdbServer::rspAttach (int  pid)
+bool
+GdbServer::haltAndActivateProcess (ProcessInfo *process)
 {
-  map <int, ProcessInfo *>::iterator  it = mProcesses.find (pid);
-  assert (it != mProcesses.end ());
-  ProcessInfo* process = it->second;
   bool isHalted = true;
 
   for (set <Thread*>::iterator it = process->threadBegin ();
@@ -262,6 +264,35 @@ GdbServer::rspAttach (int  pid)
 	    }
 	}
     }
+
+  return isHalted;
+}	// haltAndActivateProcess ()
+
+
+//-----------------------------------------------------------------------------
+//! Attach to the target
+
+//! If not already halted, the target will be halted. We send an appropriate
+//! stop packet back to the client.
+
+//! @todo What should we really do if the target fails to halt?
+
+//! @note  The target should *not* be reset when attaching.
+
+//! @param[in] pid  The ID of the process to which we attach
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspAttach (int  pid)
+{
+  map <int, ProcessInfo *>::iterator  it = mProcesses.find (pid);
+  assert (it != mProcesses.end ());
+  ProcessInfo* process = it->second;
+  bool isHalted = true;
+
+  isHalted = haltAndActivateProcess (process);
+
+  mCurrentProcess = process;
+  mCurrentThread = *process->threadBegin ();
 
   Thread *thread = *process->threadBegin ();
 
@@ -316,6 +347,48 @@ GdbServer::rspUnknownPacket ()
 
 
 //-----------------------------------------------------------------------------
+//! Handle the '?' packet.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspStatus ()
+{
+  // All-stop mode requires we halt on attaching.
+  haltAndActivateProcess (mCurrentProcess);
+
+  if (mDebugMode == ALL_STOP)
+    {
+      // Return last signal ID
+      mCurrentThread = *mCurrentProcess->threadBegin ();
+      rspReportException (mCurrentThread, mCurrentThread->pendingSignal ());
+      markAllStopped ();
+    }
+  else
+    {
+      // In the case of non-stop mode this means refinding the
+      // list of stopped threads.  Also, '?' behaves like a
+      // notification.  We report a stopped thread now, and if
+      // there are more, GDB will keep sending vStopped until it
+      // gets an OK.
+      mNotifyingP = true;
+
+      ProcessInfo* process = mCurrentProcess;
+
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
+	{
+	  Thread* thread = *it;
+
+	  thread->setLastAction (ACTION_CONTINUE);
+	}
+
+      rspVStopped ();
+    }
+
+}	// rspStatus ()
+
+
+//-----------------------------------------------------------------------------
 //! Deal with a request from the GDB client session
 
 //! In general, apart from the simplest requests, this function replies on
@@ -334,6 +407,9 @@ GdbServer::rspUnknownPacket ()
 void
 GdbServer::rspClientRequest ()
 {
+  if (mDebugMode == NON_STOP && !rsp->inputReady ())
+    return;
+
   if (!rsp->getPkt (pkt))
     {
       rspDetach (mCurrentProcess->pid ());
@@ -350,9 +426,7 @@ GdbServer::rspClientRequest ()
       break;
 
     case '?':
-      // Return last signal ID
-      rspReportException (*mCurrentProcess->threadBegin (),
-			  TARGET_SIGNAL_NONE);
+      rspStatus ();
       break;
 
     case 'D':
@@ -458,6 +532,53 @@ GdbServer::rspClientRequest ()
 
 
 //-----------------------------------------------------------------------------
+//! Prepare a stop reply.
+//-----------------------------------------------------------------------------
+string
+GdbServer::rspPrepareStopReply (Thread *thread, TargetSignal sig)
+{
+  ostringstream oss;
+
+  oss << "T" << Utils::intStr (sig, 16, 2)
+      << "thread:" << hex << thread->tid () << ";";
+
+  if (sig == TARGET_SIGNAL_TRAP)
+    oss << "swbreak:;";
+
+  return oss.str ();
+}				// rspPrepareStopReply()
+
+
+//-----------------------------------------------------------------------------
+//! Deal with any client notifications
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspClientNotifications ()
+{
+  Thread* thread;
+
+  // If we're already notifying, hold until the client acks the
+  // previous notification and finishes the vStopped sequence.
+  if (mNotifyingP)
+    return;
+
+  thread = findStoppedThread ();
+  if (thread != NULL)
+    {
+      mNotifyingP = true;
+
+      TargetSignal sig = thread->pendingSignal ();
+
+      string reply = "Stop:" + rspPrepareStopReply (thread, sig);
+      pkt->packStr (reply.c_str ());;
+      rsp->putNotification (pkt);
+
+      thread->setPendingSignal (TARGET_SIGNAL_NONE);
+      thread->setLastAction (ACTION_STOP);
+    }
+}	// rspClientNotifications ()
+
+//-----------------------------------------------------------------------------
 //! Send a packet acknowledging an exception has occurred
 
 //! @param[in] thread  The thread we are acknowledging.
@@ -470,25 +591,81 @@ GdbServer::rspReportException (Thread *thread, TargetSignal sig)
     cerr << "DebugStopResume: Report exception  for thread " << thread->tid ()
 	 << " with GDB signal " << sig << endl;
 
-  ostringstream oss;
-
-  oss << "T" << Utils::intStr (sig, 16, 2)
-      << "thread:" << hex << thread->tid () << ";";
-
-  if (sig == TARGET_SIGNAL_TRAP)
-    oss << "swbreak:;";
-
   // In all-stop mode, ensure all threads are halted.
-  haltAllThreads ();
+  if (mDebugMode == ALL_STOP)
+    {
+      haltAllThreads ();
 
-  markPendingStops (thread);
+      markPendingStops (thread);
 
-  mCurrentThread = thread;
+      mCurrentThread = thread;
+    }
 
-  pkt->packStr (oss.str ().c_str ());
+  string reply = rspPrepareStopReply (thread, sig);
+
+  pkt->packStr (reply.c_str ());
   rsp->putPkt (pkt);
 
 }	// rspReportException()
+
+
+//-----------------------------------------------------------------------------
+//! Find the first thread that the client had set to continue that is
+//! now halted.
+//-----------------------------------------------------------------------------
+Thread*
+GdbServer::findStoppedThread ()
+{
+  ProcessInfo *process = mCurrentProcess;
+
+  for (set <Thread*>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       ++it)
+    {
+      Thread *thread = *it;
+
+      if (thread->lastAction () == ACTION_CONTINUE
+	  && thread->isHalted ())
+	{
+	  TargetSignal sig = findStopReason (thread);
+	  thread->setPendingSignal (sig);
+	  return thread;
+	}
+    }
+
+  return NULL;
+}	// findStoppedThread()
+
+
+//-----------------------------------------------------------------------------
+//! Handle the "vStopped" packet.
+//-----------------------------------------------------------------------------
+
+void
+GdbServer::rspVStopped ()
+{
+  Thread* thread;
+
+  // Report any threads that are marked as stopped.  We can be called
+  // when there are no stopped threads, in which case we return "OK".
+  thread = findStoppedThread ();
+  if (thread != NULL)
+    {
+      TargetSignal sig = thread->pendingSignal ();
+
+      rspReportException (thread, sig);
+
+      thread->setLastAction (ACTION_STOP);
+      thread->setPendingSignal (TARGET_SIGNAL_NONE);
+    }
+  else
+    {
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+      // Ready to start a new reporting sequence.
+      mNotifyingP = false;
+    }
+}	// rspVStopped()
 
 
 //-----------------------------------------------------------------------------
@@ -1257,7 +1434,8 @@ GdbServer::rspQuery ()
       sprintf (pkt->data,
 	       "PacketSize=%x;"
 	       "qXfer:osdata:read+;"
-	       "swbreak+",
+	       "swbreak+;"
+	       "QNonStop+",
 	       pkt->getBufSize ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
@@ -2192,7 +2370,24 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 void
 GdbServer::rspSet ()
 {
-  rspUnknownPacket ();
+  if (strncmp ("QNonStop:0", pkt->data, strlen ("QNonStop:0")) == 0)
+    {
+      // Set all-stop mode
+      mDebugMode = ALL_STOP;
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else if (strncmp ("QNonStop:1", pkt->data, strlen ("QNonStop:1")) == 0)
+    {
+      // Set non-stop mode
+      mDebugMode = NON_STOP;
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else
+    {
+      rspUnknownPacket ();
+    }
 }				// rspSet()
 
 
@@ -2295,8 +2490,11 @@ GdbServer::rspVpkt ()
     }
   else if (0 == strcmp ("vCont?", pkt->data))
     {
-      // Support this for multi-thraeding
-      pkt->packStr ("OK");
+      // Support this for multi-threading.  Note we have to report we
+      // know about 's' and 'S', even though we don't support them
+      // (GDB steps using software single-step).  If we don't, GDB
+      // won't use vCont at all.
+      pkt->packStr ("vCont;c;C;s;S;t");
       rsp->putPkt (pkt);
       return;
     }
@@ -2319,6 +2517,10 @@ GdbServer::rspVpkt ()
       rspRestart ();
       pkt->packStr ("S05");
       rsp->putPkt (pkt);
+    }
+  else if (0 == strcmp ("vStopped", pkt->data))
+    {
+      rspVStopped ();
     }
   else
     {
@@ -2415,12 +2617,26 @@ GdbServer::rspVCont ()
 		    continueThread (thread);
 		  break;
 		}
+	      else if (action.kind == ACTION_STOP
+		  && thread->lastAction () == ACTION_CONTINUE)
+		{
+		  thread->halt ();
+		}
 	    }
 	}
     }
 
-  // Wait and report stop statuses.
-  waitAllThreads ();
+  if (mDebugMode == NON_STOP)
+    {
+      // Return immediately.
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
+    }
+  else
+    {
+      // Wait and report stop statuses.
+      waitAllThreads ();
+    }
 }	// rspVCont ()
 
 
@@ -2512,6 +2728,9 @@ GdbServer::extractVContAction (const string &action)
     case 'c':
       // All good
       return ACTION_CONTINUE;
+
+    case 't':
+      return ACTION_STOP;
 
     default:
       cerr << "Warning: Unrecognized vCont action '" << a

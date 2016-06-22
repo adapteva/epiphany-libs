@@ -97,6 +97,7 @@ public:
   bool inputReady ();
   bool getPkt (RspPacket * pkt);
   bool putPkt (RspPacket * pkt);
+  bool putNotification (RspPacket* pkt);
 
   bool getBreakCommand ();
 
