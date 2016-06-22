@@ -89,8 +89,7 @@ public:
 
   // Code manipulation
   void insertBkptInstr (uint32_t addr);
-  int getException ();
-  // GdbServer::TargetSignal getException ();
+  GdbServer::TargetSignal getException ();
 
   // Main functions for reading and writing memory
   bool readMemBlock (uint32_t  addr,

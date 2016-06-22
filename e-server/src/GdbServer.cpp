@@ -587,6 +587,29 @@ GdbServer::rspFileIOreply ()
     }
 }
 
+// The meaning of the TRAP codes. These are mostly not documented. Really
+// for most of these, use TRAP_SYSCALL.
+static const uint8_t  TRAP_WRITE   = 0;
+static const uint8_t  TRAP_READ    = 1;
+static const uint8_t  TRAP_OPEN    = 2;
+static const uint8_t  TRAP_EXIT    = 3;
+static const uint8_t  TRAP_PASS    = 4;
+static const uint8_t  TRAP_FAIL    = 5;
+static const uint8_t  TRAP_CLOSE   = 6;
+static const uint8_t  TRAP_SYSCALL = 7;
+
+// The system calls we support. We arguably should link to the libgloss
+// header to pick these up, but we have no guarantee we know where that
+// header is. Safest is to put them locally here where they are to be used.
+static const uint32_t  SYS_open     =  2;
+static const uint32_t  SYS_close    =  3;
+static const uint32_t  SYS_read     =  4;
+static const uint32_t  SYS_write    =  5;
+static const uint32_t  SYS_lseek    =  6;
+static const uint32_t  SYS_unlink   =  7;
+static const uint32_t  SYS_fstat    = 10;
+static const uint32_t  SYS_stat     = 15;
+
 //-----------------------------------------------------------------------------
 //! Redirect the SDIO to client GDB.
 
@@ -600,29 +623,6 @@ void
 GdbServer::redirectStdioOnTrap (Thread *thread,
 				uint8_t trap)
 {
-  // The meaning of the TRAP codes. These are mostly not documented. Really
-  // for most of these, use TRAP_SYSCALL.
-  static const uint8_t  TRAP_WRITE   = 0;
-  static const uint8_t  TRAP_READ    = 1;
-  static const uint8_t  TRAP_OPEN    = 2;
-  static const uint8_t  TRAP_EXIT    = 3;
-  static const uint8_t  TRAP_PASS    = 4;
-  static const uint8_t  TRAP_FAIL    = 5;
-  static const uint8_t  TRAP_CLOSE   = 6;
-  static const uint8_t  TRAP_SYSCALL = 7;
-
-  // The system calls we support. We arguably should link to the libgloss
-  // header to pick these up, but we have no guarantee we know where that
-  // header is. Safest is to put them locally here where they are to be used.
-  static const uint32_t  SYS_open     =  2;
-  static const uint32_t  SYS_close    =  3;
-  static const uint32_t  SYS_read     =  4;
-  static const uint32_t  SYS_write    =  5;
-  static const uint32_t  SYS_lseek    =  6;
-  static const uint32_t  SYS_unlink   =  7;
-  static const uint32_t  SYS_fstat    = 10;
-  static const uint32_t  SYS_stat     = 15;
-
   // We will almost certainly want to use these registers, so get them once
   // and for all.
   uint32_t  r0 = thread->readReg (R0_REGNUM + 0);
@@ -701,12 +701,7 @@ GdbServer::redirectStdioOnTrap (Thread *thread,
       rspReportException (thread, TARGET_SIGNAL_QUIT);
       break;
     case TRAP_PASS:
-      cerr << " Trap 4 PASS " << endl;
-      rspReportException (thread, TARGET_SIGNAL_TRAP);
-      break;
     case TRAP_FAIL:
-      cerr << " Trap 5 FAIL " << endl;
-      rspReportException (thread, TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
       r0 = thread->readReg (R0_REGNUM + 0);		//chan
@@ -2614,7 +2609,7 @@ GdbServer::markPendingStops (Thread *reporting_thread)
 	{
 	  assert (thread->isHalted ());
 
-	  if (getStopInstr (thread) == BKPT_INSTR)
+	  if (findStopReason (thread) != TARGET_SIGNAL_NONE)
 	    {
 	      thread->setPending ();
 
@@ -2686,22 +2681,134 @@ GdbServer::doContinue (Thread* thread)
   if (si->debugStopResume ())
     cerr << "DebugStopResume: doContinue (" << thread->tid () << ")." << endl;
 
-  // If it was a trap, then do the relevant F packet return.
-  if (doFileIO (thread))
-    return;
-  else
-    {
-      TargetSignal sig = (TargetSignal) thread->getException ();
-      // If no signal flags are set, this must be a breakpoint.
-      if (TARGET_SIGNAL_NONE == sig)
-	sig = TARGET_SIGNAL_TRAP;
-      rspReportException (thread, sig);
+  assert (thread->isHalted ());
 
-      // At this point, no thread should be resumed until the client
-      // tells us to.
-      markAllStopped ();
+  TargetSignal sig = findStopReason (thread);
+
+  // If it was a syscall, then do the relevant F packet return.
+  if (sig == TARGET_SIGNAL_EMT)
+    {
+      uint16_t instr16 = getStopInstr (thread);
+
+      haltAllThreads ();
+      redirectStdioOnTrap (thread, getTrap (instr16));
+      return;
     }
+
+  rspReportException (thread, sig);
+
+  // At this point, no thread should be resumed until the client
+  // tells us to.
+  markAllStopped ();
 }	// doContinue ()
+
+//-----------------------------------------------------------------------------
+//! Why did we stop?
+
+//! We know the thread is halted. Did it halt immediately after a
+//! BKPT, TRAP or IDLE instruction.  Not quite as easy as it seems,
+//! since TRAP may often be followed by NOP.  These are the signals
+//! returned under various circumstances.
+
+//!   - BKPT instruction. Return TARGET_SIGNAL_TRAP.
+
+//!   - Software exception. Depends on the EXCAUSE field in the STATUS
+//!     register
+
+//!   - TRAP instruction. The result depends on the trap value.
+
+//!       - 0-2 or 6.  Reserved, so should not be used.  Return
+//!         TARGET_SIGNAL_SYS.
+
+//!       - 3. Program exit.  Return TARGET_SIGNAL_QUIT.
+
+//!       - 4. Success.  Return TARGET_SIGNAL_USR1.
+
+//!       - 5. Failure.  Return TARGET_SIGNAL_USR2.
+
+//!       - 7. System call.  If the value in R3 is valid, return
+//!         TARGET_SIGNAL_EMT, otherwise return TARGET_SIGNAL_SYS.
+
+//!   - Anything else.  We must have been stopped externally, so
+//!     return TARGET_SIGNAL_NONE.
+
+//! @param[in] thread  The thread to consider.
+//! @return  The appropriate signal as described above.
+//-----------------------------------------------------------------------------
+GdbServer::TargetSignal
+GdbServer::findStopReason (Thread *thread)
+{
+  assert (thread->isHalted ());
+
+  // First see if we just hit a breakpoint or IDLE. Fortunately IDLE, BREAK,
+  // TRAP and NOP are all 16-bit instructions.
+  uint32_t pc = thread->readPc () - SHORT_INSTRLEN;
+  uint16_t instr16 = thread->readMem16 (pc);
+
+  if (instr16 == BKPT_INSTR)
+    return TARGET_SIGNAL_TRAP;
+
+  TargetSignal sig = thread->getException ();
+
+  if (sig != TARGET_SIGNAL_NONE)
+    return sig;
+
+  // Is it a TRAP? Find the first preceding non-NOP instruction
+  while (instr16 == NOP_INSTR)
+    {
+      pc -= SHORT_INSTRLEN;
+      instr16 = thread->readMem16 (pc);
+    }
+
+  if (getOpcode10 (instr16) == TRAP_INSTR)
+    {
+      switch (getTrap (instr16))
+	{
+	case TRAP_WRITE:
+	case TRAP_READ:
+	case TRAP_OPEN:
+	case TRAP_CLOSE:
+	  return TARGET_SIGNAL_EMT;
+
+	case TRAP_EXIT:
+	  return TARGET_SIGNAL_QUIT;
+
+	case TRAP_PASS:
+	  return TARGET_SIGNAL_USR1;
+
+	case TRAP_FAIL:
+	  return TARGET_SIGNAL_USR2;
+
+	case TRAP_SYSCALL:
+	  // Look at R3 to see if the value is valid.
+	  switch (thread->readReg (R0_REGNUM + 3))
+	    {
+	    case SYS_open:
+	    case SYS_close:
+	    case SYS_read:
+	    case SYS_write:
+	    case SYS_lseek:
+	    case SYS_unlink:
+	    case SYS_fstat:
+	    case SYS_stat:
+	      // Valid system calls
+	      return TARGET_SIGNAL_EMT;
+
+	    default:
+	      // Invalid system call
+	      return TARGET_SIGNAL_SYS;
+	    }
+
+	default:
+	  // Undefined, so bad system call.
+	  return TARGET_SIGNAL_SYS;
+	}
+    }
+
+  // Must have been stopped externally
+  return TARGET_SIGNAL_NONE;
+
+}	// findStopReason ()
 
 
 //-----------------------------------------------------------------------------
@@ -2744,40 +2851,6 @@ GdbServer::getStopInstr (Thread *thread)
     return NOP_INSTR;
 
 }	// getStopInstr ()
-
-
-//-----------------------------------------------------------------------------
-//! Process file I/O if needed for a continued thread.
-
-//! We know the thread is halted. Did it halt immediately after a TRAP
-//! instruction. Not quite as easy as it seems, since TRAP may often be
-//! followed by NOP.
-
-//! If we do find TRAP, then process the File I/O and restart the thread.
-
-//! @todo For now this is a placeholder. We don't actually deal with the F
-//!       packet.
-
-//! @param[in] thread  The thread to consider.
-//! @return  TRUE if we processed file I/O and restarted. FALSE otherwise.
-//-----------------------------------------------------------------------------
-bool
-GdbServer::doFileIO (Thread* thread)
-{
-  assert (thread->isHalted ());
-  uint16_t instr16 = getStopInstr (thread);
-
-  // Have we stopped for a TRAP
-  if (getOpcode10 (instr16) == TRAP_INSTR)
-    {
-      haltAllThreads ();
-      redirectStdioOnTrap (thread, getTrap (instr16));
-      return true;
-    }
-  else
-    return false;
-
-}	// doFileIO ()
 
 
 //-----------------------------------------------------------------------------

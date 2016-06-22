@@ -424,8 +424,7 @@ Thread::insertBkptInstr (uint32_t addr)
 //! @param[in] coreId  The core to check.
 //! @return  The GDB signal corresponding to any exception.
 //-----------------------------------------------------------------------------
-//GdbServer::TargetSignal
-int
+GdbServer::TargetSignal
 Thread::getException ()
 {
   uint32_t coreStatus = readStatus ();

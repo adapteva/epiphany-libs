@@ -1,4 +1,24 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
+	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (TRAP_WRITE, TRAP_READ, TRAP_OPEN, TRAP_EXIT)
+	(TRAP_PASS, TRAP_FAIL, TRAP_CLOSE, TRAP_SYSCALL, SYS_open)
+	(SYS_close, SYS_read, SYS_write, SYS_lseek, SYS_unlink, SYS_fstat)
+	(SYS_stat): Moved to top-level scope from ...
+	(GdbServer::redirectStdioOnTrap): ... here.  Do nothing for
+	TRAP_PASS and TRAP_FAIL.
+	(GdbServer::doContinue): Inline doFileIo here and rewrite in terms
+	of findStopReason.
+	(GdbServer::findStopReason): New.
+	(GdbServer::doFileIO): Delete.
+	* src/GdbServer.h (GdbServer) <TARGET_SIGNAL_USR1,
+	TARGET_SIGNAL_USR2>: New signal numbers.
+	<findStopReason>: New method.
+	<doFileIO>: Delete.
+	* src/Thread.cpp (Thread::getException): Return a TargetSignal.
+	* src/Thread.h (Thread) <getException>: Likewise.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (GdbServer::rspClientRequest) <'F' packet>:
 	Wait for stops.

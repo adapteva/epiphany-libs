@@ -98,6 +98,8 @@ public:
     TARGET_SIGNAL_PIPE = 13,
     TARGET_SIGNAL_ALRM = 14,
     TARGET_SIGNAL_TERM = 15,
+    TARGET_SIGNAL_USR1 = 30,
+    TARGET_SIGNAL_USR2 = 31,
   };
 
   enum vContAction
@@ -284,8 +286,8 @@ private:
   void markAllStopped ();
   void continueThread (Thread* thread);
   void doContinue (Thread* thread);
+  TargetSignal findStopReason (Thread *thread);
   uint16_t  getStopInstr (Thread* thread);
-  bool doFileIO (Thread* thread);
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
