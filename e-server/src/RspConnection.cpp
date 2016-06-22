@@ -88,7 +88,8 @@ using std::setw;
 //! @param[in] _si    The server information
 //-----------------------------------------------------------------------------
 RspConnection::RspConnection (ServerInfo* _si) :
-  si (_si)
+  si (_si),
+  mPendingBreak (false)
 {
   rspInit (si->port ());
 
@@ -306,22 +307,22 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	ch;			// Current character
 
 
-      // Wait around for the start character ('$'). Ignore all other
-      // characters
-      ch = getRspChar ();
-
-      // once read char from GDB --- lock the read -- TODO should be protected by timeout in case of gdb fails
-
-      while (ch != '$')
+      // Wait around for the start character ('$').  Ignore all other
+      // characters.  TODO should be protected by timeout in case of
+      // gdb fails.  If we see a Ctrl-C ('\003'), remember it so a
+      // later getBreakCommand() call returns true.
+      while (1)
 	{
-	  if (-1 == ch)
-	    {
-	      return false;	// Connection failed
-	    }
-	  else
-	    {
-	      ch = getRspChar ();
-	    }
+	  ch = getRspChar ();
+
+	  if (ch == -1)
+	    return false;	// Connection failed
+
+	  if (ch == '$')
+	    break;
+
+	  if (ch == 0x03)
+	    mPendingBreak = true;
 	}
 
       // Read until a '#' or end of buffer is found
@@ -652,6 +653,12 @@ RspConnection::inputReady ()
 bool
 RspConnection::getBreakCommand ()
 {
+  if (mPendingBreak)
+    {
+      mPendingBreak = false;
+      return true;
+    }
+
   if (!inputReady ())
     return false;
 

@@ -118,6 +118,8 @@ private:
   //! The client file descriptor
   int clientFd;
 
+  //! Whether we saw a '\003' (Ctrl-C) request in between packets.
+  bool mPendingBreak;
 };				// RspConnection()
 
 #endif // RSP_CONNECTION__H
