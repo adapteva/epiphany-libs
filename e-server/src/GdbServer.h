@@ -235,6 +235,7 @@ private:
   void rspContinue (uint32_t addr, uint32_t except);
   void rspReadAllRegs ();
   void rspWriteAllRegs ();
+  void rspUnknownPacket ();
   void rspSetThread ();
   void rspReadMem ();
   void rspWriteMem ();

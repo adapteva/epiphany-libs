@@ -301,6 +301,20 @@ GdbServer::rspDetach (int pid)
 
 
 //-----------------------------------------------------------------------------
+//! Called when we get a packet that we don't support.  Returns back
+//| the empty packet, as per RSP specification.
+
+void
+GdbServer::rspUnknownPacket ()
+{
+  if (si->debugTranDetail ())
+    cerr << "Warning: Unknown RSP request" << pkt->data << endl;
+  pkt->packStr ("");
+  rsp->putPkt (pkt);
+}	// rspUnknownPacket ()
+
+
+//-----------------------------------------------------------------------------
 //! Deal with a request from the GDB client session
 
 //! In general, apart from the simplest requests, this function replies on
@@ -339,25 +353,6 @@ GdbServer::rspClientRequest ()
       rspReportException (-1 /*all threads */ , TARGET_SIGNAL_TRAP);
       break;
 
-    case 'A':
-      // Initialization of argv not supported
-      cerr << "Warning: RSP 'A' packet not supported: ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      break;
-
-    case 'b':
-      // Setting baud rate is deprecated
-      cerr << "Warning: RSP 'b' packet is deprecated and not "
-	<< "supported: ignored" << endl;
-      break;
-
-    case 'B':
-      // Breakpoints should be set using Z packets
-      cerr << "Warning: RSP 'B' packet is deprecated (use 'Z'/'z' "
-	<< "packets instead): ignored" << endl;
-      break;
-
     case 'c':
       // Continue
       rspContinue (TARGET_SIGNAL_NONE);
@@ -366,12 +361,6 @@ GdbServer::rspClientRequest ()
     case 'C':
       // Continue with signal (in the packet)
       rspContinue ();
-      break;
-
-    case 'd':
-      // Disable debug using a general query
-      cerr << "Warning: RSP 'd' packet is deprecated (define a 'Q' "
-	<< "packet instead: ignored" << endl;
       break;
 
     case 'D':
@@ -404,15 +393,6 @@ GdbServer::rspClientRequest ()
 
     case 'H':
       rspSetThread ();
-      break;
-
-    case 'i':
-    case 'I':
-      // Single cycle step not currently supported. Mark the target as
-      // running, so that next time it will be detected as stopped (it is
-      // still stalled in reality) and an ack sent back to the client.
-      cerr << "Warning: RSP cycle stepping not supported: target "
-	<< "stopped immediately" << endl;
       break;
 
     case 'k':
@@ -454,12 +434,6 @@ GdbServer::rspClientRequest ()
       rspSet ();
       break;
 
-    case 'r':
-      // Reset the system. Deprecated (use 'R' instead)
-      cerr << "Warning: RSP 'r' packet is deprecated (use 'R' "
-	<< "packet instead): ignored" << endl;
-      break;
-
     case 'R':
       // Restart the program being debugged.
       rspRestart ();
@@ -473,13 +447,6 @@ GdbServer::rspClientRequest ()
     case 'S':
       // Single step one machine instruction with signal
       rspStep ();
-      break;
-
-    case 't':
-      // Search. This is not well defined in the manual and for now we don't
-      // support it. No response is defined.
-      cerr << "Warning: RSP 't' packet not supported: ignored"
-	<< endl;
       break;
 
     case 'T':
@@ -508,8 +475,7 @@ GdbServer::rspClientRequest ()
       break;
 
     default:
-      // Unknown commands are ignored
-      cerr << "Warning: Unknown RSP request" << pkt->data << endl;
+      rspUnknownPacket ();
       break;
     }
 }				// rspClientRequest()
@@ -1600,13 +1566,6 @@ GdbServer::rspQuery ()
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
-  else if (0 == strncmp ("qCRC", pkt->data, strlen ("qCRC")))
-    {
-      // Return CRC of memory area
-      cerr << "Warning: RSP CRC query not supported" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-    }
   else if (0 == strcmp ("qfThreadInfo", pkt->data))
     {
       // Return initial info about active threads.
@@ -1616,32 +1575,6 @@ GdbServer::rspQuery ()
     {
       // Return more info about active threads.
       rspQThreadInfo (false);
-    }
-  else if (0 == strncmp ("qGetTLSAddr:", pkt->data, strlen ("qGetTLSAddr:")))
-    {
-      // We don't support this feature
-      pkt->packStr ("");
-      rsp->putPkt (pkt);
-    }
-  else if (0 == strncmp ("qL", pkt->data, strlen ("qL")))
-    {
-      // Deprecated and replaced by 'qfThreadInfo'
-      cerr << "Warning: RSP qL deprecated: no info returned" << endl;
-      pkt->packStr ("qM001");
-      rsp->putPkt (pkt);
-    }
-  else if (0 == strcmp ("qOffsets", pkt->data))
-    {
-      // Report any relocation
-      pkt->packStr ("Text=0;Data=0;Bss=0");
-      rsp->putPkt (pkt);
-    }
-  else if (0 == strncmp ("qP", pkt->data, strlen ("qP")))
-    {
-      // Deprecated and replaced by 'qThreadExtraInfo'
-      cerr << "Warning: RSP qP deprecated: no info returned" << endl;
-      pkt->packStr ("");
-      rsp->putPkt (pkt);
     }
   else if (0 == strncmp ("qRcmd,", pkt->data, strlen ("qRcmd,")))
     {
@@ -1665,17 +1598,8 @@ GdbServer::rspQuery ()
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
-  else if (0 == strncmp ("qSymbol:", pkt->data, strlen ("qSymbol:")))
-    {
-      // Offer to look up symbols. Nothing we want (for now). TODO. This just
-      // ignores any replies to symbols we looked up, but we didn't want to
-      // do that anyway!
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-    }
-  else if (0 ==
-	   strncmp ("qThreadExtraInfo,", pkt->data,
-		    strlen ("qThreadExtraInfo,")))
+  else if (0 == strncmp ("qThreadExtraInfo,", pkt->data,
+			 strlen ("qThreadExtraInfo,")))
     {
       rspQThreadExtraInfo();
     }
@@ -2636,13 +2560,7 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 void
 GdbServer::rspSet ()
 {
-  if (0 == strncmp ("QPassSignals:", pkt->data, strlen ("QPassSignals:")))
-    {
-      // Passing signals not supported
-      pkt->packStr ("");
-      rsp->putPkt (pkt);
-    }
-  else if ((0 == strcmp ("QTStart", pkt->data)))
+  if ((0 == strcmp ("QTStart", pkt->data)))
     {
       if (fTargetControl->startTrace ())
 	{
@@ -2695,8 +2613,7 @@ GdbServer::rspSet ()
     }
   else
     {
-      cerr << "Unrecognized RSP set request: ignored" << endl;
-      delete pkt;
+      rspUnknownPacket ();
     }
 }				// rspSet()
 
@@ -3087,38 +3004,6 @@ GdbServer::rspVpkt ()
       rspVCont ();
       return;
     }
-  else if (0 == strncmp ("vFile:", pkt->data, strlen ("vFile:")))
-    {
-      // For now we don't support this.
-      cerr << "Warning: RSP vFile not supported: ignored" << endl;
-      pkt->packStr ("");
-      rsp->putPkt (pkt);
-      return;
-    }
-  else if (0 == strncmp ("vFlashErase:", pkt->data, strlen ("vFlashErase:")))
-    {
-      // For now we don't support this.
-      cerr << "Warning: RSP vFlashErase not supported: ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-  else if (0 == strncmp ("vFlashWrite:", pkt->data, strlen ("vFlashWrite:")))
-    {
-      // For now we don't support this.
-      cerr << "Warning: RSP vFlashWrite not supported: ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-  else if (0 == strcmp ("vFlashDone", pkt->data))
-    {
-      // For now we don't support this.
-      cerr << "Warning: RSP vFlashDone not supported: ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
   else if (0 == strncmp ("vRun;", pkt->data, strlen ("vRun;")))
     {
       // We shouldn't be given any args, but check for this
@@ -3136,11 +3021,7 @@ GdbServer::rspVpkt ()
     }
   else
     {
-      cerr << "Warning: Unknown RSP 'v' packet type " << pkt->data
-	<< ": ignored" << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
+      rspUnknownPacket ();
     }
 }				// rspVpkt()
 

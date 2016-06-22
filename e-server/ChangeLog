@@ -1,3 +1,15 @@
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspUnknownPacket): New method.
+	(GdbServer::rspClientRequest): Use rspUnknownPacket.  Remove
+	handling of 'A', 'b', 'B', 'd', 'i', 'I', 'r', 'qCRC',
+	'qGetTLSAddr', 'qL', 'qOffsets', 'qP' and 'qSymbol'.
+	(GdbServer::rspSet): Remove handling of QPassSignals.  Use
+	rspUnknownPacket and don't delete the packet.
+	(GdbServer::rspVpkt): Remove handling of 'vFile' 'vFlashErase',
+	'vFlashWrite' and 'vFlashDone'.  Use rspUnknownPacket.
+	* src/GdbServer.h (GdbServer::rspUnknownPacket): Declare.
+
 2014-10-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint): Ensure
