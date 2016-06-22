@@ -1,7 +1,7 @@
 // GDB RSP server class: Declaration.
 
 // Copyright (C) 2008, 2009, 2014 Embecosm Limited
-// Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2009-2014, 2016 Adapteva Inc.
 // Copyright (C) 2016 Pedro Alves
 
 // Contributor: Oleg Raikhman <support@adapteva.com>
@@ -198,16 +198,18 @@ private:
   int  mNextPid;
 
   //! Current process
-  int  currentPid;
+  ProcessInfo* mCurrentProcess;
 
   //! Map of thread ID to thread
   map <int, Thread *> mThreads;
 
-  //! Map from core to thread
+  //! Map from core ID to thread ID
   map <CoreId, int> mCore2Tid;
 
-  //! Current thread ID for general access
-  int  currentGTid;
+  //! Current thread ID for general access.  Null means "all threads"
+  //! (the equivalent of GDB's -1).  We have no equivalent of GDB's 0,
+  //! meaning "any thread", since we immediately just pick a thread.
+  Thread* mCurrentThread;
 
   //! Set of thread IDs with pending stops
   set <int> mPendingStops;
@@ -282,11 +284,10 @@ private:
   vContAction extractVContAction (const string &action);
   bool pendingStop (int  tid);
   void markPendingStops (ProcessInfo* process,
-			 int          tid);
+			 Thread *reporting_thread);
   void removePendingStop (int  tid);
-  void continueThread (int       tid,
-		       uint32_t  sig = TARGET_SIGNAL_NONE);
-  void doContinue (int          tid);
+  void continueThread (Thread* thread);
+  void doContinue (Thread* thread);
   uint16_t  getStopInstr (Thread* thread);
   bool doFileIO (Thread* thread);
   void rspWriteMemBin ();

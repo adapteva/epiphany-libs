@@ -1,6 +1,6 @@
 // Thread class: Declaration.
 
-// Copyright (C) 2014 Embecosm Limited
+// Copyright (C) 2014, 2016 Embecosm Limited
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
@@ -48,10 +48,7 @@ class GdbServer;
 //! A thread corresponds to an Epiphany core. This class provides all the
 //! functionality a thread needs.
 
-//! @note The thread is referred to externally by a thread ID, but the thread
-//!       does not itself know about the thread ID. Instead it knows which
-//!       core it is running on and has access to the target to manipulate
-//!       that core.
+//! @note The thread is referred to externally by a GDB thread ID.
 //-----------------------------------------------------------------------------
 class Thread
 {
@@ -60,14 +57,18 @@ public:
   // Constructor and destructor
   Thread (CoreId         coreId,
 	  TargetControl* target,
-	  ServerInfo*    si);
+	  ServerInfo*    si,
+	  int            tid);
   ~Thread ();
 
   // Accessors
   CoreId  coreId () const;
+  int   tid () const;
   bool  isHalted ();
   bool  isIdle ();
   bool  isInterruptible () const;
+
+  // Control of the thread
   bool  halt ();
   bool  resume ();
   bool  idle ();
@@ -138,6 +139,9 @@ private:
 
   //! Local pointer to server info
   ServerInfo *mSi;
+
+  //! Our GDB thread ID
+  int  mTid;
 
   //! A save buffer for the IVT
   uint8_t mIVTSaveBuf[IVT_ENTRIES * TargetControl::E_INSTR_BYTES];

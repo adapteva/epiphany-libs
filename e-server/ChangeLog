@@ -1,4 +1,84 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
+	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Adjust to refer to
+	mCurrentThread instead of currentGTid.
+	(GdbServer::rspServer): Use mCurrentProcess->pid () instead of
+	currentPid.
+	(GdbServer::initProcesses): Pass the pid to the ProcessInfo
+	constructor, and the tid to the Thread constructor.
+	(GdbServer::rspAttach): Adjust to thread set type change.
+	(GdbServer::rspClientRequest): Use mCurrentProcess->pid () instead
+	of currentPid.
+	(GdbServer::rspFileIOreply): Adjust to refer to mCurrentThread
+	instead of currentGTid.
+	(GdbServer::rspReadAllRegs, GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspSetThread): Adjust to use mCurrentProcess instead
+	of getProcess(currentPid).
+	(GdbServer::rspReadMem, GdbServer::rspWriteMem)
+	(GdbServer::rspReadReg, GdbServer::rspWriteReg)
+	(GdbServer::rspQuery): Adjust to refer to mCurrentThread instead
+	of currentGTid.
+	(GdbServer::rspQThreadInfo): Adjust to use mCurrentProcess instead
+	of getProcess(currentPid).
+	(GdbServer::rspCommand): Adjust to refer to mCurrentThread instead
+	of currentGTid.
+	(GdbServer::rspCmdWorkgroup, GdbServer::rspCmdProcess)
+	(GdbServer::rspOsDataProcesses): Adjust to refer to mCurrentThread
+	instead of currentGTid.  Pass the pid to the ProcessInfo
+	constructor, and the tid to the Thread constructor.  Adjust to
+	thread set type change.
+	(GdbServer::rspRestart): Adjust to refer to mCurrentThread instead
+	of currentGTid.
+	(GdbServer::rspIsThreadAlive): Adjust to use mCurrentProcess
+	instead of getProcess(currentPid).
+	(GdbServer::rspVCont): Adjust to use mCurrentProcess instead of
+	getProcess(currentPid).  Adjust to thread set type change.
+	(GdbServer::markPendingStops): Take a thread pointer as parameter
+	instead of a tid.  Adjust to thread set type change.
+	(GdbServer::continueThread): Take a thread pointer as parameter
+	instead of a tid and a signal.
+	(GdbServer::doContinue): Take a thread pointer as parameter
+	instead of a tid.
+	(GdbServer::rspWriteMemBin): Adjust to refer to mCurrentThread
+	instead of currentGTid.
+	(GdbServer::rspRemoveMatchpoint, GdbServer::rspInsertMatchpoint):
+	Adjust to use mCurrentProcess instead of getProcess(currentPid).
+	Adjust to thread set type change.
+	(GdbServer::targetSwReset): Take a thread pointer as parameter
+	instead of a tid.
+	(GdbServer::haltAllThreads, GdbServer::resumeAllThreads): Adjust
+	to use mCurrentProcess instead of getProcess(currentPid).  Adjust
+	to thread set type change.
+	* src/GdbServer.h (GdbServer) <currentPid, currentGTid>: Delete
+	fields.
+	<mCurrentProcess, mCurrentThread>: New fields.
+	<markPendingStops, continueThread, doContinue>: Adjust prototypes.
+	* src/MpHash.cpp (MpHash::add, MpHash::lookup, MpHash::remove): Take a
+	thread pointer instead of a thread id as parameter.
+	* src/MpHash.h (Thread): Forward declare.
+	(MpHash) <add, lookup, remove>: Adjust prototypes.
+	<tid>: Remove field.
+	<thread>: New field.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo): New parameter
+	'pid'.
+	(ProcessInfo::pid): New method.
+	(ProcessInfo::threadBegin, ProcessInfo::threadEnd)
+	(ProcessInfo::addThread, ProcessInfo::eraseThread)
+	(ProcessInfo::hasThread): Adjust prototypes.
+	* src/ProcessInfo.h (Thread): Forward declare.
+	(ProcessInfo) <ProcessInfo>: Add 'pid' parameter.
+	<threadBegin, threadEnd, addThread, eraseThread, hasThread>:
+	Change prototypes.
+	<mPid>: New field.
+	<mThreads>: Change type.
+	* src/Thread.cpp (Thread::Thread): Add 'tid' parameter.
+	(Thread::tid): New method.
+	(class Thread) <Thread>: Add 'tid' parameter.
+	<tid>: New method.
+	<mTid>: New field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (GdbServer::rspVCont): Update intro comment.
 	Rewrite vCont handling in terms of a vContTidAction vector.

@@ -1,6 +1,6 @@
 // Process Info class: Declaration.
 
-// Copyright (C) 2014 Embecosm Limited
+// Copyright (C) 2014, 2016 Embecosm Limited
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
@@ -42,8 +42,11 @@ using std::endl;
 
 //-----------------------------------------------------------------------------
 //! Constructor.
+
+//! @param[in] pid  The Process ID to associate with this process.
 //-----------------------------------------------------------------------------
-ProcessInfo::ProcessInfo ()
+ProcessInfo::ProcessInfo (int pid)
+  : mPid (pid)
 {
 
 }	// ProcessInfo ()
@@ -60,11 +63,23 @@ ProcessInfo::~ProcessInfo ()
 
 
 //-----------------------------------------------------------------------------
+//! Accessor for the process ID
+
+//! @return  The process ID
+//-----------------------------------------------------------------------------
+int
+ProcessInfo::pid () const
+{
+  return mPid;
+}	// pid ()
+
+
+//-----------------------------------------------------------------------------
 //! Get an iterator for the start of the threads set
 
 //! @return  The begin iterator.
 //-----------------------------------------------------------------------------
-set <int>::iterator
+set <Thread*>::iterator
 ProcessInfo::threadBegin () const
 {
   return  mThreads.begin ();
@@ -77,7 +92,7 @@ ProcessInfo::threadBegin () const
 
 //! @return  The begin iterator.
 //-----------------------------------------------------------------------------
-set <int>::iterator
+set <Thread*>::iterator
 ProcessInfo::threadEnd () const
 {
   return  mThreads.end ();
@@ -88,13 +103,14 @@ ProcessInfo::threadEnd () const
 //-----------------------------------------------------------------------------
 //! Add a thread to the process.
 
-//! @param[in] tid  The thread ID to add
-//! @return  TRUE if we successfully add the thread, false otherwise
+//! @param[in] thread  Pointer to the thread to add
+//! @return  TRUE if we successfully add the thread, FALSE if it was already
+//!          in the set.
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::addThread (int tid)
+ProcessInfo::addThread (Thread* thread)
 {
-  return  mThreads.insert (tid).second;
+  return  mThreads.insert (thread).second;
 
 }	// addThread ()
 
@@ -102,13 +118,13 @@ ProcessInfo::addThread (int tid)
 //-----------------------------------------------------------------------------
 //! Remove a thread from the process
 
-//! @param[in] tid  The thread ID to remove
+//! @param[in] thread  Pointer to the thread to remove
 //! @return  TRUE if we succeed, and FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::eraseThread (int tid)
+ProcessInfo::eraseThread (Thread* thread)
 {
-  return  mThreads.erase (tid) == 1;
+  return  mThreads.erase (thread) == 1;
 
 }	// eraseThread ()
 
@@ -116,13 +132,13 @@ ProcessInfo::eraseThread (int tid)
 //-----------------------------------------------------------------------------
 //! Is this a thread in this process?
 
-//! @param[in] tid  The thread ID to check
+//! @param[in] thread  Pointer to the thread to check
 //! @return  TRUE if this thread is in this process
 //-----------------------------------------------------------------------------
 bool
-ProcessInfo::hasThread (int tid)
+ProcessInfo::hasThread (Thread* thread)
 {
-  return  mThreads.find (tid) != mThreads.end ();
+  return  mThreads.find (thread) != mThreads.end ();
 
 }	// eraseThread ()
 
