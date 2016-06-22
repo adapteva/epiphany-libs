@@ -2,10 +2,12 @@
 
 // Copyright (C) 2008, 2009, Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -2387,15 +2389,12 @@ GdbServer::rspVpkt ()
 //! Handle a vCont packet
 
 //! Syntax is vCont[;action[:thread-id]]...
-
-//! For now we only have the all-stop functionality supported.
-
-//! There should be at most one default action.
 //-----------------------------------------------------------------------------
 void
 GdbServer::rspVCont ()
 {
   ProcessInfo *process = getProcess (currentPid);
+  vContTidActionVector threadActions;
 
   stringstream    ss (pkt->data);
   vector <string> elements;		// To break out the packet elements
@@ -2407,14 +2406,10 @@ GdbServer::rspVCont ()
 
   if (1 == elements.size ())
     {
-      cerr << "Warning: No actions specified for vCont. Defaulting to stop."
-	   << endl;
+      cerr << "Warning: No actions specified for vCont." << endl;
     }
 
   // Sort out the detail of each action
-  map <int, char>  threadActions;
-  char defaultAction = 'n';		// Custom "do nothing"
-  int  numDefaultActions = 0;
 
   for (size_t i = 1; i < elements.size (); i++)
     {
@@ -2427,37 +2422,20 @@ GdbServer::rspVCont ()
 
       if (1 == tokens.size ())
 	{
-	  // No thread ID, set default action
+	  // No thread ID, apply to all threads.
+	  vContTidAction tid_action;
 
-	  // @todo Are all actions valid as default?
-	  if (0 == numDefaultActions)
-	    {
-	      defaultAction = extractVContAction (tokens[0]);
-	      numDefaultActions++;
-	    }
-	  else
-	    cerr << "Warning: Duplicate default action for vCont: Ignored."
-		 << endl;
+	  tid_action.tid = -1;
+	  tid_action.kind = extractVContAction (tokens[0]);
+	  threadActions.push_back (tid_action);
 	}
       else if (2 == tokens.size ())
 	{
-	  int tid = strtol (tokens[1].c_str (), NULL, 16);
-	  if (process->hasThread (tid))
-	    {
-	      if (threadActions.find (tid) == threadActions.end ())
-		{
-		  char action = extractVContAction (tokens[0].c_str ());
-		  threadActions.insert (pair <int, char> (tid, action));
-		}
-	      else
-		cerr << "Warning: Duplicate vCont action for thread ID "
-		     << tid << ": ignored." << endl;
-	    }
-	  else
-	    {
-	      cerr << "Warning: vCont thread ID " << tid
-		   << " not part of current process: ignored." << endl;
-	    }
+	  vContTidAction tid_action;
+
+	  tid_action.tid = strtol (tokens[1].c_str (), NULL, 16);
+	  tid_action.kind = extractVContAction (tokens[0]);
+	  threadActions.push_back (tid_action);
 	}
       else
 	{
@@ -2466,9 +2444,9 @@ GdbServer::rspVCont ()
 	}
     }
 
-  // We have a map of threads to actions and a default action for any thread
-  // that is not specified. We may also have pending stops for previous
-  // actions. So what we need to do is:
+  // We have a list of actions including which thread each applies to.
+  // We may also have pending stops for previous actions.  So what we
+  // need to do is:
   // 1. Continue any thread that was not already marked as stopped.
   // 2. Otherwise report the first stopped thread.
 
@@ -2478,12 +2456,21 @@ GdbServer::rspVCont ()
        it++)
     {
       int tid = *it;
-      map <int, char>::iterator ait = threadActions.find (tid);
-      char action = (threadActions.end () == ait) ? defaultAction : ait->second;
 
-      if (('c' == action) && !pendingStop (tid))
+      for (vContTidActionVector::const_iterator act_it = threadActions.begin ();
+	   act_it != threadActions.end ();
+	   ++act_it)
 	{
-	  continueThread (tid);
+	  const vContTidAction &action = *act_it;
+
+	  if (action.matches (tid))
+	    {
+	      if (action.kind == ACTION_CONTINUE && !pendingStop (tid))
+		{
+		  continueThread (tid);
+		  break;
+		}
+	    }
 	}
     }
 
@@ -2493,13 +2480,23 @@ GdbServer::rspVCont ()
        it++)
     {
       int tid = *it;
-      map <int, char>::iterator ait = threadActions.find (tid);
-      char action = (threadActions.end () == ait) ? defaultAction : ait->second;
 
-      if (('c' == action) && pendingStop (tid))
+      for (vContTidActionVector::const_iterator act_it = threadActions.begin ();
+	   act_it != threadActions.end ();
+	   ++act_it)
 	{
-	  doContinue (tid);
-	  markPendingStops (process, tid);
+	  const vContTidAction &action = *act_it;
+
+	  if (action.matches (tid))
+	    {
+	      if (action.kind == ACTION_CONTINUE && pendingStop (tid))
+		{
+		  continueThread (tid);
+		  doContinue (tid);
+		  markPendingStops (process, tid);
+		  return;
+		}
+	    }
 	}
     }
 
@@ -2511,16 +2508,24 @@ GdbServer::rspVCont ()
 	   it++)
 	{
 	  int tid = *it;
-	  Thread *thread = getThread (tid);
-	  map <int, char>::iterator ait = threadActions.find (tid);
-	  char action =
-	    (threadActions.end () == ait) ? defaultAction : ait->second;
 
-	  if (('c' == action) && thread->isHalted ())
+	  for (vContTidActionVector::const_iterator act_it = threadActions.begin ();
+	       act_it != threadActions.end ();
+	       ++act_it)
 	    {
-	      doContinue (tid);
-	      markPendingStops (process, tid);
-	      return;
+	      const vContTidAction &action = *act_it;
+
+	      if (action.matches (tid))
+		{
+		  Thread *thread = getThread (tid);
+
+		  if (action.kind == ACTION_CONTINUE && thread->isHalted ())
+		    {
+		      doContinue (tid);
+		      markPendingStops (process, tid);
+		      return;
+		    }
+		}
 	    }
 	}
 
@@ -2547,15 +2552,14 @@ GdbServer::rspVCont ()
 //! Extract a vCont action
 
 //! We don't support 'C' for now, so if we find it, we print a rude
-//! message and return 'c'. 't' is not supported in all-stop mode, so
-//! we return 'n' to mean "no action'.  And finally we print a rude
-//! message an return 'n' for any other action.
+//! message and treat it as 'c'.  We also print a rude message and
+//! return ACTION_STOP.
 
 //! @param[in] action  The string with the action
-//! @return the single character which is the action.
+//! @return the vContAction indicating the action kind
 //-----------------------------------------------------------------------------
-char
-GdbServer::extractVContAction (string action)
+GdbServer::vContAction
+GdbServer::extractVContAction (const string &action)
 {
   char  a = action.c_str () [0];
 
@@ -2564,30 +2568,17 @@ GdbServer::extractVContAction (string action)
     case 'C':
       cerr << "Warning: 'C' action not supported for vCont: treated as 'c'."
 	   << endl;
-      a = 'c';
-      break;
+      return ACTION_CONTINUE;
 
     case 'c':
       // All good
-      break;
-
-    case 't':
-      if (ALL_STOP == mDebugMode)
-	{
-	  cerr << "Warning: 't' vCont action not permitted in all-stop mode: "
-	       << "ignored." << endl;
-	  a = 'n';
-	  break;
-	}
+      return ACTION_CONTINUE;
 
     default:
       cerr << "Warning: Unrecognized vCont action '" << a
-	   << "': ignored." << endl;
-      a = 'n';				// Custom for us
-      break;
+	   << "': treating as stop." << endl;
+      return ACTION_STOP;
     }
-
-  return  a;
 
 }	// extractVContAction ()
 
@@ -3086,49 +3077,19 @@ GdbServer::getProcess (int  pid)
 
 
 //-----------------------------------------------------------------------------
-//! Map a tid to a thread with some sanity checking.
+//! Get a thread from a thread ID
 
-//! This is for threads > 0 (i.e. not -1 meaning all threads or 0 meaning any
-//! thread). In those circumstances we do something sensible.
+//! Should only be called with a known good thread ID.
 
-//! @param[in] tid   The thraed ID to translate
-//! @param[in] mess  Optional supplementary message in the event of
-//!                  problems. Defaults to NULL.
-//! @return  A coreID
+//! @param[in] tid  Thread ID
+//! @return  Thread
 //-----------------------------------------------------------------------------
 Thread*
-GdbServer::getThread (int         tid,
-		      const char* mess)
+GdbServer::getThread (int tid)
 {
-  ProcessInfo *process = getProcess (currentPid);
-  ostringstream oss;
-
-  if (NULL == mess)
-    oss << "";
-  else
-    oss << "for " << mess;
-
-  if (tid < 1)
-    {
-      int newTid = *(process->threadBegin ());
-
-      cerr << "Warning: Cannot use thread ID " << tid << oss.str ()
-	   << ": using " << newTid << " from current process ID " << currentPid
-	   << " instead." << endl;
-      tid = newTid;
-      doBacktrace ();
-    }
-
-  if (!process->hasThread (tid))
-    {
-      int newTid = *(process->threadBegin ());
-
-      cerr << "Thread ID " << tid << " is not in process " << currentPid
-	   << ": using " << newTid << " instead." << endl;
-      tid = newTid;
-    }
-
   map <int, Thread*>::iterator it = mThreads.find (tid);
+
+  assert (it != mThreads.end ());
   return it->second;
 
 }	// getThread ()

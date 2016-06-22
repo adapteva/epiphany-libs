@@ -1,5 +1,23 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspVCont): Update intro comment.
+	Rewrite vCont handling in terms of a vContTidAction vector.
+	(GdbServer::extractVContAction): Take a const string reference as
+	parameter instead of a string copy.  Return a vContAction instead
+	of a char.  Don't handle 't' actions.  Return ACTION_STOP for
+	unknown actions instead of a fake 'n' action.
+	(GdbServer::getThread): Remove 'mess' parameter, and simplify.
+	* src/GdbServer.h (std::vector): Import to global namespace.
+	(GdbServer) <vContAction>: New enum.
+	(GdbServer) <vContTidAction>: New struct.
+	(GdbServer) <vContTidActionVector>: New typedef.
+	(GdbServer) <extractVContAction>: Take a const string reference as
+	parameter instead of a string copy.  Return a vContAction instead
+	of a char.
+	(GdbServer) <getThread>: Remove 'mess' parameter.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::GdbServer): Remove reference to
 	fIsTargetRunning.
 	(GdbServer::rspClientRequest, GdbServer::rspReportException)
