@@ -230,9 +230,6 @@ private:
   // Handle the various RSP requests
   void rspReportException (int          tid,
 			   TargetSignal sig);
-  void rspContinue ();
-  void rspContinue (uint32_t except);
-  void rspContinue (uint32_t addr, uint32_t except);
   void rspReadAllRegs ();
   void rspWriteAllRegs ();
   void rspUnknownPacket ();

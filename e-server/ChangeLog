@@ -1,6 +1,13 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove handling
+	of 'c' and 'C' packets.
+	(GdbServer::rspContinue): Remove all overloads.
+	* src/GdbServer.h (GdbServer) <rspContinue>: Remove all overloads.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove handling
 	of 's' and 'S'.
 	(GdbServer::rspStep()): Delete.
 	(GdbServer::rspStep(bool,uint32_t,TargetSignal): Delete.
