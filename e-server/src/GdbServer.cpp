@@ -1607,14 +1607,6 @@ GdbServer::rspQuery ()
     {
       rspTransfer ();
     }
-  else if (0 == strncmp ("qTStatus", pkt->data, strlen ("qTStatus")))
-    {
-      //Ask the stub if there is a trace experiment running right now
-      //For now we support no 'qTStatus' requests
-      //cerr << "Warning: RSP 'qTStatus' not supported: ignored" << endl;
-      pkt->packStr ("");
-      rsp->putPkt (pkt);
-    }
   else if (0 == strncmp ("qAttached", pkt->data, strlen ("qAttached")))
     {
       //Querying remote process attach state
@@ -2560,61 +2552,7 @@ GdbServer::rspOsDataTraffic (unsigned int offset,
 void
 GdbServer::rspSet ()
 {
-  if ((0 == strcmp ("QTStart", pkt->data)))
-    {
-      if (fTargetControl->startTrace ())
-	{
-	  pkt->packStr ("OK");
-	  rsp->putPkt (pkt);
-	}
-      else
-	{
-	  pkt->packStr ("");
-	  rsp->putPkt (pkt);
-	}
-    }
-  else if ((0 == strcmp ("QTStop", pkt->data)))
-    {
-      if (fTargetControl->stopTrace ())
-	{
-	  pkt->packStr ("OK");
-	  rsp->putPkt (pkt);
-	}
-      else
-	{
-	  pkt->packStr ("");
-	  rsp->putPkt (pkt);
-	}
-    }
-  else if ((0 == strcmp ("QTinit", pkt->data)))
-    {
-      if (fTargetControl->initTrace ())
-	{
-	  pkt->packStr ("OK");
-	  rsp->putPkt (pkt);
-	}
-      else
-	{
-	  pkt->packStr ("");
-	  rsp->putPkt (pkt);
-	}
-    }
-  else if ((0 == strncmp ("QTDP", pkt->data, strlen ("QTDP"))) ||
-	   (0 == strncmp ("QFrame", pkt->data, strlen ("QFrame"))) ||
-	   (0 == strncmp ("QTro", pkt->data, strlen ("QTro"))))
-    {
-      // All tracepoint features are not supported. This reply is really only
-      // needed to 'QTDP', since with that the others should not be
-      // generated.
-
-      // TODO support trace .. VCD dump
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-    }
-  else
-    {
-      rspUnknownPacket ();
-    }
+  rspUnknownPacket ();
 }				// rspSet()
 
 

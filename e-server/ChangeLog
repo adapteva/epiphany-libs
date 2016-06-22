@@ -1,5 +1,20 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspQuery): Remove handling of the
+	qTStatus packet.
+	(GdbServer::rspSet): Remove handling of the 'QTStart', 'QTStop',
+	'QTinit', 'QTDP', 'QFrame' and 'QTro' packets.
+	* src/TargetControl.h (TargetControl) <initTrace, startTrace,
+	stopTrace>: Remove declarations.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initTrace)
+	(TargetControlHardware::startTrace)
+	(TargetControlHardware::stopTrace): Delete.
+	* src/TargetControlHardware.h (TargetControlHardware) <initTrace,
+	startTrace, stopTrace>: Remove declarations.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint)
 	(GdbServer::rspInsertMatchpoint): Return unknown packet for any
 	matchpoint other than z0/Z0.
