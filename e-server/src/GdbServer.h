@@ -295,6 +295,11 @@ private:
   void rspFileIOreply ();
   void rspSuspend ();
 
+  bool hideBreakpoints (Thread *thread,
+			uint32_t addr, uint8_t* buf, size_t len);
+  bool unhideBreakpoints (Thread *thread,
+			  uint32_t addr, uint8_t* buf, size_t len);
+
   // Convenience functions to control and report on the CPU
   void targetSwReset ();
   void targetHWReset ();

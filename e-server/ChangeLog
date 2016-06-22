@@ -1,5 +1,17 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspReadMem): Use hideBreakpoints.
+	(GdbServer::rspWriteMemBin): Use unhideBreakpoints.
+	(align_down, copyInsn): New functions.
+	(GdbServer::hideBreakpoints, GdbServer::unhideBreakpoints): New
+	methods.
+	* src/GdbServer.h (GdbServer) <hideBreakpoints,
+	unhideBreakpoints>: Declare.
+	* src/MpHash.cpp (MpHash::lookup): Add 'instr' parameter.  Set it.
+	* src/MpHash.h (MpHash) <lookup>: Add 'instr' parameter.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove
 	handling of 'M' packets.
 	(GdbServer::rspWriteMem): Delete.

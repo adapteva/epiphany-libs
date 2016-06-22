@@ -1075,12 +1075,12 @@ GdbServer::rspReadMem ()
 	   << ", length " << len << endl;
     }
 
-  // Write the bytes to memory
+  // Read the bytes from memory
   {
-    char buf[len];
+    uint8_t buf[len];
 
     bool retReadOp =
-      mCurrentThread->readMemBlock (addr, (unsigned char *) buf, len);
+      mCurrentThread->readMemBlock (addr, buf, len);
 
     if (!retReadOp)
       {
@@ -1088,6 +1088,8 @@ GdbServer::rspReadMem ()
 	rsp->putPkt (pkt);
 	return;
       }
+
+    hideBreakpoints (mCurrentThread, addr, buf, len);
 
     // Refill the buffer with the reply
     for (off = 0; off < len; off++)
@@ -2855,6 +2857,8 @@ GdbServer::rspWriteMemBin ()
       len = minLen;
     }
 
+  unhideBreakpoints (thread, addr, bindat, len);
+
   //cerr << "rspWriteMemBin" << hex << addr << dec << " (" << len << ")" << endl;
   if (! thread->writeMemBlock (addr, bindat, len))
     {
@@ -3048,6 +3052,130 @@ GdbServer::rspInsertMatchpoint ()
       return;
     }
 }	// rspInsertMatchpoint()
+
+
+//---------------------------------------------------------------------------*/
+//! Align down PTR to ALIGN alignment.
+//---------------------------------------------------------------------------*/
+
+static inline uint32_t
+alignDown (uint32_t ptr, size_t align)
+{
+  return ptr & -align;
+}	// alignDown()
+
+
+//---------------------------------------------------------------------------*/
+//! Helper for hideBreakpoints/unhideBreakpoints.
+
+//! Copies instruction INSN at BP_ADDR to the appropriate offset into
+//! MEM_BUF, which is a memory buffer containing LEN bytes of target
+//! memory starting at MEM_ADDR.  On output, if not NULL,
+//! REPLACED_INSN contains the original contents of the buffer region
+//! that was replaced by INSN.
+
+//---------------------------------------------------------------------------*/
+static void
+copyInsn (uint32_t mem_addr, uint8_t* mem_buf, size_t len,
+	  uint32_t bp_addr, const unsigned char *insn,
+	  unsigned char* replaced_insn)
+{
+  const unsigned int bp_size = 2;
+  uint32_t mem_end = mem_addr + len;
+  uint32_t bp_end = bp_addr + bp_size;
+  uint32_t copy_start, copy_end;
+  int copy_offset, copy_len, buf_offset;
+
+  copy_start = std::max (bp_addr, mem_addr);
+  copy_end = std::min (bp_end, mem_end);
+
+  copy_len = copy_end - copy_start;
+  copy_offset = copy_start - bp_addr;
+  buf_offset = copy_start - mem_addr;
+
+  if (replaced_insn != NULL)
+    memcpy (replaced_insn + copy_offset, mem_buf + buf_offset, copy_len);
+  memcpy (mem_buf + buf_offset, insn + copy_offset, copy_len);
+}	// copyInsn()
+
+
+//-----------------------------------------------------------------------------
+//! Hide breakpoint instructions from GDB
+
+//! Replaces any breakpoint instruction found in the memory block of
+//! LEN bytes starting at MEM_ADDR with the original instruction the
+//! breakpoint replaced.  MEM_BUF contains a copy of the raw memory
+//! from the target.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::hideBreakpoints (Thread *thread,
+			    uint32_t mem_addr, uint8_t* mem_buf, size_t len)
+{
+  const unsigned int bp_size = 2;
+  uint32_t mem_end = mem_addr + len;
+  uint32_t check_addr = alignDown (mem_addr, bp_size);
+
+  for (; check_addr < mem_end; check_addr += bp_size)
+    {
+      uint16_t orig_insn;
+
+      if (mpHash->lookup (BP_MEMORY, check_addr, mCurrentThread, &orig_insn))
+	{
+	  unsigned char* shadow = (unsigned char *) &orig_insn;
+
+	  copyInsn (mem_addr, mem_buf, len, check_addr, shadow, NULL);
+	}
+    }
+}	// hideBreakpoints ()
+
+
+//-----------------------------------------------------------------------------
+//! Put back breakpoint instructions in the memory buffer we're about
+//! to write to target memory.
+
+//! MEM_BUF contains a copy of the raw memory from the target.
+//-----------------------------------------------------------------------------
+bool
+GdbServer::unhideBreakpoints (Thread *thread,
+			      uint32_t mem_addr, uint8_t* mem_buf, size_t len)
+{
+  const unsigned int bp_size = 2;
+  uint32_t mem_end = mem_addr + len;
+  uint32_t bp_addr = alignDown (mem_addr, bp_size);
+
+  for (; bp_addr < mem_end; bp_addr += bp_size)
+    {
+      uint16_t orig_insn;
+
+      if (mpHash->lookup (BP_MEMORY, bp_addr, thread, &orig_insn))
+	{
+	  uint16_t bkpt_instr = BKPT_INSTR;
+	  unsigned char* bp_insn = (unsigned char *) &bkpt_instr;
+
+	  copyInsn (mem_addr, mem_buf, len,
+		    bp_addr, bp_insn, (unsigned char *) &orig_insn);
+
+	  // Reinsert the breakpoint in the hash in order to replace
+	  // the original shadow instruction.
+	  if (fTargetControl->isLocalAddr (bp_addr))
+	    {
+	      ProcessInfo *process = mCurrentProcess;
+	      for (set <Thread *>::iterator it = process->threadBegin ();
+		   it != process->threadEnd ();
+		   it++)
+		{
+		  Thread *thread = *it;
+
+		  mpHash->add (BP_MEMORY, bp_addr, thread, orig_insn);
+		}
+	    }
+	  else
+	    {
+	      mpHash->add (BP_MEMORY, bp_addr, thread, orig_insn);
+	    }
+	}
+    }
+}	// unhideBreakpoints ()
 
 
 //-----------------------------------------------------------------------------

@@ -2,10 +2,12 @@
 
 // Copyright (C) 2008, 2009, 2014, 2016 Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -99,7 +101,8 @@ public:
 	    uint16_t  instr);
   bool lookup (MpType    type,
 	       uint32_t  addr,
-	       Thread*   thread);
+	       Thread*   thread,
+	       uint16_t* instr);
   bool remove (MpType    type,
 	       uint32_t  addr,
 	       Thread*   thread,
