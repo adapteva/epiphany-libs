@@ -1,5 +1,10 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspReportException): Set the
+	current thread to the thread whose stop is being reported.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspAttach): Call markAllStopped.
 	(GdbServer::rspReportException): Call markPendingStops.
 	(GdbServer::rspSuspend): Remove parameter.  Instead fetch the
