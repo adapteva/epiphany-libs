@@ -258,8 +258,6 @@ private:
 			 unsigned int length);
   void rspSet ();
   void rspRestart ();
-  void rspStep ();
-  void rspStep (bool haveAddrP, uint32_t addr, TargetSignal except);
   void rspIsThreadAlive ();
   void rspVpkt ();
   void rspVCont ();
@@ -268,8 +266,6 @@ private:
   void markPendingStops (ProcessInfo* process,
 			 int          tid);
   void removePendingStop (int  tid);
-  void doStep (int          tid,
-	       TargetSignal sig = TARGET_SIGNAL_NONE);
   void continueThread (int       tid,
 		       uint32_t  sig = TARGET_SIGNAL_NONE);
   void doContinue (int          tid);

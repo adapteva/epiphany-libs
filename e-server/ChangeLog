@@ -1,5 +1,18 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove handling
+	of 's' and 'S'.
+	(GdbServer::rspStep()): Delete.
+	(GdbServer::rspStep(bool,uint32_t,TargetSignal): Delete.
+	(GdbServer::rspVCont): Remove handling of 's' actions.
+	(GdbServer::extractVContAction): Remove handling of 's' and 'S'
+	actions.
+	(GdbServer::doStep): Delete.
+	* src/GdbServer.h (GdbServer) <rspStep, doStep>: Remove
+	declarations.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspQuery): Remove handling of the
 	qTStatus packet.
 	(GdbServer::rspSet): Remove handling of the 'QTStart', 'QTStop',

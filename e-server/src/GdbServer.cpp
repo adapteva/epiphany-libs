@@ -439,16 +439,6 @@ GdbServer::rspClientRequest ()
       rspRestart ();
       break;
 
-    case 's':
-      // Single step one machine instruction.
-      rspStep ();
-      break;
-
-    case 'S':
-      // Single step one machine instruction with signal
-      rspStep ();
-      break;
-
     case 'T':
       // Is the thread alive.
       rspIsThreadAlive ();
@@ -617,7 +607,7 @@ GdbServer::rspContinue ()
 //! The signal may be TARGET_SIGNAL_NONE if there is no exception to be
 //! handled. Currently the exception is ignored.
 
-//! @param[in] addr    Address from which to step
+//! @param[in] addr    Address from which to continue
 //! @param[in] except  The exception to use (if any). Currently ignored
 //-----------------------------------------------------------------------------
 void
@@ -2572,280 +2562,6 @@ GdbServer::rspRestart ()
 }				// rspRestart()
 
 
-//-----------------------------------------------------------------------------
-//! Handle a RSP step request
-
-//! This may be a 's' packet with optional address or 'S' packet with signal
-//! and optional address.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspStep ()
-{
-  bool haveAddrP;			// Were we given an address
-  uint32_t addr;
-  TargetSignal sig;
-
-  // Break out the arguments
-  if ('s' == pkt->data[0])
-    {
-      // Plain step
-      sig = TARGET_SIGNAL_NONE;
-      // No warning if defective format
-      haveAddrP = 1 == sscanf (pkt->data, "s%" SCNx32, &addr);
-    }
-  else
-    {
-      // Step with signal
-      unsigned int sigval;
-      int n = sscanf (pkt->data, "S%x;%" SCNx32, &sigval, &addr);
-      switch (n)
-	{
-	case 1:
-	  sig = (TargetSignal) sigval;
-	  haveAddrP = false;
-	  break;
-
-	case 2:
-	  sig = (TargetSignal) sigval;
-	  haveAddrP = true;
-	  break;
-
-	default:
-	  // Defective format
-	  cerr << "Warning: Unrecognized step with signal '" << pkt->data
-	       << "': Defaults used." << endl;
-	  sig = TARGET_SIGNAL_NONE;
-	  haveAddrP = false;
-	  break;
-	}
-    }
-
-  rspStep (haveAddrP, addr, sig);
-
-}				// rspStep()
-
-
-//-----------------------------------------------------------------------------
-//! Generic processing of a step request
-
-//! The signal may be TARGET_SIGNAL_NONE if there is no exception to be
-//! handled.
-
-//! The single step flag is set in the debug registers which has the effect of
-//! unstalling the processor(s) for one instruction.
-
-//! @todo If the current C thread is -1, we need to set up all cores, then
-//!       unstall then, wait for one to halt, then stall them.
-
-//! @param[in] haveAddrP  Were we supplied with an address (if not use PC)
-//! @param[in] addr       Address from which to step
-//! @param[in] sig        The GDB signal to use
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspStep (bool         haveAddrP,
-		    uint32_t     addr,
-		    TargetSignal sig)
-{
-  Thread* thread = getThread (currentCTid);	// Bad for 0/-1
-  assert (thread->isHalted ());
-
-  if (!haveAddrP)
-    {
-      // @todo This should be done on a per-core basis for thread -1
-      addr = thread->readPc ();
-    }
-
-  if (si->debugStopResumeDetail ())
-    cerr << dec << "DebugStopResumeDetail: rspStep (" << addr << ", " << sig
-	 << ")" << endl;
-
-  if (thread->getException () != TARGET_SIGNAL_NONE)
-    {
-      // Already stopped due to some exception. Just report to GDB.
-
-      // @todo This is commented as being during to a silicon problem
-      rspReportException (currentCTid, sig);
-      return;
-    }
-
-  // Set the PC to the given address
-  thread->writePc (addr);
-  assert (thread->readPc () == addr);	// Do we really need this?
-
-  uint16_t instr16 = thread->readMem16 (addr);
-  uint16_t opcode = getOpcode10 (instr16);
-
-  // IDLE and TRAP need special treatment
-  if (IDLE_INSTR == opcode)
-    {
-      if (si->debugStopResumeDetail ())
-	cerr << dec << "DebugStopResumeDetail: IDLE found at " << addr << "."
-	     << endl;
-
-      //check if global ISR enable state
-      uint32_t coreStatus = thread->readStatus ();
-
-      uint32_t imaskReg = thread->readReg (IMASK_REGNUM);
-      uint32_t ilatReg = thread->readReg (ILAT_REGNUM);
-
-      //next cycle should be jump to IVT
-      if (((coreStatus & TargetControl::STATUS_GID_MASK)
-	   == TargetControl::STATUS_GID_ENABLED)
-	  && (((~imaskReg) & ilatReg) != 0))
-	{
-	  // Interrupts globally enabled, and at least one individual
-	  // interrupt is active and enabled.
-
-	  // Next cycle should be jump to IVT. Take care of ISR call. Put a
-	  // breakpoint in each IVT slot except SYNC (aka RESET)
-	  thread->saveIVT ();
-
-	  thread->insertBkptInstr (TargetControl::IVT_SWE);
-	  thread->insertBkptInstr (TargetControl::IVT_PROT);
-	  thread->insertBkptInstr (TargetControl::IVT_TIMER0);
-	  thread->insertBkptInstr (TargetControl::IVT_TIMER1);
-	  thread->insertBkptInstr (TargetControl::IVT_MSG);
-	  thread->insertBkptInstr (TargetControl::IVT_DMA0);
-	  thread->insertBkptInstr (TargetControl::IVT_DMA1);
-	  thread->insertBkptInstr (TargetControl::IVT_WAND);
-	  thread->insertBkptInstr (TargetControl::IVT_USER);
-
-	  // Resume which should hit the breakpoint in the IVT.
-	  thread->resume ();
-
-	  while (!thread->isHalted ())
-	    ;
-
-	  //restore IVT
-	  thread->restoreIVT ();
-
-	  // @todo The old code had reads of STATUS, IMASK and ILAT regs here
-	  //       which it did nothing with. Why?
-
-	  // Report to gdb the target has been stopped.
-	  addr = thread->readPc () - SHORT_INSTRLEN;
-	  thread->writePc (addr);
-	  rspReportException (currentCTid, TARGET_SIGNAL_TRAP);
-	  return;
-	}
-      else
-	{
-	  cerr << "ERROR: IDLE instruction at step, with no interrupt." << endl;
-	  rspReportException (currentCTid, TARGET_SIGNAL_NONE);
-	  return;
-	}
-    }
-  else if (TRAP_INSTR == opcode)
-    {
-      if (si->debugStopResumeDetail ())
-	cerr << "DebugStopResumeDetail: TRAP found at 0x"
-	     << Utils::intStr (addr) << "." << endl;
-
-      // TRAP instruction triggers I/O
-      fIsTargetRunning = false;
-      haltAllThreads ();
-      redirectStdioOnTrap (thread, getTrap (instr16));
-      thread->writePc (addr + SHORT_INSTRLEN);
-      return;
-    }
-
-  // Ordinary instructions to be stepped.
-  uint16_t instrExt = thread->readMem16 (addr + 2);
-  uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: instr16: 0x"
-	 << Utils::intStr (instr16, 16, 4) << ", instr32: 0x"
-	 << Utils::intStr (instr32, 16, 8) << "." << endl;
-
-  // put sequential breakpoint
-  uint32_t bkptAddr = is32BitsInstr (instr16) ? addr + 4 : addr + 2;
-  uint16_t bkptVal = thread->readMem16 (bkptAddr);
-  thread->insertBkptInstr (bkptAddr);
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: Step (sequential) bkpt at " << bkptAddr
-	 << ", existing value " << Utils::intStr (bkptVal, 16, 4) << "."
-	 << endl;
-
-
-  uint32_t bkptJumpAddr;
-  uint16_t bkptJumpVal;
-
-  if (   getJump (thread, instr16, addr, bkptJumpAddr)
-      || getJump (thread, instr32, addr, bkptJumpAddr))
-    {
-      // Put breakpoint to jump target
-      bkptJumpVal = thread->readMem16 (bkptJumpAddr);
-      thread->insertBkptInstr (bkptJumpAddr);
-
-      if (si->debugStopResumeDetail ())
-	cerr << "DebugStopResumeDetail: Step (branch) bkpt at " << bkptJumpAddr
-	     << ", existing value " << Utils::intStr (bkptJumpVal, 16, 4) << "."
-	     << endl;
-    }
-  else
-    {
-      bkptJumpAddr = bkptAddr;
-      bkptJumpVal  = bkptVal;
-    }
-
-  // Take care of ISR call. Put a breakpoint in each IVT slot except
-  // SYNC (aka RESET), but only if it doesn't overwrite the PC
-  thread->saveIVT ();
-
-  if (addr != TargetControl::IVT_SWE)
-    thread->insertBkptInstr (TargetControl::IVT_SWE);
-  if (addr != TargetControl::IVT_PROT)
-    thread->insertBkptInstr (TargetControl::IVT_PROT);
-  if (addr != TargetControl::IVT_TIMER0)
-    thread->insertBkptInstr (TargetControl::IVT_TIMER0);
-  if (addr != TargetControl::IVT_TIMER1)
-    thread->insertBkptInstr (TargetControl::IVT_TIMER1);
-  if (addr != TargetControl::IVT_MSG)
-    thread->insertBkptInstr (TargetControl::IVT_MSG);
-  if (addr != TargetControl::IVT_DMA0)
-    thread->insertBkptInstr (TargetControl::IVT_DMA0);
-  if (addr != TargetControl::IVT_DMA1)
-    thread->insertBkptInstr (TargetControl::IVT_DMA1);
-  if (addr != TargetControl::IVT_WAND)
-    thread->insertBkptInstr (TargetControl::IVT_WAND);
-  if (addr != TargetControl::IVT_USER)
-    thread->insertBkptInstr (TargetControl::IVT_USER);
-
-  // Resume until halt
-  thread->resume ();
-
-  while (!thread->isHalted ())
-    ;
-
-  addr = thread->readPc ();		// PC where we stopped
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: Step halted at " << addr << endl;
-
-  thread->restoreIVT ();
-
-  // If it's a breakpoint, then we need to back up one instruction, so
-  // on restart we execute the actual instruction.
-  addr -= SHORT_INSTRLEN;
-  thread->writePc (addr);
-
-  if ((addr != bkptAddr) && (addr != bkptJumpAddr))
-    cerr << "Warning: Step stopped at " << addr << ", expected " << bkptAddr
-	 << " or " << bkptJumpAddr << "." << endl;
-
-  // Remove temporary breakpoint(s)
-  thread->writeMem16 (bkptAddr, bkptVal);
-  if (bkptAddr != bkptJumpAddr)
-    thread->writeMem16 (bkptJumpAddr, bkptJumpVal);
-
-  // report to GDB the target has been stopped
-  rspReportException (currentCTid, TARGET_SIGNAL_TRAP);
-
-}	// rspStep()
-
-
 //---------------------------------------------------------------------------
 //! Handle a RSP 'T' packet
 
@@ -2997,11 +2713,6 @@ GdbServer::rspVCont ()
   char defaultAction = 'n';		// Custom "do nothing"
   int  numDefaultActions = 0;
 
-  // In all-stop mode we should only (I think) be asked to step one
-  // thread. Let's monitor that.
-  int  numSteps = 0;
-  int  stepTid;
-
   for (size_t i = 1; i < elements.size (); i++)
     {
       vector <string> tokens;
@@ -3034,19 +2745,6 @@ GdbServer::rspVCont ()
 		{
 		  char action = extractVContAction (tokens[0].c_str ());
 		  threadActions.insert (pair <int, char> (tid, action));
-
-		  // Note if we are a step thread. There should only be one of
-		  // these in all-stop mode.
-		  if (action == 's')
-		    {
-		      numSteps++;
-
-		      if ((ALL_STOP == mDebugMode) && (numSteps > 1))
-			cerr << "INFO: Multiple vCont steps in all-stop mode: "
-			     << "ignored." << endl;
-		      else
-			stepTid = tid;
-		    }
 		}
 	      else
 		cerr << "Warning: Duplicate vCont action for thread ID "
@@ -3069,8 +2767,7 @@ GdbServer::rspVCont ()
   // that is not specified. We may also have pending stops for previous
   // actions. So what we need to do is:
   // 1. Continue any thread that was not already marked as stopped.
-  // 2. Deal with a step action if we have any.
-  // 3. Otherwise report the first stopped thread.
+  // 2. Otherwise report the first stopped thread.
 
   // Continue any thread without a pendingStop to deal with.
   for (set <int>::iterator it = process->threadBegin ();
@@ -3085,14 +2782,6 @@ GdbServer::rspVCont ()
 	{
 	  continueThread (tid);
 	}
-    }
-
-  // If we were single stepping, just focus on that and return
-  if (numSteps > 0)
-    {
-      doStep (stepTid);
-      markPendingStops (process, stepTid);
-      return;
     }
 
   // Deal with any pending stops before looking for new ones.
@@ -3154,11 +2843,10 @@ GdbServer::rspVCont ()
 //-----------------------------------------------------------------------------
 //! Extract a vCont action
 
-//! We don't support 'C' or 'S' for now, so if we find one of these, we print
-//! a rude message and return 'c' or 's' respectively.  'r' is implemented as
-//! 's' (degenerate implementation), so we return 's'.  't' is not supported in
-//! all-stop mode, so we return 'n' to mean "no action'.  And finally we print
-//! a rude message an return 'n' for any other action.
+//! We don't support 'C' for now, so if we find it, we print a rude
+//! message and return 'c'. 't' is not supported in all-stop mode, so
+//! we return 'n' to mean "no action'.  And finally we print a rude
+//! message an return 'n' for any other action.
 
 //! @param[in] action  The string with the action
 //! @return the single character which is the action.
@@ -3176,20 +2864,8 @@ GdbServer::extractVContAction (string action)
       a = 'c';
       break;
 
-    case 'S':
-      cerr << "Warning: 'S' action not supported for vCont: treated as 's'."
-	   << endl;
-      a = 's';
-      break;
-
     case 'c':
-    case 's':
       // All good
-      break;
-
-    case 'r':
-      // All good and treated as 's'
-      a = 's';
       break;
 
     case 't':
@@ -3272,222 +2948,6 @@ GdbServer::removePendingStop (int  tid)
   mPendingStops.erase (tid);
 
 }	// removePendingStop ()
-
-
-//-----------------------------------------------------------------------------
-//! Step a thread.
-
-//! We only concern ourselves the first half of this - setting the thread
-//! going. A separate function concerns itself with the thread stopping.
-
-//! @todo We ignore the signal for now.
-
-//! @param[in] tid  The thread ID to be stepped. Must be > 0.
-//! @param[in] sig  The signal to use for stepping, default to
-//!                 TARGET_SIGNAL_NONE (currently ignored).
-//! @return  Any signal encountered.
-//-----------------------------------------------------------------------------
-void
-GdbServer::doStep (int          tid,
-		   TargetSignal sig)
-{
-  Thread* thread = getThread (tid);
-  assert (thread->isHalted ());
-
-  if (si->debugStopResumeDetail ())
-    cerr << dec << "DebugStopResumeDetail: stepThread (" << tid << ", " << sig
-	 << ")" << endl;
-
-  // @todo The old code did nothing here, which seems wrong.
-  TargetSignal except = (TargetSignal) thread->getException ();
-  if (except != TARGET_SIGNAL_NONE)
-    {
-      rspReportException (tid, except);
-      return;
-    }
-
-  // We shouldn't have a pending stop. Sanity check
-  if (pendingStop (tid))
-    {
-      cerr << "Warning: Unexpected pending stop in doStep: ignored" << endl;
-      removePendingStop (tid);
-    }
-
-  uint32_t pc = thread->readPc ();
-  uint16_t instr16 = thread->readMem16 (pc);
-  uint16_t opcode = getOpcode10 (instr16);
-
-  // IDLE and TRAP need special treatment
-  if (IDLE_INSTR == opcode)
-    {
-      if (si->debugStopResumeDetail ())
-	cerr << dec << "DebugStopResumeDetail: IDLE found at " << pc << "."
-	     << endl;
-
-      //check if global ISR enable state
-      uint32_t coreStatus = thread->readStatus ();
-
-      uint32_t imaskReg = thread->readReg (IMASK_REGNUM);
-      uint32_t ilatReg = thread->readReg (ILAT_REGNUM);
-
-      //next cycle should be jump to IVT
-      if (((coreStatus & TargetControl::STATUS_GID_MASK)
-	   == TargetControl::STATUS_GID_ENABLED)
-	  && (((~imaskReg) & ilatReg) != 0))
-	{
-	  // Interrupts globally enabled, and at least one individual
-	  // interrupt is active and enabled.
-
-	  // Next cycle should be jump to IVT. Take care of ISR call. Put a
-	  // breakpoint in each IVT slot except SYNC (aka RESET)
-	  thread->saveIVT ();
-
-	  thread->insertBkptInstr (TargetControl::IVT_SWE);
-	  thread->insertBkptInstr (TargetControl::IVT_PROT);
-	  thread->insertBkptInstr (TargetControl::IVT_TIMER0);
-	  thread->insertBkptInstr (TargetControl::IVT_TIMER1);
-	  thread->insertBkptInstr (TargetControl::IVT_MSG);
-	  thread->insertBkptInstr (TargetControl::IVT_DMA0);
-	  thread->insertBkptInstr (TargetControl::IVT_DMA1);
-	  thread->insertBkptInstr (TargetControl::IVT_WAND);
-	  thread->insertBkptInstr (TargetControl::IVT_USER);
-
-	  // Resume which should hit the breakpoint in the IVT.
-	  thread->resume ();
-
-	  while (! thread->isHalted ())
-	    ;
-
-	  //restore IVT
-	  thread->restoreIVT ();
-
-	  // @todo The old code had reads of STATUS, IMASK and ILAT regs here
-	  //       which it did nothing with. Why?
-
-	  // Report to gdb the target has been stopped, stopping all other
-	  // threads since we are in all-stop mode.
-	  pc = thread->readPc () - SHORT_INSTRLEN;
-	  thread->writePc (pc);
-	  rspReportException (tid, TARGET_SIGNAL_TRAP);
-	  return;
-	}
-      else
-	{
-	  cerr << "ERROR: IDLE instruction at step, with no interrupt." << endl;
-	  rspReportException (tid, TARGET_SIGNAL_NONE);
-	  return;
-	}
-    }
-  else if (TRAP_INSTR == opcode)
-    {
-      if (si->debugStopResumeDetail ())
-	cerr << dec << "DebugStopResumeDetail: TRAP found at " << pc << "."
-	     << endl;
-
-      // TRAP instruction triggers I/O
-      fIsTargetRunning = false;
-      haltAllThreads ();
-      redirectStdioOnTrap (thread, getTrap (instr16));
-      thread->writePc (pc + SHORT_INSTRLEN);
-      return;
-    }
-
-  // Ordinary instructions to be stepped.
-  uint16_t instrExt = thread->readMem16 (pc + 2);
-  uint32_t instr32 = (((uint32_t) instrExt) << 16) | (uint32_t) instr16;
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: instr16: 0x"
-	 << Utils::intStr (instr16, 16, 4) << ", instr32: 0x"
-	 << Utils::intStr (instr32, 16, 8) << "." << endl;
-
-  // put sequential breakpoint
-  uint32_t bkptAddr = is32BitsInstr (instr16) ? pc + 4 : pc + 2;
-  uint16_t bkptVal = thread->readMem16 (bkptAddr);
-  thread->insertBkptInstr (bkptAddr);
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: Step (sequential) bkpt at " << bkptAddr
-	 << ", existing value " << Utils::intStr (bkptVal, 16, 4) << "."
-	 << endl;
-
-
-  uint32_t bkptJumpAddr;
-  uint16_t bkptJumpVal;
-
-  if (   getJump (thread, instr16, pc, bkptJumpAddr)
-      || getJump (thread, instr32, pc, bkptJumpAddr))
-    {
-      // Put breakpoint to jump target
-      bkptJumpVal = thread->readMem16 (bkptJumpAddr);
-      thread->insertBkptInstr (bkptJumpAddr);
-
-      if (si->debugStopResumeDetail ())
-	cerr << "DebugStopResumeDetail: Step (branch) bkpt at " << bkptJumpAddr
-	     << ", existing value " << Utils::intStr (bkptJumpVal, 16, 4) << "."
-	     << endl;
-    }
-  else
-    {
-      bkptJumpAddr = bkptAddr;
-      bkptJumpVal  = bkptVal;
-    }
-
-  // Take care of ISR call. Put a breakpoint in each IVT slot except
-  // SYNC (aka RESET), but only if it doesn't overwrite the PC
-  thread->saveIVT ();
-
-  if (pc != TargetControl::IVT_SWE)
-    thread->insertBkptInstr (TargetControl::IVT_SWE);
-  if (pc != TargetControl::IVT_PROT)
-    thread->insertBkptInstr (TargetControl::IVT_PROT);
-  if (pc != TargetControl::IVT_TIMER0)
-    thread->insertBkptInstr (TargetControl::IVT_TIMER0);
-  if (pc != TargetControl::IVT_TIMER1)
-    thread->insertBkptInstr (TargetControl::IVT_TIMER1);
-  if (pc != TargetControl::IVT_MSG)
-    thread->insertBkptInstr (TargetControl::IVT_MSG);
-  if (pc != TargetControl::IVT_DMA0)
-    thread->insertBkptInstr (TargetControl::IVT_DMA0);
-  if (pc != TargetControl::IVT_DMA1)
-    thread->insertBkptInstr (TargetControl::IVT_DMA1);
-  if (pc != TargetControl::IVT_WAND)
-    thread->insertBkptInstr (TargetControl::IVT_WAND);
-  if (pc != TargetControl::IVT_USER)
-    thread->insertBkptInstr (TargetControl::IVT_USER);
-
-  // Resume until halt
-  thread->resume ();
-
-  while (! thread->isHalted ())
-    ;
-
-  pc = thread->readPc ();		// PC where we stopped
-
-  if (si->debugStopResumeDetail ())
-    cerr << "DebugStopResumeDetail: Step halted at " << pc << endl;
-
-  thread->restoreIVT ();
-
-  // If it's a breakpoint, then we need to back up one instruction, so
-  // on restart we execute the actual instruction.
-  pc -= SHORT_INSTRLEN;
-  thread->writePc (pc);
-
-  if ((pc != bkptAddr) && (pc != bkptJumpAddr))
-    cerr << "Warning: Step stopped at " << pc << ", expected " << bkptAddr
-	 << " or " << bkptJumpAddr << "." << endl;
-
-  // Remove temporary breakpoint(s)
-  thread->writeMem16 (bkptAddr, bkptVal);
-  if (bkptAddr != bkptJumpAddr)
-    thread->writeMem16 (bkptJumpAddr, bkptJumpVal);
-
-  // report to GDB the target has been stopped, stopping all other threads
-  // since we are in all-stop mode.
-  rspReportException (tid, TARGET_SIGNAL_TRAP);
-
-}	// doStep ()
 
 
 //-----------------------------------------------------------------------------
