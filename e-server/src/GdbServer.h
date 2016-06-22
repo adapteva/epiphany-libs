@@ -191,9 +191,6 @@ private:
   //! Responsible for the memory operation commands in target
   TargetControl * fTargetControl;
 
-  //! Used in cont command to support CTRL-C from gdb client
-  bool fIsTargetRunning;
-
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;
 

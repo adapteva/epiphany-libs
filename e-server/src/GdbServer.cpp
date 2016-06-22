@@ -90,8 +90,7 @@ GdbServer::GdbServer (ServerInfo* _si) :
   mDebugMode (ALL_STOP),
   currentGTid (0),
   si (_si),
-  fTargetControl (NULL),
-  fIsTargetRunning (false)
+  fTargetControl (NULL)
 {
   pkt = new RspPacket (RSP_PKT_MAX);
   rsp = new RspConnection (si);
@@ -387,9 +386,6 @@ GdbServer::rspClientRequest ()
     case 'k':
       rspDetach (currentPid);
       rsp->rspClose ();			// Close the connection.
-      // Reset to the initial state to prevent reporting to the disconnected
-      // client.
-      fIsTargetRunning = false;
 
       break;
 
@@ -500,7 +496,6 @@ GdbServer::rspReportException (int          tid,
 
   // In all-stop mode, ensure all threads are halted.
   haltAllThreads ();
-  fIsTargetRunning = false;
 
   pkt->packStr (oss.str ().c_str ());
   rsp->putPkt (pkt);
@@ -583,9 +578,6 @@ GdbServer::rspFileIOreply ()
 
 //! The requests are sent using F packets. The open, write, read and close
 //! system calls are supported
-
-//! At this point all threads have been halted, and we have set
-//! fIsTargetRunning to FALSE.
 
 //! @param[in] thread   Thread making the I/O request
 //! @param[in] trap  The number of the trap.
@@ -2681,11 +2673,7 @@ GdbServer::continueThread (int       tid,
     cerr << "DebugStopResume: continueThread (" << tid << ", " << sig << ")."
 	 << endl;
 
-  // Resume the thread, and set fIsTargetRunning true.
-  // @todo What does fIsTargetRunning do?
   thread->resume ();
-  fIsTargetRunning = true;
-
 }	// continueThread ()
 
 
@@ -2782,7 +2770,6 @@ GdbServer::doFileIO (Thread* thread)
   // Have we stopped for a TRAP
   if (getOpcode10 (instr16) == TRAP_INSTR)
     {
-      fIsTargetRunning = false;
       haltAllThreads ();
       redirectStdioOnTrap (thread, getTrap (instr16));
       return true;

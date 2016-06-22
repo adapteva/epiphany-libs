@@ -1,6 +1,14 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (GdbServer::GdbServer): Remove reference to
+	fIsTargetRunning.
+	(GdbServer::rspClientRequest, GdbServer::rspReportException)
+	(GdbServer::continueThread, GdbServer::doFileIO): Ditto.
+	* src/GdbServer.h (GdbServer) <fIsTargetRunning>: Remove field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Remove reference to
 	currentCTid.
 	(GdbServer::rspFileIOreply): Use the general thread instead of the
 	continue thread.
