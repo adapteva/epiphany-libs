@@ -91,6 +91,7 @@ using std::vector;
 //! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
   mDebugMode (ALL_STOP),
+  mExtendedMode (false),
   mCurrentThread (NULL),
   mNotifyingP (false),
   si (_si),
@@ -229,9 +230,33 @@ GdbServer::initProcesses ()
       assert (res);
     }
 
-  mCurrentProcess = mIdleProcess;
-
+  if (!si->multiProcess ())
+    mAttachedProcesses[mIdleProcess->pid ()] = mIdleProcess;
 }	// initProcesses ()
+
+
+//-----------------------------------------------------------------------------
+//! Set all thread's last action.
+//-----------------------------------------------------------------------------
+
+void
+GdbServer::setLastActionAllThreads (vContAction action)
+{
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
+    {
+      ProcessInfo* process = (*proc_it).second;
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
+	{
+	  Thread* thread = *it;
+
+	  thread->setLastAction (action);
+	}
+    }
+}	// setLastActionAllThreads ()
 
 
 //-----------------------------------------------------------------------------
@@ -271,6 +296,23 @@ GdbServer::haltAndActivateProcess (ProcessInfo *process)
 
 
 //-----------------------------------------------------------------------------
+//! Halt and activate all threads
+//-----------------------------------------------------------------------------
+void
+GdbServer::haltAndActivateAllThreads ()
+{
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
+    {
+      ProcessInfo *process = (*proc_it).second;
+
+      haltAndActivateProcess (process);
+    }
+}	// haltAndActivateAllThreads ()
+
+
+//-----------------------------------------------------------------------------
 //! Attach to the target
 
 //! If not already halted, the target will be halted. We send an appropriate
@@ -280,30 +322,67 @@ GdbServer::haltAndActivateProcess (ProcessInfo *process)
 
 //! @note  The target should *not* be reset when attaching.
 
-//! @param[in] pid  The ID of the process to which we attach
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspAttach (int  pid)
+GdbServer::rspAttach ()
 {
-  map <int, ProcessInfo *>::iterator  it = mProcesses.find (pid);
-  assert (it != mProcesses.end ());
-  ProcessInfo* process = it->second;
   bool isHalted = true;
+  unsigned long int pid = strtoul (&pkt->data[8], NULL, 16);
+
+  /* Check if we're already attached to PID.  */
+  if (mAttachedProcesses.find (pid) != mAttachedProcesses.end ())
+    {
+      cerr << "Warning: Already attached to PID " << pid << "." << endl;
+      pkt->packStr ("E.Already attached to process");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  /* Check if the PID exists.  */
+  PidProcessInfoMap::iterator it = mProcesses.find (pid);
+  if (it == mProcesses.end ())
+    {
+      cerr << "Warning: Non existent PID " << pid << "." << endl;
+      pkt->packStr ("E.Process ID does not exist");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  ProcessInfo *process = (*it).second;
+  mAttachedProcesses[pid] = process;
 
   isHalted = haltAndActivateProcess (process);
 
-  mCurrentProcess = process;
-  mCurrentThread = *process->threadBegin ();
+  if (mDebugMode == NON_STOP)
+    {
+      /* In non-stop, we're done.  */
 
-  Thread *thread = *process->threadBegin ();
+      pkt->packStr ("OK");
+      rsp->putPkt (pkt);
 
-  // @todo Does this belong here. Is TARGET_SIGNAL_HUP correct?
-  if (!isHalted)
-    rspReportException (thread, TARGET_SIGNAL_HUP);
+      // Force stop-reporting of the now-halted threads.
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
+	{
+	  Thread* thread = *it;
 
-  // At this point, no thread should be resumed until the client
-  // tells us to.
-  markAllStopped ();
+	  thread->setLastAction (ACTION_CONTINUE);
+	}
+    }
+  else
+    {
+      Thread *thread = *process->threadBegin ();
+
+      // At this point, no thread should be resumed until the client
+      // tells us to.
+      setLastActionAllThreads (ACTION_STOP);
+
+      rspReportException (thread, thread->pendingSignal ());
+      thread->setPendingSignal (TARGET_SIGNAL_NONE);
+
+      mCurrentThread = thread;
+    }
 }	// rspAttach ()
 
 
@@ -313,15 +392,13 @@ GdbServer::rspAttach (int  pid)
 //! Restart all threads in the process, *unless* it is the idle process (why
 //! waste CPU with it).
 
-//! @param[in] pid  The ID of the process from which we detach
+//! @param[in] process  The process from which we detach
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspDetach (int pid)
+GdbServer::detachProcess (ProcessInfo* process)
 {
-  if (IDLE_PID != pid)
+  if (IDLE_PID != process->pid ())
     {
-      ProcessInfo* process = getProcess (pid);
-
       for (set <Thread*>::iterator it = process->threadBegin ();
 	   it != process->threadEnd ();
 	   it++)
@@ -330,6 +407,54 @@ GdbServer::rspDetach (int pid)
 	  thread->resume ();
 	}
     }
+}	// detachProcess ()
+
+
+//-----------------------------------------------------------------------------
+//! Detach from all attached processes
+//-----------------------------------------------------------------------------
+
+void
+GdbServer::detachAllProcesses ()
+{
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
+    {
+      ProcessInfo *process = (*proc_it).second;
+
+      detachProcess (process);
+    }
+}	// detachAllProcesses ()
+
+
+//-----------------------------------------------------------------------------
+//! Detach from a process.
+
+//! The rules say that execution should continue, so unstall the
+//! processor.
+
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspDetach ()
+{
+  unsigned long int pid = strtoul (&pkt->data[2], NULL, 16);
+  PidProcessInfoMap::iterator it = mAttachedProcesses.find (pid);
+  if (it == mAttachedProcesses.end ())
+    {
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  detachProcess ((*it).second);
+  mAttachedProcesses.erase (it);
+  pkt->packStr ("OK");
+  rsp->putPkt (pkt);
+
+  if (!mExtendedMode)
+    rsp->rspClose ();
+  mCurrentThread = NULL;
 }	// rspDetach ()
 
 
@@ -353,15 +478,24 @@ GdbServer::rspUnknownPacket ()
 void
 GdbServer::rspStatus ()
 {
-  // All-stop mode requires we halt on attaching.
-  haltAndActivateProcess (mCurrentProcess);
+  // We always halt everything, even in non-stop mode, for now.
+  haltAndActivateAllThreads ();
 
   if (mDebugMode == ALL_STOP)
     {
+      if (mAttachedProcesses.empty ())
+	{
+	  pkt->packStr ("W00");
+	  rsp->putPkt (pkt);
+	  return;
+	}
+
       // Return last signal ID
-      mCurrentThread = *mCurrentProcess->threadBegin ();
+      PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+      ProcessInfo* process = (*proc_it).second;
+      mCurrentThread = *process->threadBegin ();
       rspReportException (mCurrentThread, mCurrentThread->pendingSignal ());
-      markAllStopped ();
+      setLastActionAllThreads (ACTION_STOP);
     }
   else
     {
@@ -372,16 +506,7 @@ GdbServer::rspStatus ()
       // gets an OK.
       mNotifyingP = true;
 
-      ProcessInfo* process = mCurrentProcess;
-
-      for (set <Thread*>::iterator it = process->threadBegin ();
-	   it != process->threadEnd ();
-	   it++)
-	{
-	  Thread* thread = *it;
-
-	  thread->setLastAction (ACTION_CONTINUE);
-	}
+      setLastActionAllThreads (ACTION_CONTINUE);
 
       rspVStopped ();
     }
@@ -413,7 +538,7 @@ GdbServer::rspClientRequest ()
 
   if (!rsp->getPkt (pkt))
     {
-      rspDetach (mCurrentProcess->pid ());
+      detachAllProcesses ();
       rsp->rspClose ();		// Comms failure
       return;
     }
@@ -422,7 +547,8 @@ GdbServer::rspClientRequest ()
     {
     case '!':
       // Request for extended remote mode
-      pkt->packStr ("");	// Empty = not supported
+      mExtendedMode = true;
+      pkt->packStr ("OK");
       rsp->putPkt (pkt);
       break;
 
@@ -431,13 +557,7 @@ GdbServer::rspClientRequest ()
       break;
 
     case 'D':
-      // Detach GDB. Do this by closing the client. The rules say that
-      // execution should continue, so unstall the processor.
-      rspDetach (mCurrentProcess->pid ());
-      pkt->packStr ("OK");
-      rsp->putPkt (pkt);
-      rsp->rspClose ();
-
+      rspDetach ();
       break;
 
     case 'F':
@@ -465,7 +585,7 @@ GdbServer::rspClientRequest ()
       break;
 
     case 'k':
-      rspDetach (mCurrentProcess->pid ());
+      detachProcess (mCurrentThread->process ());
       rsp->rspClose ();			// Close the connection.
 
       break;
@@ -541,7 +661,7 @@ GdbServer::rspPrepareStopReply (Thread *thread, TargetSignal sig)
   ostringstream oss;
 
   oss << "T" << Utils::intStr (sig, 16, 2)
-      << "thread:" << GdbTid (mCurrentProcess, thread) << ";";
+      << "thread:" << GdbTid (thread->process(), thread) << ";";
 
   if (sig == TARGET_SIGNAL_TRAP)
     oss << "swbreak:;";
@@ -619,20 +739,26 @@ GdbServer::rspReportException (Thread *thread, TargetSignal sig)
 Thread*
 GdbServer::findStoppedThread ()
 {
-  ProcessInfo *process = mCurrentProcess;
-
-  for (set <Thread*>::iterator it = process->threadBegin ();
-       it != process->threadEnd ();
-       ++it)
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
     {
-      Thread *thread = *it;
+      ProcessInfo* process = (*proc_it).second;
 
-      if (thread->lastAction () == ACTION_CONTINUE
-	  && thread->isHalted ())
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   ++it)
 	{
-	  TargetSignal sig = findStopReason (thread);
-	  thread->setPendingSignal (sig);
-	  return thread;
+	  Thread* thread = *it;
+
+	  if (thread->lastAction () == ACTION_CONTINUE
+	      && thread->isHalted ())
+	    {
+	      TargetSignal sig = findStopReason (thread);
+	      thread->setPendingSignal (sig);
+
+	      return thread;
+	    }
 	}
     }
 
@@ -687,16 +813,22 @@ GdbServer::rspSuspend ()
 
   // Pick the first thread that is supposed to be continued.
   Thread *signal_thread = NULL;
-  for (set <Thread*>::iterator it = mCurrentProcess->threadBegin ();
-       it != mCurrentProcess->threadEnd ();
-       ++it)
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
     {
-      Thread* thread = *it;
+      ProcessInfo* process = (*proc_it).second;
 
-      if (thread->lastAction () == ACTION_CONTINUE)
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   ++it)
 	{
-	  signal_thread = thread;
-	  break;
+	  Thread* thread = *it;
+	  if (thread->lastAction () == ACTION_CONTINUE)
+	    {
+	      signal_thread = thread;
+	      break;
+	    }
 	}
     }
 
@@ -710,7 +842,7 @@ GdbServer::rspSuspend ()
 
   // At this point, no thread should be resumed until the client
   // tells us to.
-  markAllStopped ();
+  setLastActionAllThreads (ACTION_STOP);
 }	// rspSuspend ()
 
 
@@ -1183,8 +1315,14 @@ GdbServer::rspSetThread ()
     }
 
   GdbTid tid = GdbTid::fromString (&pkt->data[2]);
-  if (tid.tid () ==  0)
-    thread = *(mCurrentProcess->threadBegin ());
+
+  if (tid.pid () == 0)
+    thread = firstThread ();
+  else if (tid.tid () ==  0)
+    {
+      ProcessInfo *process = findAttachedProcess (tid.pid ());
+      thread = *process->threadBegin ();
+    }
   else
     thread = getThread (tid.tid ());
 
@@ -1381,6 +1519,22 @@ GdbServer::rspWriteReg ()
 
 
 //-----------------------------------------------------------------------------
+//! Return the first thread of the first attached process.
+//-----------------------------------------------------------------------------
+Thread *
+GdbServer::firstThread ()
+{
+  if (mAttachedProcesses.empty ())
+    return NULL;
+
+  PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+  ProcessInfo *proc = (*proc_it).second;
+
+  return *proc->threadBegin ();
+}	// firstThread()
+
+
+//-----------------------------------------------------------------------------
 //! Handle a RSP query request
 //-----------------------------------------------------------------------------
 void
@@ -1393,9 +1547,10 @@ GdbServer::rspQuery ()
       // Return the current thread ID.
 
       if (mCurrentThread == NULL)
-	mCurrentThread = *mCurrentProcess->threadBegin ();
+	mCurrentThread = firstThread ();
+
       sprintf (pkt->data, "QCp%x.%x",
-	       mCurrentProcess->pid (), mCurrentThread->tid ());
+	       mCurrentThread->process ()->pid (), mCurrentThread->tid ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -1784,20 +1939,26 @@ GdbServer::rspMakeTransferThreadsReply ()
 
   os << "<threads>\n";
 
-  // Go through all threads in the current process.  Then for each
+  // Go through all threads in all attached processes.  Then for each
   // thread, build a <thread> element.
-  for (set <Thread*>::iterator thr_it = mCurrentProcess->threadBegin ();
-       thr_it != mCurrentProcess->threadEnd ();
-       ++thr_it)
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
     {
-      Thread* thread = *thr_it;
+      ProcessInfo *proc = (*proc_it).second;
+      for (set <Thread*>::iterator thr_it = proc->threadBegin ();
+	   thr_it != proc->threadEnd ();
+	   ++thr_it)
+	{
+	  Thread* thread = *thr_it;
 
-      os << "<thread";
-      os << " id=\"" << GdbTid (mCurrentProcess, thread) << "\"";
-      os << " core=\"" << hex << thread->coreId () << "\"";
-      os << ">";
-      os << rspThreadExtraInfo (thread);
-      os << "</thread>\n";
+	  os << "<thread";
+	  os << " id=\"" << GdbTid (proc, thread) << "\"";
+	  os << " core=\"" << hex << thread->coreId () << "\"";
+	  os << ">";
+	  os << rspThreadExtraInfo (thread);
+	  os << "</thread>\n";
+	}
     }
 
   os << "</threads>";
@@ -2276,12 +2437,21 @@ GdbServer::rspIsThreadAlive ()
       return;
     }
 
-  // This will not find thread IDs 0 (any) or -1 (all), which seems to be what
-  // we want.
-  if (mCurrentProcess->hasThread (mThreads[tid.tid ()]))
-    pkt->packStr ("OK");
+  if (mThreads.find (tid.tid ()) == mThreads.end ())
+    {
+      cerr << "Warning: Invalid thread in 'T' command: " << tid.tid () << endl;
+      pkt->packStr ("E03");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  ProcessInfo *proc = findAttachedProcess (tid.pid ());
+  if (proc == NULL)
+    pkt->packStr ("E05");
+  else if (!proc->hasThread (mThreads[tid.tid ()]))
+    pkt->packStr ("E04");
   else
-    pkt->packStr ("E01");
+    pkt->packStr ("OK");
 
   rsp->putPkt (pkt);
 
@@ -2330,10 +2500,7 @@ GdbServer::rspVpkt ()
 {
   if (0 == strncmp ("vAttach;", pkt->data, strlen ("vAttach;")))
     {
-      // Attaching is a null action, since we have no other process. We just
-      // return a stop packet (as a TRAP exception) to indicate we are stopped.
-      pkt->packStr ("S05");
-      rsp->putPkt (pkt);
+      rspAttach ();
       return;
     }
   else if (0 == strcmp ("vCont?", pkt->data))
@@ -2350,6 +2517,12 @@ GdbServer::rspVpkt ()
     {
       rspVCont ();
       return;
+    }
+  else if (0 == strncmp ("vKill;", pkt->data, strlen ("vKill;")))
+    {
+      // We don't support killing.
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
     }
   else if (0 == strncmp ("vRun;", pkt->data, strlen ("vRun;")))
     {
@@ -2385,7 +2558,6 @@ GdbServer::rspVpkt ()
 void
 GdbServer::rspVCont ()
 {
-  ProcessInfo *process = mCurrentProcess;
   vContTidActionVector threadActions;
 
   stringstream    ss (pkt->data);
@@ -2443,32 +2615,39 @@ GdbServer::rspVCont ()
   // 2. Otherwise report the first stopped thread.
 
   // Continue any thread without a pendingStop to deal with.
-  for (set <Thread*>::iterator it = process->threadBegin ();
-       it != process->threadEnd ();
-       it++)
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
     {
-      Thread* thread = *it;
+      ProcessInfo *process = (*proc_it).second;
 
-      for (vContTidActionVector::const_iterator act_it = threadActions.begin ();
-	   act_it != threadActions.end ();
-	   ++act_it)
+      for (set <Thread*>::iterator thr_it = process->threadBegin ();
+	   thr_it != process->threadEnd ();
+	   ++thr_it)
 	{
-	  const vContTidAction &action = *act_it;
+	  Thread* thread = *thr_it;
 
-	  if (action.matches (process->pid (), thread->tid ()))
+	  for (vContTidActionVector::const_iterator act_it = threadActions.begin ();
+	       act_it != threadActions.end ();
+	       ++act_it)
 	    {
-	      if (action.kind == ACTION_CONTINUE
-		  && thread->lastAction () == ACTION_STOP)
+	      const vContTidAction &action = *act_it;
+
+	      if (action.matches (process->pid (), thread->tid ()))
 		{
-		  thread->setLastAction (action.kind);
-		  if (thread->pendingSignal () == TARGET_SIGNAL_NONE)
-		    continueThread (thread);
+		  if (action.kind == ACTION_CONTINUE
+		      && thread->lastAction () == ACTION_STOP)
+		    {
+		      thread->setLastAction (action.kind);
+		      if (thread->pendingSignal () == TARGET_SIGNAL_NONE)
+			continueThread (thread);
+		    }
+		  else if (action.kind == ACTION_STOP
+			   && thread->lastAction () == ACTION_CONTINUE)
+		    {
+		      thread->halt ();
+		    }
 		  break;
-		}
-	      else if (action.kind == ACTION_STOP
-		  && thread->lastAction () == ACTION_CONTINUE)
-		{
-		  thread->halt ();
 		}
 	    }
 	}
@@ -2495,20 +2674,25 @@ GdbServer::rspVCont ()
 void
 GdbServer::waitAllThreads ()
 {
-  ProcessInfo *process = mCurrentProcess;
-
   // Deal with any pending stops before looking for new ones.
-  for (set <Thread*>::iterator it = process->threadBegin ();
-       it != process->threadEnd ();
-       it++)
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
     {
-      Thread* thread = *it;
+      ProcessInfo *process = (*proc_it).second;
 
-      if (thread->lastAction () == ACTION_CONTINUE
-	  && thread->pendingSignal () != TARGET_SIGNAL_NONE)
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
 	{
-	  doContinue (thread);
-	  return;
+	  Thread* thread = *it;
+
+	  if (thread->lastAction () == ACTION_CONTINUE
+	      && thread->pendingSignal () != TARGET_SIGNAL_NONE)
+	    {
+	      doContinue (thread);
+	      return;
+	    }
 	}
     }
 
@@ -2532,17 +2716,24 @@ GdbServer::waitAllThreads ()
       if (si->debugCtrlCWait())
 	cerr << "DebugCtrlCWait: check for CTLR-C done" << endl;
 
-      for (set <Thread*>::iterator it = process->threadBegin ();
-	   it != process->threadEnd ();
-	   it++)
+      for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+	   proc_it != mAttachedProcesses.end ();
+	   ++proc_it)
 	{
-	  Thread* thread = *it;
+	  ProcessInfo* process = (*proc_it).second;
 
-	  if (thread->lastAction () == ACTION_CONTINUE && thread->isHalted ())
+	  for (set <Thread*>::iterator it = process->threadBegin ();
+	       it != process->threadEnd ();
+	       it++)
 	    {
-	      thread->setPendingSignal (findStopReason (thread));
-	      doContinue (thread);
-	      return;
+	      Thread *thread = *it;
+
+	      if (thread->lastAction () == ACTION_CONTINUE && thread->isHalted ())
+		{
+		  thread->setPendingSignal (findStopReason (thread));
+		  doContinue (thread);
+		  return;
+		}
 	    }
 	}
 
@@ -2603,59 +2794,43 @@ GdbServer::extractVContAction (const string &action)
 void
 GdbServer::markPendingStops (Thread *reporting_thread)
 {
-  ProcessInfo* process = mCurrentProcess;
-
-  for (set <Thread*>::iterator it = process->threadBegin ();
-       it != process->threadEnd ();
-       it++)
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
     {
-      Thread* thread = *it;
-
-      if (thread != reporting_thread
-	  && thread->lastAction () == ACTION_CONTINUE
-	  && thread->pendingSignal () == TARGET_SIGNAL_NONE)
+      ProcessInfo *process = (*proc_it).second;
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
 	{
-	  assert (thread->isHalted ());
+	  Thread* thread = *it;
 
-	  TargetSignal sig = findStopReason (thread);
-	  if (sig != TARGET_SIGNAL_NONE)
+	  if (thread != reporting_thread
+	      && thread->lastAction () == ACTION_CONTINUE
+	      && thread->pendingSignal () == TARGET_SIGNAL_NONE)
 	    {
-	      thread->setPendingSignal (sig);
+	      assert (thread->isHalted ());
 
-	      if (si->debugStopResume ())
-		cerr << "DebugStopResume: marking " << thread->tid () << " pending."
-		     << endl;
-	    }
-	  else
-	    {
-	      if (si->debugStopResume ())
-		cerr << "DebugStopResume: " << thread->tid () << " NOT pending."
-		     << endl;
+	      TargetSignal sig = findStopReason (thread);
+	      if (sig != TARGET_SIGNAL_NONE)
+		{
+		  thread->setPendingSignal (sig);
+
+		  if (si->debugStopResume ())
+		    cerr << "DebugStopResume: marking " << thread->tid () << " pending."
+			 << endl;
+		}
+	      else
+		{
+		  if (si->debugStopResume ())
+		    cerr << "DebugStopResume: " << thread->tid () << " NOT pending."
+			 << endl;
+		}
 	    }
 	}
     }
 
   reporting_thread->setPendingSignal (TARGET_SIGNAL_NONE);
-
-}	// markPendingStops ()
-
-
-//-----------------------------------------------------------------------------
-//! Mark all threads as stopped from the client's perspective.
-//-----------------------------------------------------------------------------
-void
-GdbServer::markAllStopped ()
-{
-  ProcessInfo* process = mCurrentProcess;
-
-  for (set <Thread*>::iterator it = process->threadBegin ();
-       it != process->threadEnd ();
-       it++)
-    {
-      Thread* thread = *it;
-
-      thread->setLastAction (ACTION_STOP);
-    }
 
 }	// markPendingStops ()
 
@@ -2710,7 +2885,7 @@ GdbServer::doContinue (Thread* thread)
 
   // At this point, no thread should be resumed until the client
   // tells us to.
-  markAllStopped ();
+  setLastActionAllThreads (ACTION_STOP);
 }	// doContinue ()
 
 //-----------------------------------------------------------------------------
@@ -2999,7 +3174,7 @@ GdbServer::rspRemoveMatchpoint ()
       if (fTargetControl->isLocalAddr (addr))
 	{
 	  // Local memory we need to remove in all cores.
-	  ProcessInfo *process = mCurrentProcess;
+	  ProcessInfo *process = mCurrentThread->process ();
 
 	  for (set <Thread*>::iterator it = process->threadBegin ();
 	       it != process->threadEnd ();
@@ -3085,7 +3260,7 @@ GdbServer::rspInsertMatchpoint ()
       if (fTargetControl->isLocalAddr (addr))
 	{
 	  // Local memory we need to insert in all cores.
-	  ProcessInfo *process = mCurrentProcess;
+	  ProcessInfo *process = mCurrentThread->process ();
 
 	  for (set <Thread*>::iterator it = process->threadBegin ();
 	       it != process->threadEnd ();
@@ -3226,7 +3401,7 @@ GdbServer::unhideBreakpoints (Thread *thread,
 	  // the original shadow instruction.
 	  if (fTargetControl->isLocalAddr (bp_addr))
 	    {
-	      ProcessInfo *process = mCurrentProcess;
+	      ProcessInfo *process = thread->process ();
 	      for (set <Thread *>::iterator it = process->threadBegin ();
 		   it != process->threadEnd ();
 		   it++)
@@ -3278,6 +3453,24 @@ GdbServer::targetHWReset ()
   fTargetControl->platformReset ();
 }				// hw_reset, ESYS_RESET
 
+//-----------------------------------------------------------------------------
+//! Get a process from a process ID
+
+//! This is the reverse lookup.
+
+//! @param[in] pid  Process ID
+//! @return  ProcessInfo
+//-----------------------------------------------------------------------------
+ProcessInfo *
+GdbServer::findAttachedProcess (int pid)
+{
+  PidProcessInfoMap::iterator it = mAttachedProcesses.find (pid);
+  if (it == mAttachedProcesses.end ())
+    return NULL;
+  else
+    return(*it).second;
+}	// findAttachedProcess()
+
 
 //-----------------------------------------------------------------------------
 //! Map from a process ID to a process structure with sanity checking
@@ -3317,41 +3510,61 @@ GdbServer::getThread (int tid)
 
 
 //-----------------------------------------------------------------------------
-//! Halt all threads in the current process.
+//! Halt all threads of a specified process.
 
 //! @return  TRUE if all threads halt, FALSE otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::haltAllThreads ()
+GdbServer::haltProcessThreads (ProcessInfo *process)
 {
-  ProcessInfo *process = mCurrentProcess;
   bool allHalted = true;
 
-  for (set <Thread*>::iterator it = process->threadBegin ();
+  for (set <Thread *>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
-       it++)
+       ++it)
     {
       Thread* thread = *it;
       allHalted &= thread->halt ();
     }
 
   return allHalted;
+}	// haltProcessThreads ()
 
+
+//-----------------------------------------------------------------------------
+//! Halt all threads of all attached processes.
+
+//! @return  TRUE if all threads halt, FALSE otherwise
+//-----------------------------------------------------------------------------
+bool
+GdbServer::haltAllThreads ()
+{
+  bool allHalted = true;
+
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
+    {
+      ProcessInfo *process = (*proc_it).second;
+
+      allHalted &= haltProcessThreads (process);
+    }
+
+  return allHalted;
 }	// haltAllThreads ()
 
 
 //-----------------------------------------------------------------------------
-//! Resume all threads in the current process.
+//! Resume all threads in the specified process.
 
 //! @return  TRUE if all threads resume, FALSE otherwise
 //-----------------------------------------------------------------------------
 bool
-GdbServer::resumeAllThreads ()
+GdbServer::resumeAllProcessThreads (ProcessInfo* process)
 {
-  ProcessInfo *process = mCurrentProcess;
   bool allResumed = true;
 
-  for (set <Thread*>::iterator it = process->threadBegin ();
+  for (set <Thread *>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
        it++)
     {
@@ -3360,6 +3573,29 @@ GdbServer::resumeAllThreads ()
       if (thread->lastAction () == ACTION_CONTINUE
 	  && thread->pendingSignal () == TARGET_SIGNAL_NONE)
 	allResumed &= thread->resume ();
+    }
+
+  return allResumed;
+}	// resumeAllProcessThreads ()
+
+
+//-----------------------------------------------------------------------------
+//! Resume all threads of all attached processes.
+
+//! @return  TRUE if all threads resume, FALSE otherwise
+//-----------------------------------------------------------------------------
+bool
+GdbServer::resumeAllThreads ()
+{
+  ProcessInfo *process = mCurrentThread->process ();
+  bool allResumed = true;
+
+  for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
+       proc_it != mAttachedProcesses.end ();
+       ++proc_it)
+    {
+      ProcessInfo *process = (*proc_it).second;
+      allResumed &= resumeAllProcessThreads (process);
     }
 
   return allResumed;

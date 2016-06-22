@@ -42,7 +42,8 @@ using std::set;
 
 class CoreId;
 class GdbServer;
-
+class TargetControl;
+class ServerInfo;
 
 //-----------------------------------------------------------------------------
 //! Class describing an Epiphany GDB thread
@@ -69,6 +70,9 @@ public:
   bool  isHalted ();
   bool  isIdle ();
   bool  isInterruptible () const;
+
+  ProcessInfo* process () const { return mProcess; }
+  void setProcess (ProcessInfo* process) { mProcess = process; }
 
   GdbServer::TargetSignal pendingSignal () const { return mPendingSignal; }
   void setPendingSignal (GdbServer::TargetSignal sig) { mPendingSignal = sig; }
@@ -137,6 +141,9 @@ private:
 
   //! Number of entries in IVT table
   static const uint32_t IVT_ENTRIES = 10;
+
+  //! Our process
+  ProcessInfo* mProcess;
 
   //! Our core
   CoreId  mCoreId;

@@ -1,5 +1,88 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::GdbServer): Initialize
+	mExtendedMode.
+	(GdbServer::initProcesses): If --multiprocess, then don't attach
+	to the idle process.
+	(GdbServer::setLastActionAllThreads)
+	(GdbServer::haltAndActivateAllThreads): New methods.
+	(GdbServer::rspAttach): Remove 'pid' parameter.  Reimplement.
+	(GdbServer::detachProcess): New method, factored out from
+	GdbServer::rspDetach.
+	(GdbServer::detachAllProcesses): New method.
+	(GdbServer::rspDetach): Remove 'pid' parameter.  Reimplement.
+	(GdbServer::rspStatus): Halt all threads.  In all-stop mode, if
+	not debugging anything yet, reply "W00".  Report status of the
+	first thread of the first attached process.  Set all threads' last
+	action to ACTION_STOP.  In non-stop, set all threads' last action
+	to ACTION_CONTINUE.
+	(GdbServer::rspClientRequest): If the connection fails, detach all
+	processes, not just the current one.  Handle the '!' packet.
+	Defer handling of 'D' to rspDetach.
+	Use detachProcess to implement the support for the 'k' packet.
+	(GdbServer::rspPrepareStopReply): Use the thread's process's pid
+	instead of the current process's.
+	(GdbServer::findStoppedThread): Iterate over all attached
+	processes.
+	(GdbServer::rspSuspend): Iterate over all attached processes and
+	use setLastActionAllThreads.
+	(GdbServer::rspSetThread): Use firstThread().  If gdb asks to pick
+	any thread, pick the first thread of the first attached process.
+	If gdb asks to pick any thread of a given process, pick the first
+	thread of that process.
+	(GdbServer::firstThread): New method.
+	(GdbServer::rspQuery): Use firstThread().  Use the current
+	thread's process instead of referring to the removed
+	mCurrentProcess.
+	(GdbServer::rspMakeTransferThreadsReply): Iterate over all
+	attached processes.
+	(GdbServer::rspIsThreadAlive): Use findAttachedProcess() to check
+	whether the thread's process is being debugged.
+	(GdbServer::rspVpkt) <vAttach>: Defer to rspAttach.
+	Handle 'vKill'.
+	(GdbServer::rspVCont, GdbServer::waitAllThreads)
+	(GdbServer::markPendingStops): Iterate over all attached
+	processes.
+	(GdbServer::markAllStopped): Delete.
+	(GdbServer::rspRemoveMatchpoint, GdbServer::rspInsertMatchpoint)
+	(GdbServer::unhideBreakpoints): Use the current thread's process
+	instead of the global current process.
+	(GdbServer::findAttachedProcess): New method.
+	(GdbServer::haltProcessThreads): New method, factored out from ...
+	(GdbServer::haltAllThreads): ... this.
+	(GdbServer::resumeAllProcessThreads): New method, factored out
+	from ...
+	(GdbServer::resumeAllThreads): ... this.
+	(GdbServer::resumeAllThreads): New method.
+	* src/GdbServer.h (GdbServer) <mExtendedMode>: New field.
+	<PidProcessInfoMap>: New typedef.
+	<mProcesses>: Use it.
+	<mAttachedProcesses>: New field.
+	<TidThreadMap>: New typedef.
+	<mThreads>: Use it.
+	<haltAndActivateAllThreads>: New method.
+	<rspAttach, rspDetach>: Remove 'pid' parameter.
+	<detachProcess, detachAllProcesses>: New methods.
+	<markAllStopped>: Delete method.
+	<setLastActionAllThreads, findAttachedProcess, firstThread,
+	haltProcessThreads, resumeAllProcessThreads>: New methods.
+	* src/ProcessInfo.cpp: Include "GdbServer.h" and "Thread.h".
+	(ProcessInfo::addThread): Set the thread's process.
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Initialize
+	multiProcessFlag.
+	(ServerInfo::multiProcess): New methods.
+	* src/ServerInfo.h (ServerInfo) <multiProcess>: New methods.
+	<multiProcessFlag>: New field.
+	* src/Thread.cpp (Thread::Thread): Initialize mProcess.
+	* src/Thread.h (class TargetControl, class ServerInfo): Forward
+	declare.
+	(Thread) <process, setProcess>: New methods.
+	<mProcess>: New field.
+	* src/main.cpp (usage_full): Mention --multiprocess.
+	(main): Handle --multiprocess.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* Makemodule.am (e_server_e_server_SOURCES): Add
 	e-server/src/GdbTid.cpp, e-server/src/GdbTid.h and
 	e-server/src/IosUtils.h.

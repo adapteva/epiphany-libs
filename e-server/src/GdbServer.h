@@ -203,8 +203,17 @@ private:
     ALL_STOP
   } mDebugMode;
 
+  //! Whether GDB is connected in extended-remote mode.
+  bool mExtendedMode;
+
   //! Map of process ID to process info
-  map <int, ProcessInfo *> mProcesses;
+  typedef map <int, ProcessInfo *> PidProcessInfoMap;
+
+  // All processes in the system.
+  PidProcessInfoMap mProcesses;
+
+  // All processes we're attached to.
+  PidProcessInfoMap mAttachedProcesses;
 
   //! The idle process
   ProcessInfo * mIdleProcess;
@@ -216,7 +225,8 @@ private:
   ProcessInfo* mCurrentProcess;
 
   //! Map of thread ID to thread
-  map <int, Thread *> mThreads;
+  typedef map <int, Thread *> TidThreadMap;
+  TidThreadMap mThreads;
 
   //! Map from core ID to thread ID
   map <CoreId, int> mCore2Tid;
@@ -263,11 +273,15 @@ private:
   // Helper functions for setting up a connection
   void initProcesses ();
   bool haltAndActivateProcess (ProcessInfo *process);
-  void rspAttach (int  pid);
-  void rspDetach (int pid);
+  void haltAndActivateAllThreads ();
+  void rspAttach ();
+  void rspDetach ();
 
   // Main RSP request handler
   void rspClientRequest ();
+
+  void detachProcess (ProcessInfo* process);
+  void detachAllProcesses ();
 
   // Handle the various RSP requests
   void rspStatus ();
@@ -308,7 +322,7 @@ private:
   void waitAllThreads ();
   bool pendingStop (int  tid);
   void markPendingStops (Thread *reporting_thread);
-  void markAllStopped ();
+  void setLastActionAllThreads (vContAction action);
   void continueThread (Thread* thread);
   void doContinue (Thread* thread);
   Thread* findStoppedThread ();
@@ -332,11 +346,15 @@ private:
   void targetHWReset ();
 
   // Accessors for processes and threads
+  ProcessInfo* findAttachedProcess (int pid);
   ProcessInfo * getProcess (int  pid);
   Thread* getThread (int tid);
+  Thread* firstThread ();
 
   //! Thread control
+  bool haltProcessThreads (ProcessInfo* process);
   bool haltAllThreads ();
+  bool resumeAllProcessThreads (ProcessInfo* process);
   bool resumeAllThreads ();
 
   void redirectStdioOnTrap (Thread*  thread,

@@ -1,8 +1,10 @@
 // Process Info class: Declaration.
 
 // Copyright (C) 2014, 2016 Embecosm Limited
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -34,7 +36,8 @@
 #include <iostream>
 
 #include "ProcessInfo.h"
-
+#include "GdbServer.h"
+#include "Thread.h"
 
 using std::cerr;
 using std::endl;
@@ -110,6 +113,7 @@ ProcessInfo::threadEnd () const
 bool
 ProcessInfo::addThread (Thread* thread)
 {
+  thread->setProcess (this);
   return  mThreads.insert (thread).second;
 
 }	// addThread ()
