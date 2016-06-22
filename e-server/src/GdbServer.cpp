@@ -42,6 +42,7 @@
 #include "GdbServer.h"
 #include "Thread.h"
 #include "Utils.h"
+#include "GdbTid.h"
 
 using std::cerr;
 using std::cout;
@@ -540,7 +541,7 @@ GdbServer::rspPrepareStopReply (Thread *thread, TargetSignal sig)
   ostringstream oss;
 
   oss << "T" << Utils::intStr (sig, 16, 2)
-      << "thread:" << hex << thread->tid () << ";";
+      << "thread:" << GdbTid (mCurrentProcess, thread) << ";";
 
   if (sig == TARGET_SIGNAL_TRAP)
     oss << "swbreak:;";
@@ -608,6 +609,8 @@ GdbServer::rspReportException (Thread *thread, TargetSignal sig)
 
 }	// rspReportException()
 
+//-----------------------------------------------------------------------------
+//! Find any/all stopped threads in a process.
 
 //-----------------------------------------------------------------------------
 //! Find the first thread that the client had set to continue that is
@@ -1171,7 +1174,6 @@ void
 GdbServer::rspSetThread ()
 {
   char  c;
-  int  tid;
   Thread* thread;
 
   if (pkt->data[0] != 'H' || pkt->data[1] != 'g')
@@ -1180,19 +1182,11 @@ GdbServer::rspSetThread ()
       return;
     }
 
-  if (1 != sscanf (pkt->data, "Hg%x:", &tid))
-    {
-      cerr << "Warning: Failed to recognize RSP set thread command: "
-	   << pkt->data << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
-
-  if (tid == 0)
+  GdbTid tid = GdbTid::fromString (&pkt->data[2]);
+  if (tid.tid () ==  0)
     thread = *(mCurrentProcess->threadBegin ());
   else
-    thread = getThread (tid);
+    thread = getThread (tid.tid ());
 
   mCurrentThread = thread;
 
@@ -1396,11 +1390,12 @@ GdbServer::rspQuery ()
 
   if (0 == strcmp ("qC", pkt->data))
     {
-      // Return the current thread ID (unsigned hex).
+      // Return the current thread ID.
 
       if (mCurrentThread == NULL)
 	mCurrentThread = *mCurrentProcess->threadBegin ();
-      sprintf (pkt->data, "QC%x", mCurrentThread->tid ());
+      sprintf (pkt->data, "QCp%x.%x",
+	       mCurrentProcess->pid (), mCurrentThread->tid ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
@@ -1426,7 +1421,8 @@ GdbServer::rspQuery ()
 	       "qXfer:osdata:read+;"
 	       "qXfer:threads:read+;"
 	       "swbreak+;"
-	       "QNonStop+",
+	       "QNonStop+;"
+	       "multiprocess+",
 	       pkt->getBufSize ());
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
@@ -1797,7 +1793,7 @@ GdbServer::rspMakeTransferThreadsReply ()
       Thread* thread = *thr_it;
 
       os << "<thread";
-      os << " id=\"" << hex << thread->tid () << "\"";
+      os << " id=\"" << GdbTid (mCurrentProcess, thread) << "\"";
       os << " core=\"" << hex << thread->coreId () << "\"";
       os << ">";
       os << rspThreadExtraInfo (thread);
@@ -2270,12 +2266,11 @@ GdbServer::rspRestart ()
 void
 GdbServer::rspIsThreadAlive ()
 {
-  int tid;
+  GdbTid tid = GdbTid::fromString (&pkt->data[1]);
 
-  if (1 != sscanf (pkt->data, "T%x", &tid))
+  if (tid.tid () <= 0)
     {
-      cerr << "Warning: Failed to recognize RSP 'T' command : "
-	   << pkt->data << endl;
+      cerr << "Warning: Can't request status for thread ID <= 0" << endl;
       pkt->packStr ("E02");
       rsp->putPkt (pkt);
       return;
@@ -2283,7 +2278,7 @@ GdbServer::rspIsThreadAlive ()
 
   // This will not find thread IDs 0 (any) or -1 (all), which seems to be what
   // we want.
-  if (mCurrentProcess->hasThread (mThreads[tid]))
+  if (mCurrentProcess->hasThread (mThreads[tid.tid ()]))
     pkt->packStr ("OK");
   else
     pkt->packStr ("E01");
@@ -2422,7 +2417,7 @@ GdbServer::rspVCont ()
 	  // No thread ID, apply to all threads.
 	  vContTidAction tid_action;
 
-	  tid_action.tid = -1;
+	  tid_action.tid = GdbTid::ALL_THREADS;
 	  tid_action.kind = extractVContAction (tokens[0]);
 	  threadActions.push_back (tid_action);
 	}
@@ -2430,7 +2425,7 @@ GdbServer::rspVCont ()
 	{
 	  vContTidAction tid_action;
 
-	  tid_action.tid = strtol (tokens[1].c_str (), NULL, 16);
+	  tid_action.tid = GdbTid::fromString (tokens[1].c_str ());
 	  tid_action.kind = extractVContAction (tokens[0]);
 	  threadActions.push_back (tid_action);
 	}
@@ -2460,7 +2455,7 @@ GdbServer::rspVCont ()
 	{
 	  const vContTidAction &action = *act_it;
 
-	  if (action.matches (thread->tid ()))
+	  if (action.matches (process->pid (), thread->tid ()))
 	    {
 	      if (action.kind == ACTION_CONTINUE
 		  && thread->lastAction () == ACTION_STOP)

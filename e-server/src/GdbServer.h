@@ -56,6 +56,7 @@
 #include "RspPacket.h"
 #include "ServerInfo.h"
 #include "TargetControl.h"
+#include "GdbTid.h"
 
 
 using std::string;
@@ -165,15 +166,25 @@ private:
   struct vContTidAction
   {
     // The thread the action applies to.
-    int tid;
+    GdbTid tid;
 
     // The action.
     vContAction kind;
 
     // True if this action applies to thread TID.
-    bool matches (int tid) const
+    bool matches (int pid, int tid) const
     {
-      return (this->tid == -1 || this->tid == tid);
+      if (this->tid.pid () == -1)
+	return 1;
+      else if (pid == this->tid.pid ())
+	{
+	  if (this->tid.tid () == -1)
+	    return 1;
+	  else if (tid == this->tid.tid ())
+	    return 1;
+	}
+      else
+	return 0;
     }
   };
 

@@ -1,5 +1,25 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* Makemodule.am (e_server_e_server_SOURCES): Add
+	e-server/src/GdbTid.cpp, e-server/src/GdbTid.h and
+	e-server/src/IosUtils.h.
+	* src/GdbServer.cpp: Include "GdbTid.h".
+	(GdbServer::rspPrepareStopReply): Use GdbTid.
+	(GdbServer::rspSetThread): Use GdbTid::from_string.
+	(GdbServer::rspQuery) <'qC'>: Reply thread ids of pPID.TID form.
+	Report support for multiprocess+.
+	(GdbServer::rspMakeTransferThreadsReply): Use GdbTid.
+	(GdbServer::rspIsThreadAlive): Use GdbTid.
+	(GdbServer::rspVCont): Use GdbTid.
+	* src/GdbServer.h: Include "GdbTid.h".
+	(GdbServer::vContTidAction) <tid>: Change type to GdbTid.
+	<matches>: Add 'pid' parameter, and use it.
+	* src/GdbTid.cpp: New file.
+	* src/GdbTid.h: New file.
+	* src/IosUtils.h: New file.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspQuery): Remove handling of
 	qfThreadInfo, qsThreadInfo and qThreadExtraInfo.
 	(GdbServer::rspQThreadInfo, GdbServer::rspQThreadExtraInfo):
