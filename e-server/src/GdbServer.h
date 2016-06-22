@@ -278,6 +278,7 @@ private:
   void rspVpkt ();
   void rspVCont ();
   vContAction extractVContAction (const string &action);
+  void waitAllThreads ();
   bool pendingStop (int  tid);
   void markPendingStops (Thread *reporting_thread);
   void markAllStopped ();

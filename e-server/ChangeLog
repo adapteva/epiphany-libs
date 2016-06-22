@@ -1,5 +1,13 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspClientRequest) <'F' packet>:
+	Wait for stops.
+	(GdbServer::waitAllThreads): New, factored out from ...
+	(GdbServer::rspVCont): ... this.
+	* src/GdbServer.h (GdbServer) <waitAllThreads>: Declare.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/RspConnection.cpp (RspConnection): Initialize mPendingBreak.
 	(RspConnection::getPkt): Set mPendingBreak if a 0x03 is seen.
 	(RspConnection::getBreakCommand): Return true if we have a pending

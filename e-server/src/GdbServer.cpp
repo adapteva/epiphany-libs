@@ -373,6 +373,8 @@ GdbServer::rspClientRequest ()
       // For all-stop mode we assume all threads need restarting.
       resumeAllThreads ();
 
+      // Go back to waiting.
+      waitAllThreads ();
       break;
 
     case 'g':
@@ -2482,6 +2484,20 @@ GdbServer::rspVCont ()
 	}
     }
 
+  // Wait and report stop statuses.
+  waitAllThreads ();
+}	// rspVCont ()
+
+
+//-----------------------------------------------------------------------------
+//! Wait for a thread to stop, and handle it.
+//-----------------------------------------------------------------------------
+
+void
+GdbServer::waitAllThreads ()
+{
+  ProcessInfo *process = mCurrentProcess;
+
   // Deal with any pending stops before looking for new ones.
   for (set <Thread*>::iterator it = process->threadBegin ();
        it != process->threadEnd ();
@@ -2532,7 +2548,7 @@ GdbServer::rspVCont ()
 
       Utils::microSleep (100000);	// Every 100ms
     }
-}	// rspVCont ()
+}	// waitAllThreads ()
 
 
 //-----------------------------------------------------------------------------
