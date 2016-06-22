@@ -1,5 +1,15 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspQuery): Report support for
+	qXfer:threads:read.
+	(GdbServer::rspThreadExtraInfo): New method.
+	(GdbServer::rspMakeTransferThreadsReply): New method.
+	(GdbServer::rspTransfer): Handle "threads" objects.
+	* src/GdbServer.h (GdbServer) <qXferThreadsReply>: New field.
+	<rspThreadExtraInfo>: Declare.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspTransferObject): New method.
 	(GdbServer::rspTransfer): Use rspTransferObject.
 	(GdbServer::rspOsData): Delete.  Factor out the part that actualy

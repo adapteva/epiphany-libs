@@ -1434,6 +1434,7 @@ GdbServer::rspQuery ()
       sprintf (pkt->data,
 	       "PacketSize=%x;"
 	       "qXfer:osdata:read+;"
+	       "qXfer:threads:read+;"
 	       "swbreak+;"
 	       "QNonStop+",
 	       pkt->getBufSize ());
@@ -1507,6 +1508,29 @@ GdbServer::rspQThreadInfo (bool isFirst)
 
 
 //-----------------------------------------------------------------------------
+//! Return extra info about a thread.
+//-----------------------------------------------------------------------------
+string
+GdbServer::rspThreadExtraInfo (Thread* thread)
+{
+  CoreId coreId = thread->coreId ();
+  bool isHalted = thread->isHalted ();
+  bool isIdle = thread->isIdle ();
+  bool isInterruptible = thread->isInterruptible ();
+
+  string res = "Core: ";
+  res += coreId;
+  if (isIdle)
+    res += isHalted ? ": idle, halted" : ": idle";
+  else
+    res += isHalted ? ": halted" : ": running";
+
+  res += isInterruptible ? ", interruptible" : ", not interruptible";
+  return res;
+}	// rspThreadExtraInfo ()
+
+
+//-----------------------------------------------------------------------------
 //! Handle a RSP qThreadExtraInfo request
 
 //! Reuse the incoming packet. For now we just ignore -1 and 0 as threads.
@@ -1528,19 +1552,7 @@ GdbServer::rspQThreadExtraInfo ()
     {
       // Data about thread
       Thread* thread = getThread (tid);
-      CoreId coreId = thread->coreId ();
-      bool isHalted = thread->isHalted ();
-      bool isIdle = thread->isIdle ();
-      bool isInterruptible = thread->isInterruptible ();
-
-      string res = "Core: ";
-      res += coreId;
-      if (isIdle)
-	res += isHalted ? ": idle, halted" : ": idle";
-      else
-	res += isHalted ? ": halted" : ": running";
-
-      res += isInterruptible ? ", interruptible" : ", not interruptible";
+      string res = rspThreadExtraInfo (thread);
 
       // Convert each byte to ASCII
       Utils::ascii2Hex (&(pkt->data[0]), res.c_str ());
@@ -1860,6 +1872,38 @@ GdbServer::rspCmdProcess (char* cmd)
 }	// rspCmdProcess ()
 
 //-----------------------------------------------------------------------------
+//! Build the whole qXfer:threads:read reply string.
+//-----------------------------------------------------------------------------
+
+string
+GdbServer::rspMakeTransferThreadsReply ()
+{
+  ostringstream  os;
+
+  os << "<threads>\n";
+
+  // Go through all threads in the current process.  Then for each
+  // thread, build a <thread> element.
+  for (set <Thread*>::iterator thr_it = mCurrentProcess->threadBegin ();
+       thr_it != mCurrentProcess->threadEnd ();
+       ++thr_it)
+    {
+      Thread* thread = *thr_it;
+
+      os << "<thread";
+      os << " id=\"" << hex << thread->tid () << "\"";
+      os << " core=\"" << hex << thread->coreId () << "\"";
+      os << ">";
+      os << rspThreadExtraInfo (thread);
+      os << "</thread>\n";
+    }
+
+  os << "</threads>";
+
+  return os.str ();
+}
+
+//-----------------------------------------------------------------------------
 //! Handle an qXfer:$object:read request
 
 //! @param[in] object  The object requested.
@@ -2003,6 +2047,11 @@ GdbServer::rspTransfer ()
 	  else if (0 == string ("traffic").find (annex))
 	    rspTransferObject ("osdata:traffic", &osTrafficReply,
 			       &GdbServer::rspMakeOsDataTrafficReply, offset, length);
+	}
+      else if (0 == object.compare ("threads"))
+	{
+	  rspTransferObject ("threads", &qXferThreadsReply,
+			     &GdbServer::rspMakeTransferThreadsReply, offset, length);
 	}
     }
   else if ((6 == tokens.size ())
