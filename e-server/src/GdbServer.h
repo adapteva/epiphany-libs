@@ -251,8 +251,7 @@ private:
   void rspClientRequest ();
 
   // Handle the various RSP requests
-  void rspReportException (int          tid,
-			   TargetSignal sig);
+  void rspReportException (Thread* thread, TargetSignal sig);
   void rspReadAllRegs ();
   void rspWriteAllRegs ();
   void rspUnknownPacket ();
@@ -294,7 +293,7 @@ private:
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
   void rspFileIOreply ();
-  void rspSuspend ();
+  void rspSuspend (const vContTidActionVector &threadActions);
 
   // Convenience functions to control and report on the CPU
   void targetSwReset ();

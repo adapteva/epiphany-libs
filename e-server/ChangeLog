@@ -1,4 +1,21 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspAttach)
+	(GdbServer::rspClientRequest): Pass a thread pointer to
+	rspReportException.
+	(GdbServer::rspReportException): Take a thread pointer as
+	parameter instead of a tid.  Always report the thread stop with a
+	T stop reply.
+	(GdbServer::rspSuspend): Take a vContTidActionVector vector as
+	parameter and pick a resumed thread to use to report the Ctrl-C
+	request.
+	(GdbServer::redirectStdioOnTrap, GdbServer::doContinue): Pass a
+	thread pointer to rspReportException.
+	* src/GdbServer.h (GdbServer) <rspReportException>: Take a thread
+	pointer as parameter instead of a tid..
+	<rspSuspend>: Adjust prototype.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
 	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::GdbServer): Adjust to refer to

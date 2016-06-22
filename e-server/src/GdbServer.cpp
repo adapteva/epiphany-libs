@@ -263,9 +263,11 @@ GdbServer::rspAttach (int  pid)
 	}
     }
 
+  Thread *thread = *process->threadBegin ();
+
   // @todo Does this belong here. Is TARGET_SIGNAL_HUP correct?
   if (!isHalted)
-    rspReportException (-1 /*all threads */ , TARGET_SIGNAL_HUP);
+    rspReportException (thread, TARGET_SIGNAL_HUP);
 
 }	// rspAttach ()
 
@@ -346,7 +348,8 @@ GdbServer::rspClientRequest ()
 
     case '?':
       // Return last signal ID
-      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_TRAP);
+      rspReportException (*mCurrentProcess->threadBegin (),
+			  TARGET_SIGNAL_TRAP);
       break;
 
     case 'D':
@@ -457,40 +460,21 @@ GdbServer::rspClientRequest ()
 //-----------------------------------------------------------------------------
 //! Send a packet acknowledging an exception has occurred
 
-//! @param[in] tid  The thread ID we are acknowledging.
-//! @param[in] sig  The signal to report back.
+//! @param[in] thread  The thread we are acknowledging.
+//! @param[in] sig     The signal to report back.
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspReportException (int          tid,
-			       TargetSignal sig)
+GdbServer::rspReportException (Thread *thread, TargetSignal sig)
 {
   if (si->debugStopResume ())
-    cerr << "DebugStopResume: Report exception  for thread " << tid
+    cerr << "DebugStopResume: Report exception  for thread " << thread->tid ()
 	 << " with GDB signal " << sig << endl;
 
   ostringstream oss;
 
-  // Construct a signal received packet. Use S for all threads, T otherwise.
-  switch (tid)
-    {
-    case -1:
-      // All threads have stopped
-      oss << "S" << Utils::intStr (sig, 16, 2);
-      break;
-
-    case 0:
-      // Weird. This isn't a sensible thread to return
-      cerr << "Warning: Attempt to report thread 0 stopped: Using -1 instead."
-	   << endl;
-      oss << "S" << Utils::intStr (sig, 16, 2);
-      break;
-
-    default:
-      // A specific thread has stopped
-      oss << "T" << Utils::intStr (sig, 16, 2) << "thread:" << hex << tid
-	  << ";";
-      break;
-    }
+  oss << "T" << Utils::intStr (sig, 16, 2)
+      << "thread:" << hex << thread->tid ()
+      << ";";
 
   // In all-stop mode, ensure all threads are halted.
   haltAllThreads ();
@@ -505,18 +489,48 @@ GdbServer::rspReportException (int          tid,
 //! Stop in response to a ctrl-C
 
 //! We just halt everything. Let GDB worry about it later.
-
-//! @todo Should we see if we have an actual interrupt?
 //-----------------------------------------------------------------------------
 void
-GdbServer::rspSuspend ()
+GdbServer::rspSuspend (const vContTidActionVector &threadActions)
 {
   // Halt all threads.
   if (!haltAllThreads ())
     cerr << "Warning: suspend failed to halt all threads." << endl;
 
   // Report to gdb the target has been stopped
-  rspReportException (-1 /*all threads */ , TARGET_SIGNAL_HUP);
+
+  // Pick the first thread that is supposed to be continued.
+  Thread *signal_thread = NULL;
+  for (set <Thread*>::iterator it = mCurrentProcess->threadBegin ();
+       it != mCurrentProcess->threadEnd ();
+       ++it)
+    {
+      Thread* thread = *it;
+
+      for (vContTidActionVector::const_iterator act_it = threadActions.begin ();
+	   act_it != threadActions.end ();
+	   ++act_it)
+	{
+	  struct vContTidAction action = *act_it;
+
+	  if (action.matches (thread->tid ())
+	      && action.kind == ACTION_CONTINUE)
+	    {
+	      signal_thread = thread;
+	      break;
+	    }
+	  if (signal_thread != NULL)
+	    break;
+	}
+    }
+
+  if (signal_thread == NULL)
+    {
+      cerr << "Warning: suspend failed to find continued thread." << endl;
+      return;
+    }
+
+  rspReportException (signal_thread, TARGET_SIGNAL_HUP);
 
 }	// rspSuspend ()
 
@@ -682,15 +696,15 @@ GdbServer::redirectStdioOnTrap (Thread *thread,
       r0 = thread->readReg (R0_REGNUM + 0);		//status
       //cerr << " The remote target got exit() call ... no OS -- ignored" << endl;
       //exit(4);
-      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (thread, TARGET_SIGNAL_QUIT);
       break;
     case TRAP_PASS:
       cerr << " Trap 4 PASS " << endl;
-      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_TRAP);
+      rspReportException (thread, TARGET_SIGNAL_TRAP);
       break;
     case TRAP_FAIL:
       cerr << " Trap 5 FAIL " << endl;
-      rspReportException (-1 /*all threads */ , TARGET_SIGNAL_QUIT);
+      rspReportException (thread, TARGET_SIGNAL_QUIT);
       break;
     case TRAP_CLOSE:
       r0 = thread->readReg (R0_REGNUM + 0);		//chan
@@ -2527,7 +2541,7 @@ GdbServer::rspVCont ()
       if (rsp->getBreakCommand ())
 	{
 	  cerr << "INFO: Cntrl-C request from GDB client." << endl;
-	  rspSuspend ();
+	  rspSuspend (threadActions);
 	  return;
 	}
 
@@ -2675,7 +2689,7 @@ GdbServer::doContinue (Thread* thread)
       // If no signal flags are set, this must be a breakpoint.
       if (TARGET_SIGNAL_NONE == sig)
 	sig = TARGET_SIGNAL_TRAP;
-      rspReportException (thread->tid (), sig);
+      rspReportException (thread, sig);
     }
 }	// doContinue ()
 
