@@ -1,5 +1,10 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspSuspend): Report
+	TARGET_SIGNAL_INT instead of TARGET_SIGNAL_HUP.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspReportException): Set the
 	current thread to the thread whose stop is being reported.
 

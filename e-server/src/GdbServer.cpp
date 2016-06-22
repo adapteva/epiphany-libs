@@ -527,7 +527,7 @@ GdbServer::rspSuspend ()
       return;
     }
 
-  rspReportException (signal_thread, TARGET_SIGNAL_HUP);
+  rspReportException (signal_thread, TARGET_SIGNAL_INT);
 
   // At this point, no thread should be resumed until the client
   // tells us to.
