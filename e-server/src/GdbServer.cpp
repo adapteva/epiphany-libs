@@ -2500,20 +2500,10 @@ GdbServer::rspVCont ()
   // We must wait until a thread halts.
   while (true)
     {
-      for (set <Thread*>::iterator it = process->threadBegin ();
-	   it != process->threadEnd ();
-	   it++)
-	{
-	  Thread* thread = *it;
-
-	  if (thread->lastAction () == ACTION_CONTINUE && thread->isHalted ())
-	    {
-	      doContinue (thread);
-	      return;
-	    }
-	}
-
-      // Check for Ctrl-C
+      // Check for Ctrl-C.  Prioritize it over thread stops,
+      // otherwise, e.g., "next" over a loop never manages to react to
+      // the Ctrl-C, because a thread always manages to finish a
+      // single-step before we look for the Ctrl-C request.
       if (si->debugCtrlCWait())
 	cerr << "DebugCtrlCWait: Check for Ctrl-C" << endl;
 
@@ -2526,6 +2516,19 @@ GdbServer::rspVCont ()
 
       if (si->debugCtrlCWait())
 	cerr << "DebugCtrlCWait: check for CTLR-C done" << endl;
+
+      for (set <Thread*>::iterator it = process->threadBegin ();
+	   it != process->threadEnd ();
+	   it++)
+	{
+	  Thread* thread = *it;
+
+	  if (thread->lastAction () == ACTION_CONTINUE && thread->isHalted ())
+	    {
+	      doContinue (thread);
+	      return;
+	    }
+	}
 
       Utils::microSleep (100000);	// Every 100ms
     }

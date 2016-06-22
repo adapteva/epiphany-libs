@@ -1,5 +1,10 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspVCont): Check for Ctrl-C
+	requests before handling thread stops.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/RspConnection.cpp (RspConnection::inputReady): New method.
 	(RspConnection::getBreakCommand): Use it instead of setting the
 	sock non-blocking temporarily.
