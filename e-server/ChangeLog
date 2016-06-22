@@ -1,5 +1,33 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspAttach): Call markAllStopped.
+	(GdbServer::rspReportException): Call markPendingStops.
+	(GdbServer::rspSuspend): Remove parameter.  Instead fetch the
+	thread's last action from the thread object directly.
+	(GdbServer::rspSuspend): Call markAllStopped.
+	(GdbServer::rspVCont): Get a thread's last action and pending
+	status from the thread object directly.
+	(GdbServer::pendingStop): Delete.
+	(GdbServer::markPendingStops): Remove ProcessInfo pointer
+	parameter.  Always work with the current process.  Get/set a
+	thread's last action and pending status from/in the thread object
+	directly.
+	(GdbServer::removePendingStop): Delete.
+	(GdbServer::markAllStopped): New method.
+	(GdbServer::doContinue): Mark all threads stopped.
+	(GdbServer::resumeAllThreads): Skip continued threads with a
+	pending status.
+	* src/GdbServer.h (GdbServer) <mPendingStops>: Remove field.
+	<markPendingStops, rspSuspend>: Change prototype.
+	<removePendingStop>: Remove.
+	<markAllStopped>: New.
+	* src/Thread.cpp (Thread::Thread): Initialize mPending.
+	* src/Thread.h (Thread) <isPending, setPending, clearPending,
+	setLastAction, lastAction>: New methods.
+	<mLastAction, mPending>: New fields.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspAttach)
 	(GdbServer::rspClientRequest): Pass a thread pointer to
 	rspReportException.

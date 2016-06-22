@@ -1,8 +1,10 @@
 // Thread class: Declaration.
 
 // Copyright (C) 2014, 2016 Embecosm Limited
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -57,7 +59,8 @@ Thread::Thread (CoreId         coreId,
   mSi (si),
   mTid (tid),
   mDebugState (DEBUG_RUNNING),
-  mRunState (RUN_UNKNOWN)
+  mRunState (RUN_UNKNOWN),
+  mPending (false)
 {
   // Some sanity checking that numbering has not got misaligned! This is a
   // consequence of our desire to have properly typed constants.
