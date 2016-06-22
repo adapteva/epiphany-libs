@@ -1,5 +1,12 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/RspConnection.cpp (RspConnection::inputReady): New method.
+	(RspConnection::getBreakCommand): Use it instead of setting the
+	sock non-blocking temporarily.
+	* src/RspConnection.h (RspConnection) <inputReady>: New method.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspSuspend): Report
 	TARGET_SIGNAL_INT instead of TARGET_SIGNAL_HUP.
 

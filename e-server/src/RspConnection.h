@@ -2,10 +2,12 @@
 
 // Copyright (C) 2008, 2009, 2014 Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -92,6 +94,7 @@ public:
   bool isConnected ();
 
   // Public interface: get packets from the stream and put them out
+  bool inputReady ();
   bool getPkt (RspPacket * pkt);
   bool putPkt (RspPacket * pkt);
 
