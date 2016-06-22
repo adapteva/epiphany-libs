@@ -1,5 +1,14 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::rspQuery): Remove handling of
+	qfThreadInfo, qsThreadInfo and qThreadExtraInfo.
+	(GdbServer::rspQThreadInfo, GdbServer::rspQThreadExtraInfo):
+	Delete.
+	* src/GdbServer.h (GdbServer) <rspQThreadInfo,
+	rspQThreadExtraInfo>: Remove methods.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspQuery): Report support for
 	qXfer:threads:read.
 	(GdbServer::rspThreadExtraInfo): New method.

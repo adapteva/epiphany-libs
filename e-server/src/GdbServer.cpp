@@ -1404,16 +1404,6 @@ GdbServer::rspQuery ()
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
-  else if (0 == strcmp ("qfThreadInfo", pkt->data))
-    {
-      // Return initial info about active threads.
-      rspQThreadInfo (true);
-    }
-  else if (0 == strcmp ("qsThreadInfo", pkt->data))
-    {
-      // Return more info about active threads.
-      rspQThreadInfo (false);
-    }
   else if (0 == strncmp ("qRcmd,", pkt->data, strlen ("qRcmd,")))
     {
       // This is used to interface to commands to do "stuff"
@@ -1441,11 +1431,6 @@ GdbServer::rspQuery ()
       pkt->setLen (strlen (pkt->data));
       rsp->putPkt (pkt);
     }
-  else if (0 == strncmp ("qThreadExtraInfo,", pkt->data,
-			 strlen ("qThreadExtraInfo,")))
-    {
-      rspQThreadExtraInfo();
-    }
   else if (0 == strncmp ("qXfer:", pkt->data, strlen ("qXfer:")))
     {
       rspTransfer ();
@@ -1469,45 +1454,6 @@ GdbServer::rspQuery ()
 
 
 //-----------------------------------------------------------------------------
-//! Handle a RSP qfThreadInfo/qsThreadInfo request
-
-//! Reuse the incoming packet. We only return thread info for the current
-//! process.
-
-//! @todo We assume we can do everything in the first packet.
-
-//! @param[in] isFirst  TRUE if we were a qfThreadInfo packet.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspQThreadInfo (bool isFirst)
-{
-  if (isFirst)
-    {
-      ostringstream  os;
-
-      // Iterate all the threads in the core
-      for (set <Thread*>::iterator it = mCurrentProcess->threadBegin ();
-	   it != mCurrentProcess->threadEnd ();
-	   it++)
-	{
-	  if (it != mCurrentProcess->threadBegin ())
-	    os << ",";
-
-	  os << hex << (*it)->tid ();
-	}
-
-      string reply = os.str ();
-      pkt->packNStr (reply.c_str (), reply.size (), 'm');
-    }
-  else
-    pkt->packStr ("l");
-
-  rsp->putPkt (pkt);
-
-}	// rspQThreadInfo ()
-
-
-//-----------------------------------------------------------------------------
 //! Return extra info about a thread.
 //-----------------------------------------------------------------------------
 string
@@ -1528,46 +1474,6 @@ GdbServer::rspThreadExtraInfo (Thread* thread)
   res += isInterruptible ? ", interruptible" : ", not interruptible";
   return res;
 }	// rspThreadExtraInfo ()
-
-
-//-----------------------------------------------------------------------------
-//! Handle a RSP qThreadExtraInfo request
-
-//! Reuse the incoming packet. For now we just ignore -1 and 0 as threads.
-//-----------------------------------------------------------------------------
-void
-GdbServer::rspQThreadExtraInfo ()
-{
-  int tid;
-
-  if (1 != sscanf (pkt->data, "qThreadExtraInfo,%x", &tid))
-    {
-      cerr << "Warning: Failed to recognize RSP qThreadExtraInfo command : "
-	<< pkt->data << endl;
-      pkt->packStr ("E01");
-      return;
-    }
-
-  if (tid > 0)
-    {
-      // Data about thread
-      Thread* thread = getThread (tid);
-      string res = rspThreadExtraInfo (thread);
-
-      // Convert each byte to ASCII
-      Utils::ascii2Hex (&(pkt->data[0]), res.c_str ());
-      pkt->setLen (strlen (pkt->data));
-    }
-  else
-    {
-      cerr << "Warning: Cannot supply info for thread -1." << endl;
-      pkt->packStr ("");
-    }
-
-  rsp->putPkt (pkt);
-
-}	// rspQThreadExtraInfo ()
-
 
 //-----------------------------------------------------------------------------
 //! Handle a RSP qRcmd request
