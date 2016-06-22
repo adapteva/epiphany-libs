@@ -87,6 +87,8 @@ public:
     TARGET_SIGNAL_INT = 2,
     TARGET_SIGNAL_QUIT = 3,
     TARGET_SIGNAL_ILL = 4,
+    // Note: is it currently assumed that this maps to BKPT /
+    // breakpoint, and nothing else.
     TARGET_SIGNAL_TRAP = 5,
     TARGET_SIGNAL_ABRT = 6,
     TARGET_SIGNAL_EMT = 7,

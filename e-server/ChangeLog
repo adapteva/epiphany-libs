@@ -1,4 +1,27 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest) <'?'>: Report
+	TARGET_SIGNAL_NONE.
+	(GdbServer::rspReportException): Report "swbreak" along with
+	TARGET_SIGNAL_TRAP.
+	(GdbServer::rspQuery): Report support for swbreak.
+	(GdbServer::rspVCont, GdbServer::waitAllThreads)
+	(GdbServer::markPendingStops, GdbServer::doContinue): Adjust to
+	pending signals interface change.
+	(GdbServer::findStopReason): Assert that the thread has no pending
+	signal recorded yet.  If stopped at a breakpoint instruction,
+	decrement the PC.
+	(GdbServer::resumeAllThreads): Adjust to pending signals interface
+	change.
+	* src/GdbServer.h (GdbServer) <TARGET_SIGNAL_TRAP>: Add comment.
+	* src/Thread.cpp (Thread::Thread): Initialize PendingSignal
+	instead of mPending.
+	* src/Thread.h (Thread) <isPending, setPending, clearPending>:
+	<pendingSignal, setPendingSignal>: New.
+	<mPending>: Delete.
+	<mPendingSignal>: New.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
 	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (TRAP_WRITE, TRAP_READ, TRAP_OPEN, TRAP_EXIT)

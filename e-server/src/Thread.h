@@ -70,9 +70,8 @@ public:
   bool  isIdle ();
   bool  isInterruptible () const;
 
-  bool  isPending () const { return mPending; }
-  void  setPending () { mPending = true; }
-  void  clearPending () { mPending = false; }
+  GdbServer::TargetSignal pendingSignal () const { return mPendingSignal; }
+  void setPendingSignal (GdbServer::TargetSignal sig) { mPendingSignal = sig; }
 
   void setLastAction (GdbServer::vContAction last) { mLastAction = last; }
   GdbServer::vContAction lastAction () const { return mLastAction; }
@@ -174,8 +173,9 @@ private:
       RUN_IDLE
     } mRunState;
 
-  //! Whether our stop state has been reported to the client.
-  bool mPending;
+  //! If not TARGET_SIGNAL_NONE, a signal that has not yet been
+  //! reported to the client.
+  GdbServer::TargetSignal mPendingSignal;
 
   // Helper routines for target access
   uint32_t regAddr (unsigned int  regnum) const;

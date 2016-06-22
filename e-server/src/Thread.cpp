@@ -60,7 +60,7 @@ Thread::Thread (CoreId         coreId,
   mTid (tid),
   mDebugState (DEBUG_RUNNING),
   mRunState (RUN_UNKNOWN),
-  mPending (false)
+  mPendingSignal (GdbServer::TARGET_SIGNAL_NONE)
 {
   // Some sanity checking that numbering has not got misaligned! This is a
   // consequence of our desire to have properly typed constants.
