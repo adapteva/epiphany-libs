@@ -1,5 +1,18 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (GdbServer::GdbServer): Remove reference to
+	currentCTid.
+	(GdbServer::rspFileIOreply): Use the general thread instead of the
+	continue thread.
+	(GdbServer::rspSetThread): Update intro comment.  Don't handle Hc.
+	(GdbServer::rspCommand): Remove references to currentCTid.
+	(GdbServer::rspRestart, GdbServer::rspRemoveMatchpoint)
+	(GdbServer::rspInsertMatchpoint, GdbServer::targetSwReset): Use
+	the general thread instead of the continue thread.
+	* src/GdbServer.h (GdbServer) <currentCTid>: Remove field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove handling
 	of 'c' and 'C' packets.
 	(GdbServer::rspContinue): Remove all overloads.

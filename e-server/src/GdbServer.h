@@ -179,9 +179,6 @@ private:
   //! Map from core to thread
   map <CoreId, int> mCore2Tid;
 
-  //! Current thread ID for continue/step
-  int  currentCTid;
-
   //! Current thread ID for general access
   int  currentGTid;
 

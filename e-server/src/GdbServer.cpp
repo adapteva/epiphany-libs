@@ -88,7 +88,6 @@ using std::vector;
 //! @param[in] _si   All the information about the server.
 GdbServer::GdbServer (ServerInfo* _si) :
   mDebugMode (ALL_STOP),
-  currentCTid (0),
   currentGTid (0),
   si (_si),
   fTargetControl (NULL),
@@ -544,7 +543,7 @@ GdbServer::rspSuspend ()
 void
 GdbServer::rspFileIOreply ()
 {
-  Thread* thread = getThread (currentCTid);
+  Thread* thread = getThread (currentGTid);
 
   long int result_io = -1;
   long int host_respond_error_code;
@@ -987,8 +986,8 @@ GdbServer::rspWriteAllRegs ()
 //-----------------------------------------------------------------------------
 //! Set the thread number of subsequent operations.
 
-//! A tid of -1 means "all threads", 0 means "any thread". 0 causes all sorts of
-//! problems later, so we replace it by the first thread in the current
+//! A tid of 0 means "any thread".  0 causes all sorts of problems
+//! later, so we replace it by the first thread in the current
 //! process.
 //-----------------------------------------------------------------------------
 void
@@ -997,7 +996,13 @@ GdbServer::rspSetThread ()
   char  c;
   int  tid;
 
-  if (2 != sscanf (pkt->data, "H%c%x:", &c, &tid))
+  if (pkt->data[0] != 'H' || pkt->data[1] != 'g')
+    {
+      rspUnknownPacket ();
+      return;
+    }
+
+  if (1 != sscanf (pkt->data, "Hg%x:", &tid))
     {
       cerr << "Warning: Failed to recognize RSP set thread command: "
 	   << pkt->data << endl;
@@ -1009,18 +1014,7 @@ GdbServer::rspSetThread ()
   if (0 == tid)
     tid = *(getProcess (currentPid)->threadBegin ());
 
-  switch (c)
-    {
-    case 'c': currentCTid = tid; break;
-    case 'g': currentGTid = tid; break;
-
-    default:
-      cerr << "Warning: Failed RSP set thread command: "
-	   << pkt->data << endl;
-      pkt->packStr ("E01");
-      rsp->putPkt (pkt);
-      return;
-    }
+  currentGTid = tid;
 
   pkt->packStr ("OK");
   rsp->putPkt (pkt);
@@ -1497,17 +1491,11 @@ GdbServer::rspCommand ()
   else if (strcmp ("coreid", cmd) == 0)
     {
       Thread* gThread = getThread (currentGTid);
-      Thread* cThread = getThread (currentCTid);
-      CoreId absCCoreId = cThread->readCoreId ();
       CoreId absGCoreId = gThread->readCoreId ();
-      CoreId relCCoreId = fTargetControl->abs2rel (absCCoreId);
       CoreId relGCoreId = fTargetControl->abs2rel (absGCoreId);
       ostringstream  oss;
 
-      oss << "Continue core ID: " << absCCoreId << " (absolute), "
-	  << relCCoreId << " (relative)" << endl;
-      pkt->packHexstr (oss.str ().c_str ());
-      oss << "General  core ID: " << absGCoreId << " (absolute), "
+      oss << "General core ID: " << absGCoreId << " (absolute), "
 	  << relGCoreId << " (relative)" << endl;
       pkt->packHexstr (oss.str ().c_str ());
 
@@ -1729,16 +1717,9 @@ GdbServer::rspCmdProcess (char* cmd)
       ostringstream oss;
       oss << "Process ID now " << pid << "." << endl;
 
-      // This may have invalidated the current threads. If so correct
-      // them. This is really a big dodgy - ultimately this needs proper
-      // process handling.
-      if ((-1 != currentCTid) && (! process->hasThread (currentCTid)))
-	{
-	  currentCTid = *(process->threadBegin ());
-	  oss << "- switching control thread to " << currentCTid << "." << endl;
-	  pkt->packHexstr (oss.str ().c_str ());
-	  rsp->putPkt (pkt);
-	}
+      // This may have invalidated the current thread. If so correct
+      // it.  This is really a big dodgy - ultimately this needs
+      // proper process handling.
 
       if ((-1 != currentGTid) && (! process->hasThread (currentGTid)))
 	{
@@ -2286,7 +2267,7 @@ GdbServer::rspSet ()
 void
 GdbServer::rspRestart ()
 {
-  Thread* thread = getThread (currentCTid);
+  Thread* thread = getThread (currentGTid);
   thread->writePc (0);
 
 }				// rspRestart()
@@ -2956,9 +2937,9 @@ GdbServer::rspRemoveMatchpoint ()
       else
 	{
 	  // Shared memory we only need to remove once.
-	  Thread* thread = getThread (currentCTid);
+	  Thread* thread = getThread (currentGTid);
 
-	  if (mpHash->remove (type, addr, currentCTid, &instr))
+	  if (mpHash->remove (type, addr, currentGTid, &instr))
 	    thread->writeMem16 (addr, instr);
 	}
 
@@ -3045,10 +3026,10 @@ GdbServer::rspInsertMatchpoint ()
       else
 	{
 	  // Shared memory we only need to insert once.
-	  Thread* thread = getThread (currentCTid);
+	  Thread* thread = getThread (currentGTid);
 
 	  thread->readMem16 (addr, bpMemVal);
-	  mpHash->add (type, addr, currentCTid, bpMemVal);
+	  mpHash->add (type, addr, currentGTid, bpMemVal);
 
 	  thread->insertBkptInstr (addr);
 	}
@@ -3077,7 +3058,7 @@ GdbServer::rspInsertMatchpoint ()
 void
 GdbServer::targetSwReset ()
 {
-  Thread* thread = getThread (currentCTid);
+  Thread* thread = getThread (currentGTid);
 
   for (unsigned ncyclesReset = 0; ncyclesReset < 12; ncyclesReset++)
     (void) thread->writeReg (RESETCORE_REGNUM, 1);
