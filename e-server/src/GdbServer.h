@@ -272,15 +272,19 @@ private:
   void rspCommand ();
   void rspCmdWorkgroup (char* cmd);
   void rspCmdProcess (char* cmd);
+
   void rspTransfer ();
-  void rspOsData (unsigned int offset,
-		  unsigned int length);
-  void rspOsDataProcesses (unsigned int offset,
-			   unsigned int length);
-  void rspOsDataLoad (unsigned int offset,
-		      unsigned int length);
-  void rspOsDataTraffic (unsigned int offset,
-			 unsigned int length);
+  typedef string (GdbServer::* makeTransferReplyFtype) (void);
+  void rspTransferObject (const char *object,
+			  string *reply,
+			  makeTransferReplyFtype maker,
+			  unsigned int offset,
+			  unsigned int length);
+  string rspMakeOsDataReply ();
+  string rspMakeOsDataProcessesReply ();
+  string rspMakeOsDataLoadReply ();
+  string rspMakeOsDataTrafficReply ();
+
   void rspSet ();
   void rspRestart ();
   void rspIsThreadAlive ();

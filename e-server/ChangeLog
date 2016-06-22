@@ -1,4 +1,27 @@
 2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspTransferObject): New method.
+	(GdbServer::rspTransfer): Use rspTransferObject.
+	(GdbServer::rspOsData): Delete.  Factor out the part that actualy
+	builds the reply to ...
+	(GdbServer::rspMakeOsDataReply): ... this new method.
+	(GdbServer::rspOsDataProcesses): Delete.  Factor out the part that
+	actualy builds the reply to ...
+	(GdbServer::rspMakeOsDataProcessesReply): ... this new method.
+	(GdbServer::rspOsDataLoad): Delete.  Factor out the part that
+	actualy builds the reply to ...
+	(GdbServer::rspMakeOsDataLoadReply): ... this new method.
+	(GdbServer::rspOsDataTraffic): Delete.  Factor out the part that
+	actualy builds the reply to ...
+	(GdbServer::rspMakeOsDataTrafficReply): ... this new method.
+	* src/GdbServer.h (GdbServer) <rspOsData, rspOsDataProcesses,
+	rspOsDataLoad, rspOsDataTraffic>: New methods.
+	<makeTransferReplyFtype>: New typedef.
+	<rspTransferObject, rspMakeOsDataReply,
+	rspMakeOsDataProcessesReply, rspMakeOsDataLoadReply,
+	rspMakeOsDataTrafficReply>: New methods.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
 	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::GdbServer): Initialize
