@@ -60,7 +60,6 @@ using std::setw;
 TargetControlHardware::TargetControlHardware (ServerInfo*   _si) :
   TargetControl (),
   si (_si),
-  dsoHandle (NULL),
   numCores (0)
 {
 }	// TargetControlHardware ()
@@ -595,6 +594,42 @@ TargetControlHardware::abs2rel (CoreId  absCoreId)
 
 }	// abs2rel ();
 
+//! Turn an address into coordinates
+
+//! @param[in]  address    The global address to translate
+//! @param[out] row        Chip row
+//! @param[out] col        Chip column
+//! @param[out] offset     Address offset in core SRAM
+//
+//! @return  true if address is global and valid, false otherwise.
+bool
+TargetControlHardware::addrToCoords (unsigned address,
+				     unsigned& row,
+				     unsigned& col,
+				     unsigned& offset) const
+{
+  uint32_t coreid, abs_row, abs_col;
+
+  coreid = address >> 20;
+  offset = address & 0x000fffff;
+  abs_row = (coreid >> 6) & 0x3f;
+  abs_col = (coreid >> 0) & 0x3f;
+
+  if (!coreid)
+    return false;
+
+  if (abs_row < mPlatform.row || mPlatform.row + mPlatform.cols <= abs_row)
+    return false;
+
+  if (abs_col < mPlatform.col || mPlatform.col + mPlatform.cols <= abs_col)
+    return false;
+
+  row = abs_row - mPlatform.row;
+  col = abs_col - mPlatform.col;
+
+  return true;
+}
+
 
 //! Is this a local address?
 
@@ -618,21 +653,6 @@ TargetControlHardware::isLocalAddr (uint32_t  addr) const
 void
 TargetControlHardware::initHwPlatform (platform_definition_t * platform)
 {
-  if (NULL == (dsoHandle = dlopen (platform->lib, RTLD_LAZY)))
-    {
-      cerr << "ERROR: Can't open hardware platform library " << platform->lib
-	   << ": " << dlerror () << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  // Find the shared functions
-  *(void **) (&initPlatformFunc) = findSharedFunc ("esrv_init_platform");
-  *(void **) (&closePlatformFunc) = findSharedFunc ("esrv_close_platform");
-  *(void **) (&writeToFunc) = findSharedFunc ("esrv_write_to");
-  *(void **) (&readFromFunc) = findSharedFunc ("esrv_read_from");
-  *(void **) (&getDescriptionFunc) = findSharedFunc ("esrv_get_description");
-  *(void **) (&hwResetFunc) = findSharedFunc ("esrv_hw_reset");
-
   // add signal handler to close target connection
   if (SIG_ERR == signal (SIGINT, breakSignalHandler))
     {
@@ -642,7 +662,7 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
     }
 
   // Initialize target platform.
-  int res = initPlatform (platform, si->halDebug());
+  int res = initPlatform (si->halDebug());
 
   if (res < 0)
     {
@@ -856,19 +876,33 @@ TargetControlHardware::convertAddress (CoreId relCoreId,
 
 //! Wrapper for the dynamically linked platform initialization
 
-//! @param[in] platform  The description of the platform
 //! @param[in] verbose   The level of debug messages from HAL
 //! @return  0 on success, 1 on error, 2 on warning.
 int
-TargetControlHardware::initPlatform (platform_definition_t* platform,
-				     unsigned int           verbose)
+TargetControlHardware::initPlatform (unsigned int verbose)
 {
+  int err = 0;
   if (si->debugHwDetail ())
-      cerr << "DebugHwDetail: initPlatform (" << (void *) platform << ", "
-	   << verbose << ")" << endl;
+      cerr << "DebugHwDetail: initPlatform (" << verbose << ")" << endl;
 
-  return (*initPlatformFunc) (platform, verbose);
+  e_set_host_verbosity (static_cast<e_hal_diag_t> (verbose));
+  e_set_loader_verbosity (static_cast<e_loader_diag_t> (verbose));
 
+  if (e_init (NULL) != E_OK)
+    return 1;
+
+  if (e_get_platform_info (&mPlatform) != E_OK)
+    return 1;
+
+  /* TODO: e-hal only supports access to first memory segment */
+  //e_alloc(&mEmem, 0, mPlatform.emem[0].size);
+  e_alloc(&mEmem, 0, 0x02000000);
+
+
+  if (e_open (&mDev, 0, 0, mPlatform.rows, mPlatform.cols) != E_OK)
+    return 1;
+
+  return 0;
 }	// initPlatform ()
 
 
@@ -881,12 +915,14 @@ TargetControlHardware::closePlatform ()
   if (si->debugHwDetail ())
       cerr << "DebugHwDetail: closePlatform ()" << endl;
 
-  return (*closePlatformFunc) ();
+  return e_close (&mDev);
 
 }	// closePlatform ()
 
 
-//! Wrapper for the dynamically linked write to target
+
+
+//! Target write function
 
 //! @param[in] address    The (global) address to write to.
 //! @param[in] buf        The data to write.
@@ -897,16 +933,27 @@ TargetControlHardware::writeTo (unsigned int  address,
 				void*         buf,
 				size_t        burstSize)
 {
+  uint32_t coreid, offset, row, col;
+  ssize_t size;
+
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: writeTo (0x" << intStr (address, 16, 8) << ", "
 	 << (void *) buf << ", " << burstSize << ")" << endl;
 
-  return (*writeToFunc) (address, buf, burstSize);
+  if (mEmem.ephy_base <= address
+      && address + burstSize - mEmem.ephy_base < mEmem.emap_size)
+    return e_write (&mEmem, 0, 0, address - mEmem.ephy_base, buf, burstSize);
 
+  if (!addrToCoords(address, row, col, offset))
+    return 0;
+
+  size = e_write (&mDev, row, col, offset, buf, burstSize);
+
+  return (size > 0) ? static_cast<size_t> (size) : 0;
 }	// writeTo ()
 
 
-//! Wrapper for the dynamically linked read from target
+//! Target read function
 
 //! @param[in]  address    The (global) address to read from.
 //! @param[out] buf        The data read.
@@ -917,16 +964,27 @@ TargetControlHardware::readFrom (unsigned  address,
 				 void*     buf,
 				 size_t    burstSize)
 {
+  uint32_t coreid, offset, row, col;
+  ssize_t size;
+
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: readFrom (0x" << intStr (address, 16, 8) << ", "
 	   << (void *) buf << ", " << burstSize << ")" << endl;
 
-  return (*readFromFunc) (address, buf, burstSize);
+  if (mEmem.ephy_base <= address
+      && address + burstSize - mEmem.ephy_base < mEmem.emap_size)
+    return e_read (&mEmem, 0, 0, address - mEmem.ephy_base, buf, burstSize);
 
+  if (!addrToCoords(address, row, col, offset))
+    return 0;
+
+  size = e_read (&mDev, row, col, offset, buf, burstSize);
+
+  return (size > 0) ? static_cast<size_t> (size) : 0;
 }	// readFrom ()
 
 
-//! Wrapper for the dynamically linked platform reset function
+//! Platform reset function
 
 //! @return  0 on success, 1 on error, 2 on warning.
 int
@@ -935,12 +993,11 @@ TargetControlHardware::hwReset ()
   if (si->debugHwDetail ())
       cerr << "DebugHwDetail: hwReset ()" << endl;
 
-  return (*hwResetFunc) ();
-
+  return e_reset () == E_OK ? 0 : 1;
 }	// hwReset ()
 
 
-//! Wrapper for the dynamically linked function to get the platform name.
+//! Get the platform name.
 
 //! @param[out] targetIdp  The platform name.
 //! @return  0 on success, 1 on error, 2 on warning.
@@ -951,36 +1008,10 @@ TargetControlHardware::getDescription (char** targetIdp)
     cerr << "DebugHwDetail: getDescription (" << (void *) targetIdp << ")"
 	 << endl;
 
-  return (*getDescriptionFunc) (targetIdp);
-
+  *targetIdp = mPlatform.version;
+  return 0;
 }	// getDescription ()
 
-
-//! Find a function from a shared library.
-
-//! Convenience function which loads the function and exits with an error
-//! message in the event of any failures.
-
-//! @param[in] funcName  The function to find
-//! @return  The pointer to the function.
-void *
-TargetControlHardware::findSharedFunc (const char *funcName)
-{
-  (void) dlerror ();			// Clear any old error
-
-  void *funcPtr = dlsym (dsoHandle, funcName);
-  char *error = dlerror ();
-
-  if (error != NULL)
-    {
-      cerr << "ERROR: Failed to load shared function" << funcName << ": "
-	   << error << endl;
-      exit (EXIT_FAILURE);
-    }
-
-  return funcPtr;
-
-}	// loadSharedFunc ()
 
 
 //-----------------------------------------------------------------------------

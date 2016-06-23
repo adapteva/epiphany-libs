@@ -1,3 +1,32 @@
+2016-06-23  Ola Jeppsson  <ola@adapteva.com>
+
+	* Makemodule.am (e_server_e_server_LDADD): Remove -ldl.
+	* src/TargetControlHardware.cpp (TargetControlHardware::addrToCoords):
+	New helper function.
+	(TargetControlHardware::initHwPlatform): Don't dlopen e-hal library.
+	Don't dynamically resolve e-hal (e_srv) functions.
+	(TargetControlHardware::initPlatform): Switch to e-hal API from
+	deprecated e_srv API.
+	(TargetControlHardware::closePlatform): Likewise.
+	(TargetControlHardware::writeTo): Likewise.
+	(TargetControlHardware::readFrom): Likewise.
+	(TargetControlHardware::hwReset): Likewise.
+	(TargetControlHardware::getDescription): Likewise.
+	(TargetControlHardware::findSharedFunc): Remove.
+	* e-server/src/TargetControlHardware.h
+	(TargetControlHardware::initPlatform): Drop platform argument.
+	(TargetControlHardware::mDev): New member.
+	(TargetControlHardware::mPlatform): New member.
+	(TargetControlHardware::mEmem): New member.
+	(TargetControlHardware::dsoHandle): Remove member.
+	(TargetControlHardware::initPlatformFunc): Likewise.
+	(TargetControlHardware::closePlatformFunc): Likewise.
+	(TargetControlHardware::readFromFunc): Likewise.
+	(TargetControlHardware::hwResetFunc): Likewise.
+	(TargetControlHardware::getDescriptionFunc): Likewise.
+	(TargetControlHardware::findSharedFunc): Remove function prototype.
+	(TargetControlHardware::addrToCoords): Add helper function prototype.
+
 2016-06-22  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (GdbServer::rspCommand): Remove "monitor

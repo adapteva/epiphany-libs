@@ -39,4 +39,4 @@ e-server/src/Thread.h                            \
 e-server/src/Utils.cpp                           \
 e-server/src/Utils.h
 
-e_server_e_server_LDADD = -ldl $(ESERVER_LIBS)
+e_server_e_server_LDADD = $(ESERVER_LIBS)
