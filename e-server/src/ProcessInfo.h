@@ -1,6 +1,6 @@
 // Process Info class: Declaration.
 
-// Copyright (C) 2014 Embecosm Limited
+// Copyright (C) 2014, 2016 Embecosm Limited
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
 
@@ -38,35 +38,43 @@
 
 using std::set;
 
+class Thread;
+
 
 //-----------------------------------------------------------------------------
 //! Class describing an Epiphany GDB process
 
 //! A process corresponds to an Epiphany workgroup, and the cores to threads
 //! within the process.
+
+//! Each process has an integer identifier, which is the positive value
+//! associated with this process by GDB.
 //-----------------------------------------------------------------------------
 class ProcessInfo
 {
 public:
 
   // Constructor and destructor
-  ProcessInfo ();
+  ProcessInfo (int pid);
   ~ProcessInfo ();
 
   // Accessors
   int  pid () const;
 
-  set <int>::iterator threadBegin () const;
-  set <int>::iterator threadEnd () const;
-  bool addThread (int tid);
-  bool eraseThread (int tid);
-  bool hasThread (int tid);
+  set <Thread*>::iterator threadBegin () const;
+  set <Thread*>::iterator threadEnd () const;
+  bool addThread (Thread* thread);
+  bool eraseThread (Thread* thread);
+  bool hasThread (Thread* thread);
   int numThreads ();
 
 private:
 
+  //! Our process ID as supplied by the GDB client
+  int  mPid;
+
   //! The threads making up the process
-  set <int> mThreads;
+  set <Thread*> mThreads;
 
 };	// ProcessInfo ()
 

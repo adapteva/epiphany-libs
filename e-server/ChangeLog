@@ -1,3 +1,508 @@
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspCommand): Remove "monitor
+	process" handling.
+	(GdbServer::rspCmdProcess): Delete.
+	* src/GdbServer.h (GdbServer) <mCurrentProcess>: Delete field.
+	<rspCmdProcess>: Delete method.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Initialize
+	mExtendedMode.
+	(GdbServer::initProcesses): If --multiprocess, then don't attach
+	to the idle process.
+	(GdbServer::setLastActionAllThreads)
+	(GdbServer::haltAndActivateAllThreads): New methods.
+	(GdbServer::rspAttach): Remove 'pid' parameter.  Reimplement.
+	(GdbServer::detachProcess): New method, factored out from
+	GdbServer::rspDetach.
+	(GdbServer::detachAllProcesses): New method.
+	(GdbServer::rspDetach): Remove 'pid' parameter.  Reimplement.
+	(GdbServer::rspStatus): Halt all threads.  In all-stop mode, if
+	not debugging anything yet, reply "W00".  Report status of the
+	first thread of the first attached process.  Set all threads' last
+	action to ACTION_STOP.  In non-stop, set all threads' last action
+	to ACTION_CONTINUE.
+	(GdbServer::rspClientRequest): If the connection fails, detach all
+	processes, not just the current one.  Handle the '!' packet.
+	Defer handling of 'D' to rspDetach.
+	Use detachProcess to implement the support for the 'k' packet.
+	(GdbServer::rspPrepareStopReply): Use the thread's process's pid
+	instead of the current process's.
+	(GdbServer::findStoppedThread): Iterate over all attached
+	processes.
+	(GdbServer::rspSuspend): Iterate over all attached processes and
+	use setLastActionAllThreads.
+	(GdbServer::rspSetThread): Use firstThread().  If gdb asks to pick
+	any thread, pick the first thread of the first attached process.
+	If gdb asks to pick any thread of a given process, pick the first
+	thread of that process.
+	(GdbServer::firstThread): New method.
+	(GdbServer::rspQuery): Use firstThread().  Use the current
+	thread's process instead of referring to the removed
+	mCurrentProcess.
+	(GdbServer::rspMakeTransferThreadsReply): Iterate over all
+	attached processes.
+	(GdbServer::rspIsThreadAlive): Use findAttachedProcess() to check
+	whether the thread's process is being debugged.
+	(GdbServer::rspVpkt) <vAttach>: Defer to rspAttach.
+	Handle 'vKill'.
+	(GdbServer::rspVCont, GdbServer::waitAllThreads)
+	(GdbServer::markPendingStops): Iterate over all attached
+	processes.
+	(GdbServer::markAllStopped): Delete.
+	(GdbServer::rspRemoveMatchpoint, GdbServer::rspInsertMatchpoint)
+	(GdbServer::unhideBreakpoints): Use the current thread's process
+	instead of the global current process.
+	(GdbServer::findAttachedProcess): New method.
+	(GdbServer::haltProcessThreads): New method, factored out from ...
+	(GdbServer::haltAllThreads): ... this.
+	(GdbServer::resumeAllProcessThreads): New method, factored out
+	from ...
+	(GdbServer::resumeAllThreads): ... this.
+	(GdbServer::resumeAllThreads): New method.
+	* src/GdbServer.h (GdbServer) <mExtendedMode>: New field.
+	<PidProcessInfoMap>: New typedef.
+	<mProcesses>: Use it.
+	<mAttachedProcesses>: New field.
+	<TidThreadMap>: New typedef.
+	<mThreads>: Use it.
+	<haltAndActivateAllThreads>: New method.
+	<rspAttach, rspDetach>: Remove 'pid' parameter.
+	<detachProcess, detachAllProcesses>: New methods.
+	<markAllStopped>: Delete method.
+	<setLastActionAllThreads, findAttachedProcess, firstThread,
+	haltProcessThreads, resumeAllProcessThreads>: New methods.
+	* src/ProcessInfo.cpp: Include "GdbServer.h" and "Thread.h".
+	(ProcessInfo::addThread): Set the thread's process.
+	* src/ServerInfo.cpp (ServerInfo::ServerInfo): Initialize
+	multiProcessFlag.
+	(ServerInfo::multiProcess): New methods.
+	* src/ServerInfo.h (ServerInfo) <multiProcess>: New methods.
+	<multiProcessFlag>: New field.
+	* src/Thread.cpp (Thread::Thread): Initialize mProcess.
+	* src/Thread.h (class TargetControl, class ServerInfo): Forward
+	declare.
+	(Thread) <process, setProcess>: New methods.
+	<mProcess>: New field.
+	* src/main.cpp (usage_full): Mention --multiprocess.
+	(main): Handle --multiprocess.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* Makemodule.am (e_server_e_server_SOURCES): Add
+	e-server/src/GdbTid.cpp, e-server/src/GdbTid.h and
+	e-server/src/IosUtils.h.
+	* src/GdbServer.cpp: Include "GdbTid.h".
+	(GdbServer::rspPrepareStopReply): Use GdbTid.
+	(GdbServer::rspSetThread): Use GdbTid::from_string.
+	(GdbServer::rspQuery) <'qC'>: Reply thread ids of pPID.TID form.
+	Report support for multiprocess+.
+	(GdbServer::rspMakeTransferThreadsReply): Use GdbTid.
+	(GdbServer::rspIsThreadAlive): Use GdbTid.
+	(GdbServer::rspVCont): Use GdbTid.
+	* src/GdbServer.h: Include "GdbTid.h".
+	(GdbServer::vContTidAction) <tid>: Change type to GdbTid.
+	<matches>: Add 'pid' parameter, and use it.
+	* src/GdbTid.cpp: New file.
+	* src/GdbTid.h: New file.
+	* src/IosUtils.h: New file.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Remove handling of
+	qfThreadInfo, qsThreadInfo and qThreadExtraInfo.
+	(GdbServer::rspQThreadInfo, GdbServer::rspQThreadExtraInfo):
+	Delete.
+	* src/GdbServer.h (GdbServer) <rspQThreadInfo,
+	rspQThreadExtraInfo>: Remove methods.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Report support for
+	qXfer:threads:read.
+	(GdbServer::rspThreadExtraInfo): New method.
+	(GdbServer::rspMakeTransferThreadsReply): New method.
+	(GdbServer::rspTransfer): Handle "threads" objects.
+	* src/GdbServer.h (GdbServer) <qXferThreadsReply>: New field.
+	<rspThreadExtraInfo>: Declare.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspTransferObject): New method.
+	(GdbServer::rspTransfer): Use rspTransferObject.
+	(GdbServer::rspOsData): Delete.  Factor out the part that actualy
+	builds the reply to ...
+	(GdbServer::rspMakeOsDataReply): ... this new method.
+	(GdbServer::rspOsDataProcesses): Delete.  Factor out the part that
+	actualy builds the reply to ...
+	(GdbServer::rspMakeOsDataProcessesReply): ... this new method.
+	(GdbServer::rspOsDataLoad): Delete.  Factor out the part that
+	actualy builds the reply to ...
+	(GdbServer::rspMakeOsDataLoadReply): ... this new method.
+	(GdbServer::rspOsDataTraffic): Delete.  Factor out the part that
+	actualy builds the reply to ...
+	(GdbServer::rspMakeOsDataTrafficReply): ... this new method.
+	* src/GdbServer.h (GdbServer) <rspOsData, rspOsDataProcesses,
+	rspOsDataLoad, rspOsDataTraffic>: New methods.
+	<makeTransferReplyFtype>: New typedef.
+	<rspTransferObject, rspMakeOsDataReply,
+	rspMakeOsDataProcessesReply, rspMakeOsDataLoadReply,
+	rspMakeOsDataTrafficReply>: New methods.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Initialize
+	mNotifyingP.
+	(GdbServer::rspServer): Alway start out as all-stop mode.  Don't
+	attach here.  If non-stop mode, process thread stops and send as
+	notifications.
+	(GdbServer::haltAndActivateProcess): New method, factored out
+	from ...
+	(GdbServer::rspAttach): ... this.
+	(GdbServer::rspStatus): New method.
+	(GdbServer::rspClientRequest): Bail out if in non-stop mode, and
+	no input is available.  Defer '?' handling to rspStatus.
+	(GdbServer::rspPrepareStopReply): New method, factored out from
+	GdbServer::rspReportException.
+	(GdbServer::rspClientNotifications): New method.
+	(GdbServer::rspReportException): Don't stop all threads in
+	non-stop mode, nor change the current thread.
+	(GdbServer::findStoppedThread): New method.
+	(GdbServer::rspVStopped): New method.
+	(GdbServer::rspQuery): Report support for non-stop mode.
+	(GdbServer::rspSet): Handle 'QNonStop'.
+	(GdbServer::rspVpkt): Report support for vCont t actions, along
+	with c, C, s, and S.  Handle vStopped.
+	(GdbServer::rspVCont): Handle ACTION_STOP actions.  In non-stop
+	mode, return OK without waiting.
+	(GdbServer::extractVContAction): Handle vCont;t actions.
+	* src/GdbServer.h (GdbServer) <mNotifyingP>: New field.
+	<haltAndActivateProcess, rspStatus, rspPrepareStopReply,
+	findStoppedThread, rspClientNotifications, rspVStopped): New
+	methods.
+	* src/RspConnection.cpp (RspConnection::putNotification): New
+	method.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspReadMem): Use hideBreakpoints.
+	(GdbServer::rspWriteMemBin): Use unhideBreakpoints.
+	(align_down, copyInsn): New functions.
+	(GdbServer::hideBreakpoints, GdbServer::unhideBreakpoints): New
+	methods.
+	* src/GdbServer.h (GdbServer) <hideBreakpoints,
+	unhideBreakpoints>: Declare.
+	* src/MpHash.cpp (MpHash::lookup): Add 'instr' parameter.  Set it.
+	* src/MpHash.h (MpHash) <lookup>: Add 'instr' parameter.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove
+	handling of 'M' packets.
+	(GdbServer::rspWriteMem): Delete.
+	* src/GdbServer.h (GdbServer) <rspWriteMem>: Remove declaration.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest) <'?'>: Report
+	TARGET_SIGNAL_NONE.
+	(GdbServer::rspReportException): Report "swbreak" along with
+	TARGET_SIGNAL_TRAP.
+	(GdbServer::rspQuery): Report support for swbreak.
+	(GdbServer::rspVCont, GdbServer::waitAllThreads)
+	(GdbServer::markPendingStops, GdbServer::doContinue): Adjust to
+	pending signals interface change.
+	(GdbServer::findStopReason): Assert that the thread has no pending
+	signal recorded yet.  If stopped at a breakpoint instruction,
+	decrement the PC.
+	(GdbServer::resumeAllThreads): Adjust to pending signals interface
+	change.
+	* src/GdbServer.h (GdbServer) <TARGET_SIGNAL_TRAP>: Add comment.
+	* src/Thread.cpp (Thread::Thread): Initialize PendingSignal
+	instead of mPending.
+	* src/Thread.h (Thread) <isPending, setPending, clearPending>:
+	<pendingSignal, setPendingSignal>: New.
+	<mPending>: Delete.
+	<mPendingSignal>: New.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (TRAP_WRITE, TRAP_READ, TRAP_OPEN, TRAP_EXIT)
+	(TRAP_PASS, TRAP_FAIL, TRAP_CLOSE, TRAP_SYSCALL, SYS_open)
+	(SYS_close, SYS_read, SYS_write, SYS_lseek, SYS_unlink, SYS_fstat)
+	(SYS_stat): Moved to top-level scope from ...
+	(GdbServer::redirectStdioOnTrap): ... here.  Do nothing for
+	TRAP_PASS and TRAP_FAIL.
+	(GdbServer::doContinue): Inline doFileIo here and rewrite in terms
+	of findStopReason.
+	(GdbServer::findStopReason): New.
+	(GdbServer::doFileIO): Delete.
+	* src/GdbServer.h (GdbServer) <TARGET_SIGNAL_USR1,
+	TARGET_SIGNAL_USR2>: New signal numbers.
+	<findStopReason>: New method.
+	<doFileIO>: Delete.
+	* src/Thread.cpp (Thread::getException): Return a TargetSignal.
+	* src/Thread.h (Thread) <getException>: Likewise.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest) <'F' packet>:
+	Wait for stops.
+	(GdbServer::waitAllThreads): New, factored out from ...
+	(GdbServer::rspVCont): ... this.
+	* src/GdbServer.h (GdbServer) <waitAllThreads>: Declare.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/RspConnection.cpp (RspConnection): Initialize mPendingBreak.
+	(RspConnection::getPkt): Set mPendingBreak if a 0x03 is seen.
+	(RspConnection::getBreakCommand): Return true if we have a pending
+	break.
+	* src/RspConnection.h (RspConnection) <mPendingBreak>: New field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspVCont): Check for Ctrl-C
+	requests before handling thread stops.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/RspConnection.cpp (RspConnection::inputReady): New method.
+	(RspConnection::getBreakCommand): Use it instead of setting the
+	sock non-blocking temporarily.
+	* src/RspConnection.h (RspConnection) <inputReady>: New method.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspSuspend): Report
+	TARGET_SIGNAL_INT instead of TARGET_SIGNAL_HUP.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspReportException): Set the
+	current thread to the thread whose stop is being reported.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspAttach): Call markAllStopped.
+	(GdbServer::rspReportException): Call markPendingStops.
+	(GdbServer::rspSuspend): Remove parameter.  Instead fetch the
+	thread's last action from the thread object directly.
+	(GdbServer::rspSuspend): Call markAllStopped.
+	(GdbServer::rspVCont): Get a thread's last action and pending
+	status from the thread object directly.
+	(GdbServer::pendingStop): Delete.
+	(GdbServer::markPendingStops): Remove ProcessInfo pointer
+	parameter.  Always work with the current process.  Get/set a
+	thread's last action and pending status from/in the thread object
+	directly.
+	(GdbServer::removePendingStop): Delete.
+	(GdbServer::markAllStopped): New method.
+	(GdbServer::doContinue): Mark all threads stopped.
+	(GdbServer::resumeAllThreads): Skip continued threads with a
+	pending status.
+	* src/GdbServer.h (GdbServer) <mPendingStops>: Remove field.
+	<markPendingStops, rspSuspend>: Change prototype.
+	<removePendingStop>: Remove.
+	<markAllStopped>: New.
+	* src/Thread.cpp (Thread::Thread): Initialize mPending.
+	* src/Thread.h (Thread) <isPending, setPending, clearPending,
+	setLastAction, lastAction>: New methods.
+	<mLastAction, mPending>: New fields.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspAttach)
+	(GdbServer::rspClientRequest): Pass a thread pointer to
+	rspReportException.
+	(GdbServer::rspReportException): Take a thread pointer as
+	parameter instead of a tid.  Always report the thread stop with a
+	T stop reply.
+	(GdbServer::rspSuspend): Take a vContTidActionVector vector as
+	parameter and pick a resumed thread to use to report the Ctrl-C
+	request.
+	(GdbServer::redirectStdioOnTrap, GdbServer::doContinue): Pass a
+	thread pointer to rspReportException.
+	* src/GdbServer.h (GdbServer) <rspReportException>: Take a thread
+	pointer as parameter instead of a tid..
+	<rspSuspend>: Adjust prototype.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+	    Jeremy Bennett  <jeremy.bennett@embecosm.com>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Adjust to refer to
+	mCurrentThread instead of currentGTid.
+	(GdbServer::rspServer): Use mCurrentProcess->pid () instead of
+	currentPid.
+	(GdbServer::initProcesses): Pass the pid to the ProcessInfo
+	constructor, and the tid to the Thread constructor.
+	(GdbServer::rspAttach): Adjust to thread set type change.
+	(GdbServer::rspClientRequest): Use mCurrentProcess->pid () instead
+	of currentPid.
+	(GdbServer::rspFileIOreply): Adjust to refer to mCurrentThread
+	instead of currentGTid.
+	(GdbServer::rspReadAllRegs, GdbServer::rspWriteAllRegs): Likewise.
+	(GdbServer::rspSetThread): Adjust to use mCurrentProcess instead
+	of getProcess(currentPid).
+	(GdbServer::rspReadMem, GdbServer::rspWriteMem)
+	(GdbServer::rspReadReg, GdbServer::rspWriteReg)
+	(GdbServer::rspQuery): Adjust to refer to mCurrentThread instead
+	of currentGTid.
+	(GdbServer::rspQThreadInfo): Adjust to use mCurrentProcess instead
+	of getProcess(currentPid).
+	(GdbServer::rspCommand): Adjust to refer to mCurrentThread instead
+	of currentGTid.
+	(GdbServer::rspCmdWorkgroup, GdbServer::rspCmdProcess)
+	(GdbServer::rspOsDataProcesses): Adjust to refer to mCurrentThread
+	instead of currentGTid.  Pass the pid to the ProcessInfo
+	constructor, and the tid to the Thread constructor.  Adjust to
+	thread set type change.
+	(GdbServer::rspRestart): Adjust to refer to mCurrentThread instead
+	of currentGTid.
+	(GdbServer::rspIsThreadAlive): Adjust to use mCurrentProcess
+	instead of getProcess(currentPid).
+	(GdbServer::rspVCont): Adjust to use mCurrentProcess instead of
+	getProcess(currentPid).  Adjust to thread set type change.
+	(GdbServer::markPendingStops): Take a thread pointer as parameter
+	instead of a tid.  Adjust to thread set type change.
+	(GdbServer::continueThread): Take a thread pointer as parameter
+	instead of a tid and a signal.
+	(GdbServer::doContinue): Take a thread pointer as parameter
+	instead of a tid.
+	(GdbServer::rspWriteMemBin): Adjust to refer to mCurrentThread
+	instead of currentGTid.
+	(GdbServer::rspRemoveMatchpoint, GdbServer::rspInsertMatchpoint):
+	Adjust to use mCurrentProcess instead of getProcess(currentPid).
+	Adjust to thread set type change.
+	(GdbServer::targetSwReset): Take a thread pointer as parameter
+	instead of a tid.
+	(GdbServer::haltAllThreads, GdbServer::resumeAllThreads): Adjust
+	to use mCurrentProcess instead of getProcess(currentPid).  Adjust
+	to thread set type change.
+	* src/GdbServer.h (GdbServer) <currentPid, currentGTid>: Delete
+	fields.
+	<mCurrentProcess, mCurrentThread>: New fields.
+	<markPendingStops, continueThread, doContinue>: Adjust prototypes.
+	* src/MpHash.cpp (MpHash::add, MpHash::lookup, MpHash::remove): Take a
+	thread pointer instead of a thread id as parameter.
+	* src/MpHash.h (Thread): Forward declare.
+	(MpHash) <add, lookup, remove>: Adjust prototypes.
+	<tid>: Remove field.
+	<thread>: New field.
+	* src/ProcessInfo.cpp (ProcessInfo::ProcessInfo): New parameter
+	'pid'.
+	(ProcessInfo::pid): New method.
+	(ProcessInfo::threadBegin, ProcessInfo::threadEnd)
+	(ProcessInfo::addThread, ProcessInfo::eraseThread)
+	(ProcessInfo::hasThread): Adjust prototypes.
+	* src/ProcessInfo.h (Thread): Forward declare.
+	(ProcessInfo) <ProcessInfo>: Add 'pid' parameter.
+	<threadBegin, threadEnd, addThread, eraseThread, hasThread>:
+	Change prototypes.
+	<mPid>: New field.
+	<mThreads>: Change type.
+	* src/Thread.cpp (Thread::Thread): Add 'tid' parameter.
+	(Thread::tid): New method.
+	(class Thread) <Thread>: Add 'tid' parameter.
+	<tid>: New method.
+	<mTid>: New field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspVCont): Update intro comment.
+	Rewrite vCont handling in terms of a vContTidAction vector.
+	(GdbServer::extractVContAction): Take a const string reference as
+	parameter instead of a string copy.  Return a vContAction instead
+	of a char.  Don't handle 't' actions.  Return ACTION_STOP for
+	unknown actions instead of a fake 'n' action.
+	(GdbServer::getThread): Remove 'mess' parameter, and simplify.
+	* src/GdbServer.h (std::vector): Import to global namespace.
+	(GdbServer) <vContAction>: New enum.
+	(GdbServer) <vContTidAction>: New struct.
+	(GdbServer) <vContTidActionVector>: New typedef.
+	(GdbServer) <extractVContAction>: Take a const string reference as
+	parameter instead of a string copy.  Return a vContAction instead
+	of a char.
+	(GdbServer) <getThread>: Remove 'mess' parameter.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Remove reference to
+	fIsTargetRunning.
+	(GdbServer::rspClientRequest, GdbServer::rspReportException)
+	(GdbServer::continueThread, GdbServer::doFileIO): Ditto.
+	* src/GdbServer.h (GdbServer) <fIsTargetRunning>: Remove field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::GdbServer): Remove reference to
+	currentCTid.
+	(GdbServer::rspFileIOreply): Use the general thread instead of the
+	continue thread.
+	(GdbServer::rspSetThread): Update intro comment.  Don't handle Hc.
+	(GdbServer::rspCommand): Remove references to currentCTid.
+	(GdbServer::rspRestart, GdbServer::rspRemoveMatchpoint)
+	(GdbServer::rspInsertMatchpoint, GdbServer::targetSwReset): Use
+	the general thread instead of the continue thread.
+	* src/GdbServer.h (GdbServer) <currentCTid>: Remove field.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove handling
+	of 'c' and 'C' packets.
+	(GdbServer::rspContinue): Remove all overloads.
+	* src/GdbServer.h (GdbServer) <rspContinue>: Remove all overloads.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspClientRequest): Remove handling
+	of 's' and 'S'.
+	(GdbServer::rspStep()): Delete.
+	(GdbServer::rspStep(bool,uint32_t,TargetSignal): Delete.
+	(GdbServer::rspVCont): Remove handling of 's' actions.
+	(GdbServer::extractVContAction): Remove handling of 's' and 'S'
+	actions.
+	(GdbServer::doStep): Delete.
+	* src/GdbServer.h (GdbServer) <rspStep, doStep>: Remove
+	declarations.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery): Remove handling of the
+	qTStatus packet.
+	(GdbServer::rspSet): Remove handling of the 'QTStart', 'QTStop',
+	'QTinit', 'QTDP', 'QFrame' and 'QTro' packets.
+	* src/TargetControl.h (TargetControl) <initTrace, startTrace,
+	stopTrace>: Remove declarations.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initTrace)
+	(TargetControlHardware::startTrace)
+	(TargetControlHardware::stopTrace): Delete.
+	* src/TargetControlHardware.h (TargetControlHardware) <initTrace,
+	startTrace, stopTrace>: Remove declarations.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint)
+	(GdbServer::rspInsertMatchpoint): Return unknown packet for any
+	matchpoint other than z0/Z0.
+
+2016-06-22  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspUnknownPacket): New method.
+	(GdbServer::rspClientRequest): Use rspUnknownPacket.  Remove
+	handling of 'A', 'b', 'B', 'd', 'i', 'I', 'r', 'qCRC',
+	'qGetTLSAddr', 'qL', 'qOffsets', 'qP' and 'qSymbol'.
+	(GdbServer::rspSet): Remove handling of QPassSignals.  Use
+	rspUnknownPacket and don't delete the packet.
+	(GdbServer::rspVpkt): Remove handling of 'vFile' 'vFlashErase',
+	'vFlashWrite' and 'vFlashDone'.  Use rspUnknownPacket.
+	* src/GdbServer.h (GdbServer::rspUnknownPacket): Declare.
+
 2014-10-29  Jeremy Bennett  <jeremy.bennett@embecosm.com>
 
 	* src/GdbServer.cpp (GdbServer::rspRemoveMatchpoint): Ensure

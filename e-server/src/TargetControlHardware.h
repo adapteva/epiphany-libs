@@ -90,12 +90,6 @@ public:
   virtual void platformReset ();
   virtual void resumeAndExit ();
 
-  // VCD trace (null operation on real hardware)
-  virtual bool initTrace ();
-  virtual bool startTrace ();
-  virtual bool stopTrace ();
-
-
 protected:
 
   virtual string getTargetId ();

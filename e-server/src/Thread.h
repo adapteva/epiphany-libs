@@ -1,8 +1,10 @@
 // Thread class: Declaration.
 
-// Copyright (C) 2014 Embecosm Limited
+// Copyright (C) 2014, 2016 Embecosm Limited
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -40,7 +42,8 @@ using std::set;
 
 class CoreId;
 class GdbServer;
-
+class TargetControl;
+class ServerInfo;
 
 //-----------------------------------------------------------------------------
 //! Class describing an Epiphany GDB thread
@@ -48,10 +51,7 @@ class GdbServer;
 //! A thread corresponds to an Epiphany core. This class provides all the
 //! functionality a thread needs.
 
-//! @note The thread is referred to externally by a thread ID, but the thread
-//!       does not itself know about the thread ID. Instead it knows which
-//!       core it is running on and has access to the target to manipulate
-//!       that core.
+//! @note The thread is referred to externally by a GDB thread ID.
 //-----------------------------------------------------------------------------
 class Thread
 {
@@ -60,14 +60,27 @@ public:
   // Constructor and destructor
   Thread (CoreId         coreId,
 	  TargetControl* target,
-	  ServerInfo*    si);
+	  ServerInfo*    si,
+	  int            tid);
   ~Thread ();
 
   // Accessors
   CoreId  coreId () const;
+  int   tid () const;
   bool  isHalted ();
   bool  isIdle ();
   bool  isInterruptible () const;
+
+  ProcessInfo* process () const { return mProcess; }
+  void setProcess (ProcessInfo* process) { mProcess = process; }
+
+  GdbServer::TargetSignal pendingSignal () const { return mPendingSignal; }
+  void setPendingSignal (GdbServer::TargetSignal sig) { mPendingSignal = sig; }
+
+  void setLastAction (GdbServer::vContAction last) { mLastAction = last; }
+  GdbServer::vContAction lastAction () const { return mLastAction; }
+
+  // Control of the thread
   bool  halt ();
   bool  resume ();
   bool  idle ();
@@ -79,8 +92,7 @@ public:
 
   // Code manipulation
   void insertBkptInstr (uint32_t addr);
-  int getException ();
-  // GdbServer::TargetSignal getException ();
+  GdbServer::TargetSignal getException ();
 
   // Main functions for reading and writing memory
   bool readMemBlock (uint32_t  addr,
@@ -130,6 +142,9 @@ private:
   //! Number of entries in IVT table
   static const uint32_t IVT_ENTRIES = 10;
 
+  //! Our process
+  ProcessInfo* mProcess;
+
   //! Our core
   CoreId  mCoreId;
 
@@ -138,6 +153,9 @@ private:
 
   //! Local pointer to server info
   ServerInfo *mSi;
+
+  //! Our GDB thread ID
+  int  mTid;
 
   //! A save buffer for the IVT
   uint8_t mIVTSaveBuf[IVT_ENTRIES * TargetControl::E_INSTR_BYTES];
@@ -149,6 +167,11 @@ private:
       DEBUG_HALTED
     } mDebugState;
 
+  //! The last vCont action applied to this thread.  Once the thread
+  //! stops and the stop is reported to the client, this is set to
+  //! ACTION_STOP.
+  GdbServer::vContAction mLastAction;
+
   //! Our run state
   enum
     {
@@ -156,6 +179,10 @@ private:
       RUN_ACTIVE,
       RUN_IDLE
     } mRunState;
+
+  //! If not TARGET_SIGNAL_NONE, a signal that has not yet been
+  //! reported to the client.
+  GdbServer::TargetSignal mPendingSignal;
 
   // Helper routines for target access
   uint32_t regAddr (unsigned int  regnum) const;

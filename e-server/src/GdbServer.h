@@ -1,11 +1,13 @@
 // GDB RSP server class: Declaration.
 
 // Copyright (C) 2008, 2009, 2014 Embecosm Limited
-// Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2009-2014, 2016 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -54,10 +56,12 @@
 #include "RspPacket.h"
 #include "ServerInfo.h"
 #include "TargetControl.h"
+#include "GdbTid.h"
 
 
 using std::string;
 using std::map;
+using std::vector;
 
 
 class Thread;
@@ -84,6 +88,8 @@ public:
     TARGET_SIGNAL_INT = 2,
     TARGET_SIGNAL_QUIT = 3,
     TARGET_SIGNAL_ILL = 4,
+    // Note: is it currently assumed that this maps to BKPT /
+    // breakpoint, and nothing else.
     TARGET_SIGNAL_TRAP = 5,
     TARGET_SIGNAL_ABRT = 6,
     TARGET_SIGNAL_EMT = 7,
@@ -95,6 +101,14 @@ public:
     TARGET_SIGNAL_PIPE = 13,
     TARGET_SIGNAL_ALRM = 14,
     TARGET_SIGNAL_TERM = 15,
+    TARGET_SIGNAL_USR1 = 30,
+    TARGET_SIGNAL_USR2 = 31,
+  };
+
+  enum vContAction
+  {
+    ACTION_STOP,
+    ACTION_CONTINUE,
   };
 
   // Public architectural constants. Must be consistent with the target
@@ -148,6 +162,34 @@ public:
 
 private:
 
+  // A tuple representing a vCont action and the TID it applies to.
+  struct vContTidAction
+  {
+    // The thread the action applies to.
+    GdbTid tid;
+
+    // The action.
+    vContAction kind;
+
+    // True if this action applies to thread TID.
+    bool matches (int pid, int tid) const
+    {
+      if (this->tid.pid () == -1)
+	return 1;
+      else if (pid == this->tid.pid ())
+	{
+	  if (this->tid.tid () == -1)
+	    return 1;
+	  else if (tid == this->tid.tid ())
+	    return 1;
+	}
+      else
+	return 0;
+    }
+  };
+
+  typedef vector <vContTidAction> vContTidActionVector;
+
   //! Maximum size of RSP packet. Enough for all the registers as hex
   //! characters (8 per reg) + 1 byte end marker.
   static const int RSP_PKT_MAX = NUM_REGS * TargetControl::E_REG_BYTES * 2 + 1;
@@ -161,8 +203,17 @@ private:
     ALL_STOP
   } mDebugMode;
 
+  //! Whether GDB is connected in extended-remote mode.
+  bool mExtendedMode;
+
   //! Map of process ID to process info
-  map <int, ProcessInfo *> mProcesses;
+  typedef map <int, ProcessInfo *> PidProcessInfoMap;
+
+  // All processes in the system.
+  PidProcessInfoMap mProcesses;
+
+  // All processes we're attached to.
+  PidProcessInfoMap mAttachedProcesses;
 
   //! The idle process
   ProcessInfo * mIdleProcess;
@@ -170,32 +221,26 @@ private:
   //! Next process ID to use
   int  mNextPid;
 
-  //! Current process
-  int  currentPid;
-
   //! Map of thread ID to thread
-  map <int, Thread *> mThreads;
+  typedef map <int, Thread *> TidThreadMap;
+  TidThreadMap mThreads;
 
-  //! Map from core to thread
+  //! Map from core ID to thread ID
   map <CoreId, int> mCore2Tid;
 
-  //! Current thread ID for continue/step
-  int  currentCTid;
+  //! Current thread ID for general access.  Null means "all threads"
+  //! (the equivalent of GDB's -1).  We have no equivalent of GDB's 0,
+  //! meaning "any thread", since we immediately just pick a thread.
+  Thread* mCurrentThread;
 
-  //! Current thread ID for general access
-  int  currentGTid;
-
-  //! Set of thread IDs with pending stops
-  set <int> mPendingStops;
+  //! Indicate if we are in the middle of a notification sequence.
+  bool mNotifyingP;
 
   //! Local pointer to server info
   ServerInfo *si;
 
   //! Responsible for the memory operation commands in target
   TargetControl * fTargetControl;
-
-  //! Used in cont command to support CTRL-C from gdb client
-  bool fIsTargetRunning;
 
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;
@@ -219,77 +264,93 @@ private:
   //! String for OS mesh traffic
   string  osTrafficReply;
 
+  //! String for qXfer:threads
+  string qXferThreadsReply;
+
   // Helper functions for setting up a connection
   void initProcesses ();
-  void rspAttach (int  pid);
-  void rspDetach (int pid);
+  bool haltAndActivateProcess (ProcessInfo *process);
+  void haltAndActivateAllThreads ();
+  void rspAttach ();
+  void rspDetach ();
 
   // Main RSP request handler
   void rspClientRequest ();
 
+  void detachProcess (ProcessInfo* process);
+  void detachAllProcesses ();
+
   // Handle the various RSP requests
-  void rspReportException (int          tid,
-			   TargetSignal sig);
-  void rspContinue ();
-  void rspContinue (uint32_t except);
-  void rspContinue (uint32_t addr, uint32_t except);
+  void rspStatus ();
+  string rspPrepareStopReply (Thread *thread, TargetSignal sig);
+  void rspReportException (Thread* thread, TargetSignal sig);
   void rspReadAllRegs ();
   void rspWriteAllRegs ();
+  void rspUnknownPacket ();
   void rspSetThread ();
   void rspReadMem ();
-  void rspWriteMem ();
   void rspReadReg ();
   void rspWriteReg ();
   void rspQuery ();
-  void rspQThreadInfo (bool isFirst);
-  void rspQThreadExtraInfo ();
+  string rspThreadExtraInfo (Thread* thread);
   void rspCommand ();
   void rspCmdWorkgroup (char* cmd);
-  void rspCmdProcess (char* cmd);
+
   void rspTransfer ();
-  void rspOsData (unsigned int offset,
-		  unsigned int length);
-  void rspOsDataProcesses (unsigned int offset,
-			   unsigned int length);
-  void rspOsDataLoad (unsigned int offset,
-		      unsigned int length);
-  void rspOsDataTraffic (unsigned int offset,
-			 unsigned int length);
+  typedef string (GdbServer::* makeTransferReplyFtype) (void);
+  void rspTransferObject (const char *object,
+			  string *reply,
+			  makeTransferReplyFtype maker,
+			  unsigned int offset,
+			  unsigned int length);
+  string rspMakeTransferThreadsReply ();
+  string rspMakeOsDataReply ();
+  string rspMakeOsDataProcessesReply ();
+  string rspMakeOsDataLoadReply ();
+  string rspMakeOsDataTrafficReply ();
+
   void rspSet ();
   void rspRestart ();
-  void rspStep ();
-  void rspStep (bool haveAddrP, uint32_t addr, TargetSignal except);
   void rspIsThreadAlive ();
   void rspVpkt ();
   void rspVCont ();
-  char extractVContAction (string action);
+  vContAction extractVContAction (const string &action);
+  void waitAllThreads ();
   bool pendingStop (int  tid);
-  void markPendingStops (ProcessInfo* process,
-			 int          tid);
-  void removePendingStop (int  tid);
-  void doStep (int          tid,
-	       TargetSignal sig = TARGET_SIGNAL_NONE);
-  void continueThread (int       tid,
-		       uint32_t  sig = TARGET_SIGNAL_NONE);
-  void doContinue (int          tid);
+  void markPendingStops (Thread *reporting_thread);
+  void setLastActionAllThreads (vContAction action);
+  void continueThread (Thread* thread);
+  void doContinue (Thread* thread);
+  Thread* findStoppedThread ();
+  void rspClientNotifications ();
+  void rspVStopped ();
+  TargetSignal findStopReason (Thread *thread);
   uint16_t  getStopInstr (Thread* thread);
-  bool doFileIO (Thread* thread);
   void rspWriteMemBin ();
   void rspRemoveMatchpoint ();
   void rspInsertMatchpoint ();
   void rspFileIOreply ();
   void rspSuspend ();
 
+  bool hideBreakpoints (Thread *thread,
+			uint32_t addr, uint8_t* buf, size_t len);
+  bool unhideBreakpoints (Thread *thread,
+			  uint32_t addr, uint8_t* buf, size_t len);
+
   // Convenience functions to control and report on the CPU
   void targetSwReset ();
   void targetHWReset ();
 
   // Accessors for processes and threads
+  ProcessInfo* findAttachedProcess (int pid);
   ProcessInfo * getProcess (int  pid);
-  Thread * getThread (int         tid,
-		      const char* mess = NULL);
+  Thread* getThread (int tid);
+  Thread* firstThread ();
+
   //! Thread control
+  bool haltProcessThreads (ProcessInfo* process);
   bool haltAllThreads ();
+  bool resumeAllProcessThreads (ProcessInfo* process);
   bool resumeAllThreads ();
 
   void redirectStdioOnTrap (Thread*  thread,

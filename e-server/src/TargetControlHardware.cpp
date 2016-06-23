@@ -515,39 +515,6 @@ TargetControlHardware::resumeAndExit ()
 }	// resumeAndExit ()
 
 
-//! Initialize VCD tracing (null operation in real hardware)
-
-// @return TRUE to indicate tracing was successfully initialized.
-bool
-TargetControlHardware::initTrace ()
-{
-  return true;
-
-}	// initTrace ()
-
-
-//! Start VCD tracing (null operation in real hardware)
-
-// @return TRUE to indicate tracing was successfully stopped.
-bool
-TargetControlHardware::startTrace ()
-{
-  return true;
-
-}	// startTrace ()
-
-
-//! Stop VCD tracing (null operation in real hardware)
-
-// @return TRUE to indicate tracing was successfully stopped.
-bool
-TargetControlHardware::stopTrace ()
-{
-  return true;
-
-}	// stopTrace ()
-
-
 //! Close the target due to Ctrl-C signal
 
 //! @todo Have reset from client

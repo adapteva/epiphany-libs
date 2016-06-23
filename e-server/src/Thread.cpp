@@ -1,8 +1,10 @@
 // Thread class: Declaration.
 
-// Copyright (C) 2014 Embecosm Limited
+// Copyright (C) 2014, 2016 Embecosm Limited
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -50,12 +52,16 @@ using std::endl;
 //-----------------------------------------------------------------------------
 Thread::Thread (CoreId         coreId,
 		TargetControl* target,
-		ServerInfo*    si) :
+		ServerInfo*    si,
+		int            tid) :
+  mProcess (NULL),
   mCoreId (coreId),
   mTarget (target),
   mSi (si),
+  mTid (tid),
   mDebugState (DEBUG_RUNNING),
-  mRunState (RUN_UNKNOWN)
+  mRunState (RUN_UNKNOWN),
+  mPendingSignal (GdbServer::TARGET_SIGNAL_NONE)
 {
   // Some sanity checking that numbering has not got misaligned! This is a
   // consequence of our desire to have properly typed constants.
@@ -99,6 +105,19 @@ Thread::coreId () const
   return  mCoreId;
 
 }	// coreId ()
+
+
+//-----------------------------------------------------------------------------
+//! Get the thread ID
+
+//! @return  The thread ID
+//-----------------------------------------------------------------------------
+int
+Thread::tid () const
+{
+  return mTid;
+
+}	// tid ()
 
 
 //-----------------------------------------------------------------------------
@@ -406,8 +425,7 @@ Thread::insertBkptInstr (uint32_t addr)
 //! @param[in] coreId  The core to check.
 //! @return  The GDB signal corresponding to any exception.
 //-----------------------------------------------------------------------------
-//GdbServer::TargetSignal
-int
+GdbServer::TargetSignal
 Thread::getException ()
 {
   uint32_t coreStatus = readStatus ();

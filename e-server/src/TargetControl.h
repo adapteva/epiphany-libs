@@ -255,11 +255,6 @@ public:
   virtual void startOfBaudMeasurement ();
   virtual double endOfBaudMeasurement ();
 
-  // trace support for vcd Dump
-  virtual bool initTrace () = 0;
-  virtual bool startTrace () = 0;
-  virtual bool stopTrace () = 0;
-
 protected:
 
   virtual string getTargetId () = 0;

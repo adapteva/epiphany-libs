@@ -2,10 +2,12 @@
 
 // Copyright (C) 2008, 2009, 2014 Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -86,7 +88,8 @@ using std::setw;
 //! @param[in] _si    The server information
 //-----------------------------------------------------------------------------
 RspConnection::RspConnection (ServerInfo* _si) :
-  si (_si)
+  si (_si),
+  mPendingBreak (false)
 {
   rspInit (si->port ());
 
@@ -304,22 +307,22 @@ bool RspConnection::getPkt (RspPacket * pkt)
 	ch;			// Current character
 
 
-      // Wait around for the start character ('$'). Ignore all other
-      // characters
-      ch = getRspChar ();
-
-      // once read char from GDB --- lock the read -- TODO should be protected by timeout in case of gdb fails
-
-      while (ch != '$')
+      // Wait around for the start character ('$').  Ignore all other
+      // characters.  TODO should be protected by timeout in case of
+      // gdb fails.  If we see a Ctrl-C ('\003'), remember it so a
+      // later getBreakCommand() call returns true.
+      while (1)
 	{
-	  if (-1 == ch)
-	    {
-	      return false;	// Connection failed
-	    }
-	  else
-	    {
-	      ch = getRspChar ();
-	    }
+	  ch = getRspChar ();
+
+	  if (ch == -1)
+	    return false;	// Connection failed
+
+	  if (ch == '$')
+	    break;
+
+	  if (ch == 0x03)
+	    mPendingBreak = true;
 	}
 
       // Read until a '#' or end of buffer is found
@@ -516,6 +519,57 @@ bool RspConnection::putPkt (RspPacket * pkt)
 
 
 //-----------------------------------------------------------------------------
+//! Put the packet out as a notification on the RSP connection
+
+//! Put out the data preceded by a '%', followed by a '#' and a one byte
+//! checksum.  There are never any characters that need escaping.
+
+//! Unlike ordinary packets, notifications are not acknowledged by the GDB
+//! client with '+'.
+
+//! @param[in] pkt  The Packet to transmit as a notification.
+
+//! @return  TRUE to indicate success, FALSE otherwise (means a communications
+//!          failure).
+//-----------------------------------------------------------------------------
+bool
+RspConnection::putNotification (RspPacket* pkt)
+{
+  unsigned char  checksum = 0;		// Computed checksum
+  int            count = 0;		// Index into the buffer
+
+  if (!putRspChar ('%'))	// Start char
+    return false;		// Comms failure
+
+  int len = pkt->getLen ();
+
+  // Body of the packet
+  for (count = 0; count < len; count++)
+    {
+      unsigned char uch = pkt->data[count];
+
+      checksum += uch;
+      if (!putRspChar (uch))
+	return false;	// Comms failure
+    }
+
+  if (!putRspChar ('#'))	// End char
+    return false;		// Comms failure
+
+  // Computed checksum
+  if (!putRspChar (Utils::hex2Char (checksum >> 4)))
+    return false;		// Comms failure
+  if (!putRspChar (Utils::hex2Char (checksum % 16)))
+    return false;		// Comms failure
+
+  if (si->debugTrapAndRspCon ())
+    cerr << "[" << portNum << "]:" << " putNotification: " << *pkt << endl;
+
+  return true;
+
+}	// putNotification ()
+
+//-----------------------------------------------------------------------------
 //! Put a single character out on the RSP connection
 
 //! Utility routine. This should only be called if the client is open, but we
@@ -612,6 +666,37 @@ RspConnection::getRspChar ()
 
 
 //-----------------------------------------------------------------------------
+//! Check if there input ready on the socket.
+
+//! @return  TRUE if so, FALSE otherwise.
+//-----------------------------------------------------------------------------
+bool
+RspConnection::inputReady ()
+{
+  fd_set readfds;
+  int res;
+  struct timeval zero = {};
+
+  FD_ZERO (&readfds);
+  FD_SET (clientFd, &readfds);
+
+  do
+    {
+      res = select (clientFd + 1, &readfds, NULL, NULL, &zero);
+    }
+  while (res == -1 && errno == EINTR);
+
+  if (res == 0)
+    return false;
+
+  if (FD_ISSET (clientFd, &readfds))
+    return true;
+
+  return false;
+}				// inputReady()
+
+
+//-----------------------------------------------------------------------------
 //! Check if there is an out-of-band BREAK command on the serial link.
 
 //! @return  TRUE if we got a BREAK, FALSE otherwise.
@@ -619,65 +704,38 @@ RspConnection::getRspChar ()
 bool
 RspConnection::getBreakCommand ()
 {
-  int flags;
-
-  // Set socket non-blocking
-  if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
+  if (mPendingBreak)
     {
-      cerr << "Warning: getBreakCommand: fcntl initial get flags: "
-	   << strerror (errno) << "." << endl;
-      return  false;
+      mPendingBreak = false;
+      return true;
     }
 
-  if (fcntl (clientFd, F_SETFL, flags | O_NONBLOCK) < 0)
-    {
-      cerr << "Warning: getBreakCommand fcntl set non-blocking: "
-	   << strerror (errno) << "." << endl;
-      return  false;
-    }
+  if (!inputReady ())
+    return false;
 
   unsigned char c;
-  bool gotChar = false;
+  int n;
 
-  while (!gotChar)
+  do
     {
-      int n = read (clientFd, &c, sizeof (c));
+      n = read (clientFd, &c, sizeof (c));
+    }
+  while (n == -1 && errno == EINTR);
 
-      switch (n)
-	{
-	case -1:
-	  if (EINTR == errno)
-	    break;		// Retry
-	  else
-	    return false;	// Not necessarily serious could be temporary
+  switch (n)
+    {
+    case -1:
+      return false;		// Not necessarily serious could be temporary
 				// unavailable resource.
-	case 0:
-	  return false;		// No break character there
+    case 0:
+      return false;		// No break character there
 
-	default:
-	  gotChar = true;
-	}
+    default:
+      // @todo Not sure this is really right. What other characters are we
+      //       throwing away if it is not 0x03?
+      return (c == 0x03);
     }
-
-  // Set socket to blocking
-
-  if ((flags = fcntl (clientFd, F_GETFL, 0)) < 0)
-    {
-      cerr << "Error: fcntl get" << strerror (errno) << endl;
-      return false;
-    }
-
-
-  if (fcntl (clientFd, F_SETFL, flags & (~O_NONBLOCK)) < 0)
-    {
-      cerr << "Error: fcntl set blocking" << strerror (errno) << endl;
-      return false;
-    }
-
-  // @todo Not sure this is really right. What other characters are we
-  //       throwing away if it is not 0x03?
-  return (gotChar && (c == 0x03));
-}
+}				// getBreakCommand()
 
 
 // Local Variables:
