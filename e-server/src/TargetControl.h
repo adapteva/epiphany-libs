@@ -248,6 +248,9 @@ public:
   virtual unsigned int  getNumCols () = 0;
   virtual CoreId abs2rel (CoreId absCoreId) = 0;
   virtual bool isLocalAddr (uint32_t  addr) const = 0;
+  virtual bool isExternalMem (uint32_t addr) const = 0;
+  virtual bool isCoreMem (uint32_t addr) const = 0;
+  virtual bool isValidAddr (uint32_t  addr) const;
 
   // Control functions
   virtual void platformReset ();

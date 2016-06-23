@@ -990,6 +990,23 @@ Thread::regAddr (unsigned int  regnum) const
 }	// regAddr ()
 
 
+//-----------------------------------------------------------------------------
+//! Check if an address is a valid program counter address
+
+//! @param[in] pc  Value of program counter.
+//! @return  true if pc is a valid program counter address, false otherwise.
+//-----------------------------------------------------------------------------
+bool
+Thread::isValidPc(uint32_t pc) const
+{
+  // pc must be aligned by 2
+  if (pc & 1)
+    return false;
+
+  return mTarget->isValidAddr(pc);
+}	// isvalidPc()
+
+
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"

@@ -28,13 +28,14 @@
 #include <inttypes.h>
 #include <set>
 
+#include <e-hal.h>
+#include <e-loader.h>
+
+#include "epiphany_platform.h"
+
 #include "MemRange.h"
 #include "ServerInfo.h"
 #include "TargetControl.h"
-
-#include "epiphany_platform.h"
-#include "epiphany-hal-data.h"
-
 
 using std::map;
 using std::pair;
@@ -80,6 +81,8 @@ public:
   virtual unsigned int  getNumCols ();
   virtual CoreId abs2rel (CoreId absCoreId);
   virtual bool isLocalAddr (uint32_t  addr) const;
+  virtual bool isExternalMem (uint32_t  addr) const;
+  virtual bool isCoreMem (uint32_t  addr) const;
 
   // Initialization functions
   void  initHwPlatform (platform_definition_t* platform);
@@ -114,9 +117,6 @@ private:
 
   //! Local pointer to server info
   ServerInfo* si;
-
-  //! Handle for the shared object libraries
-  void *dsoHandle;
 
   //! Vector of all the relative CoreIds
   vector <CoreId> relCoreIds;
@@ -160,12 +160,16 @@ private:
   //! @see threadIdGeneral for details.
   int  threadIdExecute;
 
+  //! e-hal data
+  e_epiphany_t mDev;
+  e_platform_t mPlatform;
+  e_mem_t mEmem;
+
   // Handler for the BREAK signal
   static void breakSignalHandler (int signum);
 
-  // Wrappers for dynamically loaded functions
-  int initPlatform (platform_definition_t* platform,
-		    unsigned int           verbose);
+  // Platform (e-hal) specific functions)
+  int initPlatform (unsigned int verbose);
   int closePlatform ();
   size_t writeTo (unsigned int  address,
 		  void*         buf,
@@ -176,26 +180,15 @@ private:
   int hwReset ();
   int getDescription (char** targetIdp);
 
-  // Convenience function
-  void* findSharedFunc (const char *funcName);
-
-  // pointers to the dynamically loaded functions.
-  int (*initPlatformFunc) (platform_definition_t* platform,
-			   unsigned int           verbose);
-  int (*closePlatformFunc) ();
-  int (*writeToFunc) (unsigned int  address,
-		      void*         buf,
-		      size_t        burstSize);
-  int (*readFromFunc) (unsigned  address,
-		       void*     buf,
-		       size_t    burstSize);
-  int (*hwResetFunc) ();
-  int (*getDescriptionFunc) (char** targetIdp);
-
   //! Integer to string conversion
   string  intStr (int  val,
 		  int  base = 10,
 		  int  width = 0) const;
+
+  bool addrToCoords (unsigned address,
+		     unsigned& row,
+		     unsigned& col,
+		     unsigned& offset) const;
 
 };	// TargetControlHardware
 
