@@ -2849,13 +2849,25 @@ GdbServer::doContinue (Thread* thread)
 GdbServer::TargetSignal
 GdbServer::findStopReason (Thread *thread)
 {
+  uint32_t pc;
+  uint16_t instr16;
+
   assert (thread->isHalted ());
   assert (thread->pendingSignal () == TARGET_SIGNAL_NONE);
 
-  // First see if we just hit a breakpoint or IDLE. Fortunately IDLE, BREAK,
+  pc = thread->readPc ();
+
+  // Check if address is valid
+  if (!thread->isValidPc (pc))
+    return TARGET_SIGNAL_ILL;
+
+  // Don't adjust PC if it's zero
+  if (pc >= SHORT_INSTRLEN)
+    pc -= SHORT_INSTRLEN;
+
+  // See if we just hit a breakpoint or IDLE. Fortunately IDLE, BREAK,
   // TRAP and NOP are all 16-bit instructions.
-  uint32_t pc = thread->readPc () - SHORT_INSTRLEN;
-  uint16_t instr16 = thread->readMem16 (pc);
+  instr16 = thread->readMem16 (pc);
 
   if (instr16 == BKPT_INSTR)
     {

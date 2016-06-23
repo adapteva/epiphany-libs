@@ -1,5 +1,23 @@
 2016-06-23  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/GdbServer.cpp (GdbServer::findStopReason): Validate PC before
+	trying to read its memory contents.
+	* src/TargetControl.cpp (TargetControl::isValidAddr): Implemented.
+	* src/TargetControl.h (TargetControl::isExternalMem): Add virtual
+	function.
+	(TargetControl::isCoreMem): Add virtual function.
+	(TargetControl::isValidAddr): Add virtual function.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::isExternalMem): Implemented.
+	(TargetControlHardware::isCoreMem): Implemented.
+	* src/TargetControlHardware.h:
+	(TargetControlHardware::isExternalMem): Add virtual function.
+	(TargetControlHardware::isCoreMem): Add virtual function.
+	* src/Thread.cpp (Thread::isValidPc): Implemented.
+	* src/Thread.h (Thread::isValidPc): Add function prototype.
+
+2016-06-23  Ola Jeppsson  <ola@adapteva.com>
+
 	* Makemodule.am (e_server_e_server_LDADD): Remove -ldl.
 	* src/TargetControlHardware.cpp (TargetControlHardware::addrToCoords):
 	New helper function.

@@ -646,6 +646,36 @@ TargetControlHardware::isLocalAddr (uint32_t  addr) const
 }	// isLocalAddr ();
 
 
+//! Is this an external memory address?
+
+//! @param[in] address
+//! @return  true if address is in external memory, false otherwise.
+bool
+TargetControlHardware::isExternalMem (uint32_t addr) const
+{
+  return (mEmem.ephy_base <= addr
+	  && addr - mEmem.ephy_base < mEmem.emap_size);
+
+}	// isExternalMem ();
+
+
+//! Is this a core memory address?
+
+//! @param[in] address
+//! @return  true if address is core memory, false otherwise.
+bool
+TargetControlHardware::isCoreMem (uint32_t  addr) const
+{
+  uint32_t row, col, offset;
+
+  if (isLocalAddr (addr))
+    return true;
+
+  return addrToCoords(addr, row, col, offset);
+
+}	// isCoreMem ();
+
+
 //! Initialize the hardware platform
 
 //! This involves setting up the shared object functions first, then calling

@@ -128,6 +128,7 @@ public:
   CoreId readCoreId () const;
   uint32_t readStatus () const;
   uint32_t readPc () const;
+  bool isValidPc(uint32_t pc) const;
   void writePc (uint32_t addr);
   uint32_t readLr () const;
   void writeLr (uint32_t addr);
