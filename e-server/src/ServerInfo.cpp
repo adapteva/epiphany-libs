@@ -3,8 +3,10 @@
 // This file is part of the Epiphany Software Development Kit.
 
 // Copyright (C) 2013-2014 Adapteva, Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
@@ -41,7 +43,8 @@ ServerInfo::ServerInfo () :
   showMemoryMapFlag (false),
   skipPlatformResetFlag (false),
   checkHwAddrFlag (false),
-  haltOnAttachFlag (true)
+  haltOnAttachFlag (true),
+  multiProcessFlag (false)
 {
 }	// ServerInfo ()
 
@@ -392,6 +395,24 @@ ServerInfo::haltOnAttach () const
   return  haltOnAttachFlag;
 
 }	// haltOnAttach ()
+
+
+//! Set the multi process mode flag
+void
+ServerInfo::multiProcess (const bool _multiProcessFlag)
+{
+  multiProcessFlag = _multiProcessFlag;
+
+}	// multiProcess ()
+
+
+//! Get the multiprocess mode flag
+bool
+ServerInfo::multiProcess () const
+{
+  return multiProcessFlag;
+
+}	// multiProcess ()
 
 
 // Local Variables:

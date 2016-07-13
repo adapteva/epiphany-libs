@@ -3,10 +3,12 @@
 // This file is part of the Epiphany Software Development Kit.
 
 // Copyright (C) 2013-2014 Adapteva, Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
@@ -199,6 +201,14 @@ usage_full (ostream& s)
     << endl;
   s << "    currently running a program." << endl;
   s << endl;
+
+  s << "  --multiprocess" << endl;
+  s << endl;
+  s << "    When starting an e-gdb session, the debugger automatically" << endl;
+  s << "    attaches to the idle process." << endl;
+  s << "    Use this option to disable this automatic attachment."  << endl;
+  s << endl;
+
   s << "  -skip-platform-reset" << endl;
   s << endl;
   s << "    Don't make the hardware reset during initialization." << endl;
@@ -461,6 +471,10 @@ main (int argc, char *argv[])
 	      usage_summary (cerr);
 	      exit (EXIT_FAILURE);
 	    }
+	}
+      else if (!strcmp (argv[n], "--multiprocess"))
+	{
+	  si->multiProcess (true);
 	}
       else if (!strcmp (argv[n], "-d"))
 	{

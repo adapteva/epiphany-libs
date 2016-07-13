@@ -1,11 +1,13 @@
 // Matchpoint hash table: definition
 
-// Copyright (C) 2008, 2009, 2014 Embecosm Limited
+// Copyright (C) 2008, 2009, 2014, 2016 Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -84,16 +86,16 @@ MpHash::~MpHash ()
 
 //! @param[in] type   The type of matchpoint
 //! @param[in] addr   The address of the matchpoint
-//! @param[in] tid    The thread ID of the matchpoint
+//! @param[in] thread The thread of the matchpoint
 //! @para[in]  instr  The instruction to associate with the address
 //-----------------------------------------------------------------------------
 void
-MpHash::add (MpType type,
-	     uint32_t addr,
-	     int tid,
-	     uint16_t instr)
+MpHash::add (MpType    type,
+	     uint32_t  addr,
+	     Thread*   thread,
+	     uint16_t  instr)
 {
-  MpKey  key = {type, addr, tid};
+  MpKey  key = {type, addr, thread};
   mHashTab[key] = instr;
 
 }	// add()
@@ -106,18 +108,25 @@ MpHash::add (MpType type,
 
 //! @param[in] type   The type of matchpoint
 //! @param[in] addr   The address of the matchpoint
-//! @param[in] tid    The thread ID of the matchpoint
+//! @param[in] thread The thread of the matchpoint
 
 //! @return  TRUE if an entry is found, FALSE otherwise.
 //-----------------------------------------------------------------------------
 bool
 MpHash::lookup (MpType    type,
 		uint32_t  addr,
-		int       tid)
+		Thread*   thread,
+		uint16_t* instr)
 {
-  MpKey  key = {type, addr, tid};
-  return (mHashTab.find (key) != mHashTab.end ());
+  MpKey  key = {type, addr, thread};
+  map <MpKey, uint16_t>::iterator it = mHashTab.find (key);
+  if (it != mHashTab.end ())
+    {
+      *instr = it->second;
+      return true;
+    }
 
+  return false;
 }	// lookup()
 
 
@@ -133,7 +142,7 @@ MpHash::lookup (MpType    type,
 
 //! @param[in]  type   The type of matchpoint
 //! @param[in]  addr   The address of the matchpoint
-//! @param[in]  tid    The thread ID of the matchpoint
+//! @param[in]  thread The thread of the matchpoint
 //! @param[out] instr  If non-NULL a location for the instruction found.
 //!                    Default NULL.
 
@@ -142,10 +151,10 @@ MpHash::lookup (MpType    type,
 bool
 MpHash::remove (MpType    type,
 		uint32_t  addr,
-		int       tid,
+		Thread*   thread,
 		uint16_t* instr)
 {
-  MpKey  key = {type, addr, tid};
+  MpKey  key = {type, addr, thread};
 
   if (NULL != instr)
     {

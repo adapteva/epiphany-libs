@@ -3,8 +3,10 @@
 // This file is part of the Epiphany Software Development Kit.
 
 // Copyright (C) 2013-2014 Adapteva, Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor: Jeremy Bennett <jeremy.bennett@embecosm.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
@@ -74,6 +76,8 @@ public:
   bool checkHwAddr () const;
   void haltOnAttach (const bool _haltOnAttachFlag);
   bool haltOnAttach () const;
+  void multiProcess (const bool _multiProcessFlag);
+  bool multiProcess () const;
 
 private:
 
@@ -115,6 +119,7 @@ private:
   bool skipPlatformResetFlag;           //!< Don't reset on init
   bool checkHwAddrFlag;			//!< Check HW address when used
   bool haltOnAttachFlag;		//!< Don't halt processor when attaching
+  bool multiProcessFlag;		//!< Multiprocess model
 
 };	// ServerInfo
 

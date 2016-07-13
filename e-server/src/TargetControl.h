@@ -248,17 +248,15 @@ public:
   virtual unsigned int  getNumCols () = 0;
   virtual CoreId abs2rel (CoreId absCoreId) = 0;
   virtual bool isLocalAddr (uint32_t  addr) const = 0;
+  virtual bool isExternalMem (uint32_t addr) const = 0;
+  virtual bool isCoreMem (uint32_t addr) const = 0;
+  virtual bool isValidAddr (uint32_t  addr) const;
 
   // Control functions
   virtual void platformReset ();
   virtual void resumeAndExit () = 0;
   virtual void startOfBaudMeasurement ();
   virtual double endOfBaudMeasurement ();
-
-  // trace support for vcd Dump
-  virtual bool initTrace () = 0;
-  virtual bool startTrace () = 0;
-  virtual bool stopTrace () = 0;
 
 protected:
 

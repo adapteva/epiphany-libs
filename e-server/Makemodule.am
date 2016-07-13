@@ -10,8 +10,11 @@ bin_PROGRAMS += e-server/e-server
 e_server_e_server_SOURCES =                      \
 e-server/src/CoreId.cpp                          \
 e-server/src/CoreId.h                            \
+e-server/src/GdbTid.cpp                          \
+e-server/src/GdbTid.h                            \
 e-server/src/GdbServer.cpp                       \
 e-server/src/GdbServer.h                         \
+e-server/src/IosUtils.h                          \
 e-server/src/libgloss_syscall.h                  \
 e-server/src/maddr_defs.h                        \
 e-server/src/main.cpp                            \
@@ -36,4 +39,4 @@ e-server/src/Thread.h                            \
 e-server/src/Utils.cpp                           \
 e-server/src/Utils.h
 
-e_server_e_server_LDADD = -ldl $(ESERVER_LIBS)
+e_server_e_server_LDADD = $(ESERVER_LIBS)

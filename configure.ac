@@ -140,14 +140,20 @@ AC_SUBST(bspsdir, [$bspsdir])
 
 AC_ARG_ENABLE(esim,
   [AS_HELP_STRING([--enable-esim], [Enable building e-hal with ESIM target.])])
+AS_IF([test "x$enable_esim" = xyes],
+  [AC_CHECK_HEADERS([esim.h], break;, enable_esim=no)])
+AS_IF([test "x$enable_esim" = xyes],
+  AC_CHECK_LIB(esim, es_init, break;, enable_esim=no)])
 AM_CONDITIONAL(ENABLE_ESIM, [test "x$enable_esim" = xyes])
-AS_IF([test "x$enable_esim" = xyes], [AC_CHECK_HEADERS([esim.h])])
 
 AC_ARG_ENABLE(pal-target,
   [AS_HELP_STRING([--enable-pal-target],
   [Enable building e-hal with PAL target.])])
+AS_IF([test "x$enable_pal_target" = xyes],
+  [AC_CHECK_HEADERS([pal/pal.h], break;, enable_pal_target=no)])
+AS_IF([test "x$enable_pal_target" = xyes],
+  AC_CHECK_LIB(pal, p_init, break;, enable_pal_target=no)])
 AM_CONDITIONAL(ENABLE_PAL_TARGET, [test "x$enable_pal_target" = xyes])
-AS_IF([test "x$enable_pal_target" = xyes], [AC_CHECK_HEADERS([pal/pal.h])])
 
 
 # Easiest way to include header files globally

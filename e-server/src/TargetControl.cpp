@@ -87,3 +87,13 @@ TargetControl::endOfBaudMeasurement ()
 }	// endOfBaudMeasurement
 
 
+//! Is this a valid address in the Epiphany address space?
+
+//! @param[in] addr  Address
+//! @return  true if addr is a valid Epiphany address, false otherwise.
+
+bool
+TargetControl::isValidAddr (uint32_t  addr) const
+{
+  return (isCoreMem (addr) || isExternalMem (addr));
+}	// isValidAddr ();

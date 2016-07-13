@@ -1,11 +1,13 @@
 // Matchpoint hash table: declaration
 
-// Copyright (C) 2008, 2009, 2014 Embecosm Limited
+// Copyright (C) 2008, 2009, 2014, 2016 Embecosm Limited
 // Copyright (C) 2009-2014 Adapteva Inc.
+// Copyright (C) 2016 Pedro Alves
 
 // Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
 // Contributor: Oleg Raikhman <support@adapteva.com>
 // Contributor: Yaniv Sapir <support@adapteva.com>
+// Contributor: Pedro Alves <pedro@palves.net>
 
 // This file is part of the Adapteva RSP server.
 
@@ -75,6 +77,7 @@ enum MpType
 
 
 class MpHash;
+class Thread;
 
 
 //-----------------------------------------------------------------------------
@@ -94,14 +97,15 @@ public:
   // Accessor methods
   void add (MpType    type,
 	    uint32_t  addr,
-	    int       tid,
+	    Thread*   thread,
 	    uint16_t  instr);
   bool lookup (MpType    type,
 	       uint32_t  addr,
-	       int       tid);
+	       Thread*   thread,
+	       uint16_t* instr);
   bool remove (MpType    type,
 	       uint32_t  addr,
-	       int       tid,
+	       Thread*   thread,
 	       uint16_t* instr = NULL);
 
 private:
@@ -112,7 +116,7 @@ private:
   public:
     MpType    type;		//!< Type of matchpoint
     uint32_t  addr;		//!< Address of the matchpoint
-    int       tid;              //!< Thread ID of the matchpoint
+    Thread*   thread;           //!< Thread of the matchpoint
 
     bool operator < (const MpKey &key) const
     {
@@ -124,7 +128,7 @@ private:
 	return true;
       else if (addr > key.addr)
 	return false;
-      else if (tid < key.tid)
+      else if (thread < key.thread)
 	return true;
       else
 	return false;

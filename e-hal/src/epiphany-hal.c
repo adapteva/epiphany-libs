@@ -100,6 +100,7 @@ int e_init(char *hdf)
 		return E_ERR;
 	}
 #endif
+
 #ifndef PAL_TARGET
 	if (ee_pal_target_p()) {
 		warnx("e_init(): " EHAL_TARGET_ENV " environment variable set to pal but target not compiled in.");
