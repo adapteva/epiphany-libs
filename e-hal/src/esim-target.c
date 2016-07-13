@@ -276,9 +276,9 @@ static int ee_populate_platform_esim(e_platform_t *dev, char *hdf)
 	dev->emem[0].type = E_RDWR;
 
 	/* Fill in chip param table */
-	chip_params_table[E_ESIM].sram_size = cfg.core_phys_mem;
-	chip_params_table[E_ESIM].rows = cfg.rows;
-	chip_params_table[E_ESIM].cols = cfg.cols;
+	e_chip_params_table[E_ESIM].sram_size = cfg.core_phys_mem;
+	e_chip_params_table[E_ESIM].rows = cfg.rows;
+	e_chip_params_table[E_ESIM].cols = cfg.cols;
 
 	return E_OK;
 #else

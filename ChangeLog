@@ -1,3 +1,21 @@
+2016-07-13  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/epiphany-hal-data-local.h (e_chip_db_t): Move here from
+	epiphany-hal.c
+	(E_CHIP_DB_NUM_CHIP_VERSIONS): Move define here from
+	epiphany-hal.c. Add E_ prefix.
+	(e_chip_params_table): Add declaration.
+	* src/epiphany-hal.c (e_chip_db_t): Move to
+	epiphany-hal-data-local.h
+	(CHIP_DB_NUM_CHIP_VERSIONS): Move to epiphany-hal-data-local.h.
+	(chip_params_table): Rename to ...
+	(e_chip_params_table): ... this.
+	(ee_set_chip_params): Change from chip_params_table to
+	e_chip_params_table. Change from CHIP_DB_NUM_CHIP_VERSIONS to
+	E_CHIP_DB_NUM_CHIP_VERSIONS.
+	* src/esim-target.c (ee_populate_platform_esim): Change from
+	chip_params_table to e_chip_params_table.
+
 2016-06-15  Ola Jeppsson  <ola@adapteva.com>
 
 	* configure.ac: Check for ESIM and PAL headers and libraries

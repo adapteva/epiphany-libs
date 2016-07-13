@@ -174,6 +174,26 @@ typedef struct {
 	unsigned	base;				// 0x54
 } e_emem_config_t;
 
+typedef struct {
+	e_objtype_t		 objtype;	  // object type identifier
+	e_chiptype_t	 type;		  // Epiphany chip part number
+	char			 version[32]; // version name of Epiphany chip
+	unsigned int	 arch;		  // architecture generation
+	unsigned int	 rows;		  // number of rows in chip
+	unsigned int	 cols;		  // number of cols in chip
+	unsigned int	 sram_base;	  // base offset of core SRAM
+	unsigned int	 sram_size;	  // size of core SRAM
+	unsigned int	 regs_base;	  // base offset of core registers
+	unsigned int	 regs_size;	  // size of core registers segment
+	off_t			 ioregs_n;	  // base address of north IO register
+	off_t			 ioregs_e;	  // base address of east IO register
+	off_t			 ioregs_s;	  // base address of south IO register
+	off_t			 ioregs_w;	  // base address of west IO register
+} e_chip_db_t;
+
+#define E_CHIP_DB_NUM_CHIP_VERSIONS 3
+extern e_chip_db_t e_chip_params_table[E_CHIP_DB_NUM_CHIP_VERSIONS];
+
 typedef struct e_epiphany_t e_epiphany_t;
 typedef struct e_mem_t e_mem_t;
 

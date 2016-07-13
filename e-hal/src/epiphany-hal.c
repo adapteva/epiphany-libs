@@ -1678,26 +1678,7 @@ int ee_set_platform_params(e_platform_t *platform)
 	return E_OK;
 }
 
-
-typedef struct {
-	e_objtype_t		 objtype;	  // object type identifier
-	e_chiptype_t	 type;		  // Epiphany chip part number
-	char			 version[32]; // version name of Epiphany chip
-	unsigned int	 arch;		  // architecture generation
-	unsigned int	 rows;		  // number of rows in chip
-	unsigned int	 cols;		  // number of cols in chip
-	unsigned int	 sram_base;	  // base offset of core SRAM
-	unsigned int	 sram_size;	  // size of core SRAM
-	unsigned int	 regs_base;	  // base offset of core registers
-	unsigned int	 regs_size;	  // size of core registers segment
-	off_t			 ioregs_n;	  // base address of north IO register
-	off_t			 ioregs_e;	  // base address of east IO register
-	off_t			 ioregs_s;	  // base address of south IO register
-	off_t			 ioregs_w;	  // base address of west IO register
-} e_chip_db_t;
-
-#define NUM_CHIP_VERSIONS 3
-e_chip_db_t chip_params_table[NUM_CHIP_VERSIONS] = {
+e_chip_db_t e_chip_params_table[E_CHIP_DB_NUM_CHIP_VERSIONS] = {
 //		 objtype	 type		version	 arch r	 c sram_base sram_size regs_base regs_size io_n		io_e		io_s		io_w
 		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x083f0000, 0x0c2f0000, 0x080f0000},
 		{E_EPI_CHIP, E_E64G401, "E64G401", 4, 8, 8, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
@@ -1709,32 +1690,32 @@ int ee_set_chip_params(e_chip_t *chip)
 {
 	int chip_ver;
 
-	for (chip_ver = 0; chip_ver < NUM_CHIP_VERSIONS; chip_ver++)
-		if (!strcmp(chip->version, chip_params_table[chip_ver].version))
+	for (chip_ver = 0; chip_ver < E_CHIP_DB_NUM_CHIP_VERSIONS; chip_ver++)
+		if (!strcmp(chip->version, e_chip_params_table[chip_ver].version))
 		{
 			diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): found chip version \"%s\"\n", chip->version); }
 			break;
 		}
 
-	if (chip_ver == NUM_CHIP_VERSIONS)
+	if (chip_ver == E_CHIP_DB_NUM_CHIP_VERSIONS)
 	{
-		diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, chip_params_table[0].version); }
+		diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, e_chip_params_table[0].version); }
 		chip_ver = 0;
 	}
 
-	chip->type		= chip_params_table[chip_ver].type;
-	chip->arch		= chip_params_table[chip_ver].arch;
-	chip->rows		= chip_params_table[chip_ver].rows;
-	chip->cols		= chip_params_table[chip_ver].cols;
+	chip->type		= e_chip_params_table[chip_ver].type;
+	chip->arch		= e_chip_params_table[chip_ver].arch;
+	chip->rows		= e_chip_params_table[chip_ver].rows;
+	chip->cols		= e_chip_params_table[chip_ver].cols;
 	chip->num_cores = chip->rows * chip->cols;
-	chip->sram_base = chip_params_table[chip_ver].sram_base;
-	chip->sram_size = chip_params_table[chip_ver].sram_size;
-	chip->regs_base = chip_params_table[chip_ver].regs_base;
-	chip->regs_size = chip_params_table[chip_ver].regs_size;
-	chip->ioregs_n	= chip_params_table[chip_ver].ioregs_n;
-	chip->ioregs_e	= chip_params_table[chip_ver].ioregs_e;
-	chip->ioregs_s	= chip_params_table[chip_ver].ioregs_s;
-	chip->ioregs_w	= chip_params_table[chip_ver].ioregs_w;
+	chip->sram_base = e_chip_params_table[chip_ver].sram_base;
+	chip->sram_size = e_chip_params_table[chip_ver].sram_size;
+	chip->regs_base = e_chip_params_table[chip_ver].regs_base;
+	chip->regs_size = e_chip_params_table[chip_ver].regs_size;
+	chip->ioregs_n	= e_chip_params_table[chip_ver].ioregs_n;
+	chip->ioregs_e	= e_chip_params_table[chip_ver].ioregs_e;
+	chip->ioregs_s	= e_chip_params_table[chip_ver].ioregs_s;
+	chip->ioregs_w	= e_chip_params_table[chip_ver].ioregs_w;
 
 	return E_OK;
 }
