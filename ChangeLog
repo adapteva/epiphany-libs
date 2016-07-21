@@ -1,5 +1,25 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Move
+	target_ops member...
+	* e-hal/src/epiphany-hal.c: ... from here.
+	(e_finalize): Use e_platform.target_ops.
+	(e_open): Likewise.
+	(e_close): Likewise.
+	(ee_read_word): Likewise.
+	(ee_write_word): Likewise.
+	(ee_read_buf): Likewise.
+	(ee_write_buf): Likewise.
+	(ee_read_reg): Likewise.
+	(ee_write_reg): Likewise.
+	(ee_mread_word): Likewise.
+	(ee_mwrite_word): Likewise.
+	(ee_mread_buf): Likewise.
+	(ee_mwrite_buf): Likewise.
+	(e_reset_system): Likewise.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal-data.h: Include
 	epiphany-hal-data-local.h after e_bool_t declaration.
 	* e-hal/src/epiphany-hal-data-local.h: Include

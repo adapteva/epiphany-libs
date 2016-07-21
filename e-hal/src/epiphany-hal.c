@@ -60,19 +60,18 @@ char *OBJTYPE[64] = {"NULL", "EPI_PLATFORM", "EPI_CHIP", "EPI_GROUP", "EPI_CORE"
 char const esdk_path[] = "EPIPHANY_HOME";
 char const hdf_env_var_name[] = "EPIPHANY_HDF";
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-e_platform_t e_platform = { E_EPI_PLATFORM };
-#pragma GCC diagnostic pop
-
 #ifdef ESIM_TARGET
 extern const struct e_target_ops esim_target_ops;
 #endif
 #ifdef PAL_TARGET
 extern const struct e_target_ops pal_target_ops;
 #endif
-const struct e_target_ops native_taget_ops;
-static const struct e_target_ops *target_ops = &native_taget_ops;
+const struct e_target_ops native_target_ops;
+
+e_platform_t e_platform = {
+	.objtype = E_EPI_PLATFORM,
+	.target_ops = &native_target_ops,
+};
 
 /////////////////////////////////
 // Device communication functions
@@ -110,18 +109,18 @@ int e_init(char *hdf)
 
 #ifdef ESIM_TARGET
 	if (ee_esim_target_p())
-		target_ops = &esim_target_ops;
+		e_platform.target_ops = &esim_target_ops;
 #endif
 
 #ifdef PAL_TARGET
 	if (ee_pal_target_p())
-		target_ops = &pal_target_ops;
+		e_platform.target_ops = &pal_target_ops;
 #endif
 
-	if (E_OK != target_ops->init())
+	if (E_OK != e_platform.target_ops->init())
 		return E_ERR;
 
-	if (E_OK != target_ops->populate_platform(&e_platform, hdf))
+	if (E_OK != e_platform.target_ops->populate_platform(&e_platform, hdf))
 		return E_ERR;
 
 	// Populate the missing platform parameters according to platform version.
@@ -178,7 +177,7 @@ int e_finalize(void)
 
 	e_shm_finalize();
 
-	target_ops->finalize();
+	e_platform.target_ops->finalize();
 
 	e_platform.initialized = E_FALSE;
 
@@ -237,7 +236,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
 	if (ee_pal_target_p())
-		return target_ops->open(dev, row, col, rows, cols);
+		return e_platform.target_ops->open(dev, row, col, rows, cols);
 
 	if (ee_esim_target_p()) {
 		// Connect to ESIM shm file
@@ -346,7 +345,7 @@ int e_close(e_epiphany_t *dev)
 	}
 
 	if (ee_pal_target_p())
-		return target_ops->close(dev);
+		return e_platform.target_ops->close(dev);
 
 	for (irow=0; irow<dev->rows; irow++)
 	{
@@ -478,7 +477,7 @@ static int ee_read_word_native(e_epiphany_t *dev, unsigned row, unsigned col, co
 // Read a word from SRAM of a core in a group
 int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
-	return target_ops->ee_read_word(dev, row, col, from_addr);
+	return e_platform.target_ops->ee_read_word(dev, row, col, from_addr);
 }
 
 
@@ -505,7 +504,7 @@ static ssize_t ee_write_word_native(e_epiphany_t *dev, unsigned row, unsigned co
 // Write a word to SRAM of a core in a group
 ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	return target_ops->ee_write_word(dev, row, col, to_addr, data);
+	return e_platform.target_ops->ee_write_word(dev, row, col, to_addr, data);
 }
 
 
@@ -640,7 +639,7 @@ static ssize_t ee_read_buf_native(e_epiphany_t *dev, unsigned row, unsigned col,
 // Read a memory block from SRAM of a core in a group
 ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
-	return target_ops->ee_read_buf(dev, row, col, from_addr, buf, size);
+	return e_platform.target_ops->ee_read_buf(dev, row, col, from_addr, buf, size);
 }
 
 
@@ -666,7 +665,7 @@ static ssize_t ee_write_buf_native(e_epiphany_t *dev, unsigned row, unsigned col
 // Write a memory block to SRAM of a core in a group
 ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
-	return target_ops->ee_write_buf(dev, row, col, to_addr, buf, size);
+	return e_platform.target_ops->ee_write_buf(dev, row, col, to_addr, buf, size);
 }
 
 static int ee_read_reg_native(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
@@ -698,7 +697,7 @@ static int ee_read_reg_native(e_epiphany_t *dev, unsigned row, unsigned col, con
 // Read a core register from a core in a group
 int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
-	return target_ops->ee_read_reg(dev, row, col, from_addr);
+	return e_platform.target_ops->ee_read_reg(dev, row, col, from_addr);
 }
 
 
@@ -728,7 +727,7 @@ static ssize_t ee_write_reg_native(e_epiphany_t *dev, unsigned row, unsigned col
 // Write to a core register of a core in a group
 ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	return target_ops->ee_write_reg(dev, row, col, to_addr, data);
+	return e_platform.target_ops->ee_write_reg(dev, row, col, to_addr, data);
 }
 
 // External Memory access
@@ -850,7 +849,7 @@ static int ee_mread_word_native(e_mem_t *mbuf, const off_t from_addr)
 // Read a word from an external memory buffer
 int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 {
-	return target_ops->ee_mread_word(mbuf, from_addr);
+	return e_platform.target_ops->ee_mread_word(mbuf, from_addr);
 }
 
 
@@ -877,7 +876,7 @@ static ssize_t ee_mwrite_word_native(e_mem_t *mbuf, off_t to_addr, int data)
 // Write a word to an external memory buffer
 ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data)
 {
-	return target_ops->ee_mwrite_word(mbuf, to_addr, data);
+	return e_platform.target_ops->ee_mwrite_word(mbuf, to_addr, data);
 }
 
 
@@ -907,7 +906,7 @@ static ssize_t ee_mread_buf_native(e_mem_t *mbuf, const off_t from_addr, void *b
 // Read a block from an external memory buffer
 ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size)
 {
-	return target_ops->ee_mread_buf(mbuf, from_addr, buf, size);
+	return e_platform.target_ops->ee_mread_buf(mbuf, from_addr, buf, size);
 }
 
 
@@ -938,7 +937,7 @@ static ssize_t ee_mwrite_buf_native(e_mem_t *mbuf, off_t to_addr, const void *bu
 // Write a block to an external memory buffer
 ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
 {
-	return target_ops->ee_mwrite_buf(mbuf, to_addr, buf, size);
+	return e_platform.target_ops->ee_mwrite_buf(mbuf, to_addr, buf, size);
 }
 
 
@@ -973,7 +972,7 @@ int e_reset_system_native(void)
 // Reset the Epiphany platform
 int e_reset_system(void)
 {
-	return target_ops->e_reset_system();
+	return e_platform.target_ops->e_reset_system();
 }
 
 

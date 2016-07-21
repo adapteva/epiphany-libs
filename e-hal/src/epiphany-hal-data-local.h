@@ -131,6 +131,7 @@ typedef struct {
 } e_memseg_t;
 
 typedef struct es_state_ es_state;
+typedef struct e_target_ops e_target_ops_t;
 
 typedef struct {
 	e_objtype_t		 objtype;	  // object type identifier
@@ -149,6 +150,7 @@ typedef struct {
 	int				 num_emems;	  // number of external memory segments in platform
 	e_memseg_t		*emem;		  // array of external memory segments
 
+	const e_target_ops_t	*target_ops;  // Target operators
 	void			*priv;        // Target handle
 
 } e_platform_t;
