@@ -350,7 +350,7 @@ int e_close(e_epiphany_t *dev)
 
 	for (irow=0; irow<dev->rows; irow++)
 	{
-		if (!ee_esim_target_p()) {
+		if (ee_native_target_p()) {
 			for (icol=0; icol<dev->cols; icol++)
 			{
 #if 0
@@ -371,7 +371,7 @@ int e_close(e_epiphany_t *dev)
 
 	free(dev->core);
 
-	if (!ee_esim_target_p())
+	if (ee_native_target_p())
 		close(dev->memfd);
 
 	return E_OK;
