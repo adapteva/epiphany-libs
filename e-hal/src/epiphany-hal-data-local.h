@@ -218,6 +218,12 @@ struct e_target_ops {
 	void (*finalize) (void);
 	int (*open) (e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
 	int (*close) (e_epiphany_t *);
+	int (*load_group) (const char *, e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
+	int (*start_group)(e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
+	void * (*get_raw_pointer)(unsigned long, unsigned long);
+	int (*alloc) (e_mem_t *);
+	int (*shm_alloc) (e_mem_t *);
+	int (*free) (e_mem_t *);
 };
 
 #ifdef __cplusplus
