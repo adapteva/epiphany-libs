@@ -1,5 +1,12 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal.c (e_open): Always call
+	target_ops->open()
+	(ee_open_native): Implemented.
+	* e-hal/src/esim-target.c (ee_open_esim): Implemented.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (ee_esim_target_p): Support "sim".
 
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>

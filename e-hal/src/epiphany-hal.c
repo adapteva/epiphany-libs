@@ -205,8 +205,22 @@ int e_get_platform_info(e_platform_t *platform)
 
 
 // Epiphany access
-//
+
 // Define an e-core workgroup
+
+static int ee_open_native(e_epiphany_t *dev, unsigned row, unsigned col,
+						  unsigned rows, unsigned cols)
+{
+	// Open memory device
+	dev->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
+	if (dev->memfd == -1) {
+		warnx("e_open(): EPIPHANY_DEV file open failure.");
+		return E_ERR;
+	}
+
+	return E_OK;
+}
+
 int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols)
 {
 	int irow, icol;
@@ -235,21 +249,8 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
-	if (ee_pal_target_p())
-		return e_platform.target_ops->open(dev, row, col, rows, cols);
-
-	if (ee_esim_target_p()) {
-		// Connect to ESIM shm file
-		dev->priv = (void *) e_platform.priv;
-	} else {
-		// Open memory device
-		dev->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
-		if (dev->memfd == -1)
-		{
-			warnx("e_open(): EPIPHANY_DEV file open failure.");
-			return E_ERR;
-		}
-	}
+	if (e_platform.target_ops->open(dev, row, col, rows, cols) != E_OK)
+		return E_ERR;
 
 	// Map individual cores to virtual memory space
 	dev->core = (e_core_t **) malloc(dev->rows * sizeof(e_core_t *));
@@ -289,7 +290,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->mems.page_offset = curr_core->mems.phy_base - curr_core->mems.page_base;
 			curr_core->mems.map_size = e_platform.chip[0].sram_size + curr_core->mems.page_offset;
 
-			if (!ee_esim_target_p()) {
+			if (ee_native_target_p()) {
 				curr_core->mems.mapped_base = mmap(NULL, curr_core->mems.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->mems.page_base);
 				curr_core->mems.base = curr_core->mems.mapped_base + curr_core->mems.page_offset;
 
@@ -302,7 +303,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->regs.page_offset = curr_core->regs.phy_base - curr_core->regs.page_base;
 			curr_core->regs.map_size = e_platform.chip[0].regs_size + curr_core->regs.page_offset;
 
-			if (!ee_esim_target_p()) {
+			if (ee_native_target_p()) {
 				curr_core->regs.mapped_base = mmap(NULL, curr_core->regs.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->regs.page_base);
 				curr_core->regs.base = curr_core->regs.mapped_base + curr_core->regs.page_offset;
 
@@ -1864,6 +1865,7 @@ const struct e_target_ops native_taget_ops = {
 	.populate_platform = populate_platform_native,
 	.init = init_native,
 	.finalize = finalize_native,
+	.open = ee_open_native,
 };
 
 #pragma GCC diagnostic pop

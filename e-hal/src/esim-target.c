@@ -302,6 +302,15 @@ static void ee_finalize_esim()
 	es_ops.client_disconnect(e_platform.priv, true);
 }
 
+static int ee_open_esim(e_epiphany_t *dev, unsigned row, unsigned col,
+						unsigned rows, unsigned cols)
+{
+	// Connect to ESIM shm file
+	dev->priv = (void *) e_platform.priv;
+
+	return E_OK;
+}
+
 /* ESIM target ops */
 const struct e_target_ops esim_target_ops = {
 	.ee_read_word = ee_read_word_esim,
@@ -318,4 +327,5 @@ const struct e_target_ops esim_target_ops = {
 	.populate_platform = ee_populate_platform_esim,
 	.init = ee_init_esim,
 	.finalize = ee_finalize_esim,
+	.open = ee_open_esim,
 };
