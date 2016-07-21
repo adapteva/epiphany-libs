@@ -29,10 +29,6 @@
 #include <stdint.h>
 #include <semaphore.h>
 
-#include "epiphany-hal-data-local.h"
-
-#define EHAL_TARGET_ENV "EHAL_TARGET"
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -47,6 +43,9 @@ typedef enum {
 } e_bool_t;
 #endif
 
+#include "epiphany-hal-data-local.h"
+
+#define EHAL_TARGET_ENV "EHAL_TARGET"
 
 typedef enum {
 	H_D0 = 0,

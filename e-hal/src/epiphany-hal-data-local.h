@@ -26,6 +26,8 @@
 #ifndef __E_HAL_DATA_LOC_H__
 #define __E_HAL_DATA_LOC_H__
 
+#include "epiphany-hal-data.h"
+
 #ifdef __cplusplus
 extern "C"
 {

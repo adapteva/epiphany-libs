@@ -1,3 +1,10 @@
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data.h: Include
+	epiphany-hal-data-local.h after e_bool_t declaration.
+	* e-hal/src/epiphany-hal-data-local.h: Include
+	epiphany-hal-data.h
+
 2016-07-13  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/epiphany-hal-data-local.h (e_chip_db_t): Move here from
