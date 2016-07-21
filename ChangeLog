@@ -1,5 +1,22 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/e-loader.c (e_load): Simplify.
+	(_e_default_load_group): Rename from e_load_group. Don't start
+	program. Adjust arguments.
+	(e_load_group): Implement. Use target callbacks.
+	* e-hal/src/epiphany-hal.c (_e_default_start_group): Rename
+	from ee_start_group. Adjust arguments.
+	(e_start): Use target callback.
+	(e_start_group): Use target callback.
+	(native_taget_ops):
+	* e-hal/src/esim-target.c (esim_target_ops): Use
+	_e_default_load_group and _e_default_start_group as load_group
+	and start_group native callbacks.
+	* e-hal/src/esim-target.c (esim_target_ops): Likewise but for
+	esim.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-shm-manager.c (e_shm_init_esim_and_pal):
 	Rename from e_shm_init_esim.
 	(e_shm_init): Call e_shm_init_esim_and_pal for both esim and

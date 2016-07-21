@@ -325,6 +325,9 @@ static int ee_open_esim(e_epiphany_t *dev, unsigned row, unsigned col,
 	return E_OK;
 }
 
+extern int _e_default_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
+extern int _e_default_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
+
 /* ESIM target ops */
 const struct e_target_ops esim_target_ops = {
 	.ee_read_word = ee_read_word_esim,
@@ -342,6 +345,8 @@ const struct e_target_ops esim_target_ops = {
 	.init = ee_init_esim,
 	.finalize = ee_finalize_esim,
 	.open = ee_open_esim,
+	.load_group = _e_default_load_group,
+	.start_group = _e_default_start_group,
 	.alloc = alloc_esim,
 	.shm_alloc = alloc_esim,
 	.free = free_esim,

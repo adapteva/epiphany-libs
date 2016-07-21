@@ -107,13 +107,11 @@ static bool is_srec_file(const char *hdr)
 	return (memcmp(hdr, srechdr, sizeof(srechdr)) == 0);
 }
 
-int e_load(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, e_bool_t start)
+int e_load(const char *executable, e_epiphany_t *dev,
+		   unsigned row, unsigned col,
+		   e_bool_t start)
 {
-	int status;
-
-	status = e_load_group(executable, dev, row, col, 1, 1, start);
-
-	return status;
+	return e_load_group(executable, dev, row, col, 1, 1, start);
 }
 
 static void clear_sram(e_epiphany_t *dev,
@@ -134,7 +132,23 @@ static void clear_sram(e_epiphany_t *dev,
 			e_write(dev, i, j, 0, empty, sram_size);
 }
 
-int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols, e_bool_t start)
+int e_load_group(const char *executable, e_epiphany_t *dev,
+				 unsigned row, unsigned col,
+				 unsigned rows, unsigned cols,
+				 e_bool_t start)
+{
+	if (e_platform.target_ops->load_group(executable, dev, row, col, rows, cols))
+		return E_ERR;
+
+	if (start)
+		return e_platform.target_ops->start_group(dev, row, col, rows, cols);
+
+	return E_OK;
+}
+
+int _e_default_load_group(const char *executable, e_epiphany_t *dev,
+						  unsigned row, unsigned col,
+						  unsigned rows, unsigned cols)
 {
 	e_mem_t      emem;
 	unsigned int irow, icol, i;
@@ -241,20 +255,7 @@ int e_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsign
 		}
 	}
 
-	if (start) {
-		for (irow=row; irow<(row+rows); irow++) {
-			for (icol=col; icol<(col + cols); icol++) {
-				diag(L_D1) {
-					fprintf(diag_fd,
-							"e_load_group(): send SYNC signal to core (%d,%d)...\n",
-							irow, icol); }
-				e_start(dev, irow, icol);
-				diag(L_D1) {fprintf(diag_fd, "e_load_group(): done.\n"); }
-			}
-		}
-	}
-
-	diag(L_D1) { fprintf(diag_fd, "e_load_group(): done loading.\n"); }
+	diag(L_D1) { fprintf(diag_fd, "%s(): done loading.\n", __func__); }
 
 out:
 	munmap(file, st.st_size);

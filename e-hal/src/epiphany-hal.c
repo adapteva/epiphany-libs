@@ -1252,9 +1252,9 @@ int e_reset_group(e_epiphany_t *dev)
 	return ee_reset_group(dev, 0, 0, dev->rows, dev->cols);
 }
 
-
-int ee_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
-		unsigned cols)
+int _e_default_start_group(e_epiphany_t *dev,
+						   unsigned row, unsigned col,
+						   unsigned rows, unsigned cols)
 {
 	int				i, j;
 	e_return_stat_t retval;
@@ -1262,14 +1262,14 @@ int ee_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
 
 	retval = E_OK;
 
-	diag(H_D1) { fprintf(diag_fd, "ee_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
+	diag(H_D1) { fprintf(diag_fd, "%s(): SYNC (0x%x) to workgroup...\n", __func__, E_REG_ILATST); }
 	for (i = row; i < row + rows; i++) {
 		for (j = col; j < col + cols; j++) {
 			if (ee_write_reg(dev, i, j, E_REG_ILATST, SYNC) == E_ERR)
 				retval = E_ERR;
 		}
 	}
-	diag(H_D1) { fprintf(diag_fd, "ee_start_group(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "%s(): done.\n", __func__); }
 
 	return retval;
 }
@@ -1278,14 +1278,14 @@ int ee_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
 // Start a program loaded on an e-core in a group
 int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	return ee_start_group(dev, row, col, 1, 1);
+	return e_platform.target_ops->start_group(dev, row, col, 1, 1);
 }
 
 
 // Start all programs loaded on a workgroup
 int e_start_group(e_epiphany_t *dev)
 {
-	return ee_start_group(dev, 0, 0, dev->rows, dev->cols);
+	return e_platform.target_ops->start_group(dev, 0, 0, dev->rows, dev->cols);
 }
 
 
@@ -1857,6 +1857,9 @@ static void finalize_native()
 {
 }
 
+extern int _e_default_load_group(const char *executable, e_epiphany_t *dev,
+								 unsigned row, unsigned col,
+								 unsigned rows, unsigned cols);
 /* Native target ops */
 const struct e_target_ops native_taget_ops = {
 	.alloc = alloc_native,
@@ -1877,6 +1880,8 @@ const struct e_target_ops native_taget_ops = {
 	.init = init_native,
 	.finalize = finalize_native,
 	.open = ee_open_native,
+	.load_group = _e_default_load_group,
+	.start_group = _e_default_start_group,
 };
 
 #pragma GCC diagnostic pop
