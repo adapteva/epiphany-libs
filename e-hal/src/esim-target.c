@@ -325,6 +325,11 @@ static int ee_open_esim(e_epiphany_t *dev, unsigned row, unsigned col,
 	return E_OK;
 }
 
+static void *ee_get_raw_pointer_esim(unsigned long addr, unsigned long size)
+{
+	return (void *) es_ops.client_get_raw_pointer(e_platform.priv, addr, size);
+}
+
 extern int _e_default_load_group(const char *executable, e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
 extern int _e_default_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
 
@@ -347,6 +352,7 @@ const struct e_target_ops esim_target_ops = {
 	.open = ee_open_esim,
 	.load_group = _e_default_load_group,
 	.start_group = _e_default_start_group,
+	.get_raw_pointer = ee_get_raw_pointer_esim,
 	.alloc = alloc_esim,
 	.shm_alloc = alloc_esim,
 	.free = free_esim,

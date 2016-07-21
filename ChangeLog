@@ -1,5 +1,12 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/esim-target.c (ee_get_raw_pointer_esim):
+	Implement.
+	(esim_target_ops): Use ee_get_raw_pointer as get_raw_pointer
+	callback.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/e-loader.c (e_load): Simplify.
 	(_e_default_load_group): Rename from e_load_group. Don't start
 	program. Adjust arguments.
