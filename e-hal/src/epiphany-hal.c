@@ -734,6 +734,30 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 // External Memory access
 //
 // Allocate a buffer in external memory
+
+static int alloc_native(e_mem_t *mbuf)
+{
+	mbuf->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
+	if (mbuf->memfd == -1)
+	{
+		warnx("e_alloc(): EPIPHANY_DEV file open failure.");
+		return E_ERR;
+	}
+
+	diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
+
+	mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
+	mbuf->base = (void*)(((char*)mbuf->mapped_base) + mbuf->page_offset);
+
+	if (mbuf->mapped_base == MAP_FAILED)
+	{
+		warnx("e_alloc(): mmap failure.");
+		return E_ERR;
+	}
+
+	return E_OK;
+}
+
 int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 {
 	if (e_platform.initialized == E_FALSE)
@@ -743,18 +767,7 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	}
 
 	mbuf->objtype = E_EXT_MEM;
-
-	if (ee_esim_target_p()) {
-		// Connect to ESIM shm file
-		mbuf->priv = e_platform.priv;
-	} else {
-		mbuf->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
-		if (mbuf->memfd == -1)
-		{
-			warnx("e_alloc(): EPIPHANY_DEV file open failure.");
-			return E_ERR;
-		}
-	}
+	mbuf->priv = NULL;
 
 	diag(H_D2) { fprintf(diag_fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) offset); }
 
@@ -763,16 +776,11 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	mbuf->page_offset = mbuf->phy_base - mbuf->page_base;
 	mbuf->map_size = size + mbuf->page_offset;
 
-	if (!ee_esim_target_p()) {
-		mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
-		mbuf->base = (void*)(((char*)mbuf->mapped_base) + mbuf->page_offset);
-	}
-
 	mbuf->ephy_base = (e_platform.emem[0].ephy_base + offset); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
-	if (!ee_esim_target_p()) {
-		diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
+	return e_platform.target_ops->alloc(mbuf);
+}
 
 		if (mbuf->mapped_base == MAP_FAILED)
 		{
@@ -1851,6 +1859,7 @@ static void finalize_native()
 
 /* Native target ops */
 const struct e_target_ops native_taget_ops = {
+	.alloc = alloc_native,
 	.ee_read_word = ee_read_word_native,
 	.ee_write_word = ee_write_word_native,
 	.ee_read_buf = ee_read_buf_native,

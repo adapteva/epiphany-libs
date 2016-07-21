@@ -27,6 +27,14 @@ const struct esim_ops es_ops = {
 #endif
 };
 
+// Allocate a buffer in external memory
+static int alloc_esim(e_mem_t *mbuf)
+{
+	mbuf->priv = e_platform.priv;
+
+	return E_OK;
+}
+
 // Read a word from SRAM of a core in a group
 static int ee_read_word_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
@@ -328,4 +336,5 @@ const struct e_target_ops esim_target_ops = {
 	.init = ee_init_esim,
 	.finalize = ee_finalize_esim,
 	.open = ee_open_esim,
+	.alloc = alloc_esim,
 };
