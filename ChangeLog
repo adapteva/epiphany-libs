@@ -1,5 +1,13 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal.c (e_free): Split out target specific
+	code to target callbacks.
+	(free_native): Move native specific code here from e_free.
+	* e-hal/src/esim-target.c (free_esim): Move esim specific code
+	here from e_free.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (e_alloc): Make more generic.
 	(alloc_native): Move native specific code here from e_alloc.
 	* e-hal/src/esim-target.c (alloc_esim): Move esim specific

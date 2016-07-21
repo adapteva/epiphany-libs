@@ -782,33 +782,27 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	return e_platform.target_ops->alloc(mbuf);
 }
 
-		if (mbuf->mapped_base == MAP_FAILED)
-		{
-			warnx("e_alloc(): mmap failure.");
-			return E_ERR;
-		}
-	}
+// Free a memory buffer in external memory
+
+static int free_native(e_mem_t *mbuf)
+{
+	munmap(mbuf->mapped_base, mbuf->map_size);
+	close(mbuf->memfd);
 
 	return E_OK;
 }
 
-// Free a memory buffer in external memory
 int e_free(e_mem_t *mbuf)
 {
-	if (NULL == mbuf) {
+	if (!mbuf)
 		return E_ERR;
-	}
 
-	if (E_SHARED_MEM != mbuf->objtype) {
+	if (E_SHARED_MEM == mbuf->objtype) {
 		// The shared memory mapping is persistent - don't unmap
-
-		if (!ee_esim_target_p()) {
-			munmap(mbuf->mapped_base, mbuf->map_size);
-			close(mbuf->memfd);
-		}
+		return E_OK;
 	}
 
-	return E_OK;
+	return e_platform.target_ops->free(mbuf);
 }
 
 
@@ -1860,6 +1854,7 @@ static void finalize_native()
 /* Native target ops */
 const struct e_target_ops native_taget_ops = {
 	.alloc = alloc_native,
+	.free = free_native,
 	.ee_read_word = ee_read_word_native,
 	.ee_write_word = ee_write_word_native,
 	.ee_read_buf = ee_read_buf_native,

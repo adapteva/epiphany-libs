@@ -35,6 +35,12 @@ static int alloc_esim(e_mem_t *mbuf)
 	return E_OK;
 }
 
+// Free a memory buffer in external memory
+static int free_esim(e_mem_t *mbuf)
+{
+	return E_OK;
+}
+
 // Read a word from SRAM of a core in a group
 static int ee_read_word_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
@@ -337,4 +343,5 @@ const struct e_target_ops esim_target_ops = {
 	.finalize = ee_finalize_esim,
 	.open = ee_open_esim,
 	.alloc = alloc_esim,
+	.free = free_esim,
 };
