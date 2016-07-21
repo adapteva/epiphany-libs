@@ -1783,7 +1783,8 @@ bool ee_esim_target_p()
 
 	if (!initialized) {
 		p = getenv(EHAL_TARGET_ENV);
-		esim = (p && strncmp(p, "esim", sizeof("esim")) == 0);
+		esim = (p && strncmp(p, "sim", sizeof("sim")) == 0) ||
+			   (p && strncmp(p, "esim", sizeof("esim")) == 0);
         initialized = true;
 	}
 
