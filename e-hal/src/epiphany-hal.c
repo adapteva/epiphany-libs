@@ -732,7 +732,13 @@ ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_add
 }
 
 // External Memory access
-//
+
+// Allocate a buffer in external memory
+static int shm_alloc_native(e_mem_t *mbuf)
+{
+	return E_OK;
+}
+
 // Allocate a buffer in external memory
 
 static int alloc_native(e_mem_t *mbuf)
@@ -1854,6 +1860,7 @@ static void finalize_native()
 /* Native target ops */
 const struct e_target_ops native_taget_ops = {
 	.alloc = alloc_native,
+	.shm_alloc = shm_alloc_native,
 	.free = free_native,
 	.ee_read_word = ee_read_word_native,
 	.ee_write_word = ee_write_word_native,

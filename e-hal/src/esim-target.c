@@ -343,5 +343,6 @@ const struct e_target_ops esim_target_ops = {
 	.finalize = ee_finalize_esim,
 	.open = ee_open_esim,
 	.alloc = alloc_esim,
+	.shm_alloc = alloc_esim,
 	.free = free_esim,
 };

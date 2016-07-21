@@ -1,5 +1,20 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init_esim_and_pal):
+	Rename from e_shm_init_esim.
+	(e_shm_init): Call e_shm_init_esim_and_pal for both esim and
+	pal targets.
+	(e_shm_alloc): Call device callback.
+	(e_shm_attach): Likwise.
+	(e_shm_get_shmtable): Support PAL target.
+	(e_shm_put_shmtable): Likewise.
+	* e-hal/src/epiphany-hal.c (shm_alloc_native): Move native
+	specific code here from e_shm_alloc.
+	* e-hal/src/esim-target.c (esim_target_ops): Use alloc_esim as
+	target shm_alloc callback.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (e_free): Split out target specific
 	code to target callbacks.
 	(free_native): Move native specific code here from e_free.
