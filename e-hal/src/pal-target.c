@@ -211,9 +211,10 @@ static int pal_reset_system(void)
 
 static int pal_populate_platform(e_platform_t *dev, char *hdf)
 {
-	/* TODO: Hard coded values. The PAL API does not export the informantion
-	 * yet.
-	 */
+	p_dev_t *pal_dev = &e_platform.priv;
+	unsigned row_base, col_base, cols, rows, sram_size;
+
+	/* TODO: Some hardcoded values. */
 
 	memcpy(&dev->version, "PAL", sizeof("PAL"));
 
@@ -225,17 +226,25 @@ static int pal_populate_platform(e_platform_t *dev, char *hdf)
 
 	memcpy(dev->chip[0].version, "PAL", sizeof("PAL"));
 
-	dev->chip[0].row = 32;
-	dev->chip[0].col = 8;
+	row_base = p_query(*pal_dev, P_PROP_ROWBASE);
+	col_base = p_query(*pal_dev, P_PROP_COLBASE);
+	rows = p_query(*pal_dev, P_PROP_ROWS);
+	cols = p_query(*pal_dev, P_PROP_COLS);
+	sram_size = p_query(*pal_dev, P_PROP_MEMSIZE);
+
+	dev->chip[0].row = row_base;
+	dev->chip[0].col = col_base;
+
+	/* Fill in chip param table */
+	e_chip_params_table[E_ESIM].sram_size = sram_size;
+	e_chip_params_table[E_ESIM].rows = rows;
+	e_chip_params_table[E_ESIM].cols = cols;
+
+	/* TODO: Parameters not exposed in PAL */
 	dev->emem[0].phy_base = 0x8e000000;
 	dev->emem[0].ephy_base = 0x8e000000;
 	dev->emem[0].size = 32 * 1024 * 1024;
 	dev->emem[0].type = E_RDWR;
-
-	/* Fill in chip param table */
-	e_chip_params_table[E_ESIM].sram_size = 32768;
-	e_chip_params_table[E_ESIM].rows = 4;
-	e_chip_params_table[E_ESIM].cols = 4;
 
 	return E_OK;
 }

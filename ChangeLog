@@ -1,5 +1,10 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/pal-target.c (pal_populate_platform): Query device
+	parameters from PAL.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/pal-target.c (pal_to_rank): Implement.
 	(pal_to_rank): Likewise.
 	(pal_alloc): Likewise.
