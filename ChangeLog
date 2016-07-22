@@ -1,5 +1,31 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/pal-target.c (pal_to_rank): Implement.
+	(pal_to_rank): Likewise.
+	(pal_alloc): Likewise.
+	(pal_free): Likewise.
+	(pal_read_buf): Likewise.
+	(pal_write_buf): Likewise.
+	(pal_read_word): Likewise.
+	(pal_write_word): Likewise.
+	(pal_read_reg): Likewise.
+	(pal_write_reg): Likewise.
+	(pal_mread_word): Likewise.
+	(pal_mwrite_word): Likewise.
+	(pal_mread_buf): Likewise.
+	(pal_mwrite_buf): Likewise.
+	(pal_reset_system): Likewise.
+	(pal_populate_platform): Likewise.
+	(pal_init): Likewise.
+	(pal_finalize): Likewise.
+	(pal_open): Likewise.
+	(pal_close): Likewise.
+	(pal_load_group): Likewise.
+	(pal_start_group): Likewise.
+	(pal_get_raw_pointer): Likewise.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/esim-target.c (ee_get_raw_pointer_esim):
 	Implement.
 	(esim_target_ops): Use ee_get_raw_pointer as get_raw_pointer
