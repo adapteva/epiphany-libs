@@ -1,5 +1,11 @@
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/pal-target.c (pal_load_group): Call p_run() with
+	P_RUN_PREPARE flag.
+	(pal_start_group): Call P_RUN with P_RUN_PREPARED flag.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/pal-target.c (pal_populate_platform): Query device
 	parameters from PAL.
 

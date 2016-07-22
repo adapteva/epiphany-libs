@@ -368,6 +368,16 @@ static int pal_load_group(const char *executable, e_epiphany_t *dev,
 		}
 	}
 
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			rank = pal_to_rank(dev, i, j);
+
+			if (p_run(pal->member[rank].prog, "main", pal->team,
+					  rank, 1, 0, NULL, P_RUN_PREPARE))
+				return E_ERR;
+		}
+	}
+
 	return E_OK;
 }
 
@@ -382,7 +392,7 @@ static  int pal_start_group(e_epiphany_t *dev, unsigned row, unsigned col,
 			rank = pal_to_rank(dev, i, j);
 
 			if (p_run(pal->member[rank].prog, "main", pal->team,
-					  rank, 1, 0, NULL, P_RUN_NONBLOCK))
+					  rank, 1, 0, NULL, P_RUN_PREPARED | P_RUN_NONBLOCK))
 				return E_ERR;
 		}
 	}
