@@ -361,8 +361,8 @@ static int pal_load_group(const char *executable, e_epiphany_t *dev,
 	if (p_error(prog))
 		return E_ERR;
 
-	for (i = row; i < rows; i++) {
-		for (j = col; j < cols; j++) {
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
 			rank = pal_to_rank(dev, i, j);
 			pal->member[rank].prog = prog;
 		}
