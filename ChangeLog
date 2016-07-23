@@ -1,5 +1,10 @@
 2016-07-23  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/pal-target.c (pal_close): Replace p_wait() call
+	with call to p_kill().
+
+2016-07-23  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/pal-target.c (pal_load_group): Fix range bug.
 
 2016-07-22  Ola Jeppsson  <ola@adapteva.com>

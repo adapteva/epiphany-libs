@@ -326,11 +326,14 @@ static int pal_close(e_epiphany_t *dev)
 {
 	struct pal_data *pal = dev->priv;
 
+	int start = pal_to_rank(dev, 0, 0);
+	int count = pal_to_rank(dev, dev->rows - 1, dev->cols - 1) - 1;
+
 	if (!pal)
 		return E_ERR;
 
 	if (pal->team) {
-		p_wait(pal->team);
+		p_kill(pal->team, start, count, SIGKILL);
 		p_close(pal->team);
 	}
 
