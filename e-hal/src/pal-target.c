@@ -23,7 +23,13 @@ struct pal_data {
 
 static unsigned pal_to_rank(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	return row * e_platform.cols + col;
+	struct pal_data *pal = dev->priv;
+	p_coords_t coords = { .row = row, .col = col };
+	int rank;
+
+	rank = p_coords_to_rank(pal->team, &coords, 0);
+
+	return (rank < 0) ? 0 : (unsigned) rank;
 }
 
 /* Callback functions */
@@ -283,7 +289,9 @@ static int pal_open(e_epiphany_t *dev, unsigned row, unsigned col,
 					unsigned rows, unsigned cols)
 {
 	struct pal_data *pal;
-	unsigned i, j, rank, count, start;
+	unsigned i, j, rank;
+	p_coords_t start = { .row = row, .col = col };
+	p_coords_t size = { .row = rows, .col = cols };
 
 	if (!e_platform.priv)
 		return E_ERR;
@@ -294,14 +302,11 @@ static int pal_open(e_epiphany_t *dev, unsigned row, unsigned col,
 
 	pal->dev = &e_platform.priv;
 
-	count = rows * e_platform.cols - (e_platform.cols - cols);
-	start = row * e_platform.cols + col;
-
-	pal->member = calloc(count, sizeof(struct pal_member));
+	pal->member = calloc(rows * cols, sizeof(struct pal_member));
 	if (!pal->member)
 		return E_ERR;
 
-	pal->team = p_open(*pal->dev, start, count);
+	pal->team = p_open4(*pal->dev, P_TOPOLOGY_2D, &start, &size);
 	if (p_error(pal->team))
 		goto err;
 
@@ -309,7 +314,7 @@ static int pal_open(e_epiphany_t *dev, unsigned row, unsigned col,
 		for (j = 0; j < cols; j++) {
 			uint64_t base =
 				((e_platform.row + row + i) * 64 + (e_platform.col + col + j)) << 20;
-			pal->member[e_platform.cols * i + j].mem =
+			pal->member[i * cols + j].mem =
 				p_map(*pal->dev, base, 0x100000);
 		}
 	}
@@ -326,14 +331,11 @@ static int pal_close(e_epiphany_t *dev)
 {
 	struct pal_data *pal = dev->priv;
 
-	int start = pal_to_rank(dev, 0, 0);
-	int count = pal_to_rank(dev, dev->rows - 1, dev->cols - 1) - 1;
-
 	if (!pal)
 		return E_ERR;
 
 	if (pal->team) {
-		p_kill(pal->team, start, count, SIGKILL);
+		p_kill(pal->team, 0, p_team_size(pal->team), SIGKILL);
 		p_close(pal->team);
 	}
 

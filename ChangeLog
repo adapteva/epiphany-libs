@@ -1,3 +1,11 @@
+2016-08-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_to_rank): Use
+	p_coords_to_rank().
+	(pal_open): Open team with 2D topology.
+	(pal_close): Use p_team_size() instead of calculating team
+	size manually.
+
 2016-07-23  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/pal-target.c (pal_close): Replace p_wait() call
