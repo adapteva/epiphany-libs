@@ -27,6 +27,7 @@
 #define __E_HAL_API_LOC_H__
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -60,6 +61,9 @@ ssize_t  ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t siz
 /////////////////////////
 // Core control functions
 int      ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col);
+int      ee_reset_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
+int      ee_start_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols);
+int      ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col);
 
 
 ////////////////////
@@ -76,6 +80,11 @@ int      ee_parse_xml_hdf(e_platform_t *dev, char *hdf);
 void     ee_trim_str(char *a);
 unsigned long ee_rndu_page(unsigned long size);
 unsigned long ee_rndl_page(unsigned long size);
+
+// Target detect functions
+bool     ee_native_target_p();
+bool     ee_esim_target_p();
+bool     ee_pal_target_p();
 
 #ifdef __cplusplus
 }

@@ -9,6 +9,7 @@
 #endif
 
 #include "epiphany-hal-data.h"
+#include "epiphany-hal-data-local.h"
 
 #define ES_OK 0
 typedef struct es_cluster_cfg_ es_cluster_cfg;
@@ -26,6 +27,5 @@ struct esim_ops {
 };
 
 extern const struct esim_ops es_ops;
-extern bool ee_esim_target_p();
 
 #endif

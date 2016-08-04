@@ -1,3 +1,178 @@
+2016-08-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_to_rank): Use
+	p_coords_to_rank().
+	(pal_open): Open team with 2D topology.
+	(pal_close): Use p_team_size() instead of calculating team
+	size manually.
+
+2016-07-23  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_close): Replace p_wait() call
+	with call to p_kill().
+
+2016-07-23  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_load_group): Fix range bug.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_load_group): Call p_run() with
+	P_RUN_PREPARE flag.
+	(pal_start_group): Call P_RUN with P_RUN_PREPARED flag.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_populate_platform): Query device
+	parameters from PAL.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/pal-target.c (pal_to_rank): Implement.
+	(pal_to_rank): Likewise.
+	(pal_alloc): Likewise.
+	(pal_free): Likewise.
+	(pal_read_buf): Likewise.
+	(pal_write_buf): Likewise.
+	(pal_read_word): Likewise.
+	(pal_write_word): Likewise.
+	(pal_read_reg): Likewise.
+	(pal_write_reg): Likewise.
+	(pal_mread_word): Likewise.
+	(pal_mwrite_word): Likewise.
+	(pal_mread_buf): Likewise.
+	(pal_mwrite_buf): Likewise.
+	(pal_reset_system): Likewise.
+	(pal_populate_platform): Likewise.
+	(pal_init): Likewise.
+	(pal_finalize): Likewise.
+	(pal_open): Likewise.
+	(pal_close): Likewise.
+	(pal_load_group): Likewise.
+	(pal_start_group): Likewise.
+	(pal_get_raw_pointer): Likewise.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/esim-target.c (ee_get_raw_pointer_esim):
+	Implement.
+	(esim_target_ops): Use ee_get_raw_pointer as get_raw_pointer
+	callback.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (e_load): Simplify.
+	(_e_default_load_group): Rename from e_load_group. Don't start
+	program. Adjust arguments.
+	(e_load_group): Implement. Use target callbacks.
+	* e-hal/src/epiphany-hal.c (_e_default_start_group): Rename
+	from ee_start_group. Adjust arguments.
+	(e_start): Use target callback.
+	(e_start_group): Use target callback.
+	(native_taget_ops):
+	* e-hal/src/esim-target.c (esim_target_ops): Use
+	_e_default_load_group and _e_default_start_group as load_group
+	and start_group native callbacks.
+	* e-hal/src/esim-target.c (esim_target_ops): Likewise but for
+	esim.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init_esim_and_pal):
+	Rename from e_shm_init_esim.
+	(e_shm_init): Call e_shm_init_esim_and_pal for both esim and
+	pal targets.
+	(e_shm_alloc): Call device callback.
+	(e_shm_attach): Likwise.
+	(e_shm_get_shmtable): Support PAL target.
+	(e_shm_put_shmtable): Likewise.
+	* e-hal/src/epiphany-hal.c (shm_alloc_native): Move native
+	specific code here from e_shm_alloc.
+	* e-hal/src/esim-target.c (esim_target_ops): Use alloc_esim as
+	target shm_alloc callback.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_free): Split out target specific
+	code to target callbacks.
+	(free_native): Move native specific code here from e_free.
+	* e-hal/src/esim-target.c (free_esim): Move esim specific code
+	here from e_free.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_alloc): Make more generic.
+	(alloc_native): Move native specific code here from e_alloc.
+	* e-hal/src/esim-target.c (alloc_esim): Move esim specific
+	code here from e_alloc.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_close): Test for native target
+	instead of NOT esim target.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_open): Always call
+	target_ops->open()
+	(ee_open_native): Implemented.
+	* e-hal/src/esim-target.c (ee_open_esim): Implemented.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (ee_esim_target_p): Support "sim".
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_target_ops):
+	Add load_group, start_group, get_raw_pointer, alloc, shm_alloc
+	& free.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Move
+	target_ops member...
+	* e-hal/src/epiphany-hal.c: ... from here.
+	(e_finalize): Use e_platform.target_ops.
+	(e_open): Likewise.
+	(e_close): Likewise.
+	(ee_read_word): Likewise.
+	(ee_write_word): Likewise.
+	(ee_read_buf): Likewise.
+	(ee_write_buf): Likewise.
+	(ee_read_reg): Likewise.
+	(ee_write_reg): Likewise.
+	(ee_mread_word): Likewise.
+	(ee_mwrite_word): Likewise.
+	(ee_mread_buf): Likewise.
+	(ee_mwrite_buf): Likewise.
+	(e_reset_system): Likewise.
+
+2016-07-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data.h: Include
+	epiphany-hal-data-local.h after e_bool_t declaration.
+	* e-hal/src/epiphany-hal-data-local.h: Include
+	epiphany-hal-data.h
+
+2016-07-13  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/epiphany-hal-data-local.h (e_chip_db_t): Move here from
+	epiphany-hal.c
+	(E_CHIP_DB_NUM_CHIP_VERSIONS): Move define here from
+	epiphany-hal.c. Add E_ prefix.
+	(e_chip_params_table): Add declaration.
+	* src/epiphany-hal.c (e_chip_db_t): Move to
+	epiphany-hal-data-local.h
+	(CHIP_DB_NUM_CHIP_VERSIONS): Move to epiphany-hal-data-local.h.
+	(chip_params_table): Rename to ...
+	(e_chip_params_table): ... this.
+	(ee_set_chip_params): Change from chip_params_table to
+	e_chip_params_table. Change from CHIP_DB_NUM_CHIP_VERSIONS to
+	E_CHIP_DB_NUM_CHIP_VERSIONS.
+	* src/esim-target.c (ee_populate_platform_esim): Change from
+	chip_params_table to e_chip_params_table.
+
 2016-06-15  Ola Jeppsson  <ola@adapteva.com>
 
 	* configure.ac: Check for ESIM and PAL headers and libraries
@@ -76,6 +251,44 @@
 	accessing register through MMR.
 	* e-lib/src/e_reg_write.c (e_reg_write): Likewise.
 
+2016-04-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_target_ops): Add
+	open() and close() target functions.
+	* e-hal/src/epiphany-hal.c (e_open): Call target open function
+	if target is PAL.
+	(e_close): Call target close function if target is PAL.
+	(pal_open): Add dummy function.
+	(pal_close): Add dummy function.
+	(pal_target_ops): Point to pal_open()/pal_close().
+
+2016-04-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_platform_t): Rename
+	esim member to priv and make it void.
+	* e-hal/src/epiphany-hal-data.h (e_epiphany_t): Likewise.
+	(e_mem_t): Likewise.
+	* e-hal/src/e-loader.c (ee_process_elf): Adjust for above name
+	change.
+	* e-hal/src/epiphany-hal.c (e_open): Likewise.
+	(e_alloc): Likewise.
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init_esim):
+	Likewise.
+	(e_shm_alloc): Likewise.
+	(e_shm_attach): Likewise.
+	* e-hal/src/esim-target.c (ee_read_word_esim): Likewise.
+	(ee_write_word_esim): Likewise.
+	(ee_read_buf_esim): Likewise.
+	(ee_write_buf_esim): Likewise.
+	(ee_read_reg_esim): Likewise.
+	(ee_write_reg_esim): Likewise.
+	(ee_mread_word_esim): Likewise.
+	(ee_mwrite_word_esim): Likewise.
+	(ee_mread_buf_esim): Likewise.
+	(ee_mwrite_buf_esim): Likewise.
+	(ee_init_esim): Likewise.
+	(ee_finalize_esim): Likewise.
+
 2016-04-08  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-lib/src/e_reg_read.c (e_reg_read): Drop volatile qualifier
@@ -114,8 +327,66 @@
 
 2016-03-03  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/Makemodule.am (libe-hal.la) [ENABLE_PAL_TARGET]: Add
+	pal-target.c to build.
+	* e-hal/src/epiphany-hal-api-local.h: Add prototype for
+	ee_native_target_p and ee_pal_target_p.
+	* e-hal/src/epiphany-hal.c (ee_native_target_p): New function.
+	(bool ee_pal_target_p): New function.
+	(e_init): Add support for PAL target.
+	* e-hal/src/pal-target.c: New file.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/Makemodule.am: Capitalize ENABLE_ESIM.
 	* configure.ac: Likewise.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-api-local.h: Add prototype for
+	ee_esim_target_p.
+	* e-hal/src/e-loader.c: Include epiphany-hal-api-local.h.
+	* e-hal/src/epiphany-hal.c (ee_esim_target_p): Move from
+	esim-target.c.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal-data-local.h (e_target_ops): Move
+	struct here from epiphany-hal.c. Add init, finalize, and
+	populate_platform members.
+	* e-hal/src/epiphany-hal.c (e_init): Platform initialization
+	factored out to target ops. Call target init.
+	(e_finalize): Call target finalize.
+	(populate_platform_native): New function.
+	(init_native): New function.
+	(finalize_native): New function.
+	(native_target_ops): Added.
+	* e-hal/src/epiphany-shm-manager.c (e_shm_init):
+	ee_esim_target_p was renamed from esim_target_p.
+	(e_shm_finalize): Likewise.
+	* e-hal/src/e-loader.c (ee_process_elf): Likewise.
+	* e-hal/src/esim-target.c (ee_init_esim): New function.
+	(ee_finalize_esim): New function.
+	(ee_populate_platform_esim): Moved from
+	epiphany-hal.c:ee_hdf_from_sim_cfg().
+	(ee_read_word_esim): Moved from epiphany-hal.c.
+	(ee_write_word_esim): Likewise.
+	(ee_read_buf_esim): Likewise.
+	(ee_write_buf_esim): Likewise.
+	(ee_read_reg_esim): Likewise.
+	(ee_write_reg_esim): Likewise.
+	(ee_mread_word_esim): Likewise.
+	(ee_mwrite_word_esim): Likewise.
+	(ee_mread_buf_esim): Likewise.
+	(ee_mwrite_buf_esim): Likewise.
+	(e_reset_system_esim): Likewise.
+	(esim_target_ops): Added.
+	* e-hal/src/esim-target.h: Declare esim_target_ops.
+
+2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): Use right type
+	for memory segment.
 
 2016-03-02  Ola Jeppsson  <ola@adapteva.com>
 
@@ -136,16 +407,70 @@
 	to configure. Conditional build of e-hal (and libraries that
 	depend on e-hal).
 
-2016-03-03  Ola Jeppsson  <ola@adapteva.com>
+2016-02-29  Ola Jeppsson  <ola@adapteva.com>
 
-	* e-hal/src/epiphany-hal.c (e_is_addr_in_emem): Use right type
-	for memory segment.
+	* e-hal/src/epiphany-hal.c (e_open): Comment out call to
+	ee_soft_reset_core().
+	(e_close): Likewise.
+
+2016-02-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (e_open): Call ee_soft_reset_core()
+	(e_close): Likewise.
+
+2016-02-22  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (ee_reset_regs): Mask all but SYNC
+	irq in IMASK.
+
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (ee_soft_reset_dma): Implement.
+	(ee_reset_regs): Clean up. Add reset_dma parameter. Enable
+	clock gating. Write FSTATUS instead of STATUS.
+	(ee_soft_reset_core): Use ee_soft_reset_dma. Disable timers
+	early. Also check ILAT to determine that core is idle.
 
 2016-02-18  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-utils/src/e-read.c (main): Remove call to
 	e_reset_system().
 	* e-utils/src/e-write.c (main): Likewise.
+
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (ee_soft_reset_core): Replace
+	unnecessary call to ee_reset_regs() with one write to ILATCL.
+
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (soft_reset_payload): Add missing
+	branch.
+	(ee_soft_reset_core): Improve robustness. Fail on detected
+	errors.
+	* e-hal/src/e-loader.c (e_load_group): Check return value from
+	ee_soft_reset_core().
+
+2016-02-18  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (e_load_group): Replace call to
+	ee_reset_group() with call to ee_soft_reset_core().
+	* e-hal/src/epiphany-hal-api-local.h: Add ee_soft_reset_core
+	function prototype.
+	* e-hal/src/epiphany-hal.c (ee_reset_regs): Implemented.
+	(ee_soft_reset_core): Implemented.
+
+2016-02-17  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (e_load_group): Call ee_reset_group.
+	* e-hal/src/epiphany-hal-api-local.h: Add function prototypes
+	for ee_reset_group and ee_start_group.
+	* e-hal/src/epiphany-hal.c (ee_reset_group): Implemented.
+	(ee_reset_core): Use ee_reset_group.
+	(e_reset_group): Use ee_reset_group.
+	(ee_start_group): Implemented.
+	(e_start): Use ee_start_group.
+	(e_start_group): Use ee_start_group.
 
 2016-02-16  Ola Jeppsson  <ola@adapteva.com>
 

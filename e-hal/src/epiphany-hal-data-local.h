@@ -26,6 +26,7 @@
 #ifndef __E_HAL_DATA_LOC_H__
 #define __E_HAL_DATA_LOC_H__
 
+#include "epiphany-hal-data.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -130,6 +131,7 @@ typedef struct {
 } e_memseg_t;
 
 typedef struct es_state_ es_state;
+typedef struct e_target_ops e_target_ops_t;
 
 typedef struct {
 	e_objtype_t		 objtype;	  // object type identifier
@@ -148,7 +150,8 @@ typedef struct {
 	int				 num_emems;	  // number of external memory segments in platform
 	e_memseg_t		*emem;		  // array of external memory segments
 
-	es_state        *esim;        // ESIM handle
+	const e_target_ops_t	*target_ops;  // Target operators
+	void			*priv;        // Target handle
 
 } e_platform_t;
 
@@ -175,6 +178,53 @@ typedef struct {
 	unsigned	base;				// 0x54
 } e_emem_config_t;
 
+typedef struct {
+	e_objtype_t		 objtype;	  // object type identifier
+	e_chiptype_t	 type;		  // Epiphany chip part number
+	char			 version[32]; // version name of Epiphany chip
+	unsigned int	 arch;		  // architecture generation
+	unsigned int	 rows;		  // number of rows in chip
+	unsigned int	 cols;		  // number of cols in chip
+	unsigned int	 sram_base;	  // base offset of core SRAM
+	unsigned int	 sram_size;	  // size of core SRAM
+	unsigned int	 regs_base;	  // base offset of core registers
+	unsigned int	 regs_size;	  // size of core registers segment
+	off_t			 ioregs_n;	  // base address of north IO register
+	off_t			 ioregs_e;	  // base address of east IO register
+	off_t			 ioregs_s;	  // base address of south IO register
+	off_t			 ioregs_w;	  // base address of west IO register
+} e_chip_db_t;
+
+#define E_CHIP_DB_NUM_CHIP_VERSIONS 3
+extern e_chip_db_t e_chip_params_table[E_CHIP_DB_NUM_CHIP_VERSIONS];
+
+typedef struct e_epiphany_t e_epiphany_t;
+typedef struct e_mem_t e_mem_t;
+
+struct e_target_ops {
+	int (*ee_read_word) (e_epiphany_t *, unsigned, unsigned, const off_t);
+	ssize_t (*ee_write_word) (e_epiphany_t *, unsigned, unsigned, off_t, int);
+	ssize_t (*ee_read_buf) (e_epiphany_t *, unsigned, unsigned, const off_t, void *, size_t);
+	ssize_t (*ee_write_buf) (e_epiphany_t *, unsigned, unsigned, off_t, const void *, size_t);
+	int (*ee_read_reg) (e_epiphany_t *, unsigned, unsigned, const off_t);
+	ssize_t (*ee_write_reg) (e_epiphany_t *, unsigned, unsigned, off_t, int);
+	int (*ee_mread_word) (e_mem_t *, const off_t);
+	ssize_t (*ee_mwrite_word) (e_mem_t *, off_t, int);
+	ssize_t (*ee_mread_buf) (e_mem_t *, const off_t, void *, size_t);
+	ssize_t (*ee_mwrite_buf) (e_mem_t *, off_t, const void *, size_t);
+	int (*e_reset_system) (void);
+	int (*populate_platform) (e_platform_t *, char *);
+	int (*init) (void);
+	void (*finalize) (void);
+	int (*open) (e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
+	int (*close) (e_epiphany_t *);
+	int (*load_group) (const char *, e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
+	int (*start_group)(e_epiphany_t *, unsigned, unsigned, unsigned, unsigned);
+	void * (*get_raw_pointer)(unsigned long, unsigned long);
+	int (*alloc) (e_mem_t *);
+	int (*shm_alloc) (e_mem_t *);
+	int (*free) (e_mem_t *);
+};
 
 #ifdef __cplusplus
 }

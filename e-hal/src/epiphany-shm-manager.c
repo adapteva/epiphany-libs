@@ -63,7 +63,7 @@ extern e_platform_t e_platform;
 extern int	 e_host_verbose;
 #define diag(vN) if (e_host_verbose >= vN)
 
-static int e_shm_init_esim()
+static int e_shm_init_esim_and_pal()
 {
 	memset(&shm_alloc, 0, sizeof(shm_alloc));
 
@@ -74,8 +74,8 @@ static int e_shm_init_esim()
 	shm_alloc.kvirt_addr = 0;
 	shm_alloc.mmap_handle = shm_alloc.bus_addr;
 	shm_alloc.uvirt_addr = (unsigned long)
-		es_ops.client_get_raw_pointer(e_platform.esim, shm_alloc.mmap_handle,
-									  shm_alloc.size);
+		e_platform.target_ops->get_raw_pointer(shm_alloc.mmap_handle,
+											   shm_alloc.size);
 
 	shm_table_length = shm_alloc.size;
 
@@ -132,10 +132,10 @@ int e_shm_init()
 	int rc;
 	e_shmtable_t *tbl;
 
-	if (ee_esim_target_p())
-		rc = e_shm_init_esim();
-	else
+	if (ee_native_target_p())
 		rc = e_shm_init_native();
+	else
+		rc = e_shm_init_esim_and_pal();
 
 	if (rc != E_OK) {
 		warnx("e_shm_init(): Failed");
@@ -243,9 +243,8 @@ int e_shm_alloc(e_mem_t *mbuf, const char *name, size_t size)
 		mbuf->mapped_base = ((char*)(tbl));
 		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 		mbuf->emap_size = region->shm_seg.size;
-		mbuf->esim = e_platform.esim;
-
-		retval = E_OK;
+		mbuf->priv = e_platform.priv;
+		retval = e_platform.target_ops->shm_alloc(mbuf);
 	} else {
 		diag(H_D1) { fprintf(stderr, "e_shm_alloc(): alloc request for 0x%08x "
 							 "bytes named %s failed\n", size, name); }
@@ -296,9 +295,8 @@ int e_shm_attach(e_mem_t *mbuf, const char *name)
 		mbuf->mapped_base = ((char*)(tbl));
 		mbuf->base = mbuf->mapped_base + mbuf->page_offset;
 		mbuf->emap_size = region->shm_seg.size;
-		mbuf->esim = e_platform.esim;
 
-		retval = E_OK;
+		retval = e_platform.target_ops->shm_alloc(mbuf);
 	}
 
  err:
@@ -471,8 +469,8 @@ e_shmtable_t *e_shm_get_shmtable()
 		}
 	}
 
-	/* TODO: Add locking support for ESIM target */
-	if (ee_esim_target_p())
+	/* TODO: Add locking support for ESIM / PAL target */
+	if (!ee_native_target_p())
 		return shm_table;
 
 	diag(H_D3) { fprintf(stderr, "e_shm_get_shmtable(): Taking lock...\n"); }
@@ -488,7 +486,8 @@ e_shmtable_t *e_shm_get_shmtable()
 
 int e_shm_put_shmtable()
 {
-	if (ee_esim_target_p())
+	/* TODO: Add locking support for ESIM / PAL target */
+	if (!ee_native_target_p())
 		return E_OK;
 
 	if ( lockf(epiphany_devfd, F_ULOCK, 0) ) {
@@ -498,5 +497,3 @@ int e_shm_put_shmtable()
 	}
 	return E_OK;
 }
-
-

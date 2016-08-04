@@ -25,6 +25,7 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -41,7 +42,6 @@
 #include "e-hal.h"
 #include "epiphany-shm-manager.h"	/* For private APIs */
 #include "epiphany-hal-api-local.h"
-#include "esim-target.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -60,86 +60,18 @@ char *OBJTYPE[64] = {"NULL", "EPI_PLATFORM", "EPI_CHIP", "EPI_GROUP", "EPI_CORE"
 char const esdk_path[] = "EPIPHANY_HOME";
 char const hdf_env_var_name[] = "EPIPHANY_HDF";
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-e_platform_t e_platform = { E_EPI_PLATFORM };
-#pragma GCC diagnostic pop
-
-static int ee_read_word_native (e_epiphany_t *, unsigned, unsigned, const off_t);
-static ssize_t ee_write_word_native (e_epiphany_t *, unsigned, unsigned, off_t, int);
-static ssize_t ee_read_buf_native (e_epiphany_t *, unsigned, unsigned, const off_t, void *, size_t);
-static ssize_t ee_write_buf_native (e_epiphany_t *, unsigned, unsigned, off_t, const void *, size_t);
-static int ee_read_reg_native (e_epiphany_t *, unsigned, unsigned, const off_t);
-static ssize_t ee_write_reg_native (e_epiphany_t *, unsigned, unsigned, off_t, int);
-static int ee_mread_word_native (e_mem_t *, const off_t);
-static ssize_t ee_mwrite_word_native (e_mem_t *, off_t, int);
-static ssize_t ee_mread_buf_native (e_mem_t *, const off_t, void *, size_t);
-static ssize_t ee_mwrite_buf_native (e_mem_t *, off_t, const void *, size_t);
-static int e_reset_system_native (void);
-
-static int ee_read_word_esim (e_epiphany_t *, unsigned, unsigned, const off_t);
-static ssize_t ee_write_word_esim (e_epiphany_t *, unsigned, unsigned, off_t, int);
-static ssize_t ee_read_buf_esim (e_epiphany_t *, unsigned, unsigned, const off_t, void *, size_t);
-static ssize_t ee_write_buf_esim (e_epiphany_t *, unsigned, unsigned, off_t, const void *, size_t);
-static int ee_read_reg_esim (e_epiphany_t *, unsigned, unsigned, const off_t);
-static ssize_t ee_write_reg_esim (e_epiphany_t *, unsigned, unsigned, off_t, int);
-static int ee_mread_word_esim (e_mem_t *, const off_t);
-static ssize_t ee_mwrite_word_esim (e_mem_t *, off_t, int);
-static ssize_t ee_mread_buf_esim (e_mem_t *, const off_t, void *, size_t);
-static ssize_t ee_mwrite_buf_esim (e_mem_t *, off_t, const void *, size_t);
-static int e_reset_system_esim (void);
-static int ee_hdf_from_sim_cfg(e_platform_t *dev);
-
-struct target_ops {
-	int (*ee_read_word) (e_epiphany_t *, unsigned, unsigned, const off_t);
-	ssize_t (*ee_write_word) (e_epiphany_t *, unsigned, unsigned, off_t, int);
-	ssize_t (*ee_read_buf) (e_epiphany_t *, unsigned, unsigned, const off_t, void *, size_t);
-	ssize_t (*ee_write_buf) (e_epiphany_t *, unsigned, unsigned, off_t, const void *, size_t);
-	int (*ee_read_reg) (e_epiphany_t *, unsigned, unsigned, const off_t);
-	ssize_t (*ee_write_reg) (e_epiphany_t *, unsigned, unsigned, off_t, int);
-	int (*ee_mread_word) (e_mem_t *, const off_t);
-	ssize_t (*ee_mwrite_word) (e_mem_t *, off_t, int);
-	ssize_t (*ee_mread_buf) (e_mem_t *, const off_t, void *, size_t);
-	ssize_t (*ee_mwrite_buf) (e_mem_t *, off_t, const void *, size_t);
-	int (*e_reset_system) (void);
-};
-
 #ifdef ESIM_TARGET
-static struct target_ops target = {
-#else
-/* Not tested, but the const should help the compiler optimize the indirection
- * away. */
-static const struct target_ops target = {
+extern const struct e_target_ops esim_target_ops;
 #endif
-	.ee_read_word = ee_read_word_native,
-	.ee_write_word = ee_write_word_native,
-	.ee_read_buf = ee_read_buf_native,
-	.ee_write_buf = ee_write_buf_native,
-	.ee_read_reg = ee_read_reg_native,
-	.ee_write_reg = ee_write_reg_native,
-	.ee_mread_word = ee_mread_word_native,
-	.ee_mwrite_word = ee_mwrite_word_native,
-	.ee_mread_buf = ee_mread_buf_native,
-	.ee_mwrite_buf = ee_mwrite_buf_native,
-	.e_reset_system = e_reset_system_native,
-};
+#ifdef PAL_TARGET
+extern const struct e_target_ops pal_target_ops;
+#endif
+const struct e_target_ops native_target_ops;
 
-static void use_esim_target_ops()
-{
-#ifdef ESIM_TARGET
-	target.ee_read_word = ee_read_word_esim;
-	target.ee_write_word = ee_write_word_esim;
-	target.ee_read_buf = ee_read_buf_esim;
-	target.ee_write_buf = ee_write_buf_esim;
-	target.ee_read_reg = ee_read_reg_esim;
-	target.ee_write_reg = ee_write_reg_esim;
-	target.ee_mread_word = ee_mread_word_esim;
-	target.ee_mwrite_word = ee_mwrite_word_esim;
-	target.ee_mread_buf = ee_mread_buf_esim;
-	target.ee_mwrite_buf = ee_mwrite_buf_esim;
-	target.e_reset_system = e_reset_system_esim;
-#endif
-}
+e_platform_t e_platform = {
+	.objtype = E_EPI_PLATFORM,
+	.target_ops = &native_target_ops,
+};
 
 /////////////////////////////////
 // Device communication functions
@@ -168,48 +100,28 @@ int e_init(char *hdf)
 	}
 #endif
 
-	if (ee_esim_target_p()) {
-		use_esim_target_ops();
-		if (ES_OK != es_ops.client_connect(&e_platform.esim, NULL)) {
-			warnx("e_init(): Cannot connect to ESIM");
-			return E_ERR;
-		}
+#ifndef PAL_TARGET
+	if (ee_pal_target_p()) {
+		warnx("e_init(): " EHAL_TARGET_ENV " environment variable set to pal but target not compiled in.");
+		return E_ERR;
 	}
-
-	if (ee_esim_target_p()) {
-#ifdef ESIM_TARGET
-		ee_hdf_from_sim_cfg(&e_platform);
-#else
-		/* unreachable, checked above */
-		abort();
 #endif
-	} else {
-		// Parse HDF, get platform configuration
-		if (hdf == NULL)
-		{
-			// Try getting HDF from EPIPHANY_HDF environment variable
-			hdf_env = getenv(hdf_env_var_name);
-			diag(H_D2) { fprintf(diag_fd, "e_init(): HDF ENV = %s\n", hdf_env); }
-			if (hdf_env != NULL)
-				hdf = hdf_env;
-			else
-			{
-				// Try opening .../bsps/current/platform.hdf
-				warnx("e_init(): No Hardware Definition File (HDF) is specified. Trying \"platform.hdf\".");
-				esdk_env = getenv(esdk_path);
-				strncpy(hdf_dfl, esdk_env, sizeof(hdf_dfl));
-				strncat(hdf_dfl, "/bsps/current/platform.hdf", sizeof(hdf_dfl));
-				hdf = hdf_dfl;
-			}
-		}
 
-		diag(H_D2) { fprintf(diag_fd, "e_init(): opening HDF %s\n", hdf); }
-		if (ee_parse_hdf(&e_platform, hdf))
-		{
-			warnx("e_init(): Error parsing Hardware Definition File (HDF).");
-			return E_ERR;
-		}
-	}
+#ifdef ESIM_TARGET
+	if (ee_esim_target_p())
+		e_platform.target_ops = &esim_target_ops;
+#endif
+
+#ifdef PAL_TARGET
+	if (ee_pal_target_p())
+		e_platform.target_ops = &pal_target_ops;
+#endif
+
+	if (E_OK != e_platform.target_ops->init())
+		return E_ERR;
+
+	if (E_OK != e_platform.target_ops->populate_platform(&e_platform, hdf))
+		return E_ERR;
 
 	// Populate the missing platform parameters according to platform version.
 	for (i=0; i<e_platform.num_chips; i++)
@@ -265,8 +177,7 @@ int e_finalize(void)
 
 	e_shm_finalize();
 
-	if (ee_esim_target_p())
-		es_ops.client_disconnect(e_platform.esim, true);
+	e_platform.target_ops->finalize();
 
 	e_platform.initialized = E_FALSE;
 
@@ -294,8 +205,22 @@ int e_get_platform_info(e_platform_t *platform)
 
 
 // Epiphany access
-//
+
 // Define an e-core workgroup
+
+static int ee_open_native(e_epiphany_t *dev, unsigned row, unsigned col,
+						  unsigned rows, unsigned cols)
+{
+	// Open memory device
+	dev->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
+	if (dev->memfd == -1) {
+		warnx("e_open(): EPIPHANY_DEV file open failure.");
+		return E_ERR;
+	}
+
+	return E_OK;
+}
+
 int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigned cols)
 {
 	int irow, icol;
@@ -324,18 +249,8 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(row,col),id = (%d,%d), 0x%03x\n", dev->row, dev->col, dev->base_coreid); }
 	diag(H_D2) { fprintf(diag_fd, "e_open(): group.(rows,cols),numcores = (%d,%d), %d\n", dev->rows, dev->cols, dev->num_cores); }
 
-	if (ee_esim_target_p()) {
-		// Connect to ESIM shm file
-		dev->esim = e_platform.esim;
-	} else {
-		// Open memory device
-		dev->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
-		if (dev->memfd == -1)
-		{
-			warnx("e_open(): EPIPHANY_DEV file open failure.");
-			return E_ERR;
-		}
-	}
+	if (e_platform.target_ops->open(dev, row, col, rows, cols) != E_OK)
+		return E_ERR;
 
 	// Map individual cores to virtual memory space
 	dev->core = (e_core_t **) malloc(dev->rows * sizeof(e_core_t *));
@@ -375,7 +290,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->mems.page_offset = curr_core->mems.phy_base - curr_core->mems.page_base;
 			curr_core->mems.map_size = e_platform.chip[0].sram_size + curr_core->mems.page_offset;
 
-			if (!ee_esim_target_p()) {
+			if (ee_native_target_p()) {
 				curr_core->mems.mapped_base = mmap(NULL, curr_core->mems.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->mems.page_base);
 				curr_core->mems.base = curr_core->mems.mapped_base + curr_core->mems.page_offset;
 
@@ -388,7 +303,7 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 			curr_core->regs.page_offset = curr_core->regs.phy_base - curr_core->regs.page_base;
 			curr_core->regs.map_size = e_platform.chip[0].regs_size + curr_core->regs.page_offset;
 
-			if (!ee_esim_target_p()) {
+			if (ee_native_target_p()) {
 				curr_core->regs.mapped_base = mmap(NULL, curr_core->regs.map_size, PROT_READ|PROT_WRITE, MAP_SHARED, dev->memfd, curr_core->regs.page_base);
 				curr_core->regs.base = curr_core->regs.mapped_base + curr_core->regs.page_offset;
 
@@ -406,6 +321,11 @@ int e_open(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows, unsigne
 					return E_ERR;
 				}
 			}
+#if 0
+			/* Nope, breaks e_read and e_write */
+			if (ee_soft_reset_core(dev, irow, icol) != E_OK)
+				warnx("%s: ee_soft_reset_core failed", __func__);
+#endif
 		}
 	}
 
@@ -419,18 +339,26 @@ int e_close(e_epiphany_t *dev)
 	int irow, icol;
 	e_core_t *curr_core;
 
-	if ((ee_esim_target_p() && es_ops.initialized(dev->esim) != ES_OK) ||
-		(!ee_esim_target_p() && !dev))
+	if (!dev)
 	{
 		warnx("e_close(): Core group was not opened.");
 		return E_ERR;
 	}
 
+	if (ee_pal_target_p())
+		return e_platform.target_ops->close(dev);
+
 	for (irow=0; irow<dev->rows; irow++)
 	{
-		if (!ee_esim_target_p()) {
+		if (ee_native_target_p()) {
 			for (icol=0; icol<dev->cols; icol++)
 			{
+#if 0
+				/* Nope, breaks e-read / e-write */
+				if (ee_soft_reset_core(dev, irow, icol) != E_OK)
+					warnx("%s: ee_soft_reset_core failed", __func__);
+#endif
+
 				curr_core = &(dev->core[irow][icol]);
 
 				munmap(curr_core->mems.mapped_base, curr_core->mems.map_size);
@@ -443,7 +371,7 @@ int e_close(e_epiphany_t *dev)
 
 	free(dev->core);
 
-	if (!ee_esim_target_p())
+	if (ee_native_target_p())
 		close(dev->memfd);
 
 	return E_OK;
@@ -526,25 +454,6 @@ ssize_t e_write(void *dev, unsigned row, unsigned col, off_t to_addr, const void
 }
 
 
-// Read a word from SRAM of a core in a group
-static int ee_read_word_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
-{
-	int data;
-	ssize_t size;
-	uint32_t addr;
-
-	size = sizeof(int);
-	addr = (dev->core[row][col].id << 20) + from_addr;
-
-	if (ES_OK != es_ops.mem_load(dev->esim, addr, size, (uint8_t *) &data))
-	{
-		warnx("ee_read_word(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_read_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
-	return data;
-}
-
 static int ee_read_word_native(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
 	volatile int *pfrom;
@@ -566,29 +475,12 @@ static int ee_read_word_native(e_epiphany_t *dev, unsigned row, unsigned col, co
 	return data;
 }
 
+// Read a word from SRAM of a core in a group
 int ee_read_word(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
-	return target.ee_read_word(dev, row, col, from_addr);
+	return e_platform.target_ops->ee_read_word(dev, row, col, from_addr);
 }
 
-
-// Write a word to SRAM of a core in a group
-static ssize_t ee_write_word_esim(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
-{
-	ssize_t  size;
-	uint32_t addr;
-
-	size = sizeof(int);
-	addr = (dev->core[row][col].id << 20) + to_addr;
-
-	if (ES_OK != es_ops.mem_store(dev->esim, addr, size, (uint8_t *) &data))
-	{
-		warnx("ee_write_word(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_write_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
-	return sizeof(int);
-}
 
 static ssize_t ee_write_word_native(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
@@ -610,9 +502,10 @@ static ssize_t ee_write_word_native(e_epiphany_t *dev, unsigned row, unsigned co
 	return sizeof(int);
 }
 
+// Write a word to SRAM of a core in a group
 ssize_t ee_write_word(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	return target.ee_write_word(dev, row, col, to_addr, data);
+	return e_platform.target_ops->ee_write_word(dev, row, col, to_addr, data);
 }
 
 
@@ -691,22 +584,6 @@ static inline void *aligned_memcpy(void *__restrict__ dst,
 }
 
 
-// Read a memory block from SRAM of a core in a group
-static ssize_t ee_read_buf_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
-{
-	uint32_t addr;
-
-	addr = (dev->core[row][col].id << 20) + from_addr;
-
-	if (ES_OK != es_ops.mem_load(dev->esim, addr, size, (uint8_t *) buf))
-	{
-		warnx("ee_read_buf(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_read_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (int) size); }
-	return size;
-}
-
 static ssize_t ee_read_buf_native(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
 	const void	 *pfrom;
@@ -760,27 +637,13 @@ static ssize_t ee_read_buf_native(e_epiphany_t *dev, unsigned row, unsigned col,
 	return size;
 }
 
+// Read a memory block from SRAM of a core in a group
 ssize_t ee_read_buf(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr, void *buf, size_t size)
 {
-	return target.ee_read_buf(dev, row, col, from_addr, buf, size);
+	return e_platform.target_ops->ee_read_buf(dev, row, col, from_addr, buf, size);
 }
 
 
-// Write a memory block to SRAM of a core in a group
-static ssize_t ee_write_buf_esim(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
-{
-	uint32_t addr;
-
-	addr = (dev->core[row][col].id << 20) + to_addr;
-
-	if (ES_OK != es_ops.mem_store(dev->esim, addr, size, (uint8_t *) buf))
-	{
-		warnx("ee_write_buf(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_write_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (int) size); }
-	return size;
-}
 static ssize_t ee_write_buf_native(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
 	void *pto;
@@ -800,33 +663,10 @@ static ssize_t ee_write_buf_native(e_epiphany_t *dev, unsigned row, unsigned col
 	return size;
 }
 
+// Write a memory block to SRAM of a core in a group
 ssize_t ee_write_buf(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, const void *buf, size_t size)
 {
-	return target.ee_write_buf(dev, row, col, to_addr, buf, size);
-}
-
-// Read a core register from a core in a group
-int ee_read_reg_esim(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
-{
-	uint32_t addr;
-	int data;
-	off_t   from_addr_adjusted;
-	ssize_t size;
-
-	from_addr_adjusted = from_addr;
-	if (from_addr_adjusted < E_REG_R0)
-		from_addr_adjusted = from_addr_adjusted + E_REG_R0;
-
-	addr = (dev->core[row][col].id << 20) + from_addr_adjusted;
-
-	size = sizeof(int);
-	if (ES_OK != es_ops.mem_load(dev->esim, addr, size, (uint8_t *) &data))
-	{
-		warnx("ee_read_reg(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_read_reg(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
-	return data;
+	return e_platform.target_ops->ee_write_buf(dev, row, col, to_addr, buf, size);
 }
 
 static int ee_read_reg_native(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
@@ -855,33 +695,12 @@ static int ee_read_reg_native(e_epiphany_t *dev, unsigned row, unsigned col, con
 	return data;
 }
 
+// Read a core register from a core in a group
 int ee_read_reg(e_epiphany_t *dev, unsigned row, unsigned col, const off_t from_addr)
 {
-	return ee_esim_target_p() ? ee_read_reg_esim(dev, row, col, from_addr)
-							: ee_read_reg_native(dev, row, col, from_addr);
+	return e_platform.target_ops->ee_read_reg(dev, row, col, from_addr);
 }
 
-
-// Write to a core register of a core in a group
-static ssize_t ee_write_reg_esim(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
-{
-	uint32_t addr;
-	ssize_t size;
-
-	if (to_addr < E_REG_R0)
-		to_addr = to_addr + E_REG_R0;
-
-	addr = (dev->core[row][col].id << 20) + to_addr;
-
-	size = sizeof(int);
-	if (ES_OK != es_ops.mem_store(dev->esim, addr, size, (uint8_t *) &data))
-	{
-		warnx("ee_write_reg(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_write_reg(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
-	return size;
-}
 
 static ssize_t ee_write_reg_native(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
@@ -906,14 +725,45 @@ static ssize_t ee_write_reg_native(e_epiphany_t *dev, unsigned row, unsigned col
 	return sizeof(int);
 }
 
+// Write to a core register of a core in a group
 ssize_t ee_write_reg(e_epiphany_t *dev, unsigned row, unsigned col, off_t to_addr, int data)
 {
-	return target.ee_write_reg(dev, row, col, to_addr, data);
+	return e_platform.target_ops->ee_write_reg(dev, row, col, to_addr, data);
 }
 
 // External Memory access
-//
+
 // Allocate a buffer in external memory
+static int shm_alloc_native(e_mem_t *mbuf)
+{
+	return E_OK;
+}
+
+// Allocate a buffer in external memory
+
+static int alloc_native(e_mem_t *mbuf)
+{
+	mbuf->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
+	if (mbuf->memfd == -1)
+	{
+		warnx("e_alloc(): EPIPHANY_DEV file open failure.");
+		return E_ERR;
+	}
+
+	diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
+
+	mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
+	mbuf->base = (void*)(((char*)mbuf->mapped_base) + mbuf->page_offset);
+
+	if (mbuf->mapped_base == MAP_FAILED)
+	{
+		warnx("e_alloc(): mmap failure.");
+		return E_ERR;
+	}
+
+	return E_OK;
+}
+
 int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 {
 	if (e_platform.initialized == E_FALSE)
@@ -923,18 +773,7 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	}
 
 	mbuf->objtype = E_EXT_MEM;
-
-	if (ee_esim_target_p()) {
-		// Connect to ESIM shm file
-		mbuf->esim = e_platform.esim;
-	} else {
-		mbuf->memfd = open(EPIPHANY_DEV, O_RDWR | O_SYNC);
-		if (mbuf->memfd == -1)
-		{
-			warnx("e_alloc(): EPIPHANY_DEV file open failure.");
-			return E_ERR;
-		}
-	}
+	mbuf->priv = NULL;
 
 	diag(H_D2) { fprintf(diag_fd, "e_alloc(): allocating EMEM buffer at offset 0x%08x\n", (uint) offset); }
 
@@ -943,44 +782,33 @@ int e_alloc(e_mem_t *mbuf, off_t offset, size_t size)
 	mbuf->page_offset = mbuf->phy_base - mbuf->page_base;
 	mbuf->map_size = size + mbuf->page_offset;
 
-	if (!ee_esim_target_p()) {
-		mbuf->mapped_base = mmap(NULL, mbuf->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mbuf->memfd, mbuf->page_base);
-		mbuf->base = (void*)(((char*)mbuf->mapped_base) + mbuf->page_offset);
-	}
-
 	mbuf->ephy_base = (e_platform.emem[0].ephy_base + offset); // TODO: this takes only the 1st segment into account
 	mbuf->emap_size = size;
 
-	if (!ee_esim_target_p()) {
-		diag(H_D2) { fprintf(diag_fd, "e_alloc(): mbuf.phy_base = 0x%08x, mbuf.ephy_base = 0x%08x, mbuf.base = 0x%08x, mbuf.size = 0x%08x\n", (uint) mbuf->phy_base, (uint) mbuf->ephy_base, (uint) mbuf->base, (uint) mbuf->map_size); }
+	return e_platform.target_ops->alloc(mbuf);
+}
 
-		if (mbuf->mapped_base == MAP_FAILED)
-		{
-			warnx("e_alloc(): mmap failure.");
-			return E_ERR;
-		}
-	}
+// Free a memory buffer in external memory
+
+static int free_native(e_mem_t *mbuf)
+{
+	munmap(mbuf->mapped_base, mbuf->map_size);
+	close(mbuf->memfd);
 
 	return E_OK;
 }
 
-// Free a memory buffer in external memory
 int e_free(e_mem_t *mbuf)
 {
-	if (NULL == mbuf) {
+	if (!mbuf)
 		return E_ERR;
-	}
 
-	if (E_SHARED_MEM != mbuf->objtype) {
+	if (E_SHARED_MEM == mbuf->objtype) {
 		// The shared memory mapping is persistent - don't unmap
-
-		if (!ee_esim_target_p()) {
-			munmap(mbuf->mapped_base, mbuf->map_size);
-			close(mbuf->memfd);
-		}
+		return E_OK;
 	}
 
-	return E_OK;
+	return e_platform.target_ops->free(mbuf);
 }
 
 
@@ -1006,26 +834,6 @@ ssize_t ee_mwrite(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
 }
 
 
-// Read a word from an external memory buffer
-static int ee_mread_word_esim(e_mem_t *mbuf, const off_t from_addr)
-{
-	int data;
-	uint32_t addr;
-	ssize_t size;
-
-	/* ???: Not sure whether this is always the right address */
-	addr = mbuf->ephy_base + from_addr + mbuf->page_offset;
-
-	size = sizeof(int);
-	if (ES_OK != es_ops.mem_load(mbuf->esim, addr, size, (uint8_t *) &data))
-	{
-		warnx("ee_mread_word(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_mread_word(): reading from from_addr=0x%08x, pfrom=0x%08x\n", (uint) from_addr, (uint) pfrom); }
-
-	return data;
-}
 static int ee_mread_word_native(e_mem_t *mbuf, const off_t from_addr)
 {
 	volatile int *pfrom;
@@ -1047,30 +855,12 @@ static int ee_mread_word_native(e_mem_t *mbuf, const off_t from_addr)
 	return data;
 }
 
+// Read a word from an external memory buffer
 int ee_mread_word(e_mem_t *mbuf, const off_t from_addr)
 {
-	return target.ee_mread_word(mbuf, from_addr);
+	return e_platform.target_ops->ee_mread_word(mbuf, from_addr);
 }
 
-
-// Write a word to an external memory buffer
-static ssize_t ee_mwrite_word_esim(e_mem_t *mbuf, off_t to_addr, int data)
-{
-	uint32_t addr;
-	ssize_t size;
-
-	/* ???: Not sure whether this is always the right address */
-	addr = mbuf->ephy_base + to_addr;
-
-	size = sizeof(int);
-	if (ES_OK != es_ops.mem_store(mbuf->esim, addr, size, (uint8_t *) &data))
-	{
-		warnx("ee_mwrite_word(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_mwrite_word(): writing to to_addr=0x%08x, pto=0x%08x\n", (uint) to_addr, (uint) pto); }
-	return size;
-}
 
 static ssize_t ee_mwrite_word_native(e_mem_t *mbuf, off_t to_addr, int data)
 {
@@ -1092,28 +882,12 @@ static ssize_t ee_mwrite_word_native(e_mem_t *mbuf, off_t to_addr, int data)
 	return sizeof(int);
 }
 
+// Write a word to an external memory buffer
 ssize_t ee_mwrite_word(e_mem_t *mbuf, off_t to_addr, int data)
 {
-	return target.ee_mwrite_word(mbuf, to_addr, data);
+	return e_platform.target_ops->ee_mwrite_word(mbuf, to_addr, data);
 }
 
-
-// Read a block from an external memory buffer
-static ssize_t ee_mread_buf_esim(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size)
-{
-	uint32_t addr;
-
-	/* ???: Not sure whether this is always the right address */
-	addr = mbuf->ephy_base + mbuf->page_offset + from_addr;
-
-	if (ES_OK != es_ops.mem_load(mbuf->esim, addr, size, (uint8_t *) buf))
-	{
-		warnx("ee_mread_buf(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_mread_buf(): reading from from_addr=0x%08x, pfrom=0x%08x, size=%d\n", (uint) from_addr, (uint) pfrom, (uint) size); }
-	return size;
-}
 
 static ssize_t ee_mread_buf_native(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size)
 {
@@ -1138,28 +912,12 @@ static ssize_t ee_mread_buf_native(e_mem_t *mbuf, const off_t from_addr, void *b
 	return size;
 }
 
+// Read a block from an external memory buffer
 ssize_t ee_mread_buf(e_mem_t *mbuf, const off_t from_addr, void *buf, size_t size)
 {
-	return target.ee_mread_buf(mbuf, from_addr, buf, size);
+	return e_platform.target_ops->ee_mread_buf(mbuf, from_addr, buf, size);
 }
 
-
-// Write a block to an external memory buffer
-static ssize_t ee_mwrite_buf_esim(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
-{
-	uint32_t addr;
-
-	/* ???: Not sure whether this is always the right address */
-	addr = mbuf->ephy_base + mbuf->page_offset + to_addr;
-
-	if (ES_OK != es_ops.mem_store(mbuf->esim, addr, size, (uint8_t *) buf))
-	{
-		warnx("ee_mwrite_buf(): Failed.");
-		return E_ERR;
-	}
-	//diag(H_D2) { fprintf(diag_fd, "ee_mwrite_buf(): writing to to_addr=0x%08x, pto=0x%08x, size=%d\n", (uint) to_addr, (uint) pto, (uint) size); }
-	return size;
-}
 
 static ssize_t ee_mwrite_buf_native(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
 {
@@ -1185,9 +943,10 @@ static ssize_t ee_mwrite_buf_native(e_mem_t *mbuf, off_t to_addr, const void *bu
 	return size;
 }
 
+// Write a block to an external memory buffer
 ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size)
 {
-	return target.ee_mwrite_buf(mbuf, to_addr, buf, size);
+	return e_platform.target_ops->ee_mwrite_buf(mbuf, to_addr, buf, size);
 }
 
 
@@ -1195,30 +954,6 @@ ssize_t ee_mwrite_buf(e_mem_t *mbuf, off_t to_addr, const void *buf, size_t size
 /////////////////////////
 // Core control functions
 
-
-// Reset the Epiphany platform
-static int e_reset_system_esim(void)
-{
-	e_epiphany_t dev;
-
-	diag(H_D1) { fprintf(diag_fd, "e_reset_system(): resetting full ESYS...\n"); }
-
-	if (E_OK != e_open(&dev, 0, 0, e_platform.rows, e_platform.cols))
-	{
-		warnx("e_reset_system(): e_open() failure.");
-		return E_ERR;
-	}
-	if (E_OK != e_reset_group(&dev))
-	{
-		warnx("e_reset_system(): e_reset_group() failure.");
-		return E_ERR;
-	}
-
-	// TODO: clear core SRAM
-	// TODO: clear external ram ??
-
-	return E_OK;
-}
 
 int e_reset_system_native(void)
 {
@@ -1243,9 +978,10 @@ int e_reset_system_native(void)
 }
 
 
+// Reset the Epiphany platform
 int e_reset_system(void)
 {
-	return target.e_reset_system();
+	return e_platform.target_ops->e_reset_system();
 }
 
 
@@ -1257,106 +993,299 @@ int e_reset_chip(void)
 	return E_OK;
 }
 
+int ee_soft_reset_dma(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	uint32_t config;
+	bool fail0, fail1;
+	int i;
 
-// Reset an e-core
-int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+	/* pause DMA */
+	config = ee_read_reg(dev, row, col, E_REG_CONFIG) | 0x01000000;
+	ee_write_reg(dev, row, col, E_REG_CONFIG, config);
+
+	ee_write_reg(dev, row, col, E_REG_DMA0CONFIG, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0STRIDE, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0COUNT, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0SRCADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0DSTADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA0STATUS, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1CONFIG, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1STRIDE, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1COUNT, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1SRCADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1DSTADDR, 0);
+	ee_write_reg(dev, row, col, E_REG_DMA1STATUS, 0);
+
+	/* unpause DMA */
+	config &= ~0x01000000;
+	ee_write_reg(dev, row, col, E_REG_CONFIG, config);
+
+	fail0 = true;
+	for (i = 0; i < 1000; i++) {
+		if (!(ee_read_reg(dev, row, col, E_REG_DMA0STATUS) & 7)) {
+			fail0 = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail0)
+		warnx("%s(): (%d, %d) DMA0 NOT IDLE after dma reset", __func__, row, col);
+
+	fail1 = true;
+	for (i = 0; i < 1000; i++) {
+		if (!(ee_read_reg(dev, row, col, E_REG_DMA1STATUS) & 7)) {
+			fail1 = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail1)
+		warnx("%s(): (%d, %d) DMA1 NOT IDLE after dma reset", __func__, row, col);
+
+	return (fail0 || fail1) ? E_ERR : E_OK;
+}
+
+int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col, bool reset_dma)
+{
+	unsigned i;
+
+	for (i = E_REG_R0; i <= E_REG_R63; i += 4)
+		ee_write_reg(dev, row, col, i, 0);
+
+	if (reset_dma)
+		if (ee_soft_reset_dma(dev, row, col) != E_OK)
+			return E_ERR;
+
+	/* Enable clock gating */
+	ee_write_reg(dev, row, col, E_REG_CONFIG, 0x00400000);
+	ee_write_reg(dev, row, col, E_REG_FSTATUS, 0);
+	/* ee_write_reg(dev, row, col, E_REG_PC, 0); */
+	ee_write_reg(dev, row, col, E_REG_LC, 0);
+	ee_write_reg(dev, row, col, E_REG_LS, 0);
+	ee_write_reg(dev, row, col, E_REG_LE, 0);
+	ee_write_reg(dev, row, col, E_REG_IRET, 0);
+	/* Mask all but SYNC irq */
+	ee_write_reg(dev, row, col, E_REG_IMASK, ~(1 << E_SYNC));
+	ee_write_reg(dev, row, col, E_REG_ILATCL, ~0);
+	ee_write_reg(dev, row, col, E_REG_CTIMER0, 0);
+	ee_write_reg(dev, row, col, E_REG_CTIMER1, 0);
+	ee_write_reg(dev, row, col, E_REG_MEMSTATUS, 0);
+	ee_write_reg(dev, row, col, E_REG_MEMPROTECT, 0);
+	/* Enable clock gating */
+	ee_write_reg(dev, row, col, E_REG_MESHCONFIG, 2);
+
+	return E_OK;
+}
+
+
+uint8_t soft_reset_payload[] = {
+	0xe8, 0x16, 0x00, 0x00, 0xe8, 0x14, 0x00, 0x00, 0xe8, 0x12, 0x00, 0x00,
+	0xe8, 0x10, 0x00, 0x00, 0xe8, 0x0e, 0x00, 0x00, 0xe8, 0x0c, 0x00, 0x00,
+	0xe8, 0x0a, 0x00, 0x00, 0xe8, 0x08, 0x00, 0x00, 0xe8, 0x06, 0x00, 0x00,
+	0xe8, 0x04, 0x00, 0x00, 0xe8, 0x02, 0x00, 0x00, 0x1f, 0x15, 0x02, 0x04,
+	0x7a, 0x00, 0x00, 0x03, 0xd2, 0x01, 0xe0, 0xfb, 0x92, 0x01, 0xb2, 0x01,
+	0xe0, 0xfe
+};
+
+/*
+ *        ivt:
+ *   0:              b.l     clear_ipend
+ *   4:              b.l     clear_ipend
+ *   8:              b.l     clear_ipend
+ *   c:              b.l     clear_ipend
+ *  10:              b.l     clear_ipend
+ *  14:              b.l     clear_ipend
+ *  18:              b.l     clear_ipend
+ *  1c:              b.l     clear_ipend
+ *  20:              b.l     clear_ipend
+ *  24:              b.l     clear_ipend
+ *  28:              b.l     clear_ipend
+ *        clear_ipend:
+ *  2c:              movfs   r0, ipend
+ *  30:              orr     r0, r0, r0
+ *  32:              beq     1f
+ *  34:              rti
+ *  36:              b       clear_ipend
+ *        1:
+ *  38:              gie
+ *  3a:              idle
+ *  3c:              b       1b
+ */
+
+int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	int i;
+	uint32_t status;
+	bool fail;
+
+	if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 1)) {
+		diag(H_D1) { fprintf(diag_fd, "%s(): No clean previous exit\n", __func__); }
+		e_halt(dev, row, col);
+	}
+
+	/* Wait for external fetch */
+	fail = true;
+	for (i = 0; i < 1000; i++) {
+		if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 2)) {
+			fail = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail) {
+		warnx("%s(): (%d, %d) stuck. Full system reset needed", __func__, row, col);
+		return E_ERR;
+	}
+
+	if (ee_read_reg(dev, row, col, E_REG_DMA0STATUS) & 7)
+		warnx("%s(): (%d, %d) DMA0 NOT IDLE", __func__, row, col);
+
+	if (ee_read_reg(dev, row, col, E_REG_DMA1STATUS) & 7)
+		warnx("%s(): (%d, %d) DMA1 NOT IDLE", __func__, row, col);
+
+	/* Abort DMA transfers */
+	if (ee_soft_reset_dma(dev, row, col) != E_OK)
+		return E_ERR;
+
+	/* Disable timers */
+	ee_write_reg(dev, row, col, E_REG_CONFIG, 0);
+
+	ee_write_reg(dev, row, col, E_REG_ILATCL, ~0);
+
+	ee_write_reg(dev, row, col, E_REG_IMASK, 0);
+
+	ee_write_reg(dev, row, col, E_REG_IRET, 0x2c); /* clear_ipend */
+
+	ee_write_reg(dev, row, col, E_REG_PC, 0x2c); /* clear_ipend */
+
+	ee_write_buf(dev, row, col, 0, soft_reset_payload, sizeof(soft_reset_payload));
+
+	/* Set active bit */
+	ee_write_reg(dev, row, col, E_REG_FSTATUS, 1);
+
+	e_resume(dev, row, col);
+
+	fail = true;
+	for (i = 0; i < 10000; i++) {
+		if (!ee_read_reg(dev, row, col, E_REG_IPEND) &&
+			!ee_read_reg(dev, row, col, E_REG_ILAT) &&
+			!(ee_read_reg(dev, row, col, E_REG_STATUS) & 1)) {
+			fail = false;
+			break;
+		}
+		usleep(10);
+	}
+	if (fail) {
+		warnx("%s: (%d, %d) Not idle", __func__, row, col);
+		return E_ERR;
+	}
+
+	/* Reset regs, excluding DMA (already done above) */
+	ee_reset_regs(dev, row, col, false);
+
+	return E_OK;
+}
+
+
+// Reset a group
+int ee_reset_group(e_epiphany_t *dev, unsigned row, unsigned col, unsigned rows,
+		unsigned cols)
 {
 	int RESET0 = 0x0;
 	int RESET1 = 0x1;
 	int CONFIG = 0x01000000;
+	int i, j;
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): halting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	e_halt(dev, row, col);
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): halting cores...\n"); }
+	for (i = row; i < row + rows; i++)
+		for (j = col; j < col + cols; j++)
+			e_halt(dev, i, j);
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): pausing DMAs.\n"); }
-	e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): halting cores...\n"); }
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			/* Refuse to reset if core is in the middle of an external read */
+			if (ee_read_reg(dev, i, j, E_REG_DEBUGSTATUS) & 2) {
+				usleep(100000);
+				if (ee_read_reg(dev, i, j, E_REG_DEBUGSTATUS) & 2) {
+					warnx("ee_reset_group(): (%d, %d) stuck. Full system reset needed", i, j);
+					return E_ERR;
+				}
+			}
+		}
+	}
 
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): pausing DMAs.\n"); }
+
+	for (i = row; i < row + rows; i++)
+		for (j = col; j < col + cols; j++)
+			e_write(dev, i, j, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+
+#if 0
 	if (!ee_esim_target_p())
 		usleep(100000);
+#endif
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): resetting core (%d,%d) (0x%03x)...\n", row, col, dev->core[row][col].id); }
-	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
-	ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
-	diag(H_D1) { fprintf(diag_fd, "e_reset_core(): done.\n"); }
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): resetting cores...\n"); }
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			ee_write_reg(dev, i, j, E_REG_RESETCORE, RESET1);
+			ee_write_reg(dev, i, j, E_REG_RESETCORE, RESET0);
+		}
+	}
+
+	diag(H_D1) { fprintf(diag_fd, "ee_reset_group(): done.\n"); }
 
 	return E_OK;
+}
+
+// Reset an e-core
+int ee_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
+{
+	return ee_reset_group(dev, row, col, 1, 1);
 }
 
 
 // Reset a workgroup
 int e_reset_group(e_epiphany_t *dev)
 {
-	int RESET0 = 0x0;
-	int RESET1 = 0x1;
-	int CONFIG = 0x01000000;
-	int row, col;
+	return ee_reset_group(dev, 0, 0, dev->rows, dev->cols);
+}
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): halting core...\n"); }
-	for (row=0; row<dev->rows; row++)
-		for (col=0; col<dev->cols; col++)
-			e_halt(dev, row, col);
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): pausing DMAs.\n"); }
+int _e_default_start_group(e_epiphany_t *dev,
+						   unsigned row, unsigned col,
+						   unsigned rows, unsigned cols)
+{
+	int				i, j;
+	e_return_stat_t retval;
+	int SYNC = (1 << E_SYNC);
 
-	for (row=0; row<dev->rows; row++)
-		for (col=0; col<dev->cols; col++)
-			e_write(dev, row, col, E_REG_CONFIG, &CONFIG, sizeof(unsigned));
+	retval = E_OK;
 
-	if (!ee_esim_target_p())
-		usleep(100000);
-
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): resetting cores...\n"); }
-	for (row=0; row<dev->rows; row++)
-		for (col=0; col<dev->cols; col++)
-		{
-			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET1);
-			ee_write_reg(dev, row, col, E_REG_RESETCORE, RESET0);
+	diag(H_D1) { fprintf(diag_fd, "%s(): SYNC (0x%x) to workgroup...\n", __func__, E_REG_ILATST); }
+	for (i = row; i < row + rows; i++) {
+		for (j = col; j < col + cols; j++) {
+			if (ee_write_reg(dev, i, j, E_REG_ILATST, SYNC) == E_ERR)
+				retval = E_ERR;
 		}
+	}
+	diag(H_D1) { fprintf(diag_fd, "%s(): done.\n", __func__); }
 
-	diag(H_D1) { fprintf(diag_fd, "e_reset_group(): done.\n"); }
-
-	return E_OK;
+	return retval;
 }
 
 
 // Start a program loaded on an e-core in a group
 int e_start(e_epiphany_t *dev, unsigned row, unsigned col)
 {
-	e_return_stat_t retval;
-
-	retval = E_OK;
-
-	int SYNC = (1 << E_SYNC);
-
-	diag(H_D1) { fprintf(diag_fd, "e_start(): SYNC (0x%x) to core (%d,%d)...\n", E_REG_ILATST, row, col); }
-	if (ee_write_reg(dev, row, col, E_REG_ILATST, SYNC) == E_ERR)
-		retval = E_ERR;
-	diag(H_D1) { fprintf(diag_fd, "e_start(): done.\n"); }
-
-	return retval;
+	return e_platform.target_ops->start_group(dev, row, col, 1, 1);
 }
 
 
 // Start all programs loaded on a workgroup
 int e_start_group(e_epiphany_t *dev)
 {
-	int				irow, icol;
-	e_return_stat_t retval;
-
-	retval = E_OK;
-
-	int SYNC = (1 << E_SYNC);
-
-	diag(H_D1) { fprintf(diag_fd, "e_start_group(): SYNC (0x%x) to workgroup...\n", E_REG_ILATST); }
-	for (irow=0; irow<dev->rows; irow++)
-		for (icol=0; icol<dev->cols; icol++)
-			{
-				diag(H_D1) { fprintf(diag_fd, "e_start_group(): send SYNC signal to core (%d,%d)...\n", irow, icol); }
-				if (ee_write_reg(dev, irow, icol, E_REG_ILATST, SYNC) == E_ERR)
-					retval = E_ERR;
-			}
-	diag(H_D1) { fprintf(diag_fd, "e_start_group(): done.\n"); }
-
-	return retval;
+	return e_platform.target_ops->start_group(dev, 0, 0, dev->rows, dev->cols);
 }
 
 
@@ -1757,26 +1686,7 @@ int ee_set_platform_params(e_platform_t *platform)
 	return E_OK;
 }
 
-
-typedef struct {
-	e_objtype_t		 objtype;	  // object type identifier
-	e_chiptype_t	 type;		  // Epiphany chip part number
-	char			 version[32]; // version name of Epiphany chip
-	unsigned int	 arch;		  // architecture generation
-	unsigned int	 rows;		  // number of rows in chip
-	unsigned int	 cols;		  // number of cols in chip
-	unsigned int	 sram_base;	  // base offset of core SRAM
-	unsigned int	 sram_size;	  // size of core SRAM
-	unsigned int	 regs_base;	  // base offset of core registers
-	unsigned int	 regs_size;	  // size of core registers segment
-	off_t			 ioregs_n;	  // base address of north IO register
-	off_t			 ioregs_e;	  // base address of east IO register
-	off_t			 ioregs_s;	  // base address of south IO register
-	off_t			 ioregs_w;	  // base address of west IO register
-} e_chip_db_t;
-
-#define NUM_CHIP_VERSIONS 3
-e_chip_db_t chip_params_table[NUM_CHIP_VERSIONS] = {
+e_chip_db_t e_chip_params_table[E_CHIP_DB_NUM_CHIP_VERSIONS] = {
 //		 objtype	 type		version	 arch r	 c sram_base sram_size regs_base regs_size io_n		io_e		io_s		io_w
 		{E_EPI_CHIP, E_E16G301, "E16G301", 3, 4, 4, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x083f0000, 0x0c2f0000, 0x080f0000},
 		{E_EPI_CHIP, E_E64G401, "E64G401", 4, 8, 8, 0x00000, 0x08000, 0xf0000, 0x01000, 0x002f0000, 0x087f0000, 0x1c2f0000, 0x080f0000},
@@ -1788,66 +1698,37 @@ int ee_set_chip_params(e_chip_t *chip)
 {
 	int chip_ver;
 
-	for (chip_ver = 0; chip_ver < NUM_CHIP_VERSIONS; chip_ver++)
-		if (!strcmp(chip->version, chip_params_table[chip_ver].version))
+	for (chip_ver = 0; chip_ver < E_CHIP_DB_NUM_CHIP_VERSIONS; chip_ver++)
+		if (!strcmp(chip->version, e_chip_params_table[chip_ver].version))
 		{
 			diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): found chip version \"%s\"\n", chip->version); }
 			break;
 		}
 
-	if (chip_ver == NUM_CHIP_VERSIONS)
+	if (chip_ver == E_CHIP_DB_NUM_CHIP_VERSIONS)
 	{
-		diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, chip_params_table[0].version); }
+		diag(H_D2) { fprintf(diag_fd, "ee_set_chip_params(): chip version \"%s\" not found, setting to \"%s\"\n", chip->version, e_chip_params_table[0].version); }
 		chip_ver = 0;
 	}
 
-	chip->type		= chip_params_table[chip_ver].type;
-	chip->arch		= chip_params_table[chip_ver].arch;
-	chip->rows		= chip_params_table[chip_ver].rows;
-	chip->cols		= chip_params_table[chip_ver].cols;
+	chip->type		= e_chip_params_table[chip_ver].type;
+	chip->arch		= e_chip_params_table[chip_ver].arch;
+	chip->rows		= e_chip_params_table[chip_ver].rows;
+	chip->cols		= e_chip_params_table[chip_ver].cols;
 	chip->num_cores = chip->rows * chip->cols;
-	chip->sram_base = chip_params_table[chip_ver].sram_base;
-	chip->sram_size = chip_params_table[chip_ver].sram_size;
-	chip->regs_base = chip_params_table[chip_ver].regs_base;
-	chip->regs_size = chip_params_table[chip_ver].regs_size;
-	chip->ioregs_n	= chip_params_table[chip_ver].ioregs_n;
-	chip->ioregs_e	= chip_params_table[chip_ver].ioregs_e;
-	chip->ioregs_s	= chip_params_table[chip_ver].ioregs_s;
-	chip->ioregs_w	= chip_params_table[chip_ver].ioregs_w;
+	chip->sram_base = e_chip_params_table[chip_ver].sram_base;
+	chip->sram_size = e_chip_params_table[chip_ver].sram_size;
+	chip->regs_base = e_chip_params_table[chip_ver].regs_base;
+	chip->regs_size = e_chip_params_table[chip_ver].regs_size;
+	chip->ioregs_n	= e_chip_params_table[chip_ver].ioregs_n;
+	chip->ioregs_e	= e_chip_params_table[chip_ver].ioregs_e;
+	chip->ioregs_s	= e_chip_params_table[chip_ver].ioregs_s;
+	chip->ioregs_w	= e_chip_params_table[chip_ver].ioregs_w;
 
 	return E_OK;
 }
 
 #if ESIM_TARGET
-static int ee_hdf_from_sim_cfg(e_platform_t *dev)
-{
-	es_cluster_cfg cfg;
-
-	es_get_cluster_cfg(dev->esim, &cfg);
-
-	memcpy(&dev->version, "PARALLELLASIM", sizeof("PARALLELLASIM"));
-
-	dev->num_chips = 1;
-	dev->chip = (e_chip_t *) calloc(1, sizeof(e_chip_t));
-
-	/* Only one mem region supported in simulator */
-	dev->num_emems = 1;
-	dev->emem = (e_memseg_t *) calloc(1, sizeof(e_memseg_t));
-
-	memcpy(dev->chip[0].version, "ESIM", sizeof("ESIM"));
-
-	dev->chip[0].row = cfg.row_base;
-	dev->chip[0].col = cfg.col_base;
-	dev->emem[0].phy_base = cfg.ext_ram_base;
-	dev->emem[0].ephy_base = cfg.ext_ram_base;
-	dev->emem[0].size = cfg.ext_ram_size;
-	dev->emem[0].type = E_RDWR;
-
-	/* Fill in chip param table */
-	chip_params_table[E_ESIM].sram_size = cfg.core_phys_mem;
-	chip_params_table[E_ESIM].rows = cfg.rows;
-	chip_params_table[E_ESIM].cols = cfg.cols;
-}
 #endif
 
 
@@ -1889,5 +1770,118 @@ unsigned long ee_rndl_page(unsigned long size)
 
 	return rsize;
 }
+
+
+// Target code
+bool ee_native_target_p()
+{
+	static bool initialized = false;
+	static bool native = false;
+
+	if (!initialized)
+		native = (!ee_esim_target_p() && !ee_pal_target_p());
+
+	return native;
+}
+
+bool ee_esim_target_p()
+{
+	static bool initialized = false;
+	static bool esim = false;
+	const char *p;
+
+	if (!initialized) {
+		p = getenv(EHAL_TARGET_ENV);
+		esim = (p && strncmp(p, "sim", sizeof("sim")) == 0) ||
+			   (p && strncmp(p, "esim", sizeof("esim")) == 0);
+        initialized = true;
+	}
+
+	return esim;
+}
+
+bool ee_pal_target_p()
+{
+	static bool initialized = false;
+	static bool pal = false;
+	const char *p;
+
+	if (!initialized) {
+		p = getenv(EHAL_TARGET_ENV);
+		pal = (p && strncmp(p, "pal", sizeof("pal")) == 0);
+        initialized = true;
+	}
+
+	return pal;
+}
+
+
+static int populate_platform_native(e_platform_t *platform, char *hdf)
+{
+	char *hdf_env, *esdk_env, hdf_dfl[1024];
+	int i;
+
+	// Parse HDF, get platform configuration
+	if (hdf == NULL)
+	{
+		// Try getting HDF from EPIPHANY_HDF environment variable
+		hdf_env = getenv(hdf_env_var_name);
+		diag(H_D2) { fprintf(diag_fd, "e_init(): HDF ENV = %s\n", hdf_env); }
+		if (hdf_env != NULL)
+			hdf = hdf_env;
+		else
+		{
+			// Try opening .../bsps/current/platform.hdf
+			warnx("e_init(): No Hardware Definition File (HDF) is specified. Trying \"platform.hdf\".");
+			esdk_env = getenv(esdk_path);
+			strncpy(hdf_dfl, esdk_env, sizeof(hdf_dfl));
+			strncat(hdf_dfl, "/bsps/current/platform.hdf", sizeof(hdf_dfl));
+			hdf = hdf_dfl;
+		}
+	}
+
+	diag(H_D2) { fprintf(diag_fd, "e_init(): opening HDF %s\n", hdf); }
+	if (ee_parse_hdf(&e_platform, hdf))
+	{
+		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
+		return E_ERR;
+	}
+}
+
+static int init_native()
+{
+	return E_OK;
+}
+
+static void finalize_native()
+{
+}
+
+extern int _e_default_load_group(const char *executable, e_epiphany_t *dev,
+								 unsigned row, unsigned col,
+								 unsigned rows, unsigned cols);
+/* Native target ops */
+const struct e_target_ops native_taget_ops = {
+	.alloc = alloc_native,
+	.shm_alloc = shm_alloc_native,
+	.free = free_native,
+	.ee_read_word = ee_read_word_native,
+	.ee_write_word = ee_write_word_native,
+	.ee_read_buf = ee_read_buf_native,
+	.ee_write_buf = ee_write_buf_native,
+	.ee_read_reg = ee_read_reg_native,
+	.ee_write_reg = ee_write_reg_native,
+	.ee_mread_word = ee_mread_word_native,
+	.ee_mwrite_word = ee_mwrite_word_native,
+	.ee_mread_buf = ee_mread_buf_native,
+	.ee_mwrite_buf = ee_mwrite_buf_native,
+	.e_reset_system = e_reset_system_native,
+	.populate_platform = populate_platform_native,
+	.init = init_native,
+	.finalize = finalize_native,
+	.open = ee_open_native,
+	.load_group = _e_default_load_group,
+	.start_group = _e_default_start_group,
+};
 
 #pragma GCC diagnostic pop

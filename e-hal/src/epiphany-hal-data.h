@@ -29,10 +29,6 @@
 #include <stdint.h>
 #include <semaphore.h>
 
-#include "epiphany-hal-data-local.h"
-
-#define EHAL_TARGET_ENV "EHAL_TARGET"
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -47,6 +43,9 @@ typedef enum {
 } e_bool_t;
 #endif
 
+#include "epiphany-hal-data-local.h"
+
+#define EHAL_TARGET_ENV "EHAL_TARGET"
 
 typedef enum {
 	H_D0 = 0,
@@ -200,10 +199,8 @@ typedef enum {
 } e_chip_regs_t;
 
 
-typedef struct es_state_ es_state;
-
 // Core group data structures
-typedef struct {
+typedef struct e_epiphany_t {
 	e_objtype_t		 objtype;	  // object type identifier
 	e_chiptype_t	 type;		  // Epiphany chip part number
 	unsigned int	 num_cores;	  // number of cores group
@@ -215,11 +212,11 @@ typedef struct {
 	e_core_t	   **core;		  // e-cores data structures array
 	int				 memfd;		  // for mmap
 
-	es_state		*esim;        // ESIM handle
+	void			*priv;		  // Target private
 } e_epiphany_t;
 
 
-typedef struct {
+typedef struct e_mem_t {
 	e_objtype_t		 objtype;	  // object type identifier
 	off_t			 phy_base;	  // physical global base address of external memory buffer as seen by host side
 	off_t			 page_base;	  // physical base address of memory page
@@ -231,7 +228,7 @@ typedef struct {
 	void			*base;		  // application (virtual) space base address of external memory buffer
 	int				 memfd;		  // for mmap
 
-	es_state		*esim;        // ESIM handle
+	void			*priv;		  // Target private
 } e_mem_t;
 
 #define ALIGN(x)	__attribute__ ((aligned (x)))

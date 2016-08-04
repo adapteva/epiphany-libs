@@ -45,6 +45,7 @@ libe_hal_la_LDFLAGS    += -lesim -lpthread
 endif
 
 if ENABLE_PAL_TARGET
+libe_hal_la_SOURCES    += e-hal/src/pal-target.c
 libe_loader_la_CFLAGS  += -DPAL_TARGET
 libe_hal_la_CFLAGS     += -DPAL_TARGET
 libe_loader_la_LDFLAGS += -lpal
