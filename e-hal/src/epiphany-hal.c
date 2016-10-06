@@ -1861,7 +1861,7 @@ extern int _e_default_load_group(const char *executable, e_epiphany_t *dev,
 								 unsigned row, unsigned col,
 								 unsigned rows, unsigned cols);
 /* Native target ops */
-const struct e_target_ops native_taget_ops = {
+const struct e_target_ops native_target_ops = {
 	.alloc = alloc_native,
 	.shm_alloc = shm_alloc_native,
 	.free = free_native,

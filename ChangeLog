@@ -1,3 +1,8 @@
+2016-10-06  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/epiphany-hal.c (native_target_ops): Fix typo
+	{native_taget_ops} in definition of forward declaration.
+
 2016-08-03  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/pal-target.c (pal_to_rank): Use
