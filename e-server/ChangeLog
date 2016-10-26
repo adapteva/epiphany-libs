@@ -1,3 +1,8 @@
+2016-10-27  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.h (GdbServer::vContTidAction::matches): Add
+	missing return path.
+
 2016-06-23  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/GdbServer.cpp (GdbServer::findStopReason): Validate PC before

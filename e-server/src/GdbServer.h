@@ -183,8 +183,7 @@ private:
 	  else if (tid == this->tid.tid ())
 	    return 1;
 	}
-      else
-	return 0;
+      return 0;
     }
   };
 
