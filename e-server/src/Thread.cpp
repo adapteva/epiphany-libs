@@ -436,18 +436,17 @@ Thread::getException ()
     case TargetControl::STATUS_EXCAUSE_NONE:
       return GdbServer::TARGET_SIGNAL_NONE;
 
-    case TargetControl::STATUS_EXCAUSE_LDST:
+    case TargetControl::STATUS_EXCAUSE_UNALIGNED:
       return GdbServer::TARGET_SIGNAL_BUS;
 
     case TargetControl::STATUS_EXCAUSE_FPU:
       return GdbServer::TARGET_SIGNAL_FPE;
 
     case TargetControl::STATUS_EXCAUSE_UNIMPL:
+    case TargetControl::STATUS_EXCAUSE_ILLEGAL:
       return GdbServer::TARGET_SIGNAL_ILL;
 
     default:
-      // @todo Can we get this? Corresponds to STATUS_EXCAUSE_LSTALL or
-      //       STATUS_EXCAUSE_FSTALL being set.
       return GdbServer::TARGET_SIGNAL_ABRT;
     }
 }	// getException ()

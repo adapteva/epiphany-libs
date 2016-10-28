@@ -1,3 +1,18 @@
+2016-10-28  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/TargetControl.h (TargetControl::STATUS_EXCAUSE_SWI): Added.
+	(TargetControl::STATUS_EXCAUSE_UNALIGNED): Added.
+	(TargetControl::STATUS_EXCAUSE_ILLEGAL): Added.
+	(TargetControl::STATUS_EXCAUSE_FPU): Use Epiphany-III exception
+	number.
+	(TargetControl::STATUS_EXCAUSE_UNIMPL): Ditto.
+	(TargetControl::STATUS_EXCAUSE_LDST): Remove.
+	(TargetControl::STATUS_EXCAUSE_LSTALL): Remove.
+	(TargetControl::STATUS_EXCAUSE_FSTALL): Remove.
+	* src/Thread.cpp (Thread::getException): Remove.
+	STATUS_EXCAUSE_LDST case. Add STATUS_EXCAUSE_UNALIGNED and
+	STATUS_EXCAUSE_ILLEGAL cases.
+
 2016-10-27  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.h (GdbServer::vContTidAction::matches): Add
