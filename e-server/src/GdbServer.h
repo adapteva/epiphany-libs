@@ -330,6 +330,7 @@ private:
   void rspInsertMatchpoint ();
   void rspFileIOreply ();
   void rspSuspend ();
+  void rspVCtrlC ();
 
   bool hideBreakpoints (Thread *thread,
 			uint32_t addr, uint8_t* buf, size_t len);

@@ -1,3 +1,10 @@
+2016-10-31  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/GdbServer.cpp (GdbServer::rspVpkt): Defer 'vCtrlC' packet to
+	rspVCtrlC.
+	(GdbServer::rspVCtrlC): Added. Handle 'VCtrlC' packet.
+	* e-server/src/GdbServer.h (GdbServer) <rspVCtrlC>: Add prototype.
+
 2016-10-28  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/TargetControl.h (TargetControl::STATUS_EXCAUSE_SWI): Added.

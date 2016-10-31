@@ -2443,6 +2443,11 @@ GdbServer::rspVpkt ()
       rspVCont ();
       return;
     }
+  else if (0 == strncmp ("vCtrlC", pkt->data, strlen ("vCtrlC")))
+    {
+      rspVCtrlC ();
+      return;
+    }
   else if (0 == strncmp ("vKill;", pkt->data, strlen ("vKill;")))
     {
       // We don't support killing.
@@ -2591,6 +2596,24 @@ GdbServer::rspVCont ()
     }
 }	// rspVCont ()
 
+//
+//-----------------------------------------------------------------------------
+//! Handle a vCtrl packet
+
+void
+GdbServer::rspVCtrlC ()
+{
+  // Halt all threads.
+  if (!haltAllThreads ())
+    {
+      cerr << "Warning: suspend failed to halt all threads." << endl;
+      pkt->packStr ("E01");
+    }
+  else
+    pkt->packStr ("OK");
+
+  rsp->putPkt (pkt);
+}
 
 //-----------------------------------------------------------------------------
 //! Wait for a thread to stop, and handle it.
