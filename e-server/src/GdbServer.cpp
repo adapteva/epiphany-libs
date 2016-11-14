@@ -329,7 +329,6 @@ GdbServer::haltAndActivateAllThreads ()
 void
 GdbServer::rspAttach ()
 {
-  bool isHalted = true;
   unsigned long int pid = strtoul (&pkt->data[8], NULL, 16);
 
   /* Check if we're already attached to PID.  */
@@ -354,10 +353,11 @@ GdbServer::rspAttach ()
   ProcessInfo *process = (*it).second;
   mAttachedProcesses[pid] = process;
 
-  isHalted = haltAndActivateProcess (process);
-
   if (mDebugMode == NON_STOP)
     {
+      if (si->haltOnAttach ())
+	haltAndActivateProcess (process);
+
       /* In non-stop, we're done.  */
 
       pkt->packStr ("OK");
@@ -375,6 +375,12 @@ GdbServer::rspAttach ()
     }
   else
     {
+      if (!si->haltOnAttach ())
+	cerr << "Warning: Ignoring --dont-halt-on-attach flag in all-stop mode."
+	     << endl;
+
+      haltAndActivateProcess (process);
+
       Thread *thread = *process->threadBegin ();
 
       // At this point, no thread should be resumed until the client

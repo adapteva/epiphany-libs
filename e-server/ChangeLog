@@ -1,5 +1,10 @@
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/GdbServer.cpp (GdbServer::rspAttach): Respect
+	--dont-halt-on-attach in non-stop mode, ignore it in all-stop mode.
+
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/GdbServer.cpp (GdbServer::rspServer): Call
 	detachAllProcesses when client disconnects.
 
