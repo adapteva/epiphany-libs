@@ -184,8 +184,8 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 //! Processes correspond to GDB work groups. For now, they are set up by the
 //! "monitor workgroup" command, which returns a process ID.
 
-//! We start by mapping all threads to process ID IDLE_PID. This can be
-//! thought of as the "idle process".
+//! We start by mapping all threads to process ID DEFAULT_PID. This process
+//  represents all cores not assigned to a workgroup.
 
 //! Epiphany GDB uses a hard mapping of thread ID to cores. We can only
 //! provide this mapping once a connection identifies the cores available.
@@ -204,7 +204,7 @@ GdbServer::initProcesses ()
   assert (fTargetControl);		// Just in case of a stupid connection
 
   // Create the idle process
-  mNextPid = IDLE_PID;
+  mNextPid = DEFAULT_PID;
   mIdleProcess = new ProcessInfo (mNextPid);
   mProcesses[mNextPid] = mIdleProcess;
   mNextPid++;
@@ -397,7 +397,7 @@ GdbServer::rspAttach ()
 void
 GdbServer::detachProcess (ProcessInfo* process)
 {
-  if (IDLE_PID != process->pid ())
+  if (DEFAULT_PID != process->pid ())
     {
       for (set <Thread*>::iterator it = process->threadBegin ();
 	   it != process->threadEnd ();

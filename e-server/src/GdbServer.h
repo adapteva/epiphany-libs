@@ -193,8 +193,8 @@ private:
   //! characters (8 per reg) + 1 byte end marker.
   static const int RSP_PKT_MAX = NUM_REGS * TargetControl::E_REG_BYTES * 2 + 1;
 
-  //! Number of the idle process
-  static const int IDLE_PID = 1;
+  //! PID of the process holding threads not assigned to a workgroup
+  static const int DEFAULT_PID = 1;
 
   //! Our debug mode
   enum {
