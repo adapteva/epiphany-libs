@@ -1,5 +1,9 @@
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/epiphany-hal.c (ee_reset_regs): Reset PC.
+
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* configure.ac (enable-esim) (pal-target): Add missing "["
 	brackets.
 

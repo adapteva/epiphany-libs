@@ -1059,7 +1059,7 @@ int ee_reset_regs(e_epiphany_t *dev, unsigned row, unsigned col, bool reset_dma)
 	/* Enable clock gating */
 	ee_write_reg(dev, row, col, E_REG_CONFIG, 0x00400000);
 	ee_write_reg(dev, row, col, E_REG_FSTATUS, 0);
-	/* ee_write_reg(dev, row, col, E_REG_PC, 0); */
+	ee_write_reg(dev, row, col, E_REG_PC, 0);
 	ee_write_reg(dev, row, col, E_REG_LC, 0);
 	ee_write_reg(dev, row, col, E_REG_LS, 0);
 	ee_write_reg(dev, row, col, E_REG_LE, 0);
