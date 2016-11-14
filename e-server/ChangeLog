@@ -1,5 +1,10 @@
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/GdbServer.cpp (GdbServer::detachProcess): Resume all threads
+	in process, even if it's DEFAULT_PROCESS.
+
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/GdbServer.h <IDLE_PID>: Rename from ...
 	<DEFAULT_PID>: ... to this.
 

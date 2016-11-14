@@ -389,23 +389,19 @@ GdbServer::rspAttach ()
 //-----------------------------------------------------------------------------
 //! Detach from a process
 
-//! Restart all threads in the process, *unless* it is the idle process (why
-//! waste CPU with it).
+//! Restart all threads in the process.
 
 //! @param[in] process  The process from which we detach
 //-----------------------------------------------------------------------------
 void
 GdbServer::detachProcess (ProcessInfo* process)
 {
-  if (DEFAULT_PID != process->pid ())
+  for (set <Thread*>::iterator it = process->threadBegin ();
+       it != process->threadEnd ();
+       it++)
     {
-      for (set <Thread*>::iterator it = process->threadBegin ();
-	   it != process->threadEnd ();
-	   it++)
-	{
-	  Thread* thread = *it;
-	  thread->resume ();
-	}
+      Thread* thread = *it;
+      thread->resume ();
     }
 }	// detachProcess ()
 
