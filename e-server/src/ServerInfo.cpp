@@ -41,7 +41,6 @@ ServerInfo::ServerInfo () :
   debugFlags (DEBUG_NONE),
   halDebugLevel (H_D0),
   showMemoryMapFlag (false),
-  skipPlatformResetFlag (false),
   checkHwAddrFlag (false),
   haltOnAttachFlag (true),
   multiProcessFlag (false)
@@ -341,24 +340,6 @@ ServerInfo::showMemoryMap () const
   return  showMemoryMapFlag;
 
 }	// showMemoryMap ()
-
-
-//! Set the skip platform reset flag
-void
-ServerInfo::skipPlatformReset (const bool _skipPlatformResetFlag)
-{
-  skipPlatformResetFlag = _skipPlatformResetFlag;
-
-}	// skipPlatformReset ()
-
-
-//! Get the skip platform reset flag
-bool
-ServerInfo::skipPlatformReset () const
-{
-  return  skipPlatformResetFlag;
-
-}	// skipPlatformReset ()
 
 
 //! Set the check hardware address flag

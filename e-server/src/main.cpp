@@ -98,7 +98,7 @@ usage_summary (ostream& s)
     << endl;
   s << "         [-d <debug-level>] [--hal-debug <level> [--check-hw-address]"
     << endl;
-  s << "         [--dont-halt-on-attach] [-skip-platform-reset] "
+  s << "         [--dont-halt-on-attach] "
     << endl;
   s << "         [-Wpl,<options>] [-Xpl <arg>]"
     << endl;
@@ -191,9 +191,7 @@ usage_full (ostream& s)
   s << "    When starting an e-gdb session, the debugger initiates an" << endl;
   s << "    attachment procedure when executing the 'target remote:' command."
     << endl;
-  s << "    By default, this procedure includes a reset sequence sent to the"
-    << endl;
-  s << "    attached core.  Use this option to disable the intrusive attachment"
+  s << "    Use this option to disable the intrusive attachment"
     << endl;
   s << "    and perform a non-intrusive one that does not change the core's"
     << endl;
@@ -209,10 +207,6 @@ usage_full (ostream& s)
   s << "    Use this option to disable this automatic attachment."  << endl;
   s << endl;
 
-  s << "  -skip-platform-reset" << endl;
-  s << endl;
-  s << "    Don't make the hardware reset during initialization." << endl;
-  s << endl;
   s << "  -Wpl <options>" << endl;
   s << endl;
   s << "    Pass comma-separated <options> on to the platform driver."
@@ -395,8 +389,6 @@ main (int argc, char *argv[])
 	si->checkHwAddr (true);
       else if (!strcmp (argv[n], "--dont-halt-on-attach"))
 	si->haltOnAttach (false);
-      else if (!strcmp (argv[n], "-skip-platform-reset"))
-	si->skipPlatformReset (true);
       else if (!strcmp (argv[n], "--show-memory-map"))
 	si->showMemoryMap (true);
       else if (!strcmp (argv[n], "--hal-debug"))

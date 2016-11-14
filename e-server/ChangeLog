@@ -1,5 +1,18 @@
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/ServerInfo.cpp (ServerInfo::skipPlatformReset): Remove
+	function.
+	* src/ServerInfo.h (ServerInfo) <skipPlatformResetFlag>: Remove
+	field.
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initHwPlatform): Don't reset platform.
+	* src/main.cpp (usage_full): Remove description for
+	"-skip-platform-reset". Improve "--dont-halt-on-attach description".
+	(usage_summary): Remove "-skip-platform-reset" from usage.
+	(main): Remove "-skip-platform-reset" option.
+
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/Thread.cpp (Thread::isHalted): Never use cached mDebugState
 	member value. Add comment explaining why.
 	(Thread::halt): Use isHalted to get and set value of mDebugState.

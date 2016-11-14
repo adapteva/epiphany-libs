@@ -70,8 +70,6 @@ public:
   // Flag accessors
   void showMemoryMap (const bool _showMemoryMapFlag);
   bool showMemoryMap () const;
-  void skipPlatformReset (const bool _skipPlatformResetFlag);
-  bool skipPlatformReset () const;
   void checkHwAddr (const bool _checkHwAddrFlag);
   bool checkHwAddr () const;
   void haltOnAttach (const bool _haltOnAttachFlag);
@@ -116,7 +114,6 @@ private:
 
   // Command line flags
   bool showMemoryMapFlag;		//!< Show memory and register maps
-  bool skipPlatformResetFlag;           //!< Don't reset on init
   bool checkHwAddrFlag;			//!< Check HW address when used
   bool haltOnAttachFlag;		//!< Don't halt processor when attaching
   bool multiProcessFlag;		//!< Multiprocess model

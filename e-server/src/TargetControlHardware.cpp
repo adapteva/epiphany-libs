@@ -700,17 +700,6 @@ TargetControlHardware::initHwPlatform (platform_definition_t * platform)
 	   << endl;
       exit (EXIT_FAILURE);
     }
-
-  // Optionally reset the platform
-  if (si->skipPlatformReset())
-    {
-      cerr << "Warning: No hardware reset sent to target" << endl;
-    }
-  else if (hwReset () != 0)
-    {
-      cerr << "ERROR: Cannot reset the hardware." << endl;
-      exit (EXIT_FAILURE);
-    }
 }
 
 
