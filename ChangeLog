@@ -1,3 +1,10 @@
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (ee_set_core_config): Rename ...
+	(_ee_set_core_config): ... to this.
+	(ee_set_core_config): "New" function. Added as OMPi 2.0.0
+	compatibility hack. DO NOT USE.
+
 2016-10-06  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/epiphany-hal.c (native_target_ops): Fix typo

@@ -79,8 +79,8 @@ extern void ee_get_coords_from_id(e_epiphany_t *dev, unsigned coreid,
 static e_return_stat_t ee_process_elf(const void *file, e_epiphany_t *dev,
 									  e_mem_t *emem, int row, int col);
 
-static int ee_set_core_config(struct section_info *tbl, e_epiphany_t *dev,
-							  e_mem_t *emem, int row, int col);
+static int _ee_set_core_config(struct section_info *tbl, e_epiphany_t *dev,
+							   e_mem_t *emem, int row, int col);
 
 e_loader_diag_t e_load_verbose = L_D0;
 
@@ -251,7 +251,7 @@ int _e_default_load_group(const char *executable, e_epiphany_t *dev,
 				goto out;
 			}
 
-			ee_set_core_config(tbl, dev, &emem, irow, icol);
+			_ee_set_core_config(tbl, dev, &emem, irow, icol);
 		}
 	}
 
@@ -298,8 +298,8 @@ static void lookup_sections(const void *file, struct section_info *tbl,
 	}
 }
 
-static int ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany,
-							  e_mem_t *pEMEM, int row, int col)
+static int _ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany,
+							   e_mem_t *pEMEM, int row, int col)
 {
 	e_group_config_t e_group_config;
 	e_emem_config_t  e_emem_config;
@@ -337,6 +337,23 @@ static int ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany,
 	return 0;
 }
 
+/* Do not use this function, it is only here for OMPI 2.0.0 */
+int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM,
+					   int row, int col)
+{
+	struct section_info tbl[SEC_NUM] = { 0 };
+
+	warnx("WARNING: %() is deprecated and should be used by noone.\n", __func__);
+
+	tbl[SEC_WORKGROUP_CFG].present = true;
+	tbl[SEC_WORKGROUP_CFG].sh_addr = 0x28;
+	tbl[SEC_EXT_MEM_CFG].present   = true;
+	tbl[SEC_EXT_MEM_CFG].sh_addr   = 0x50;
+	tbl[SEC_LOADER_CFG].present    = true;
+	tbl[SEC_LOADER_CFG].sh_addr    = 0x58;
+
+	return _ee_set_core_config(tbl, pEpiphany, pEMEM, row, col);
+}
 
 e_loader_diag_t e_set_loader_verbosity(e_loader_diag_t verbose)
 {
