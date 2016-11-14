@@ -1252,6 +1252,23 @@ int e_reset_group(e_epiphany_t *dev)
 	return ee_reset_group(dev, 0, 0, dev->rows, dev->cols);
 }
 
+static bool gdbserver_attached_p()
+{
+	static bool initialized = false;
+	static bool gdbserver = false;
+	const char *p;
+
+	if (!initialized) {
+		p = getenv("EHAL_GDBSERVER");
+		gdbserver = (p && p[0] != '\0');
+	}
+
+	return gdbserver;
+}
+
+static int e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
+						unsigned rows, unsigned cols);
+
 int _e_default_start_group(e_epiphany_t *dev,
 						   unsigned row, unsigned col,
 						   unsigned rows, unsigned cols)
@@ -1261,6 +1278,11 @@ int _e_default_start_group(e_epiphany_t *dev,
 	int SYNC = (1 << E_SYNC);
 
 	retval = E_OK;
+
+	if (gdbserver_attached_p()) {
+		diag(H_D1) { fprintf(diag_fd, "%s(): EHAL_GDBSERVER set. Setting DEBUGCMD haltbit\n", __func__); }
+		e_halt_group(dev, row, col, rows, cols);
+	}
 
 	diag(H_D1) { fprintf(diag_fd, "%s(): SYNC (0x%x) to workgroup...\n", __func__, E_REG_ILATST); }
 	for (i = row; i < row + rows; i++) {
@@ -1313,6 +1335,13 @@ int e_halt(e_epiphany_t *dev, unsigned row, unsigned col)
 	return E_OK;
 }
 
+static int e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
+						unsigned rows, unsigned cols)
+{
+	for (unsigned r = row; r < row + rows; r++)
+		for (unsigned c = col; c < col + cols; c++)
+			e_halt(dev, r, c);
+}
 
 // Resume a core after halt
 int e_resume(e_epiphany_t *dev, unsigned row, unsigned col)
