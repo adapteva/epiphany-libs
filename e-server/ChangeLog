@@ -1,5 +1,11 @@
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* src/Thread.cpp (Thread::isHalted): Never use cached mDebugState
+	member value. Add comment explaining why.
+	(Thread::halt): Use isHalted to get and set value of mDebugState.
+
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* src/GdbServer.cpp (GdbServer::rspAttach): Respect
 	--dont-halt-on-attach in non-stop mode, ignore it in all-stop mode.
 

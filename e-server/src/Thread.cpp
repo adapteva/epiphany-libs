@@ -134,8 +134,21 @@ Thread::tid () const
 bool
 Thread::isHalted ()
 {
+#if 0
+  /* OJ: Disable caching so e-server can sit in the background and we don't
+     have to start a new e-server between every program run.
+     Until there is a way for the Kernel driver (or e-hal + PAL) to report a
+     chip reset (from another program) to e-server, we must not assume that we
+     know this value (a chip reset clears DEBUGSTATUS) beforehand. Reporting a
+     stale value here can lead to a read from a general-purpose register, while
+     the core is not halted, elsewhere in e-server. Such reads have priority
+     over the core's pipeline, and will corrupt core state as register writes
+     in the E2 (?) stage will be discarded when there is a conflict. Note
+     that we still have a race in here if a reset is issued between a call to
+     isHalted and a call to readReg, but this is the best we can do atm.  */
   if (mDebugState == DEBUG_HALTED)
     return  true;
+#endif
 
   uint32_t debugstatus = readReg (GdbServer::DEBUGSTATUS_REGNUM);
   uint32_t haltStatus = debugstatus & TargetControl::DEBUGSTATUS_HALT_MASK;
@@ -208,7 +221,7 @@ bool
 Thread::halt ()
 {
   // No need to do anything if we are already halted
-  if (DEBUG_HALTED == mDebugState)
+  if (isHalted ())
     return true;
 
   if (!writeReg (GdbServer::DEBUGCMD_REGNUM,
@@ -236,12 +249,10 @@ Thread::halt ()
 	    cerr << "         - unable to access DEBUGSTATUS register."
 		 << endl;
 
-	  mDebugState = DEBUG_RUNNING;
 	  return false;
 	}
     }
 
-  mDebugState = DEBUG_HALTED;
   return true;
 
 }	// halt ();
