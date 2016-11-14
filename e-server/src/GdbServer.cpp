@@ -139,6 +139,9 @@ GdbServer::rspServer (TargetControl* _fTargetControl)
 	  // rspClientNotifications.
 	  mNotifyingP = true;
 
+	  // Auto-detach when client disconnects (or crashes, etc...).
+	  detachAllProcesses ();
+
 	  // Reconnect and stall the processor on a new connection
 	  if (!rsp->rspConnect ())
 	    {
