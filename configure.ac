@@ -143,7 +143,7 @@ AC_ARG_ENABLE(esim,
 AS_IF([test "x$enable_esim" = xyes],
   [AC_CHECK_HEADERS([esim.h], break;, enable_esim=no)])
 AS_IF([test "x$enable_esim" = xyes],
-  AC_CHECK_LIB(esim, es_init, break;, enable_esim=no)])
+  [AC_CHECK_LIB(esim, es_init, break;, enable_esim=no)])
 AM_CONDITIONAL(ENABLE_ESIM, [test "x$enable_esim" = xyes])
 
 AC_ARG_ENABLE(pal-target,
@@ -152,7 +152,7 @@ AC_ARG_ENABLE(pal-target,
 AS_IF([test "x$enable_pal_target" = xyes],
   [AC_CHECK_HEADERS([pal/pal.h], break;, enable_pal_target=no)])
 AS_IF([test "x$enable_pal_target" = xyes],
-  AC_CHECK_LIB(pal, p_init, break;, enable_pal_target=no)])
+  [AC_CHECK_LIB(pal, p_init, break;, enable_pal_target=no)])
 AM_CONDITIONAL(ENABLE_PAL_TARGET, [test "x$enable_pal_target" = xyes])
 
 
