@@ -1,5 +1,10 @@
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/e-loader.c (ee_set_core_config): Fix typo in
+	format string.
+
+2016-11-14  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/epiphany-hal.c (gdbserver_attached_p): New
 	function.
 	(_e_default_start_group): Halt cores, before sending SYNC if

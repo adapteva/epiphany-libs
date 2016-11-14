@@ -343,7 +343,7 @@ int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM,
 {
 	struct section_info tbl[SEC_NUM] = { 0 };
 
-	warnx("WARNING: %() is deprecated and should be used by noone.\n", __func__);
+	warnx("WARNING: %s() is deprecated and should be used by noone.\n", __func__);
 
 	tbl[SEC_WORKGROUP_CFG].present = true;
 	tbl[SEC_WORKGROUP_CFG].sh_addr = 0x28;
