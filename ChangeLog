@@ -1,3 +1,8 @@
+2016-11-15  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (ee_set_core_config): Show deprecation
+	warning once.
+
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/e-loader.c (ee_set_core_config): Fix typo in

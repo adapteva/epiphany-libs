@@ -341,9 +341,13 @@ static int _ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany
 int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM,
 					   int row, int col)
 {
+	static bool warned = false;
 	struct section_info tbl[SEC_NUM] = { 0 };
 
-	warnx("WARNING: %s() is deprecated and should be used by noone.\n", __func__);
+	if (!warned)
+		warnx("WARNING: %s() is deprecated and should be used by noone.\n", __func__);
+
+	warned = true;
 
 	tbl[SEC_WORKGROUP_CFG].present = true;
 	tbl[SEC_WORKGROUP_CFG].sh_addr = 0x28;
