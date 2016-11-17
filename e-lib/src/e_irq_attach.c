@@ -30,7 +30,10 @@
 #undef _USE_SIGNAL_
 #ifndef _USE_SIGNAL_
 
-void e_irq_attach(e_irq_type_t irq, sighandler_t handler)
+
+#undef e_irq_attach
+
+void e_irq_attach(e_irq_type_t irq, e_irqhandler_t handler)
 {
 	unsigned *ivt;
 

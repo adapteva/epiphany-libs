@@ -1,3 +1,11 @@
+2016-11-17  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-lib/include/e_ic.h (e_irqhandler_t): New typedef.
+	(e_irq_attach): Update function prototype. Add cover macro
+	that casts handler argument to e_irqhandler_t.
+	* e-lib/src/e_irq_attach.c: Change handler type to
+	e_irqhandler_t.
+
 2016-11-15  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/e-loader.c (ee_set_core_config): Show deprecation
