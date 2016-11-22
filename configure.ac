@@ -46,6 +46,7 @@ AC_PROG_MAKE_SET
 # AC_PROG_RANLIB # No: is rendered obsolete by `LT_INIT'
 AM_PROG_CC_C_O
 AM_PROG_AR
+AX_CXX_COMPILE_STDCXX_11
 
 
 # Initialize libtool
