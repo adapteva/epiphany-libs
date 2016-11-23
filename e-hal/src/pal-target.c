@@ -86,7 +86,7 @@ static ssize_t pal_read_buf(e_epiphany_t *dev, unsigned row, unsigned col,
 
 	bytes = p_read(&pal->member[rank].mem, buf, offset, size, 0);
 	if (bytes != size)
-		return -E_ERR;
+		return E_ERR;
 
 	return bytes;
 }
@@ -104,7 +104,7 @@ static ssize_t pal_write_buf(e_epiphany_t *dev, unsigned row, unsigned col,
 
 	bytes = p_write(&pal->member[rank].mem, buf, offset, size, 0);
 	if (bytes != size)
-		return -E_ERR;
+		return E_ERR;
 
 	return bytes;
 }
@@ -122,7 +122,7 @@ static int pal_read_word(e_epiphany_t *dev, unsigned row, unsigned col,
 
 	bytes = pal_read_buf(dev, row, col, offset, &data, sizeof(data));
 	if (bytes != sizeof(data))
-		return -E_ERR;
+		return E_ERR;
 
 	return data;
 }
@@ -149,7 +149,7 @@ static int pal_read_reg(e_epiphany_t *dev, unsigned row, unsigned col,
 
 	bytes = pal_read_buf(dev, row, col, offset, &data, sizeof(data));
 	if (bytes != sizeof(data))
-		return -E_ERR;
+		return E_ERR;
 
 	return data;
 }

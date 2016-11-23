@@ -1,5 +1,13 @@
 2016-11-23  Ola Jeppsson  <ola@adapteva.com>
 
+	* e-hal/src/pal-target.c (pal_read_buf): Don't negate E_ERR
+	when returning error.
+	(pal_write_buf): Likewise.
+	(pal_read_word): Likewise.
+	(pal_read_reg): Likewise.
+
+2016-11-23  Ola Jeppsson  <ola@adapteva.com>
+
 	* e-hal/src/e-loader.c (_ee_set_core_config): Support
 	linker scripts that places configuration sections in external
 	ram.
