@@ -304,6 +304,8 @@ static int _ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany
 	e_group_config_t e_group_config;
 	e_emem_config_t  e_emem_config;
 	struct loader_cfg loader_cfg = { 0 };
+	void *to;
+	Elf32_Addr offs;
 
 	loader_cfg.flags = LOADER_BSS_CLEARED_FLAG;
 
@@ -322,17 +324,35 @@ static int _ee_set_core_config(struct section_info *tbl, e_epiphany_t *pEpiphany
 	e_emem_config.objtype   = E_EXT_MEM;
 	e_emem_config.base      = pEMEM->ephy_base;
 
-	if (tbl[SEC_WORKGROUP_CFG].present)
-		e_write(pEpiphany, row, col, tbl[SEC_WORKGROUP_CFG].sh_addr,
-				&e_group_config, sizeof(e_group_config_t));
+	if (tbl[SEC_WORKGROUP_CFG].present) {
+		to = pEpiphany;
+		offs =  tbl[SEC_WORKGROUP_CFG].sh_addr;
+		if (offs >= 0x100000) {
+			to = pEMEM;
+			offs = offs - pEMEM->ephy_base;
+		}
+		e_write(to, row, col, offs, &e_group_config, sizeof(e_group_config_t));
+	}
 
-	if (tbl[SEC_EXT_MEM_CFG].present)
-		e_write(pEpiphany, row, col, tbl[SEC_EXT_MEM_CFG].sh_addr,
-				&e_emem_config, sizeof(e_emem_config_t));
+	if (tbl[SEC_EXT_MEM_CFG].present) {
+		to = pEpiphany;
+		offs =  tbl[SEC_EXT_MEM_CFG].sh_addr;
+		if (offs >= 0x100000) {
+			to = pEMEM;
+			offs = offs - pEMEM->ephy_base;
+		}
+		e_write(to, row, col, offs, &e_emem_config, sizeof(e_emem_config_t));
+	}
 
-	if (tbl[SEC_LOADER_CFG].present)
-		e_write(pEpiphany, row, col, tbl[SEC_LOADER_CFG].sh_addr,
-				&loader_cfg, sizeof(loader_cfg));
+	if (tbl[SEC_LOADER_CFG].present) {
+		to = pEpiphany;
+		offs =  tbl[SEC_LOADER_CFG].sh_addr;
+		if (offs >= 0x100000) {
+			to = pEMEM;
+			offs = offs - pEMEM->ephy_base;
+		}
+		e_write(to, row, col, offs, &loader_cfg, sizeof(loader_cfg));
+	}
 
 	return 0;
 }

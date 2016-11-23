@@ -1,3 +1,9 @@
+2016-11-23  Ola Jeppsson  <ola@adapteva.com>
+
+	* e-hal/src/e-loader.c (_ee_set_core_config): Support
+	linker scripts that places configuration sections in external
+	ram.
+
 2016-11-22  Ola Jeppsson  <ola@adapteva.com>
 
 	* configure.ac: Call AX_CXX_COMPILE_STDCXX_11.
