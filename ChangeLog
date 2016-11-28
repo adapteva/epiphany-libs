@@ -1,3 +1,8 @@
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-lib/src/e_mutex_barrier_init.c (e_barrier_init): Remove
+	unnecessary 'numcores' local.
+
 2016-11-23  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/pal-target.c (pal_read_buf): Don't negate E_ERR

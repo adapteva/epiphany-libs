@@ -30,9 +30,8 @@
 void e_barrier_init(volatile e_barrier_t bar_array[],
 					volatile e_barrier_t *tgt_bar_array[])
 {
-	unsigned int corenum, numcores, i, j;
+	unsigned int corenum, i, j;
 
-	numcores = e_group_config.group_rows * e_group_config.group_cols;
 	corenum  = e_group_config.core_row * e_group_config.group_cols + e_group_config.core_col;
 
 	/* Previously, bar_array was cleared here. That's incorrect
