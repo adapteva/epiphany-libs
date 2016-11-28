@@ -1,5 +1,10 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-hal/src/epiphany-hal.c (e_init, ee_soft_reset_core)
+	(populate_platform_native): Remove unneeded locals.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-hal/src/e-loader.c (ee_set_core_config): Add another pair of
 	braces to 'tbl''s initializer.
 

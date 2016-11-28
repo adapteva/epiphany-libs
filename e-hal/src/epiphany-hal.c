@@ -81,7 +81,6 @@ e_platform_t e_platform = {
 // Initialize Epiphany platform according to configuration found in the HDF
 int e_init(char *hdf)
 {
-	char *hdf_env, *esdk_env, hdf_dfl[1024];
 	int i;
 
 	// Init global file descriptor
@@ -1115,7 +1114,6 @@ uint8_t soft_reset_payload[] = {
 int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 {
 	int i;
-	uint32_t status;
 	bool fail;
 
 	if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 1)) {
@@ -1848,7 +1846,6 @@ bool ee_pal_target_p()
 static int populate_platform_native(e_platform_t *platform, char *hdf)
 {
 	char *hdf_env, *esdk_env, hdf_dfl[1024];
-	int i;
 
 	// Parse HDF, get platform configuration
 	if (hdf == NULL)
