@@ -52,7 +52,6 @@ int main(int argc, char *argv[])
 	e_bool_t isexternal;
 	int row, col, i, args, iarg, opts;
 	unsigned addr, inval;
-	char buf[256];
 
 	iarg = 1;
 	opts = 0;
@@ -115,9 +114,14 @@ int main(int argc, char *argv[])
 
 
 	if (argc < args)
+	{
+		char *buf = NULL;
+		size_t len = 0;
 		do {
+
 			printf("[0x%08x] = ", addr);
-			gets(buf);
+			if (getline(&buf, &len, stdin) == -1)
+				break;
 			trim_str(buf);
 			if (strlen(buf) == 0)
 				break;
@@ -125,6 +129,8 @@ int main(int argc, char *argv[])
 			e_write(dev, 0, 0, addr, &inval, sizeof(inval));
 			addr = addr + sizeof(int);
 		} while (1);
+		free (buf);
+	}
 	else
 		for (i=iarg; i<argc; i++)
 		{
