@@ -1,5 +1,11 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-lib/src/e_trace.c: Include <string.h>.
+	(trace_write): Use memcpy instead of dereferencing type-punned
+	pointer.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-lib/src/e_mutex_barrier_init.c (e_barrier_init): Remove
 	unnecessary 'numcores' local.
 
