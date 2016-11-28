@@ -1264,8 +1264,8 @@ static bool gdbserver_attached_p()
 	return gdbserver;
 }
 
-static int e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
-						unsigned rows, unsigned cols);
+static void e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
+			 unsigned rows, unsigned cols);
 
 int _e_default_start_group(e_epiphany_t *dev,
 						   unsigned row, unsigned col,
@@ -1333,8 +1333,8 @@ int e_halt(e_epiphany_t *dev, unsigned row, unsigned col)
 	return E_OK;
 }
 
-static int e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
-						unsigned rows, unsigned cols)
+static void e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
+			 unsigned rows, unsigned cols)
 {
 	for (unsigned r = row; r < row + rows; r++)
 		for (unsigned c = col; c < col + cols; c++)
@@ -1872,6 +1872,8 @@ static int populate_platform_native(e_platform_t *platform, char *hdf)
 		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
 		return E_ERR;
 	}
+
+	return E_OK;
 }
 
 static int init_native()
