@@ -1,5 +1,9 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-utils/src/e-reset.c (main): Remove unused 'imask' local.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-utils/src/e-reset.c: Include <string.h>.
 
 2016-11-28  Pedro Alves  <pedro@palves.net>

@@ -36,7 +36,7 @@ e_epiphany_t Epiphany, *pEpiphany;
 int main(int argc, char *argv[])
 {
 	int irow, icol;
-	unsigned cid, cfg, stat, pc, imask;
+	unsigned cid, cfg, stat, pc;
 	e_bool_t testme;
 
 	pEpiphany = &Epiphany;
