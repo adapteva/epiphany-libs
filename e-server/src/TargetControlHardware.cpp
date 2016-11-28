@@ -74,7 +74,8 @@ TargetControlHardware::readMem32 (CoreId coreId,
   uint32_t data32;
 
   retSt = readMem (coreId, addr, data32, 4);
-  data = data32;
+  if (retSt)
+    data = data32;
 
   return retSt;
 }
@@ -89,7 +90,8 @@ TargetControlHardware::readMem16 (CoreId coreId,
   uint32_t data32;
 
   retSt = readMem (coreId, addr, data32, 2);
-  data = data32 & 0x0000ffff;
+  if (retSt)
+    data = data32 & 0x0000ffff;
 
   return retSt;
 }
@@ -104,7 +106,8 @@ TargetControlHardware::readMem8 (CoreId coreId,
   uint32_t data32;
 
   retSt = readMem (coreId, addr, data32, 1);
-  data = data32 & 0x000000ff;
+  if (retSt)
+    data = data32 & 0x000000ff;
 
   return retSt;
 }

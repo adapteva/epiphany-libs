@@ -1,6 +1,14 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
 	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readMem32)
+	(TargetControlHardware::readMem16)
+	(TargetControlHardware::readMem8): Check result of readMem before
+	accessing the read-in data.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* src/TargetControlHardware.cpp
 	(TargetControlHardware::initPlatform): Remove unused 'err' local.
 	(TargetControlHardware::writeTo, TargetControlHardware::readFrom):
 	Remove unused 'coreid' locals.
