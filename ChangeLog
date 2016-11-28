@@ -1,5 +1,9 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-hal/src/e-loader.c (lookup_sections): Remove 'phdr' local.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-lib/src/e_trace.c: Include <string.h>.
 	(trace_write): Use memcpy instead of dereferencing type-punned
 	pointer.
