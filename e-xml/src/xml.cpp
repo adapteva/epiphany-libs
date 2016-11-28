@@ -28,9 +28,11 @@ Authored, 2007 - Michael Chourdakis
 #endif
 #endif
 
+#ifdef _MSC_VER
 #pragma warning (disable:4244)
 #pragma warning (disable:4267)
 #pragma warning (disable:4800)
+#endif
 
 #if defined(__linux__) || defined(WINCE) || defined(VXWORKS)
 #define strcmpi(a,b) strcmp(a,b)

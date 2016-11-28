@@ -1,5 +1,10 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-xml/src/xml.cpp: Guard Microsoft Visual Studio warnings behind
+	_MSC_VER.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-xml/src/epiphany_xml.cpp (EpiphanyXML::ExtractAttr): Constify
 	'attr' parameter.
 	(EpiphanyXML::ExtractAttr): Constify 'name' parameter.
