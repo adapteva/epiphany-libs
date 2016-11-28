@@ -1,5 +1,20 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-xml/src/epiphany_xml.cpp (EpiphanyXML::ExtractAttr): Constify
+	'attr' parameter.
+	(EpiphanyXML::ExtractAttr): Constify 'name' parameter.
+	* e-xml/src/epiphany_xml.h (EpiphanyXML::ExtractAttr): Constify
+	'attr' parameter.
+	(EpiphanyXML::ExtractAttr): Constify 'name' parameter.
+	* e-xml/src/xml.cpp (XMLElement::FindVariableZ): Constify 'x'
+	parameter.
+	(XMLHeader::SetEncoding): Constify 'e' parameter.
+	* e-xml/src/xml.h (XMLElement::FindVariableZ): Constify 'x'
+	parameter.
+	(XMLHeader::SetEncoding): Constify 'e' parameter.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-hal/src/epiphany-hal.c (e_halt_group): Avoid 'for' loop
 	initial declarations.
 

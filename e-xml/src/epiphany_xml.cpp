@@ -39,7 +39,7 @@ extern "C"
 }
 
 // Extract a string value from an attribute
-int EpiphanyXML::ExtractAttr(XMLElement* element, char** value, char* attr)
+int EpiphanyXML::ExtractAttr(XMLElement* element, char** value, const char* attr)
 {
 	// Given the attribute's name, find it in the element.
 	XMLVariable* v = element->FindVariableZ(attr);
@@ -64,7 +64,7 @@ int EpiphanyXML::ExtractAttr(XMLElement* element, char** value, char* attr)
 }
 
 // Extract an unsigned value from an attribute
-int EpiphanyXML::ExtractAttr(XMLElement* element, unsigned* uns_p, char* name)
+int EpiphanyXML::ExtractAttr(XMLElement* element, unsigned* uns_p, const char* name)
 {
 	char buf[128];
 	XMLVariable* v;

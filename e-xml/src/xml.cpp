@@ -3284,7 +3284,7 @@ int XMLElement :: FindVariable(char*  x)
    return -1;
    }
 
-XMLVariable* XMLElement :: FindVariableZ(char*  x,bool ForceCreate,char* defnew)
+XMLVariable* XMLElement :: FindVariableZ(const char*  x,bool ForceCreate,char* defnew)
    {
    for(unsigned int i = 0 ; i < variablesnum ; i++)
       {
@@ -4454,7 +4454,7 @@ XMLHeader :: operator char*()
    return hdr;
    }   
 
-void XMLHeader :: SetEncoding(char* e)
+void XMLHeader :: SetEncoding(const char* e)
 	{
 	// 
 	Z<char> nt(1000);
