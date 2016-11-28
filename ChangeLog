@@ -1,5 +1,10 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-hal/src/e-loader.c (ee_set_core_config): Add another pair of
+	braces to 'tbl''s initializer.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-hal/src/e-loader.c (lookup_sections): Remove 'phdr' local.
 
 2016-11-28  Pedro Alves  <pedro@palves.net>

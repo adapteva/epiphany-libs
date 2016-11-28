@@ -360,7 +360,7 @@ int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM,
 					   int row, int col)
 {
 	static bool warned = false;
-	struct section_info tbl[SEC_NUM] = { 0 };
+	struct section_info tbl[SEC_NUM] = { { 0 } };
 
 	if (!warned)
 		warnx("WARNING: %s() is deprecated and should be used by noone.\n", __func__);
