@@ -653,8 +653,9 @@ TargetControlHardware::isLocalAddr (uint32_t  addr) const
 bool
 TargetControlHardware::isExternalMem (uint32_t addr) const
 {
-  return (mEmem.ephy_base <= addr
-	  && addr - mEmem.ephy_base < mEmem.emap_size);
+  /* mEmem.ephy_base is signed (off_t).  */
+  uint32_t base = (uint32_t) mEmem.ephy_base;
+  return (base <= addr && addr - base < mEmem.emap_size);
 
 }	// isExternalMem ();
 
@@ -965,14 +966,15 @@ TargetControlHardware::writeTo (unsigned int  address,
 {
   uint32_t coreid, offset, row, col;
   ssize_t size;
+  /* mEmem.ephy_base is signed (off_t).  */
+  uint32_t base = (uint32_t) mEmem.ephy_base;
 
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: writeTo (0x" << intStr (address, 16, 8) << ", "
 	 << (void *) buf << ", " << burstSize << ")" << endl;
 
-  if (mEmem.ephy_base <= address
-      && address + burstSize - mEmem.ephy_base < mEmem.emap_size)
-    return e_write (&mEmem, 0, 0, address - mEmem.ephy_base, buf, burstSize);
+  if (base <= address && address + burstSize - base < mEmem.emap_size)
+    return e_write (&mEmem, 0, 0, address - base, buf, burstSize);
 
   if (!addrToCoords(address, row, col, offset))
     return 0;
@@ -996,14 +998,15 @@ TargetControlHardware::readFrom (unsigned  address,
 {
   uint32_t coreid, offset, row, col;
   ssize_t size;
+  /* mEmem.ephy_base is signed (off_t).  */
+  uint32_t base = (uint32_t) mEmem.ephy_base;
 
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: readFrom (0x" << intStr (address, 16, 8) << ", "
 	   << (void *) buf << ", " << burstSize << ")" << endl;
 
-  if (mEmem.ephy_base <= address
-      && address + burstSize - mEmem.ephy_base < mEmem.emap_size)
-    return e_read (&mEmem, 0, 0, address - mEmem.ephy_base, buf, burstSize);
+  if (base <= address && address + burstSize - base < mEmem.emap_size)
+    return e_read (&mEmem, 0, 0, address - base, buf, burstSize);
 
   if (!addrToCoords(address, row, col, offset))
     return 0;

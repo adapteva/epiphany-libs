@@ -1,5 +1,12 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::isExternalMem)
+	(TargetControlHardware::readFrom): Cast mEmem.ephy_base to
+	uint32_t.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::hideBreakpoints)
 	(GdbServer::unhideBreakpoints): Change return type to void.
 	* src/GdbServer.h (GdbServer::hideBreakpoints)
