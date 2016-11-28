@@ -1,5 +1,9 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-hal/src/epiphany-shm-manager.c (shm_alloc_region): Add casts.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-hal/src/epiphany-hal.c (e_halt_group): Change return type to
 	void.
 	(populate_platform_native): Return E_OK.
