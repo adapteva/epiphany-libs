@@ -912,7 +912,6 @@ TargetControlHardware::convertAddress (CoreId relCoreId,
 int
 TargetControlHardware::initPlatform (unsigned int verbose)
 {
-  int err = 0;
   if (si->debugHwDetail ())
       cerr << "DebugHwDetail: initPlatform (" << verbose << ")" << endl;
 
@@ -964,7 +963,7 @@ TargetControlHardware::writeTo (unsigned int  address,
 				void*         buf,
 				size_t        burstSize)
 {
-  uint32_t coreid, offset, row, col;
+  uint32_t offset, row, col;
   ssize_t size;
   /* mEmem.ephy_base is signed (off_t).  */
   uint32_t base = (uint32_t) mEmem.ephy_base;
@@ -996,7 +995,7 @@ TargetControlHardware::readFrom (unsigned  address,
 				 void*     buf,
 				 size_t    burstSize)
 {
-  uint32_t coreid, offset, row, col;
+  uint32_t offset, row, col;
   ssize_t size;
   /* mEmem.ephy_base is signed (off_t).  */
   uint32_t base = (uint32_t) mEmem.ephy_base;

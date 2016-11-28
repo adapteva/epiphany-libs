@@ -1,6 +1,13 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
 	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initPlatform): Remove unused 'err' local.
+	(TargetControlHardware::writeTo, TargetControlHardware::readFrom):
+	Remove unused 'coreid' locals.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* src/TargetControlHardware.cpp
 	(TargetControlHardware::isExternalMem)
 	(TargetControlHardware::readFrom): Cast mEmem.ephy_base to
 	uint32_t.
