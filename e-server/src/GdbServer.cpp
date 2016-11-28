@@ -326,7 +326,6 @@ GdbServer::haltAndActivateAllThreads ()
 void
 GdbServer::rspAttach ()
 {
-  bool isHalted = true;
   unsigned long int pid = strtoul (&pkt->data[8], NULL, 16);
 
   /* Check if we're already attached to PID.  */
@@ -351,7 +350,7 @@ GdbServer::rspAttach ()
   ProcessInfo *process = (*it).second;
   mAttachedProcesses[pid] = process;
 
-  isHalted = haltAndActivateProcess (process);
+  haltAndActivateProcess (process);
 
   if (mDebugMode == NON_STOP)
     {
@@ -1305,7 +1304,6 @@ GdbServer::rspWriteAllRegs ()
 void
 GdbServer::rspSetThread ()
 {
-  char  c;
   Thread* thread;
 
   if (pkt->data[0] != 'H' || pkt->data[1] != 'g')
@@ -3524,7 +3522,6 @@ GdbServer::resumeAllProcessThreads (ProcessInfo* process)
 bool
 GdbServer::resumeAllThreads ()
 {
-  ProcessInfo *process = mCurrentThread->process ();
   bool allResumed = true;
 
   for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();
