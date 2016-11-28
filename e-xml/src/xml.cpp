@@ -5033,14 +5033,16 @@ Z<char>* XML :: ReadToZ(const char* file,XMLTransform* eclass,class XMLTransform
    if (eclass == 0)
       {
       y = new Z<char>(S + 32);
-      fread((*y).operator char *(),1,S,fp);
+      size_t res = fread((*y).operator char *(),1,S,fp);
+      assert (res == (size_t) S);
       fclose(fp);
       }
    else
       {
       Z<char> yy(S + 32);
       y = new Z<char>(S + 32);
-      fread(yy.operator char *(),1,S,fp);
+      size_t res = fread(yy.operator char *(),1,S,fp);
+      assert (res == (size_t) S);
       fclose(fp);
 
       //eclass->Prepare(edata);
