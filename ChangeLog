@@ -1,5 +1,9 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-utils/src/e-reset.c: Include <string.h>.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-xml/src/xml.cpp (XML::ReadToZ): Assert fread's expected return.
 
 2016-11-28  Pedro Alves  <pedro@palves.net>
