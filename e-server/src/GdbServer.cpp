@@ -3284,7 +3284,7 @@ copyInsn (uint32_t mem_addr, uint8_t* mem_buf, size_t len,
 //! breakpoint replaced.  MEM_BUF contains a copy of the raw memory
 //! from the target.
 //-----------------------------------------------------------------------------
-bool
+void
 GdbServer::hideBreakpoints (Thread *thread,
 			    uint32_t mem_addr, uint8_t* mem_buf, size_t len)
 {
@@ -3312,7 +3312,7 @@ GdbServer::hideBreakpoints (Thread *thread,
 
 //! MEM_BUF contains a copy of the raw memory from the target.
 //-----------------------------------------------------------------------------
-bool
+void
 GdbServer::unhideBreakpoints (Thread *thread,
 			      uint32_t mem_addr, uint8_t* mem_buf, size_t len)
 {
