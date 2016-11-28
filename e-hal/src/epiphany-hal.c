@@ -1336,8 +1336,10 @@ int e_halt(e_epiphany_t *dev, unsigned row, unsigned col)
 static void e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
 			 unsigned rows, unsigned cols)
 {
-	for (unsigned r = row; r < row + rows; r++)
-		for (unsigned c = col; c < col + cols; c++)
+	unsigned r, c;
+
+	for (r = row; r < row + rows; r++)
+		for (c = col; c < col + cols; c++)
 			e_halt(dev, r, c);
 }
 
