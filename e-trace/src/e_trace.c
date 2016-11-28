@@ -346,6 +346,7 @@ void trace_stop()
  */
 int trace_file_open(char *optionField)
 {
+	int retVal;
 	unsigned hdrBuf[32]; // 128 byte file header
 	char fName[1024];
 	char timeStr[255]; // temporary string for filename
@@ -373,7 +374,14 @@ int trace_file_open(char *optionField)
 	hdrBuf[4] = 0xE3ACE002;
 	hdrBuf[5] = traceStartTime.tv_sec;
 	hdrBuf[6] = traceStartTime.tv_usec;
-	write(traceFileHdl,hdrBuf,128); // write header to buffer
+	retVal = write(traceFileHdl,hdrBuf,128); // write header to buffer
+	if(retVal < 0 ) {
+		// we got an error just return with -1;
+		fprintf(stderr,"Error write failed with %s\n", strerror(errno));
+		close(traceFileHdl);
+		traceFileHdl = -1; // invalid
+		return -1;
+	}
 	//fprintf(stderr,"Created file %s handle is %2d\n",fName, traceFileHdl );
 	return 0;
 }
@@ -383,6 +391,7 @@ int trace_file_open(char *optionField)
  */
 int trace_file_close()
 {
+	int retVal;
 	unsigned trlBuf[6];
 	trlBuf[0] = 0xE3ACE001;
 	trlBuf[1] = 0xE3ACE001;
@@ -392,7 +401,12 @@ int trace_file_close()
 	trlBuf[5] = 0xE3ACE001;
 
 	if(traceFileHdl < 0) return -1; // invalid handle return
-	write(traceFileHdl,trlBuf, sizeof(trlBuf));
+	retVal = write(traceFileHdl,trlBuf, sizeof(trlBuf));
+	if(retVal < 0 ) {
+		// we got an error just return with -1;
+		fprintf(stderr,"Error write failed with %s\n", strerror(errno));
+		return -1;
+	}
 	close(traceFileHdl);
 	traceFileHdl = -1; // invalid
 	return 0;

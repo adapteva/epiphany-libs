@@ -1,5 +1,10 @@
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
+	* e-trace/src/e_trace.c (trace_file_open, trace_file_close):
+	Handle errors from 'write'.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
 	* e-utils/src/e-write.c (main): Use getline instead of gets.
 
 2016-11-28  Pedro Alves  <pedro@palves.net>
