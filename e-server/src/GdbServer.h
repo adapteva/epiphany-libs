@@ -208,11 +208,18 @@ private:
   //! Map of process ID to process info
   typedef map <int, ProcessInfo *> PidProcessInfoMap;
 
+  //! Map of process ID to elf filename.
+  typedef map <int, std::string> PidElfFilenameMap;
+
   // All processes in the system.
   PidProcessInfoMap mProcesses;
 
   // All processes we're attached to.
   PidProcessInfoMap mAttachedProcesses;
+
+  // The program name of processes.  Kept as a separate table simply
+  // because we're emulating retrieving this info out of e-hal.
+  PidElfFilenameMap mPidElfFilenameMap;
 
   //! The idle process
   ProcessInfo * mIdleProcess;
@@ -269,6 +276,9 @@ private:
   //! String for qXfer:threads
   string qXferThreadsReply;
 
+  //! String for qXfer:exec-file
+  string qXferExecFileReply;
+
   // Helper functions for setting up a connection
   void initProcesses ();
   bool haltAndActivateProcess (ProcessInfo *process);
@@ -298,6 +308,9 @@ private:
   void rspCommand ();
   void rspCmdWorkgroup (char* cmd);
 
+  string getProcessFilename (int pid);
+  void rspCmdProgram (char *cmd);
+
   void rspTransfer ();
   typedef string (GdbServer::* makeTransferReplyFtype) (void);
   void rspTransferObject (const char *object,
@@ -305,6 +318,7 @@ private:
 			  makeTransferReplyFtype maker,
 			  unsigned int offset,
 			  unsigned int length);
+  string rspMakeTransferExecFileReply ();
   string rspMakeTransferFeaturesReply ();
   string rspMakeTransferThreadsReply ();
   string rspMakeOsDataReply ();

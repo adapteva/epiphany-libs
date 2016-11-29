@@ -1,5 +1,24 @@
 2016-11-29  Pedro Alves  <pedro@palves.net>
 
+	* src/GdbServer.cpp (std::istringstream): Import.
+	(GdbServer::rspQuery): Report support for qXfer:exec-file:read.
+	(GdbServer::rspCommand): Handle "program".
+	(GdbServer::rspCmdProgram)
+	(GdbServer::rspMakeTransferExecFileReply): New methods.
+	(GdbServer::rspTransfer): Handle "exec-file".
+	(GdbServer::getProcessFilename): New method.
+	(GdbServer::rspMakeOsDataProcessesReply): List the process's
+	program name.
+	* src/GdbServer.h (GdbServer::PidElfFilenameMap): New typedef.
+	(GdbServer::mPidElfFilenameMap, GdbServer::qXferExecFileReply):
+	New fields.
+	(GdbServer::getProcessFilename, GdbServer::rspCmdProgram): New
+	declarations.
+	* src/Utils.cpp (Utils::trim): New static method.
+	* src/Utils.h (Utils::trim): Declare.
+
+2016-11-29  Pedro Alves  <pedro@palves.net>
+
 	* src/GdbServer.cpp (GdbServer::rspQuery) Report support for
 	qXfer:features:read.
 	(GdbServer::rspMakeTransferFeaturesReply): New method.
