@@ -1,3 +1,84 @@
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-trace/src/e_trace.c (trace_file_open, trace_file_close):
+	Handle errors from 'write'.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-utils/src/e-write.c (main): Use getline instead of gets.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-utils/src/e-reset.c (main): Remove unused 'imask' local.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-utils/src/e-reset.c: Include <string.h>.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-xml/src/xml.cpp (XML::ReadToZ): Assert fread's expected return.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-xml/src/xml.cpp: Guard Microsoft Visual Studio warnings behind
+	_MSC_VER.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-xml/src/epiphany_xml.cpp (EpiphanyXML::ExtractAttr): Constify
+	'attr' parameter.
+	(EpiphanyXML::ExtractAttr): Constify 'name' parameter.
+	* e-xml/src/epiphany_xml.h (EpiphanyXML::ExtractAttr): Constify
+	'attr' parameter.
+	(EpiphanyXML::ExtractAttr): Constify 'name' parameter.
+	* e-xml/src/xml.cpp (XMLElement::FindVariableZ): Constify 'x'
+	parameter.
+	(XMLHeader::SetEncoding): Constify 'e' parameter.
+	* e-xml/src/xml.h (XMLElement::FindVariableZ): Constify 'x'
+	parameter.
+	(XMLHeader::SetEncoding): Constify 'e' parameter.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-hal/src/epiphany-hal.c (e_halt_group): Avoid 'for' loop
+	initial declarations.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-hal/src/epiphany-shm-manager.c (shm_alloc_region): Add casts.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-hal/src/epiphany-hal.c (e_halt_group): Change return type to
+	void.
+	(populate_platform_native): Return E_OK.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-hal/src/epiphany-hal.c (e_init, ee_soft_reset_core)
+	(populate_platform_native): Remove unneeded locals.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-hal/src/e-loader.c (ee_set_core_config): Add another pair of
+	braces to 'tbl''s initializer.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-hal/src/e-loader.c (lookup_sections): Remove 'phdr' local.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-lib/src/e_trace.c: Include <string.h>.
+	(trace_write): Use memcpy instead of dereferencing type-punned
+	pointer.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-lib/src/e_mutex_barrier_init.c (e_barrier_init): Remove
+	unnecessary 'numcores' local.
+
 2016-11-23  Ola Jeppsson  <ola@adapteva.com>
 
 	* e-hal/src/pal-target.c (pal_read_buf): Don't negate E_ERR

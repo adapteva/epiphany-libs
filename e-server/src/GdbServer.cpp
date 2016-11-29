@@ -1310,7 +1310,6 @@ GdbServer::rspWriteAllRegs ()
 void
 GdbServer::rspSetThread ()
 {
-  char  c;
   Thread* thread;
 
   if (pkt->data[0] != 'H' || pkt->data[1] != 'g')
@@ -3314,7 +3313,7 @@ copyInsn (uint32_t mem_addr, uint8_t* mem_buf, size_t len,
 //! breakpoint replaced.  MEM_BUF contains a copy of the raw memory
 //! from the target.
 //-----------------------------------------------------------------------------
-bool
+void
 GdbServer::hideBreakpoints (Thread *thread,
 			    uint32_t mem_addr, uint8_t* mem_buf, size_t len)
 {
@@ -3342,7 +3341,7 @@ GdbServer::hideBreakpoints (Thread *thread,
 
 //! MEM_BUF contains a copy of the raw memory from the target.
 //-----------------------------------------------------------------------------
-bool
+void
 GdbServer::unhideBreakpoints (Thread *thread,
 			      uint32_t mem_addr, uint8_t* mem_buf, size_t len)
 {
@@ -3552,7 +3551,6 @@ GdbServer::resumeAllProcessThreads (ProcessInfo* process)
 bool
 GdbServer::resumeAllThreads ()
 {
-  ProcessInfo *process = mCurrentThread->process ();
   bool allResumed = true;
 
   for (PidProcessInfoMap::iterator proc_it = mAttachedProcesses.begin ();

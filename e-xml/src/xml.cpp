@@ -28,9 +28,11 @@ Authored, 2007 - Michael Chourdakis
 #endif
 #endif
 
+#ifdef _MSC_VER
 #pragma warning (disable:4244)
 #pragma warning (disable:4267)
 #pragma warning (disable:4800)
+#endif
 
 #if defined(__linux__) || defined(WINCE) || defined(VXWORKS)
 #define strcmpi(a,b) strcmp(a,b)
@@ -3284,7 +3286,7 @@ int XMLElement :: FindVariable(char*  x)
    return -1;
    }
 
-XMLVariable* XMLElement :: FindVariableZ(char*  x,bool ForceCreate,char* defnew)
+XMLVariable* XMLElement :: FindVariableZ(const char*  x,bool ForceCreate,char* defnew)
    {
    for(unsigned int i = 0 ; i < variablesnum ; i++)
       {
@@ -4454,7 +4456,7 @@ XMLHeader :: operator char*()
    return hdr;
    }   
 
-void XMLHeader :: SetEncoding(char* e)
+void XMLHeader :: SetEncoding(const char* e)
 	{
 	// 
 	Z<char> nt(1000);
@@ -5031,14 +5033,16 @@ Z<char>* XML :: ReadToZ(const char* file,XMLTransform* eclass,class XMLTransform
    if (eclass == 0)
       {
       y = new Z<char>(S + 32);
-      fread((*y).operator char *(),1,S,fp);
+      size_t res = fread((*y).operator char *(),1,S,fp);
+      assert (res == (size_t) S);
       fclose(fp);
       }
    else
       {
       Z<char> yy(S + 32);
       y = new Z<char>(S + 32);
-      fread(yy.operator char *(),1,S,fp);
+      size_t res = fread(yy.operator char *(),1,S,fp);
+      assert (res == (size_t) S);
       fclose(fp);
 
       //eclass->Prepare(edata);

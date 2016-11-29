@@ -54,8 +54,8 @@ public:
 	unsigned               Version();
 
 private:
-	int  ExtractAttr(XMLElement* element, char** value, char* attr);
-	int  ExtractAttr(XMLElement* element, unsigned* value, char* attr);
+	int  ExtractAttr(XMLElement* element, char** value, const char* attr);
+	int  ExtractAttr(XMLElement* element, unsigned* value, const char* attr);
 	int  ExtractCoords(XMLElement* element, unsigned* yid, unsigned* xid);
 	int  ExtractIOReg(XMLElement* element, unsigned* col, unsigned* row);
 	void ExtractChips(XMLElement* child);

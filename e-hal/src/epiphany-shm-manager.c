@@ -392,7 +392,7 @@ shm_alloc_region(e_shmtable_t *tbl, const char *name, size_t size)
 			region->shm_seg.offset = ((char*)region->shm_seg.addr) -
 				((char*)tbl);
 
-			region->shm_seg.paddr = ((char*)tbl->paddr_epi) + 
+			region->shm_seg.paddr = ((char*)(uintptr_t)tbl->paddr_epi) +
 				region->shm_seg.offset;
 			
 			region->shm_seg.size = size;
@@ -406,7 +406,7 @@ shm_alloc_region(e_shmtable_t *tbl, const char *name, size_t size)
 						(unsigned long)region->shm_seg.addr,
 						(unsigned long)region->shm_seg.paddr,
 						(unsigned)region->shm_seg.offset,
-						region->shm_seg.size);
+						(unsigned)region->shm_seg.size);
 			}
 			
 			break;

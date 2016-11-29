@@ -81,7 +81,6 @@ e_platform_t e_platform = {
 // Initialize Epiphany platform according to configuration found in the HDF
 int e_init(char *hdf)
 {
-	char *hdf_env, *esdk_env, hdf_dfl[1024];
 	int i;
 
 	// Init global file descriptor
@@ -1115,7 +1114,6 @@ uint8_t soft_reset_payload[] = {
 int ee_soft_reset_core(e_epiphany_t *dev, unsigned row, unsigned col)
 {
 	int i;
-	uint32_t status;
 	bool fail;
 
 	if (!(ee_read_reg(dev, row, col, E_REG_DEBUGSTATUS) & 1)) {
@@ -1266,8 +1264,8 @@ static bool gdbserver_attached_p()
 	return gdbserver;
 }
 
-static int e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
-						unsigned rows, unsigned cols);
+static void e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
+			 unsigned rows, unsigned cols);
 
 int _e_default_start_group(e_epiphany_t *dev,
 						   unsigned row, unsigned col,
@@ -1335,11 +1333,13 @@ int e_halt(e_epiphany_t *dev, unsigned row, unsigned col)
 	return E_OK;
 }
 
-static int e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
-						unsigned rows, unsigned cols)
+static void e_halt_group(e_epiphany_t *dev, unsigned row, unsigned col,
+			 unsigned rows, unsigned cols)
 {
-	for (unsigned r = row; r < row + rows; r++)
-		for (unsigned c = col; c < col + cols; c++)
+	unsigned r, c;
+
+	for (r = row; r < row + rows; r++)
+		for (c = col; c < col + cols; c++)
 			e_halt(dev, r, c);
 }
 
@@ -1848,7 +1848,6 @@ bool ee_pal_target_p()
 static int populate_platform_native(e_platform_t *platform, char *hdf)
 {
 	char *hdf_env, *esdk_env, hdf_dfl[1024];
-	int i;
 
 	// Parse HDF, get platform configuration
 	if (hdf == NULL)
@@ -1875,6 +1874,8 @@ static int populate_platform_native(e_platform_t *platform, char *hdf)
 		warnx("e_init(): Error parsing Hardware Definition File (HDF).");
 		return E_ERR;
 	}
+
+	return E_OK;
 }
 
 static int init_native()

@@ -74,7 +74,8 @@ TargetControlHardware::readMem32 (CoreId coreId,
   uint32_t data32;
 
   retSt = readMem (coreId, addr, data32, 4);
-  data = data32;
+  if (retSt)
+    data = data32;
 
   return retSt;
 }
@@ -89,7 +90,8 @@ TargetControlHardware::readMem16 (CoreId coreId,
   uint32_t data32;
 
   retSt = readMem (coreId, addr, data32, 2);
-  data = data32 & 0x0000ffff;
+  if (retSt)
+    data = data32 & 0x0000ffff;
 
   return retSt;
 }
@@ -104,7 +106,8 @@ TargetControlHardware::readMem8 (CoreId coreId,
   uint32_t data32;
 
   retSt = readMem (coreId, addr, data32, 1);
-  data = data32 & 0x000000ff;
+  if (retSt)
+    data = data32 & 0x000000ff;
 
   return retSt;
 }
@@ -653,8 +656,9 @@ TargetControlHardware::isLocalAddr (uint32_t  addr) const
 bool
 TargetControlHardware::isExternalMem (uint32_t addr) const
 {
-  return (mEmem.ephy_base <= addr
-	  && addr - mEmem.ephy_base < mEmem.emap_size);
+  /* mEmem.ephy_base is signed (off_t).  */
+  uint32_t base = (uint32_t) mEmem.ephy_base;
+  return (base <= addr && addr - base < mEmem.emap_size);
 
 }	// isExternalMem ();
 
@@ -900,7 +904,6 @@ TargetControlHardware::convertAddress (CoreId relCoreId,
 int
 TargetControlHardware::initPlatform (unsigned int verbose)
 {
-  int err = 0;
   if (si->debugHwDetail ())
       cerr << "DebugHwDetail: initPlatform (" << verbose << ")" << endl;
 
@@ -952,16 +955,17 @@ TargetControlHardware::writeTo (unsigned int  address,
 				void*         buf,
 				size_t        burstSize)
 {
-  uint32_t coreid, offset, row, col;
+  uint32_t offset, row, col;
   ssize_t size;
+  /* mEmem.ephy_base is signed (off_t).  */
+  uint32_t base = (uint32_t) mEmem.ephy_base;
 
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: writeTo (0x" << intStr (address, 16, 8) << ", "
 	 << (void *) buf << ", " << burstSize << ")" << endl;
 
-  if (mEmem.ephy_base <= address
-      && address + burstSize - mEmem.ephy_base < mEmem.emap_size)
-    return e_write (&mEmem, 0, 0, address - mEmem.ephy_base, buf, burstSize);
+  if (base <= address && address + burstSize - base < mEmem.emap_size)
+    return e_write (&mEmem, 0, 0, address - base, buf, burstSize);
 
   if (!addrToCoords(address, row, col, offset))
     return 0;
@@ -983,16 +987,17 @@ TargetControlHardware::readFrom (unsigned  address,
 				 void*     buf,
 				 size_t    burstSize)
 {
-  uint32_t coreid, offset, row, col;
+  uint32_t offset, row, col;
   ssize_t size;
+  /* mEmem.ephy_base is signed (off_t).  */
+  uint32_t base = (uint32_t) mEmem.ephy_base;
 
   if (si->debugHwDetail ())
     cerr << "DebugHwDetail: readFrom (0x" << intStr (address, 16, 8) << ", "
 	   << (void *) buf << ", " << burstSize << ")" << endl;
 
-  if (mEmem.ephy_base <= address
-      && address + burstSize - mEmem.ephy_base < mEmem.emap_size)
-    return e_read (&mEmem, 0, 0, address - mEmem.ephy_base, buf, burstSize);
+  if (base <= address && address + burstSize - base < mEmem.emap_size)
+    return e_read (&mEmem, 0, 0, address - base, buf, burstSize);
 
   if (!addrToCoords(address, row, col, offset))
     return 0;

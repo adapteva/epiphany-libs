@@ -336,7 +336,7 @@ class LIBEXP XMLElement
 		int FindVariable(XMLVariable*);
       int FindVariable(char*  x);
       XMLVariable* FindVariableZ(XMLVariable*);
-      XMLVariable* FindVariableZ(char* x,bool ForceCreate = false,char* defnew = 0);
+      XMLVariable* FindVariableZ(const char* x,bool ForceCreate = false,char* defnew = 0);
 		int RemoveVariable(unsigned int i);
 		int RemoveVariableAndKeep(unsigned int i,XMLVariable** vr);
 		int RemoveAllVariables();
@@ -467,7 +467,7 @@ class LIBEXP XMLHeader
 		void CompressMemory();
 		bool IntegrityTest();
 		int Compare(XMLHeader*);
-		void SetEncoding(char*);
+		void SetEncoding(const char*);
 		XMLHeader* Duplicate();
 
 

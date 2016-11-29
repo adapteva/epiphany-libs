@@ -1,3 +1,37 @@
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::readMem32)
+	(TargetControlHardware::readMem16)
+	(TargetControlHardware::readMem8): Check result of readMem before
+	accessing the read-in data.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::initPlatform): Remove unused 'err' local.
+	(TargetControlHardware::writeTo, TargetControlHardware::readFrom):
+	Remove unused 'coreid' locals.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* src/TargetControlHardware.cpp
+	(TargetControlHardware::isExternalMem)
+	(TargetControlHardware::readFrom): Cast mEmem.ephy_base to
+	uint32_t.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::hideBreakpoints)
+	(GdbServer::unhideBreakpoints): Change return type to void.
+	* src/GdbServer.h (GdbServer::hideBreakpoints)
+	(GdbServer::unhideBreakpoints): Ditto.
+
+2016-11-28  Pedro Alves  <pedro@palves.net>
+
+	* e-src/GdbServer.cpp (GdbServer::rspAttach)
+	(GdbServer::rspSetThread): Remove unused locals.
+
 2016-11-14  Ola Jeppsson  <ola@adapteva.com>
 
 	* src/ServerInfo.cpp (ServerInfo::skipPlatformReset): Remove

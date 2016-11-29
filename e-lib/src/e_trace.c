@@ -8,6 +8,7 @@
 #include "e_trace.h"
 #include "e_lib.h"
 #include "e_trace_shared.h"
+#include <string.h>
 
 
 /**
@@ -137,7 +138,7 @@ int trace_write(unsigned severity, unsigned event, unsigned breakpoint, unsigned
 	dta[1] = severity | event | breakpoint | logCoreid | data;
 	dta[0] = e_ctimer_get(E_CTIMER_1);
 
-	*traceBufWrPtr++ = *(unsigned long long *)dta;
+	memcpy (traceBufWrPtr++, dta, sizeof (unsigned long long));
 	if((unsigned)traceBufWrPtr >= traceBufEnd) traceBufWrPtr = (unsigned long long*)traceBufStart;
 	return 0;
 }

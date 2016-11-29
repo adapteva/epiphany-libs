@@ -332,9 +332,9 @@ private:
   void rspSuspend ();
   void rspVCtrlC ();
 
-  bool hideBreakpoints (Thread *thread,
+  void hideBreakpoints (Thread *thread,
 			uint32_t addr, uint8_t* buf, size_t len);
-  bool unhideBreakpoints (Thread *thread,
+  void unhideBreakpoints (Thread *thread,
 			  uint32_t addr, uint8_t* buf, size_t len);
 
   // Convenience functions to control and report on the CPU

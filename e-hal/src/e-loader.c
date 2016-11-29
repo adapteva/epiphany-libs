@@ -271,13 +271,11 @@ static void lookup_sections(const void *file, struct section_info *tbl,
 	int i;
 	size_t j;
 	Elf32_Ehdr *ehdr;
-	Elf32_Phdr *phdr;
 	Elf32_Shdr *shdr, *sh_strtab;
 	const char *strtab;
 	uint8_t *src = (uint8_t *) file;
 
 	ehdr = (Elf32_Ehdr *) &src[0];
-	phdr = (Elf32_Phdr *) &src[ehdr->e_phoff];
 	shdr = (Elf32_Shdr *) &src[ehdr->e_shoff];
 	int shnum = ehdr->e_shnum;
 
@@ -362,7 +360,7 @@ int ee_set_core_config(e_epiphany_t *pEpiphany, e_mem_t *pEMEM,
 					   int row, int col)
 {
 	static bool warned = false;
-	struct section_info tbl[SEC_NUM] = { 0 };
+	struct section_info tbl[SEC_NUM] = { { 0 } };
 
 	if (!warned)
 		warnx("WARNING: %s() is deprecated and should be used by noone.\n", __func__);
