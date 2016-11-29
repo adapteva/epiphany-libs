@@ -1,3 +1,12 @@
+2016-11-29  Pedro Alves  <pedro@palves.net>
+
+	* src/GdbServer.cpp (GdbServer::rspQuery) Report support for
+	qXfer:features:read.
+	(GdbServer::rspMakeTransferFeaturesReply): New method.
+	(GdbServer::rspTransfer): Handle "features"
+	* src/GdbServer.h (GdbServer::rspMakeTransferFeaturesReply):
+	Declare.
+
 2016-11-28  Pedro Alves  <pedro@palves.net>
 
 	* src/TargetControlHardware.cpp

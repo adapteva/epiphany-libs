@@ -1577,6 +1577,7 @@ GdbServer::rspQuery ()
       // EOS so the buffer is a well formed string.
       sprintf (pkt->data,
 	       "PacketSize=%x;"
+	       "qXfer:features:read+;"
 	       "qXfer:osdata:read+;"
 	       "qXfer:threads:read+;"
 	       "swbreak+;"
@@ -1896,6 +1897,22 @@ GdbServer::rspMakeTransferThreadsReply ()
 }
 
 //-----------------------------------------------------------------------------
+//! Handle an qXfer:features:read request
+
+string
+GdbServer::rspMakeTransferFeaturesReply ()
+{
+  // Skip the initial new line.
+  return 1 + R"(
+<?xml version="1.0"?>
+<!DOCTYPE target SYSTEM "gdb-target.dtd">
+<target>
+  <architecture>epiphany32</architecture>
+</target>)";
+}
+
+
+//-----------------------------------------------------------------------------
 //! Handle an qXfer:$object:read request
 
 //! @param[in] object  The object requested.
@@ -2025,7 +2042,13 @@ GdbServer::rspTransfer ()
 	}
 
       // Sort out what we have. Remember substrings are recognized
-      if (0 == object.compare ("osdata"))
+      if (0 == object.compare ("features"))
+	{
+	  rspTransferObject ("features", &qXferFeaturesReply,
+			     &GdbServer::rspMakeTransferFeaturesReply,
+			     offset, length);
+	}
+      else if (0 == object.compare ("osdata"))
 	{
 	  if (0 == annex.compare (""))
 	    rspTransferObject ("osdata", &osInfoReply,

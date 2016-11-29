@@ -263,6 +263,9 @@ private:
   //! String for OS mesh traffic
   string  osTrafficReply;
 
+  //! String for qXfer:features
+  string qXferFeaturesReply;
+
   //! String for qXfer:threads
   string qXferThreadsReply;
 
@@ -302,6 +305,7 @@ private:
 			  makeTransferReplyFtype maker,
 			  unsigned int offset,
 			  unsigned int length);
+  string rspMakeTransferFeaturesReply ();
   string rspMakeTransferThreadsReply ();
   string rspMakeOsDataReply ();
   string rspMakeOsDataProcessesReply ();
