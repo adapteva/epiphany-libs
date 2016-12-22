@@ -69,6 +69,7 @@ public:
 			 int  base = 10,
 			 int  width = 0);
 
+  static string trim (const string &s);
 
 private:
 

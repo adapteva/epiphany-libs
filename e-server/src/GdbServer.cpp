@@ -56,6 +56,7 @@ using std::setbase;
 using std::setfill;
 using std::setw;
 using std::stringstream;
+using std::istringstream;
 using std::vector;
 
 
@@ -1577,8 +1578,10 @@ GdbServer::rspQuery ()
       // EOS so the buffer is a well formed string.
       sprintf (pkt->data,
 	       "PacketSize=%x;"
+	       "qXfer:features:read+;"
 	       "qXfer:osdata:read+;"
 	       "qXfer:threads:read+;"
+	       "qXfer:exec-file:read+;"
 	       "swbreak+;"
 	       "QNonStop+;"
 	       "multiprocess+",
@@ -1705,6 +1708,10 @@ GdbServer::rspCommand ()
   else if (strncmp ("workgroup", cmd, strlen ("workgroup")) == 0)
     {
       rspCmdWorkgroup (cmd);
+    }
+  else if (strncmp ("program", cmd, strlen ("program")) == 0)
+    {
+      rspCmdProgram (cmd);
     }
   else if (strcmp ("help", cmd) == 0)
     {
@@ -1858,6 +1865,76 @@ GdbServer::rspCmdWorkgroup (char* cmd)
 
 
 //-----------------------------------------------------------------------------
+//! Handle the "monitor program" command.
+
+//! Format is: "monitor program <pid> [<filename>]
+
+//! @param[in] cmd  The command string for parsing.
+//-----------------------------------------------------------------------------
+void
+GdbServer::rspCmdProgram (char *cmd)
+{
+  string filename;
+  int pid;
+
+  cmd += sizeof ("program") - 1;
+
+  if (!isspace (*cmd))
+    {
+      pkt->packHexstr ("invalid \"monitor program\" command invocation\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  istringstream ss (cmd + 1);
+
+  if (!(ss >> pid))
+    {
+      pkt->packHexstr ("invalid \"monitor program\" command invocation\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  // Errors ignored -- an empty filename clears the previous filename.
+  getline (ss, filename);
+
+  if (!filename.empty () && !isspace (filename[0]))
+    {
+      pkt->packHexstr ("invalid \"monitor program\" command invocation\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  if (!filename.empty ())
+    filename = Utils::trim (filename);
+
+  auto pit = mProcesses.find (pid);
+  if (pit == mProcesses.end ())
+    {
+      pkt->packHexstr ("Process ID not recognized\n");
+      rsp->putPkt (pkt);
+      pkt->packStr ("E01");
+      rsp->putPkt (pkt);
+      return;
+    }
+
+  if (filename.empty ())
+    mPidElfFilenameMap.erase (pid);
+  else
+    mPidElfFilenameMap[pid] = filename;
+
+  pkt->packStr ("OK");
+  rsp->putPkt (pkt);
+
+}	// rspCmdWorkgroup ()
+
+//-----------------------------------------------------------------------------
 //! Build the whole qXfer:threads:read reply string.
 //-----------------------------------------------------------------------------
 
@@ -1894,6 +1971,35 @@ GdbServer::rspMakeTransferThreadsReply ()
 
   return os.str ();
 }
+
+
+//-----------------------------------------------------------------------------
+//! Build the whole qXfer:exec-file:read reply string.
+//-----------------------------------------------------------------------------
+
+string
+GdbServer::rspMakeTransferExecFileReply ()
+{
+  ProcessInfo *process = mCurrentThread->process ();
+  return getProcessFilename (process->pid ());
+}
+
+
+//-----------------------------------------------------------------------------
+//! Handle an qXfer:features:read request
+
+string
+GdbServer::rspMakeTransferFeaturesReply ()
+{
+  // Skip the initial new line.
+  return 1 + R"(
+<?xml version="1.0"?>
+<!DOCTYPE target SYSTEM "gdb-target.dtd">
+<target>
+  <architecture>epiphany32</architecture>
+</target>)";
+}
+
 
 //-----------------------------------------------------------------------------
 //! Handle an qXfer:$object:read request
@@ -2025,7 +2131,19 @@ GdbServer::rspTransfer ()
 	}
 
       // Sort out what we have. Remember substrings are recognized
-      if (0 == object.compare ("osdata"))
+      if (0 == object.compare ("exec-file"))
+	{
+	  rspTransferObject ("exec-file", &qXferExecFileReply,
+			     &GdbServer::rspMakeTransferExecFileReply,
+			     offset, length);
+	}
+      else if (0 == object.compare ("features"))
+	{
+	  rspTransferObject ("features", &qXferFeaturesReply,
+			     &GdbServer::rspMakeTransferFeaturesReply,
+			     offset, length);
+	}
+      else if (0 == object.compare ("osdata"))
 	{
 	  if (0 == annex.compare (""))
 	    rspTransferObject ("osdata", &osInfoReply,
@@ -2111,6 +2229,26 @@ GdbServer::rspMakeOsDataReply ()
 }
 
 //-----------------------------------------------------------------------------
+//! Get the name of the program that a process is running.
+
+//! @param[in] pid  Process ID
+//! @return    string
+//-----------------------------------------------------------------------------
+
+string
+GdbServer::getProcessFilename (int pid)
+{
+  string res;
+
+  // Ideally this would be querying e-hal instead.
+
+  auto it = mPidElfFilenameMap.find (pid);
+  if (it != mPidElfFilenameMap.end ())
+    res = it->second;
+  return res;
+}
+
+//-----------------------------------------------------------------------------
 //! Make an OS processes request reply.
 
 //! We need to return standard data, at this stage with all the cores. The
@@ -2131,12 +2269,14 @@ GdbServer::rspMakeOsDataProcessesReply ()
        pit++)
     {
       ProcessInfo *process = pit->second;
+      std::string filename = getProcessFilename (process->pid ());
+
       reply += "  <item>\n"
 	"    <column name=\"pid\">";
       reply += Utils::intStr (process->pid ());
       reply += "</column>\n"
 	"    <column name=\"user\">root</column>\n"
-	"    <column name=\"command\"></column>\n"
+	"    <column name=\"command\">" + filename + "</column>\n"
 	"    <column name=\"cores\">\n"
 	"      ";
 

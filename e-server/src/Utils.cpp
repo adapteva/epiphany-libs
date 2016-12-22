@@ -306,6 +306,26 @@ Utils::intStr (int  val,
 }	// intStr ()
 
 
+//-----------------------------------------------------------------------------
+//! Convenience function that trims a string
+
+//! @param[in] s      The string to trim
+//-----------------------------------------------------------------------------
+string
+Utils::trim (const string &s)
+{
+    auto it = s.cbegin ();
+    while (it != s.end () && isspace (*it))
+        it++;
+
+    auto rit = s.crbegin ();
+    while (rit.base () != it && isspace (*rit))
+        rit++;
+
+    return string (it, rit.base ());
+}
+
+
 // Local Variables:
 // mode: C++
 // c-file-style: "gnu"
