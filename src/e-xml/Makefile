@@ -25,3 +25,12 @@ SRCS      = \
 
 
 include $(BUILD_ROOT)/build_tools/make_sharedlib.rules
+
+# Don't export symbols by default
+EXTRA_FLAGS = -fvisibility=hidden
+CFLAGS      += ${EXTRA_FLAGS}
+CXXFLAGS    += ${EXTRA_FLAGS}
+
+# Make all API functions visible
+Release/epiphany_xml.o: CXXFLAGS += -fvisibility=default
+Debug/epiphany_xml.o:   CXXFLAGS += -fvisibility=default
