@@ -25,3 +25,6 @@ SRCS      = \
 
 
 include $(BUILD_ROOT)/build_tools/make_sharedlib.rules
+
+# Link with stdc++
+LNK         += -lstdc++
