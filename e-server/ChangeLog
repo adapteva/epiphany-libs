@@ -1,3 +1,8 @@
+2017-09-06  Ola Jeppsson  <ola@adapteva.com>
+
+	* src/Thread.cpp (Thread::regAddr): Fix r50-r62
+	offset typo.
+
 2016-11-29  Pedro Alves  <pedro@palves.net>
 
 	* src/GdbServer.cpp (std::istringstream): Import.
